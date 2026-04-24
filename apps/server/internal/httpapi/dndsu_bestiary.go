@@ -1,7 +1,7 @@
 package httpapi
 
 import (
-	"bytes"
+	"bufio"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,7 +15,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -102,6 +101,35 @@ type bestiaryCache struct {
 	Entries   []bestiaryMonsterCache `json:"entries"`
 }
 
+type bestiaryDiskCache struct {
+	UpdatedAt string                     `json:"updatedAt"`
+	Sync      bestiarySyncStatus         `json:"sync"`
+	Entries   []bestiaryDiskCacheEntry   `json:"entries"`
+}
+
+type bestiaryDiskCacheEntry struct {
+	ID                string  `json:"id"`
+	RemoteID          string  `json:"remoteId"`
+	Slug              string  `json:"slug"`
+	Title             string  `json:"title"`
+	EnglishTitle      string  `json:"englishTitle,omitempty"`
+	Subtitle          string  `json:"subtitle"`
+	Summary           string  `json:"summary"`
+	Challenge         string  `json:"challenge"`
+	ChallengeSort     float64 `json:"challengeSort"`
+	CreatureType      string  `json:"creatureType,omitempty"`
+	CreatureTypeLabel string  `json:"creatureTypeLabel,omitempty"`
+	Size              string  `json:"size,omitempty"`
+	Alignment         string  `json:"alignment,omitempty"`
+	Source            string  `json:"source,omitempty"`
+	URL               string  `json:"url"`
+	SearchText        string  `json:"searchText"`
+	NamedNPC          bool    `json:"namedNpc,omitempty"`
+	Classic           bool    `json:"classic,omitempty"`
+	ImageURL          string  `json:"imageUrl,omitempty"`
+	LastSyncedAt      string  `json:"lastSyncedAt,omitempty"`
+}
+
 type bestiaryMonsterCache struct {
 	ID                string                `json:"id"`
 	RemoteID          string                `json:"remoteId"`
@@ -128,11 +156,13 @@ type bestiaryMonsterCache struct {
 }
 
 type bestiaryCatalog struct {
-	mu             sync.RWMutex
-	path           string
-	client         *http.Client
-	cache          bestiaryCache
-	backgroundKick atomic.Bool
+	mu          sync.RWMutex
+	initMu      sync.Mutex
+	initialized bool
+	path        string
+	detailDir   string
+	client      *http.Client
+	cache       bestiaryCache
 }
 
 func newBestiaryCatalog(path string) (*bestiaryCatalog, error) {
@@ -146,23 +176,37 @@ func newBestiaryCatalog(path string) (*bestiaryCatalog, error) {
 	}
 
 	catalog := &bestiaryCatalog{
-		path:   path,
-		client: &http.Client{Timeout: 20 * time.Second},
+		path:      path,
+		detailDir: strings.TrimSuffix(path, filepath.Ext(path)) + "-details",
+		client:    &http.Client{Timeout: 20 * time.Second},
 		cache: bestiaryCache{
 			Sync: bestiarySyncStatus{State: string(bestiarySyncIdle)},
 		},
 	}
 
-	if err := catalog.load(); err != nil {
-		return nil, err
-	}
-
-	if err := catalog.syncIndex(); err != nil && len(catalog.cache.Entries) == 0 {
-		return nil, err
-	}
-
-	catalog.startBackgroundHydration()
 	return catalog, nil
+}
+
+func (catalog *bestiaryCatalog) ensureIndexLoaded() error {
+	catalog.initMu.Lock()
+	defer catalog.initMu.Unlock()
+
+	if catalog.initialized {
+		return nil
+	}
+
+	if err := catalog.load(); err != nil {
+		return err
+	}
+
+	if len(catalog.cache.Entries) == 0 {
+		if err := catalog.syncIndex(); err != nil {
+			return err
+		}
+	}
+
+	catalog.initialized = true
+	return nil
 }
 
 func (catalog *bestiaryCatalog) load() error {
@@ -176,27 +220,42 @@ func (catalog *bestiaryCatalog) load() error {
 		return err
 	}
 
-	raw, err := os.ReadFile(catalog.path)
+	file, err := os.Open(catalog.path)
 	if err != nil {
 		return err
 	}
+	defer file.Close()
 
-	raw = bytes.TrimPrefix(raw, []byte{0xEF, 0xBB, 0xBF})
-	if len(raw) == 0 {
-		return nil
+	reader := bufio.NewReader(file)
+	if bom, _ := reader.Peek(3); len(bom) == 3 && bom[0] == 0xEF && bom[1] == 0xBB && bom[2] == 0xBF {
+		if _, err := reader.Discard(3); err != nil {
+			return err
+		}
 	}
 
-	var cache bestiaryCache
-	if err := json.Unmarshal(raw, &cache); err != nil {
+	var cache bestiaryDiskCache
+	if err := json.NewDecoder(reader).Decode(&cache); err != nil {
+		if errors.Is(err, io.EOF) {
+			return nil
+		}
 		return err
 	}
 
-	cache.Sync.Total = len(cache.Entries)
-	cache.Sync.Hydrated = countHydratedEntries(cache.Entries)
+	entries := make([]bestiaryMonsterCache, 0, len(cache.Entries))
+	for _, entry := range cache.Entries {
+		entries = append(entries, cacheEntryFromDisk(entry))
+	}
+
+	cache.Sync.Total = len(entries)
+	cache.Sync.Hydrated = countHydratedEntries(entries)
 	if cache.Sync.State == "" {
 		cache.Sync.State = string(bestiarySyncIdle)
 	}
-	catalog.cache = cache
+	catalog.cache = bestiaryCache{
+		UpdatedAt: cache.UpdatedAt,
+		Sync:      cache.Sync,
+		Entries:   entries,
+	}
 	return nil
 }
 
@@ -212,7 +271,16 @@ func (catalog *bestiaryCatalog) saveLocked() error {
 		return err
 	}
 
-	body, err := json.MarshalIndent(catalog.cache, "", "  ")
+	entries := make([]bestiaryDiskCacheEntry, 0, len(catalog.cache.Entries))
+	for _, entry := range catalog.cache.Entries {
+		entries = append(entries, diskEntryFromCache(entry))
+	}
+
+	body, err := json.MarshalIndent(bestiaryDiskCache{
+		UpdatedAt: catalog.cache.UpdatedAt,
+		Sync:      catalog.cache.Sync,
+		Entries:   entries,
+	}, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -250,8 +318,6 @@ func (catalog *bestiaryCatalog) syncIndex() error {
 			entry.Source = firstNonEmpty(existing.Source, entry.Source)
 			entry.ImageURL = firstNonEmpty(existing.ImageURL, entry.ImageURL)
 			entry.LastSyncedAt = existing.LastSyncedAt
-			entry.Monster = existing.Monster
-			entry.RewardProfile = existing.RewardProfile
 			if entry.Subtitle == "" {
 				entry.Subtitle = existing.Subtitle
 			}
@@ -273,72 +339,27 @@ func (catalog *bestiaryCatalog) syncIndex() error {
 	catalog.cache.Sync.Hydrated = countHydratedEntries(merged)
 	catalog.cache.Sync.LastError = ""
 	catalog.cache.Sync.State = string(bestiarySyncReady)
-	if catalog.cache.Sync.Hydrated < len(merged) {
-		catalog.cache.Sync.State = string(bestiarySyncSyncing)
-	}
 	catalog.cache.Sync.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	return catalog.saveLocked()
 }
 
 func (catalog *bestiaryCatalog) startBackgroundHydration() {
-	if !catalog.backgroundKick.CompareAndSwap(false, true) {
-		return
-	}
-
-	go catalog.hydratePendingEntries()
+	// Bestiary details are loaded on demand so the server can stay inside small Fly machines.
 }
 
 func (catalog *bestiaryCatalog) hydratePendingEntries() {
-	catalog.mu.Lock()
-	catalog.cache.Sync.State = string(bestiarySyncSyncing)
-	catalog.cache.Sync.LastStartedAt = time.Now().UTC().Format(time.RFC3339)
-	_ = catalog.saveLocked()
-	pending := make([]string, 0, len(catalog.cache.Entries))
-	for _, entry := range catalog.cache.Entries {
-		if entry.Monster == nil {
-			pending = append(pending, entry.ID)
-		}
-	}
-	catalog.mu.Unlock()
-
-	if len(pending) == 0 {
-		catalog.mu.Lock()
-		catalog.cache.Sync.State = string(bestiarySyncReady)
-		catalog.cache.Sync.LastFinishedAt = time.Now().UTC().Format(time.RFC3339)
-		_ = catalog.saveLocked()
-		catalog.mu.Unlock()
-		return
-	}
-
-	sem := make(chan struct{}, 5)
-	var wg sync.WaitGroup
-	for _, id := range pending {
-		wg.Add(1)
-		go func(monsterID string) {
-			defer wg.Done()
-			sem <- struct{}{}
-			defer func() { <-sem }()
-			if _, err := catalog.fetchAndStoreDetail(monsterID); err != nil {
-				catalog.recordDetailError(err)
-			}
-			time.Sleep(70 * time.Millisecond)
-		}(id)
-	}
-	wg.Wait()
-
-	catalog.mu.Lock()
-	defer catalog.mu.Unlock()
-	catalog.cache.Sync.Hydrated = countHydratedEntries(catalog.cache.Entries)
-	catalog.cache.Sync.LastFinishedAt = time.Now().UTC().Format(time.RFC3339)
-	if catalog.cache.Sync.Hydrated == len(catalog.cache.Entries) {
-		catalog.cache.Sync.State = string(bestiarySyncReady)
-	} else {
-		catalog.cache.Sync.State = string(bestiarySyncError)
-	}
-	_ = catalog.saveLocked()
+	// Details are fetched only for the monster that was actually opened.
 }
 
 func (catalog *bestiaryCatalog) browse(query bestiaryQuery) bestiaryListResult {
+	if err := catalog.ensureIndexLoaded(); err != nil {
+		catalog.recordIndexError(err)
+		catalog.mu.RLock()
+		status := catalog.cache.Sync
+		catalog.mu.RUnlock()
+		return bestiaryListResult{Status: status}
+	}
+
 	catalog.mu.RLock()
 	entries := append([]bestiaryMonsterCache(nil), catalog.cache.Entries...)
 	status := catalog.cache.Sync
@@ -361,6 +382,11 @@ func (catalog *bestiaryCatalog) browse(query bestiaryQuery) bestiaryListResult {
 }
 
 func (catalog *bestiaryCatalog) getMonster(id string) (bestiaryMonsterDetail, error) {
+	if err := catalog.ensureIndexLoaded(); err != nil {
+		catalog.recordIndexError(err)
+		return bestiaryMonsterDetail{}, err
+	}
+
 	if detail, ok := catalog.getCachedMonster(id); ok && detail.Monster.ID != "" {
 		return detail, nil
 	}
@@ -384,25 +410,21 @@ func (catalog *bestiaryCatalog) getMonster(id string) (bestiaryMonsterDetail, er
 
 func (catalog *bestiaryCatalog) getCachedMonster(id string) (bestiaryMonsterDetail, bool) {
 	catalog.mu.RLock()
-	defer catalog.mu.RUnlock()
+	var status bestiarySyncStatus
+	status = catalog.cache.Sync
+	catalog.mu.RUnlock()
 
-	for _, entry := range catalog.cache.Entries {
-		if entry.ID != id {
-			continue
-		}
-		if entry.Monster == nil {
-			return bestiaryMonsterDetail{}, false
-		}
-
-		return bestiaryMonsterDetail{
-			Summary:   summaryFromBestiaryCache(entry),
-			Monster:   *entry.Monster,
-			SourceURL: entry.URL,
-			Status:    catalog.cache.Sync,
-		}, true
+	entry, ok := catalog.loadDetail(id)
+	if !ok || entry.Monster == nil {
+		return bestiaryMonsterDetail{}, false
 	}
 
-	return bestiaryMonsterDetail{}, false
+	return bestiaryMonsterDetail{
+		Summary:   summaryFromBestiaryCache(entry),
+		Monster:   *entry.Monster,
+		SourceURL: entry.URL,
+		Status:    status,
+	}, true
 }
 
 func (catalog *bestiaryCatalog) fetchAndStoreDetail(id string) (bestiaryMonsterCache, error) {
@@ -442,13 +464,16 @@ func (catalog *bestiaryCatalog) fetchAndStoreDetail(id string) (bestiaryMonsterC
 		if catalog.cache.Entries[index].ID != id {
 			continue
 		}
-		catalog.cache.Entries[index] = detail
+		catalog.cache.Entries[index] = mergeBestiarySummary(catalog.cache.Entries[index], detail)
 		catalog.cache.Sync.Hydrated = countHydratedEntries(catalog.cache.Entries)
+		catalog.cache.Sync.State = string(bestiarySyncReady)
 		catalog.cache.Sync.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
-		if catalog.cache.Sync.Hydrated == len(catalog.cache.Entries) {
-			catalog.cache.Sync.State = string(bestiarySyncReady)
+		if err := catalog.saveLocked(); err != nil {
+			return bestiaryMonsterCache{}, err
 		}
-		_ = catalog.saveLocked()
+		if err := catalog.saveDetail(detail); err != nil {
+			return bestiaryMonsterCache{}, err
+		}
 		return detail, nil
 	}
 
@@ -492,16 +517,123 @@ func (catalog *bestiaryCatalog) recordIndexError(err error) {
 func (catalog *bestiaryCatalog) recordDetailError(err error) {
 	catalog.mu.Lock()
 	defer catalog.mu.Unlock()
-	catalog.cache.Sync.State = string(bestiarySyncSyncing)
+	catalog.cache.Sync.State = string(bestiarySyncError)
 	catalog.cache.Sync.LastError = err.Error()
 	catalog.cache.Sync.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	_ = catalog.saveLocked()
 }
 
+func (catalog *bestiaryCatalog) loadDetail(id string) (bestiaryMonsterCache, bool) {
+	if strings.TrimSpace(catalog.detailDir) == "" {
+		return bestiaryMonsterCache{}, false
+	}
+
+	file, err := os.Open(filepath.Join(catalog.detailDir, id+".json"))
+	if err != nil {
+		return bestiaryMonsterCache{}, false
+	}
+	defer file.Close()
+
+	var entry bestiaryMonsterCache
+	if err := json.NewDecoder(file).Decode(&entry); err != nil {
+		return bestiaryMonsterCache{}, false
+	}
+
+	return entry, entry.Monster != nil
+}
+
+func (catalog *bestiaryCatalog) saveDetail(entry bestiaryMonsterCache) error {
+	if strings.TrimSpace(catalog.detailDir) == "" {
+		return nil
+	}
+	if err := os.MkdirAll(catalog.detailDir, 0o755); err != nil {
+		return err
+	}
+
+	body, err := json.MarshalIndent(entry, "", "  ")
+	if err != nil {
+		return err
+	}
+
+	return os.WriteFile(filepath.Join(catalog.detailDir, entry.ID+".json"), body, 0o644)
+}
+
+func mergeBestiarySummary(current bestiaryMonsterCache, detail bestiaryMonsterCache) bestiaryMonsterCache {
+	current.EnglishTitle = firstNonEmpty(detail.EnglishTitle, current.EnglishTitle)
+	current.Subtitle = firstNonEmpty(detail.Subtitle, current.Subtitle)
+	current.Summary = firstNonEmpty(detail.Summary, current.Summary)
+	current.Challenge = firstNonEmpty(detail.Challenge, current.Challenge)
+	if detail.ChallengeSort > 0 {
+		current.ChallengeSort = detail.ChallengeSort
+	}
+	current.CreatureType = firstNonEmpty(detail.CreatureType, current.CreatureType)
+	current.CreatureTypeLabel = firstNonEmpty(detail.CreatureTypeLabel, current.CreatureTypeLabel)
+	current.Size = firstNonEmpty(detail.Size, current.Size)
+	current.Alignment = firstNonEmpty(detail.Alignment, current.Alignment)
+	current.Source = firstNonEmpty(detail.Source, current.Source)
+	current.URL = firstNonEmpty(detail.URL, current.URL)
+	current.SearchText = firstNonEmpty(detail.SearchText, current.SearchText)
+	current.ImageURL = firstNonEmpty(detail.ImageURL, current.ImageURL)
+	current.LastSyncedAt = firstNonEmpty(detail.LastSyncedAt, current.LastSyncedAt)
+	current.NamedNPC = current.NamedNPC || detail.NamedNPC
+	current.Classic = current.Classic || detail.Classic
+	return current
+}
+
+func diskEntryFromCache(entry bestiaryMonsterCache) bestiaryDiskCacheEntry {
+	return bestiaryDiskCacheEntry{
+		ID:                entry.ID,
+		RemoteID:          entry.RemoteID,
+		Slug:              entry.Slug,
+		Title:             entry.Title,
+		EnglishTitle:      entry.EnglishTitle,
+		Subtitle:          entry.Subtitle,
+		Summary:           entry.Summary,
+		Challenge:         entry.Challenge,
+		ChallengeSort:     entry.ChallengeSort,
+		CreatureType:      entry.CreatureType,
+		CreatureTypeLabel: entry.CreatureTypeLabel,
+		Size:              entry.Size,
+		Alignment:         entry.Alignment,
+		Source:            entry.Source,
+		URL:               entry.URL,
+		SearchText:        entry.SearchText,
+		NamedNPC:          entry.NamedNPC,
+		Classic:           entry.Classic,
+		ImageURL:          entry.ImageURL,
+		LastSyncedAt:      entry.LastSyncedAt,
+	}
+}
+
+func cacheEntryFromDisk(entry bestiaryDiskCacheEntry) bestiaryMonsterCache {
+	return bestiaryMonsterCache{
+		ID:                entry.ID,
+		RemoteID:          entry.RemoteID,
+		Slug:              entry.Slug,
+		Title:             entry.Title,
+		EnglishTitle:      entry.EnglishTitle,
+		Subtitle:          entry.Subtitle,
+		Summary:           entry.Summary,
+		Challenge:         entry.Challenge,
+		ChallengeSort:     entry.ChallengeSort,
+		CreatureType:      entry.CreatureType,
+		CreatureTypeLabel: entry.CreatureTypeLabel,
+		Size:              entry.Size,
+		Alignment:         entry.Alignment,
+		Source:            entry.Source,
+		URL:               entry.URL,
+		SearchText:        entry.SearchText,
+		NamedNPC:          entry.NamedNPC,
+		Classic:           entry.Classic,
+		ImageURL:          entry.ImageURL,
+		LastSyncedAt:      entry.LastSyncedAt,
+	}
+}
+
 func countHydratedEntries(entries []bestiaryMonsterCache) int {
 	total := 0
 	for _, entry := range entries {
-		if entry.Monster != nil {
+		if strings.TrimSpace(entry.LastSyncedAt) != "" {
 			total++
 		}
 	}

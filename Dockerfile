@@ -50,7 +50,6 @@ ENV SHADOW_EDGE_BESTIARY_CACHE_FILE=/data/dndsu-bestiary.json
 COPY --from=server-build /out/shadow-edge-server /app/shadow-edge-server
 COPY --from=web-build /app/apps/web/dist /app/apps/web/dist
 COPY data/store.json /app/seed-data/store.json
-COPY apps/server/data/dndsu-bestiary.json /app/seed-data/dndsu-bestiary.json
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 
 RUN chmod +x /app/docker-entrypoint.sh

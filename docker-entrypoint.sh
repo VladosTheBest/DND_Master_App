@@ -14,6 +14,5 @@ seed_if_missing() {
 }
 
 seed_if_missing "${SHADOW_EDGE_DATA_FILE:-/data/store.json}" "/app/seed-data/store.json"
-seed_if_missing "${SHADOW_EDGE_BESTIARY_CACHE_FILE:-/data/dndsu-bestiary.json}" "/app/seed-data/dndsu-bestiary.json"
 
 exec /app/shadow-edge-server
