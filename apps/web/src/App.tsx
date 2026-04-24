@@ -2148,6 +2148,54 @@ export default function App() {
 
   useEffect(() => {
     if (authState !== "authenticated") {
+      return;
+    }
+
+    let cancelled = false;
+
+    const keepSessionAlive = async () => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return;
+      }
+
+      try {
+        const session = await api.getSession();
+        if (cancelled || !session.authenticated) {
+          return;
+        }
+        applyAuthSession(session);
+      } catch {
+        // Ignore transient heartbeat failures. Real protected actions still report auth issues.
+      }
+    };
+
+    const intervalId = window.setInterval(() => {
+      void keepSessionAlive();
+    }, 2 * 60 * 1000);
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void keepSessionAlive();
+      }
+    };
+
+    const handleWindowFocus = () => {
+      void keepSessionAlive();
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleWindowFocus);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleWindowFocus);
+    };
+  }, [authState]);
+
+  useEffect(() => {
+    if (authState !== "authenticated") {
       if (authState === "unauthenticated") {
         setBooting(false);
       }

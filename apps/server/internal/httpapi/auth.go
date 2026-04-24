@@ -1,9 +1,12 @@
 package httpapi
 
 import (
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/json"
 	"net/http"
 	"net/url"
 	"strings"
@@ -30,6 +33,11 @@ type authManager struct {
 type authSession struct {
 	Username  string
 	ExpiresAt time.Time
+}
+
+type signedSessionPayload struct {
+	Username  string `json:"username"`
+	ExpiresAt int64  `json:"expiresAt"`
 }
 
 type loginInput struct {
@@ -92,10 +100,16 @@ func (manager *authManager) currentUser(request *http.Request) (string, bool) {
 	manager.cleanupExpiredLocked(time.Now())
 
 	session, ok := manager.sessions[cookie.Value]
+	if ok {
+		return session.Username, true
+	}
+
+	session, ok = manager.sessionFromToken(cookie.Value)
 	if !ok {
 		return "", false
 	}
 
+	manager.sessions[cookie.Value] = session
 	return session.Username, true
 }
 
@@ -109,6 +123,22 @@ func (manager *authManager) handleSession(writer http.ResponseWriter, request *h
 	if !ok {
 		writeJSON(writer, http.StatusOK, authSessionResult{Authenticated: false})
 		return
+	}
+
+	if cookie, err := request.Cookie(manager.cookieName); err == nil && strings.TrimSpace(cookie.Value) != "" {
+		expiresAt := time.Now().Add(manager.sessionTTL)
+		token, tokenErr := manager.issueSessionToken(username, expiresAt)
+		if tokenErr == nil {
+			manager.mu.Lock()
+			manager.cleanupExpiredLocked(time.Now())
+			delete(manager.sessions, cookie.Value)
+			manager.sessions[token] = authSession{
+				Username:  username,
+				ExpiresAt: expiresAt,
+			}
+			manager.mu.Unlock()
+			manager.writeSessionCookie(writer, token, expiresAt, requestIsSecure(request))
+		}
 	}
 
 	writeJSON(writer, http.StatusOK, authSessionResult{
@@ -143,20 +173,22 @@ func (manager *authManager) handleLogin(writer http.ResponseWriter, request *htt
 		return
 	}
 
-	token, err := randomAuthToken()
+	token, err := manager.issueSessionToken(manager.username, time.Now().Add(manager.sessionTTL))
 	if err != nil {
 		writeError(writer, http.StatusInternalServerError, "session_create_failed", "Не удалось создать сессию.")
 		return
 	}
 
-	expiresAt := time.Now().Add(manager.sessionTTL)
+	session, ok := manager.sessionFromToken(token)
+	if !ok {
+		writeError(writer, http.StatusInternalServerError, "session_create_failed", "Не удалось создать сессию.")
+		return
+	}
+	expiresAt := session.ExpiresAt
 
 	manager.mu.Lock()
 	manager.cleanupExpiredLocked(time.Now())
-	manager.sessions[token] = authSession{
-		Username:  manager.username,
-		ExpiresAt: expiresAt,
-	}
+	manager.sessions[token] = session
 	manager.mu.Unlock()
 
 	manager.writeSessionCookie(writer, token, expiresAt, requestIsSecure(request))
@@ -232,6 +264,66 @@ func (manager *authManager) cleanupExpiredLocked(now time.Time) {
 			delete(manager.sessions, token)
 		}
 	}
+}
+
+func (manager *authManager) issueSessionToken(username string, expiresAt time.Time) (string, error) {
+	payloadBytes, err := json.Marshal(signedSessionPayload{
+		Username:  username,
+		ExpiresAt: expiresAt.Unix(),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	signature := manager.signSessionPayload(payloadBytes)
+	return base64.RawURLEncoding.EncodeToString(payloadBytes) + "." + base64.RawURLEncoding.EncodeToString(signature), nil
+}
+
+func (manager *authManager) sessionFromToken(token string) (authSession, bool) {
+	payloadToken, signatureToken, ok := strings.Cut(token, ".")
+	if !ok || strings.TrimSpace(payloadToken) == "" || strings.TrimSpace(signatureToken) == "" {
+		return authSession{}, false
+	}
+
+	payloadBytes, err := base64.RawURLEncoding.DecodeString(payloadToken)
+	if err != nil {
+		return authSession{}, false
+	}
+	signatureBytes, err := base64.RawURLEncoding.DecodeString(signatureToken)
+	if err != nil {
+		return authSession{}, false
+	}
+
+	expectedSignature := manager.signSessionPayload(payloadBytes)
+	if !hmac.Equal(signatureBytes, expectedSignature) {
+		return authSession{}, false
+	}
+
+	var payload signedSessionPayload
+	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
+		return authSession{}, false
+	}
+
+	expiresAt := time.Unix(payload.ExpiresAt, 0)
+	if time.Now().After(expiresAt) || strings.TrimSpace(payload.Username) == "" {
+		return authSession{}, false
+	}
+
+	return authSession{
+		Username:  payload.Username,
+		ExpiresAt: expiresAt,
+	}, true
+}
+
+func (manager *authManager) signSessionPayload(payload []byte) []byte {
+	mac := hmac.New(sha256.New, manager.sessionSigningKey())
+	mac.Write(payload)
+	return mac.Sum(nil)
+}
+
+func (manager *authManager) sessionSigningKey() []byte {
+	sum := sha256.Sum256([]byte(manager.username + "\x00" + manager.password))
+	return sum[:]
 }
 
 func randomAuthToken() (string, error) {

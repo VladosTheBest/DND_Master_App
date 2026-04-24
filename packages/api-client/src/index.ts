@@ -58,32 +58,72 @@ const ensureJson = async <T>(response: Response): Promise<T> => {
   return payload.data;
 };
 
-const requestJson = async <T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> => {
-  const response = await fetch(input, {
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {})
+const resolveRequestUrl = (input: RequestInfo | URL) => {
+  if (typeof input === "string") {
+    return input;
+  }
+  if (input instanceof URL) {
+    return input.toString();
+  }
+  return input.url;
+};
+
+const isAuthEndpoint = (input: RequestInfo | URL) => resolveRequestUrl(input).includes("/api/auth/");
+
+export const createHttpApiClient = (baseUrl: string): ApiClient => {
+  const sessionUrl = `${baseUrl}/api/auth/session`;
+
+  const fetchWithSessionRecovery = async (input: RequestInfo | URL, init?: RequestInit) => {
+    const execute = () =>
+      fetch(input, {
+        credentials: "include",
+        ...init
+      });
+
+    const response = await execute();
+    if (response.status !== 401 || isAuthEndpoint(input)) {
+      return response;
+    }
+
+    try {
+      const sessionResponse = await fetch(sessionUrl, {
+        credentials: "include"
+      });
+
+      if (sessionResponse.ok) {
+        const payload = (await sessionResponse.json()) as ApiEnvelope<AuthSessionResult>;
+        if (payload.data?.authenticated) {
+          return execute();
+        }
+      }
+    } catch {
+      // Let the original 401 bubble up if session recovery fails.
+    }
+
+    return response;
+  };
+
+  const requestJson = async <T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> => {
+    const response = await fetchWithSessionRecovery(input, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(init?.headers ?? {})
+      },
+      ...init
+    });
+
+    return ensureJson<T>(response);
+  };
+
+  const requestFormData = async <T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> => {
+    const response = await fetchWithSessionRecovery(input, init);
+    return ensureJson<T>(response);
+  };
+
+  return {
+    async getSession() {
+      return requestJson<AuthSessionResult>(sessionUrl);
     },
-    ...init
-  });
-
-  return ensureJson<T>(response);
-};
-
-const requestFormData = async <T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> => {
-  const response = await fetch(input, {
-    credentials: "include",
-    ...init
-  });
-
-  return ensureJson<T>(response);
-};
-
-export const createHttpApiClient = (baseUrl: string): ApiClient => ({
-  async getSession() {
-    return requestJson<AuthSessionResult>(`${baseUrl}/api/auth/session`);
-  },
   async login(input) {
     return requestJson<AuthSessionResult>(`${baseUrl}/api/auth/login`, {
       method: "POST",
@@ -225,12 +265,13 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => ({
       body: JSON.stringify(input satisfies GenerateCombatInput)
     });
   },
-  async search(campaignId, query) {
-    return requestJson<SearchResult[]>(
-      `${baseUrl}/api/campaigns/${campaignId}/search?q=${encodeURIComponent(query)}`
-    );
-  }
-});
+    async search(campaignId, query) {
+      return requestJson<SearchResult[]>(
+        `${baseUrl}/api/campaigns/${campaignId}/search?q=${encodeURIComponent(query)}`
+      );
+    }
+  };
+};
 
 export const createApiClient = (baseUrl = ""): ApiClient =>
   createHttpApiClient(baseUrl);
