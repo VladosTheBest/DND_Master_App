@@ -20,6 +20,12 @@ FROM golang:1.24.2-bookworm AS server-build
 
 WORKDIR /app
 
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+ENV CGO_ENABLED=0
+ENV GOOS=${TARGETOS}
+ENV GOARCH=${TARGETARCH}
+
 COPY go.work ./
 COPY apps/server/go.mod apps/server/go.mod
 
