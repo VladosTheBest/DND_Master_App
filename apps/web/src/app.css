@@ -1624,9 +1624,10 @@ body, button, input, select, textarea, span, small, strong, p, h1, h2, h3 { over
 }
 .prepared-combat-layout {
   display: grid;
-  grid-template-columns: minmax(280px, .95fr) minmax(320px, 1.05fr);
+  grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr);
   gap: .78rem;
   align-items: start;
+  min-width: 0;
 }
 .prepared-combat-results {
   max-height: 24rem;
@@ -1635,6 +1636,87 @@ body, button, input, select, textarea, span, small, strong, p, h1, h2, h3 { over
   max-height: 26rem;
   overflow: auto;
   padding-right: .16rem;
+  min-width: 0;
+}
+.combat-preparation-page {
+  display: grid;
+  gap: .9rem;
+}
+.combat-preparation-hero {
+  display: grid;
+  gap: .9rem;
+}
+.combat-preparation-hero-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: .9rem;
+  align-items: start;
+}
+.combat-preparation-hero-actions {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, max-content);
+  gap: .55rem;
+  justify-content: end;
+  align-items: start;
+}
+.combat-preparation-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: .7rem;
+}
+.combat-preparation-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.22fr) minmax(320px, .86fr);
+  gap: .9rem;
+  align-items: start;
+}
+.combat-preparation-main,
+.combat-preparation-side {
+  display: grid;
+  gap: .9rem;
+  min-width: 0;
+}
+.combat-preparation-side {
+  position: sticky;
+  top: .85rem;
+}
+.combat-preparation-side-card {
+  display: grid;
+  gap: .8rem;
+}
+.combat-preparation-form-grid {
+  grid-template-columns: minmax(0, 1.25fr) repeat(2, minmax(140px, .45fr));
+}
+.combat-preparation-search-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(280px, .92fr);
+  gap: .78rem;
+  align-items: start;
+  min-width: 0;
+}
+.combat-preparation-results,
+.combat-preparation-entry-list {
+  min-height: 14rem;
+}
+.combat-preparation-selection {
+  min-width: 0;
+}
+.combat-preparation-selected-card {
+  display: grid;
+  gap: .72rem;
+}
+.combat-preparation-placeholder {
+  display: grid;
+  gap: .55rem;
+}
+.combat-preparation-entry-grid {
+  grid-template-columns: minmax(120px, .34fr) minmax(0, 1fr);
+}
+.combat-preparation-side-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .55rem;
 }
 .palette {
   width: min(56rem, 100%);
@@ -2543,8 +2625,9 @@ select.input {
   display: grid;
   grid-template-columns: 6.6rem minmax(0, 1fr);
   gap: .82rem;
-  align-items: stretch;
+  align-items: start;
   min-width: 0;
+  overflow: hidden;
   padding: .74rem;
   border: 1px solid var(--line);
   border-radius: calc(var(--radius-lg) - 2px);
@@ -2563,6 +2646,8 @@ select.input {
 
 .directory-card-thumb {
   display: block;
+  width: 100%;
+  max-width: 6.6rem;
   aspect-ratio: 4 / 5;
   align-self: start;
   overflow: hidden;
@@ -2589,6 +2674,7 @@ select.input {
   min-width: 0;
   display: grid;
   align-content: start;
+  align-self: start;
   gap: .22rem;
   overflow: hidden;
 }
@@ -2605,10 +2691,15 @@ select.input {
 .directory-card-topline strong {
   flex: 1 1 10rem;
   min-width: 0;
+  display: block;
   font-size: .98rem;
   line-height: 1.18;
   overflow-wrap: anywhere;
   word-break: break-word;
+}
+.directory-card-topline .badge {
+  flex: 0 0 auto;
+  max-width: 100%;
 }
 
 .directory-card-copy small {
@@ -4503,6 +4594,10 @@ select.input {
   .events-workspace-grid { grid-template-columns: 280px minmax(0, 1fr); }
   .combat-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .combat-studio-grid { grid-template-columns: minmax(300px, 340px) minmax(0, 1fr); }
+  .combat-preparation-shell { grid-template-columns: 1fr; }
+  .combat-preparation-side { position: static; }
+  .combat-preparation-summary-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .combat-preparation-search-layout { grid-template-columns: 1fr; }
   .combat-side-panel {
     position: static;
     grid-column: 1 / -1;
@@ -4576,6 +4671,10 @@ select.input {
   .combatant-inline-controls { grid-template-columns: 1fr; }
   .combat-summary-grid,
   .combat-studio-grid,
+  .combat-preparation-summary-grid,
+  .combat-preparation-shell,
+  .combat-preparation-search-layout,
+  .combat-preparation-entry-grid,
   .notes-workspace-grid,
   .events-workspace-grid,
   .combat-focus-overview-grid,
@@ -4588,6 +4687,9 @@ select.input {
   .combat-side-panel {
     position: static;
     max-height: none;
+  }
+  .combat-preparation-side {
+    position: static;
   }
   .combat-roster-list {
     max-height: none;
@@ -4608,6 +4710,12 @@ select.input {
   }
   .combat-summary-action-grid {
     grid-template-columns: 1fr;
+  }
+  .combat-preparation-hero-head,
+  .combat-preparation-hero-actions,
+  .combat-preparation-side-actions {
+    grid-template-columns: 1fr;
+    grid-auto-flow: row;
   }
   .initiative-display-screen { padding: 1rem; }
   .initiative-display-viewport { padding-inline: 1.25rem; }

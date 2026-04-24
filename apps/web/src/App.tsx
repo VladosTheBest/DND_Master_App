@@ -10455,6 +10455,348 @@ export default function App() {
     ? "Измени поля, статблок и затем сохрани сущность на backend"
     : "Сгенерируй черновик, отредактируй поля и потом создай сущность в кампании";
   const entitySubmitLabel = isEditingEntity ? "Сохранить изменения" : "Создать";
+  const campaignPreparedCombatDraftEnemyCount = campaignPreparedCombatDraft.items.reduce((sum, item) => sum + item.quantity, 0);
+  const campaignCombatSetupView =
+    campaign ? (
+      <div className="combat-preparation-page">
+        <section className="card section-card combat-preparation-hero">
+          <div className="combat-preparation-hero-head">
+            <div className="stack compact">
+              <div className="row muted">
+                <span>Подготовка боя</span>
+                <span>Отдельный экран настройки сцены</span>
+              </div>
+              <h2>Собери сцену до старта</h2>
+              <p className="copy">
+                Выбери игроков, подбери врагов из кампании или dnd.su и сохрани заготовку. Инициативу мы спросим уже в момент
+                запуска, чтобы бой стартовал быстро и без хаоса.
+              </p>
+            </div>
+
+            <div className="combat-preparation-hero-actions">
+              <button className="ghost" onClick={requestCombatSetupModalClose} type="button">
+                К обзору боя
+              </button>
+              <button
+                className="ghost"
+                onClick={() => {
+                  requestCombatSetupSwapToEntity("player");
+                }}
+                type="button"
+              >
+                Новый игрок
+              </button>
+              <button
+                className="ghost"
+                onClick={() => {
+                  requestCombatSetupSwapToEntity("monster");
+                }}
+                type="button"
+              >
+                Новый монстр
+              </button>
+            </div>
+          </div>
+
+          <div className="combat-preparation-summary-grid">
+            <article className="card mini fact-box">
+              <small>Игроки в сцене</small>
+              <strong className="fact-value">{campaignPreparedCombatDraft.playerIds.length}</strong>
+            </article>
+            <article className="card mini fact-box">
+              <small>Противники в сцене</small>
+              <strong className="fact-value">{campaignPreparedCombatDraftEnemyCount}</strong>
+            </article>
+            <article className="card mini fact-box">
+              <small>Сохранённая сцена</small>
+              <strong className="fact-value">{hasConfiguredCombat ? "Готова" : "Ещё нет"}</strong>
+            </article>
+            <article className="card mini fact-box">
+              <small>Партия</small>
+              <strong className="fact-value">{effectivePartySize}</strong>
+            </article>
+          </div>
+        </section>
+
+        {bootError ? (
+          <div className="card mini form-error" role="status">
+            <strong>Проблема при выполнении действия</strong>
+            <p>{bootError}</p>
+          </div>
+        ) : null}
+
+        {campaignPreparedCombatNotice ? (
+          <div className="card mini form-success" role="status">
+            <strong>Сохранено</strong>
+            <p>{campaignPreparedCombatNotice}</p>
+          </div>
+        ) : null}
+
+        <div className="combat-preparation-shell">
+          <div className="combat-preparation-main">
+            <section className="card section-card combat-party-card">
+              <div className="row muted">
+                <span>Сцена и партия</span>
+                <span>Название сцены и уровни нужны для аккуратного старта и расчёта сложности</span>
+              </div>
+              <div className="form-grid">
+                <label className="field field-full">
+                  <span>Название боя</span>
+                  <input
+                    className="input"
+                    onChange={(event) =>
+                      updateCampaignPreparedCombatDraft((current) => ({
+                        ...current,
+                        title: event.target.value
+                      }))
+                    }
+                    placeholder="Например: Засада на тракте"
+                    value={campaignPreparedCombatDraft.title ?? ""}
+                  />
+                </label>
+                <label className="field field-full">
+                  <span>Уровни партии через запятую</span>
+                  <input
+                    className="input"
+                    onChange={(event) => setCombatPartyLevelsText(event.target.value)}
+                    placeholder="Например: 5, 5, 5, 5"
+                    value={combatPartyLevelsText}
+                  />
+                </label>
+              </div>
+              <p className="copy combat-inline-note">{combatPartySummary}</p>
+            </section>
+
+            <section className="card section-card combat-tool-card">
+              <div className="row muted">
+                <span>Игроки партии</span>
+                <span>Выбранные персонажи попадут в трекер инициативы со своими портретами</span>
+              </div>
+              {campaign.players.length ? (
+                <div className="combat-player-selector-grid">
+                  {campaign.players.map((player) => {
+                    const selected = campaignPreparedCombatDraft.playerIds.includes(player.id);
+                    return (
+                      <button
+                        key={`prepared-player-${player.id}`}
+                        className={`card mini fill relation-card relation-card-with-visual combat-player-selector ${
+                          selected ? "selected" : ""
+                        }`}
+                        onClick={() => toggleCampaignPreparedCombatPlayer(player.id)}
+                        type="button"
+                      >
+                        <EntityVisual entity={player} variant="relation" />
+                        <span className={badge(selected ? "success" : "default")}>{selected ? "В бою" : "Не выбран"}</span>
+                        <strong>{player.title}</strong>
+                        <p>{player.role || player.summary || "Персонаж партии"}</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="copy">
+                  Пока нет игроков. Создай их во вкладке `Игроки`, и потом здесь можно будет быстро включать их в бой.
+                </p>
+              )}
+            </section>
+
+            <section className="card section-card combat-tool-card prepared-combat-card">
+              <div className="row muted">
+                <span>Противники сцены</span>
+                <span>Поиск идёт по кампании и dnd.su, а инициативу ты введёшь уже при старте</span>
+              </div>
+              <div className="form-grid combat-preparation-form-grid">
+                <label className="field field-full">
+                  <span>Поиск по названию</span>
+                  <input
+                    className="input"
+                    onChange={(event) => setCombatSearchQuery(event.target.value)}
+                    placeholder="Бандит, волк, giant spider, капитан..."
+                    value={combatSearchQuery}
+                  />
+                </label>
+                <label className="field">
+                  <span>CR</span>
+                  <select className="input" onChange={(event) => setCombatSearchChallenge(event.target.value)} value={combatSearchChallenge}>
+                    <option value="">Все значения</option>
+                    {challengeFilterOptions.map((option) => (
+                      <option key={option} value={option}>
+                        {`CR ${option}`}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Количество</span>
+                  <input
+                    className="input"
+                    min={1}
+                    onChange={(event) => setCombatSelectionQuantity(Math.max(1, Number.parseInt(event.target.value, 10) || 1))}
+                    type="number"
+                    value={combatSelectionQuantity}
+                  />
+                </label>
+              </div>
+
+              <div className="combat-preparation-search-layout">
+                <div className="stack">
+                  <div className="row muted">
+                    <span>НПС кампании + бестиарий dnd.su</span>
+                    <span>{combatSearchItems.length} результатов</span>
+                  </div>
+                  <div className="combat-search-results prepared-combat-results combat-preparation-results">
+                    {combatSearchItems.length ? (
+                      combatSearchItems.map((item) => (
+                        <button
+                          key={item.key}
+                          className={`entity-row combat-search-result has-thumb ${combatSelectionId === item.key ? "active" : ""}`}
+                          onClick={() => setCombatSelectionId(item.key)}
+                          type="button"
+                        >
+                          <span className="entity-thumb-frame">
+                            <img
+                              alt={item.title}
+                              className="entity-thumb"
+                              loading="lazy"
+                              src={
+                                item.source === "entity" && item.entity
+                                  ? createPortraitSource(item.entity)
+                                  : item.bestiary
+                                    ? createBestiaryPortraitSource(item.bestiary)
+                                    : createPortraitSource({ kind: item.kind, title: item.title })
+                              }
+                            />
+                          </span>
+                          <span className="entity-row-copy">
+                            <strong>{item.title}</strong>
+                            <small>
+                              {[
+                                item.source === "bestiary" ? "dnd.su" : item.kind === "monster" ? "Кампания • монстр" : "Кампания • НПС",
+                                item.challenge ? `CR ${extractChallengeToken(item.challenge)}` : "CR не задан",
+                                item.subtitle || item.summary
+                              ]
+                                .filter(Boolean)
+                                .join(" • ")}
+                            </small>
+                          </span>
+                        </button>
+                      ))
+                    ) : (
+                      <p className="copy">По текущему запросу ничего не найдено.</p>
+                    )}
+                  </div>
+                  {combatBestiaryLoading ? <p className="copy">Подтягиваю dnd.su под текущий поиск…</p> : null}
+                </div>
+
+                <div className="stack combat-preparation-selection">
+                  {selectedCombatSearchItem ? (
+                    <div className="combat-selected-summary combat-preparation-selected-card">
+                      <div className="row">
+                        <span className={badge(selectedCombatSearchItem.source === "bestiary" ? "accent" : "default")}>
+                          {selectedCombatSearchItem.source === "bestiary" ? "dnd.su" : "Кампания"}
+                        </span>
+                        <span className={badge("accent")}>
+                          {selectedCombatSearchItem.challenge ? `CR ${extractChallengeToken(selectedCombatSearchItem.challenge)}` : "CR не указан"}
+                        </span>
+                      </div>
+                      <strong>{selectedCombatSearchItem.title}</strong>
+                      <small>
+                        {selectedCombatSearchItem.source === "entity" && selectedCombatSearchItem.entity?.statBlock
+                          ? `КБ ${selectedCombatSearchItem.entity.statBlock.armorClass ?? "—"} • ХП ${selectedCombatSearchItem.entity.statBlock.hitPoints ?? "—"}`
+                          : selectedCombatSearchItem.subtitle || "Монстр будет импортирован в кампанию при добавлении в сцену."}
+                      </small>
+                      <small>{selectedCombatSearchItem.summary || "Готовый боевой профиль."}</small>
+                      <button
+                        className="primary"
+                        disabled={saving || !combatSelectionId || !selectedCombatSearchItem}
+                        onClick={() => void addCampaignPreparedCombatDraftItem()}
+                        type="button"
+                      >
+                        {saving ? "Добавляю..." : "Добавить в сцену"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="card mini fact-box combat-preparation-placeholder">
+                      <small>Выбери цель</small>
+                      <strong className="fact-value">Готово</strong>
+                      <p className="copy">Нажми на противника слева, и здесь появится его сводка с кнопкой добавления.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <aside className="combat-preparation-side">
+            <section className="card section-card combat-preparation-side-card">
+              <div className="row muted">
+                <span>Текущий состав сцены</span>
+                <span>
+                  {campaignPreparedCombatDraft.playerIds.length} игроков • {campaignPreparedCombatDraftEnemyCount} противников
+                </span>
+              </div>
+
+              {campaignPreparedCombatDraft.items.length ? (
+                <div className="entry-editor-list prepared-combat-entry-list combat-preparation-entry-list">
+                  {campaignPreparedCombatDraft.items.map((item) => {
+                    const linked = entityMap.get(item.entityId);
+                    const linkedEntity = linked && (linked.kind === "npc" || linked.kind === "monster") ? linked : null;
+                    return (
+                      <article key={`campaign-prepared-combat-${item.entityId}`} className="entry-editor">
+                        <div className="row">
+                          <strong>{linkedEntity?.title ?? "Сущность не найдена"}</strong>
+                          <button className="ghost danger-action" onClick={() => removeCampaignPreparedCombatDraftItem(item.entityId)} type="button">
+                            Удалить
+                          </button>
+                        </div>
+                        <div className="form-grid combat-preparation-entry-grid">
+                          <label className="field">
+                            <span>Количество</span>
+                            <input
+                              className="input"
+                              min={1}
+                              onChange={(event) =>
+                                updateCampaignPreparedCombatDraftItem(item.entityId, {
+                                  quantity: Math.max(1, Number.parseInt(event.target.value, 10) || 1)
+                                })
+                              }
+                              type="number"
+                              value={item.quantity}
+                            />
+                          </label>
+                          <div className="field field-full">
+                            <span>Профиль</span>
+                            <div className="combat-selected-summary">
+                              <strong>{linkedEntity ? `${kindTitle[linkedEntity.kind]} • ${linkedEntity.title}` : item.entityId}</strong>
+                              <small>
+                                {linkedEntity
+                                  ? `${getEntityChallenge(linkedEntity) || "CR не указан"} • ${linkedEntity.summary || linkedEntity.subtitle || "Готов к бою"}`
+                                  : "Эта запись больше не найдена в кампании и будет пропущена при старте боя."}
+                              </small>
+                            </div>
+                          </div>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="copy">Пока враги не добавлены. Выбери их слева и собери сцену так, как она должна стартовать.</p>
+              )}
+
+              <div className="combat-preparation-side-actions">
+                <button className="ghost fill" onClick={requestCombatSetupModalClose} type="button">
+                  Вернуться к обзору
+                </button>
+                <button className="primary" disabled={saving} onClick={() => void saveCampaignPreparedCombatDraft()} type="button">
+                  {saving ? "Сохраняю..." : "Сохранить заготовку"}
+                </button>
+              </div>
+            </section>
+          </aside>
+        </div>
+      </div>
+    ) : null;
   if (authState === "checking") {
     return (
       <div className="boot">
@@ -11000,82 +11342,86 @@ export default function App() {
                       </div>
                     ) : null}
 
-                    <section className="card section-card combat-screen-shell">
-                      <div className="row muted">
-                        <span>Активного боя пока нет</span>
-                        <span>{hasConfiguredCombat ? "Сцена подготовлена" : "Нужна предварительная настройка"}</span>
-                      </div>
-                      <div className="stack">
-                        <h2>Подготовь сцену перед стартом</h2>
-                        <p className="copy">
-                          {hasConfiguredCombat
-                            ? "Состав боя уже подготовлен. Можно поправить участников и потом запустить сцену с вводом инициативы."
-                            : "Сначала настрой состав боя: выбери игроков партии и добавь врагов, которых хочешь держать заготовленными для быстрого старта."}
-                        </p>
-                        {hasConfiguredCombat ? (
-                          <div className="stack compact">
-                            <div className="row muted">
-                              <span>{campaignPreparedCombat?.title?.trim() || "Подготовленная сцена"}</span>
-                              <span>
-                                {configuredCombatPlayers.length}{" "}
-                                {configuredCombatPlayers.length === 1 ? "игрок" : configuredCombatPlayers.length < 5 ? "игрока" : "игроков"} •{" "}
-                                {configuredCombatEnemyCount}{" "}
-                                {configuredCombatEnemyCount === 1 ? "противник" : configuredCombatEnemyCount < 5 ? "противника" : "противников"}
-                              </span>
-                            </div>
-                            <div className="grid">
-                              {configuredCombatPlayers.map((player) => (
-                                <button
-                                  key={`configured-player-${player.id}`}
-                                  className="card mini fill relation-card relation-card-with-visual"
-                                  onClick={() => peekEntity(player.id)}
-                                  type="button"
-                                >
-                                  <EntityVisual entity={player} variant="relation" />
-                                  <span className={badge("success")}>Игрок</span>
-                                  <strong>{player.title}</strong>
-                                  <p>{player.role || player.summary || "Персонаж партии"}</p>
-                                </button>
-                              ))}
-                              {configuredCombatEnemies.map(({ entity, quantity }) => (
-                                <button
-                                  key={`configured-enemy-${entity.id}`}
-                                  className="card mini fill relation-card relation-card-with-visual"
-                                  onClick={() => peekEntity(entity.id)}
-                                  type="button"
-                                >
-                                  <EntityVisual entity={entity} variant="relation" />
-                                  <span className={badge(entity.kind === "monster" ? "danger" : "accent")}>{kindTitle[entity.kind]}</span>
-                                  <strong>{entity.title}</strong>
-                                  <p>
-                                    {quantity} шт. • {getEntityChallenge(entity) || "CR не указан"}
-                                  </p>
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        ) : null}
-                        <label className="field field-full">
-                          <span>Уровни партии через запятую</span>
-                          <small className="field-hint">Нужны только для расчёта сложности. На сам запуск боя они не влияют.</small>
-                          <input
-                            className="input"
-                            onChange={(event) => setCombatPartyLevelsText(event.target.value)}
-                            placeholder="Например: 5, 5, 5, 5"
-                            value={combatPartyLevelsText}
-                          />
-                        </label>
-                        <p className="copy combat-inline-note">{combatPartySummary}</p>
-                        <div className="actions">
-                          <button className="ghost" onClick={openCombatSetupModal} type="button">
-                            Настроить бой
-                          </button>
-                          <button className="primary" disabled={!canStartConfiguredCombat} onClick={openPreparedCombatStart} type="button">
-                            Начать бой
-                          </button>
+                    {combatSetupOpen ? (
+                      campaignCombatSetupView
+                    ) : (
+                      <section className="card section-card combat-screen-shell">
+                        <div className="row muted">
+                          <span>Активного боя пока нет</span>
+                          <span>{hasConfiguredCombat ? "Сцена подготовлена" : "Нужна предварительная настройка"}</span>
                         </div>
-                      </div>
-                    </section>
+                        <div className="stack">
+                          <h2>Подготовь сцену перед стартом</h2>
+                          <p className="copy">
+                            {hasConfiguredCombat
+                              ? "Состав боя уже подготовлен. Можно поправить участников и потом запустить сцену с вводом инициативы."
+                              : "Сначала настрой состав боя: выбери игроков партии и добавь врагов, которых хочешь держать заготовленными для быстрого старта."}
+                          </p>
+                          {hasConfiguredCombat ? (
+                            <div className="stack compact">
+                              <div className="row muted">
+                                <span>{campaignPreparedCombat?.title?.trim() || "Подготовленная сцена"}</span>
+                                <span>
+                                  {configuredCombatPlayers.length}{" "}
+                                  {configuredCombatPlayers.length === 1 ? "игрок" : configuredCombatPlayers.length < 5 ? "игрока" : "игроков"} •{" "}
+                                  {configuredCombatEnemyCount}{" "}
+                                  {configuredCombatEnemyCount === 1 ? "противник" : configuredCombatEnemyCount < 5 ? "противника" : "противников"}
+                                </span>
+                              </div>
+                              <div className="grid">
+                                {configuredCombatPlayers.map((player) => (
+                                  <button
+                                    key={`configured-player-${player.id}`}
+                                    className="card mini fill relation-card relation-card-with-visual"
+                                    onClick={() => peekEntity(player.id)}
+                                    type="button"
+                                  >
+                                    <EntityVisual entity={player} variant="relation" />
+                                    <span className={badge("success")}>Игрок</span>
+                                    <strong>{player.title}</strong>
+                                    <p>{player.role || player.summary || "Персонаж партии"}</p>
+                                  </button>
+                                ))}
+                                {configuredCombatEnemies.map(({ entity, quantity }) => (
+                                  <button
+                                    key={`configured-enemy-${entity.id}`}
+                                    className="card mini fill relation-card relation-card-with-visual"
+                                    onClick={() => peekEntity(entity.id)}
+                                    type="button"
+                                  >
+                                    <EntityVisual entity={entity} variant="relation" />
+                                    <span className={badge(entity.kind === "monster" ? "danger" : "accent")}>{kindTitle[entity.kind]}</span>
+                                    <strong>{entity.title}</strong>
+                                    <p>
+                                      {quantity} шт. • {getEntityChallenge(entity) || "CR не указан"}
+                                    </p>
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+                          <label className="field field-full">
+                            <span>Уровни партии через запятую</span>
+                            <small className="field-hint">Нужны только для расчёта сложности. На сам запуск боя они не влияют.</small>
+                            <input
+                              className="input"
+                              onChange={(event) => setCombatPartyLevelsText(event.target.value)}
+                              placeholder="Например: 5, 5, 5, 5"
+                              value={combatPartyLevelsText}
+                            />
+                          </label>
+                          <p className="copy combat-inline-note">{combatPartySummary}</p>
+                          <div className="actions">
+                            <button className="ghost" onClick={openCombatSetupModal} type="button">
+                              Настроить бой
+                            </button>
+                            <button className="primary" disabled={!canStartConfiguredCombat} onClick={openPreparedCombatStart} type="button">
+                              Начать бой
+                            </button>
+                          </div>
+                        </div>
+                      </section>
+                    )}
                   </>
                 )}
               </div>
@@ -12614,311 +12960,6 @@ export default function App() {
                 />
               ) : null}
             </section>
-          </div>
-        </div>
-      ) : null}
-
-      {combatSetupOpen && !hasActiveCombat ? (
-        <div className="overlay" role="presentation">
-          <div className="panel palette form-modal combat-setup-modal" onClick={(event) => event.stopPropagation()} role="dialog">
-            <div className="row">
-              <div>
-                <p className="eyebrow">Prepared Combat</p>
-                <strong>Настрой бой заранее: выбери игроков, собери врагов и сохрани сцену для быстрого старта</strong>
-              </div>
-              <div className="actions">
-                <button
-                  className="ghost"
-                  onClick={() => {
-                    requestCombatSetupSwapToEntity("player");
-                  }}
-                  type="button"
-                >
-                  Новый игрок
-                </button>
-                <button
-                  className="ghost"
-                  onClick={() => {
-                    requestCombatSetupSwapToEntity("monster");
-                  }}
-                  type="button"
-                >
-                  Новый монстр
-                </button>
-                <button className="ghost" onClick={requestCombatSetupModalClose} type="button">
-                  Esc
-                </button>
-              </div>
-            </div>
-
-            {bootError ? (
-              <div className="card mini form-error" role="status">
-                <strong>Проблема при выполнении действия</strong>
-                <p>{bootError}</p>
-              </div>
-            ) : null}
-            {campaignPreparedCombatNotice ? (
-              <div className="card mini form-success" role="status">
-                <strong>Сохранено</strong>
-                <p>{campaignPreparedCombatNotice}</p>
-              </div>
-            ) : null}
-
-            <section className="card section-card combat-party-card">
-              <div className="row muted">
-                <span>Сцена и партия</span>
-                <span>Инициатива вводится позже, прямо перед стартом боя</span>
-              </div>
-              <div className="form-grid">
-                <label className="field field-full">
-                  <span>Название боя</span>
-                  <input
-                    className="input"
-                    onChange={(event) =>
-                      updateCampaignPreparedCombatDraft((current) => ({
-                        ...current,
-                        title: event.target.value
-                      }))
-                    }
-                    placeholder="Например: Засада на тракте"
-                    value={campaignPreparedCombatDraft.title ?? ""}
-                  />
-                </label>
-                <label className="field field-full">
-                  <span>Уровни партии через запятую</span>
-                  <input
-                    className="input"
-                    onChange={(event) => setCombatPartyLevelsText(event.target.value)}
-                    placeholder="Например: 5, 5, 5, 5"
-                    value={combatPartyLevelsText}
-                  />
-                </label>
-              </div>
-              <p className="copy combat-inline-note">{combatPartySummary}</p>
-            </section>
-
-            <section className="card section-card combat-tool-card">
-              <div className="row muted">
-                <span>Игроки партии</span>
-                <span>Выбранные персонажи попадут в трекер инициативы со своими портретами</span>
-              </div>
-              {campaign.players.length ? (
-                <div className="combat-player-selector-grid">
-                  {campaign.players.map((player) => {
-                    const selected = campaignPreparedCombatDraft.playerIds.includes(player.id);
-                    return (
-                      <button
-                        key={`prepared-player-${player.id}`}
-                        className={`card mini fill relation-card relation-card-with-visual combat-player-selector ${
-                          selected ? "selected" : ""
-                        }`}
-                        onClick={() => toggleCampaignPreparedCombatPlayer(player.id)}
-                        type="button"
-                      >
-                        <EntityVisual entity={player} variant="relation" />
-                        <span className={badge(selected ? "success" : "default")}>{selected ? "В бою" : "Не выбран"}</span>
-                        <strong>{player.title}</strong>
-                        <p>{player.role || player.summary || "Персонаж партии"}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="copy">
-                  Пока нет игроков. Создай их во вкладке `Игроки`, и потом здесь можно будет быстро включать их в бой.
-                </p>
-              )}
-            </section>
-
-            <section className="card section-card combat-tool-card prepared-combat-card">
-              <div className="row muted">
-                <span>Противники сцены</span>
-                <span>Поиск идёт по кампании и dnd.su, а инициативу ты введёшь уже при старте</span>
-              </div>
-              <div className="form-grid">
-                <label className="field field-full">
-                  <span>Поиск по названию</span>
-                  <input
-                    className="input"
-                    onChange={(event) => setCombatSearchQuery(event.target.value)}
-                    placeholder="Бандит, волк, giant spider, капитан..."
-                    value={combatSearchQuery}
-                  />
-                </label>
-                <label className="field">
-                  <span>CR</span>
-                  <select className="input" onChange={(event) => setCombatSearchChallenge(event.target.value)} value={combatSearchChallenge}>
-                    <option value="">Все значения</option>
-                    {challengeFilterOptions.map((option) => (
-                      <option key={option} value={option}>
-                        {`CR ${option}`}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field">
-                  <span>Количество</span>
-                  <input
-                    className="input"
-                    min={1}
-                    onChange={(event) => setCombatSelectionQuantity(Math.max(1, Number.parseInt(event.target.value, 10) || 1))}
-                    type="number"
-                    value={combatSelectionQuantity}
-                  />
-                </label>
-                <div className="field">
-                  <span>Добавить врага</span>
-                  <button
-                    className="ghost fill"
-                    disabled={saving || !combatSelectionId || !selectedCombatSearchItem}
-                    onClick={() => void addCampaignPreparedCombatDraftItem()}
-                    type="button"
-                  >
-                    Добавить в сцену
-                  </button>
-                </div>
-              </div>
-
-              <div className="prepared-combat-layout">
-                <div className="stack">
-                  <div className="row muted">
-                    <span>НПС кампании + бестиарий dnd.su</span>
-                    <span>{combatSearchItems.length} результатов</span>
-                  </div>
-                  <div className="combat-search-results prepared-combat-results">
-                    {combatSearchItems.length ? (
-                      combatSearchItems.map((item) => (
-                        <button
-                          key={item.key}
-                          className={`entity-row combat-search-result has-thumb ${combatSelectionId === item.key ? "active" : ""}`}
-                          onClick={() => setCombatSelectionId(item.key)}
-                          type="button"
-                        >
-                          <span className="entity-thumb-frame">
-                            <img
-                              alt={item.title}
-                              className="entity-thumb"
-                              loading="lazy"
-                              src={
-                                item.source === "entity" && item.entity
-                                  ? createPortraitSource(item.entity)
-                                  : item.bestiary
-                                    ? createBestiaryPortraitSource(item.bestiary)
-                                    : createPortraitSource({ kind: item.kind, title: item.title })
-                              }
-                            />
-                          </span>
-                          <span className="entity-row-copy">
-                            <strong>{item.title}</strong>
-                            <small>
-                              {[
-                                item.source === "bestiary" ? "dnd.su" : item.kind === "monster" ? "Кампания • монстр" : "Кампания • НПС",
-                                item.challenge ? `CR ${extractChallengeToken(item.challenge)}` : "CR не задан",
-                                item.subtitle || item.summary
-                              ]
-                                .filter(Boolean)
-                                .join(" • ")}
-                            </small>
-                          </span>
-                        </button>
-                      ))
-                    ) : (
-                      <p className="copy">По текущему запросу ничего не найдено.</p>
-                    )}
-                  </div>
-                  {combatBestiaryLoading ? <p className="copy">Подтягиваю dnd.su под текущий поиск…</p> : null}
-                </div>
-
-                <div className="stack">
-                  {selectedCombatSearchItem ? (
-                    <div className="combat-selected-summary">
-                      <div className="row">
-                        <span className={badge(selectedCombatSearchItem.source === "bestiary" ? "accent" : "default")}>
-                          {selectedCombatSearchItem.source === "bestiary" ? "dnd.su" : "Кампания"}
-                        </span>
-                        <span className={badge("accent")}>
-                          {selectedCombatSearchItem.challenge ? `CR ${extractChallengeToken(selectedCombatSearchItem.challenge)}` : "CR не указан"}
-                        </span>
-                      </div>
-                      <strong>{selectedCombatSearchItem.title}</strong>
-                      <small>
-                        {selectedCombatSearchItem.source === "entity" && selectedCombatSearchItem.entity?.statBlock
-                          ? `КБ ${selectedCombatSearchItem.entity.statBlock.armorClass ?? "—"} • ХП ${selectedCombatSearchItem.entity.statBlock.hitPoints ?? "—"}`
-                          : selectedCombatSearchItem.subtitle || "Монстр будет импортирован в кампанию при добавлении в сцену."}
-                      </small>
-                      <small>{selectedCombatSearchItem.summary || "Готовый боевой профиль."}</small>
-                    </div>
-                  ) : (
-                    <p className="copy">Выбери противника слева, чтобы быстро добавить его в состав боя.</p>
-                  )}
-
-                  <div className="row muted">
-                    <span>Текущий состав сцены</span>
-                    <span>
-                      {campaignPreparedCombatDraft.playerIds.length} игроков •{" "}
-                      {campaignPreparedCombatDraft.items.reduce((sum, item) => sum + item.quantity, 0)} противников
-                    </span>
-                  </div>
-
-                  {campaignPreparedCombatDraft.items.length ? (
-                    <div className="entry-editor-list prepared-combat-entry-list">
-                      {campaignPreparedCombatDraft.items.map((item) => {
-                        const linked = entityMap.get(item.entityId);
-                        const linkedEntity = linked && (linked.kind === "npc" || linked.kind === "monster") ? linked : null;
-                        return (
-                          <article key={`campaign-prepared-combat-${item.entityId}`} className="entry-editor">
-                            <div className="row">
-                              <strong>{linkedEntity?.title ?? "Сущность не найдена"}</strong>
-                              <button className="ghost danger-action" onClick={() => removeCampaignPreparedCombatDraftItem(item.entityId)} type="button">
-                                Удалить
-                              </button>
-                            </div>
-                            <div className="form-grid">
-                              <label className="field">
-                                <span>Количество</span>
-                                <input
-                                  className="input"
-                                  min={1}
-                                  onChange={(event) =>
-                                    updateCampaignPreparedCombatDraftItem(item.entityId, {
-                                      quantity: Math.max(1, Number.parseInt(event.target.value, 10) || 1)
-                                    })
-                                  }
-                                  type="number"
-                                  value={item.quantity}
-                                />
-                              </label>
-                              <div className="field">
-                                <span>Профиль</span>
-                                <div className="combat-selected-summary">
-                                  <strong>{linkedEntity ? `${kindTitle[linkedEntity.kind]} • ${linkedEntity.title}` : item.entityId}</strong>
-                                  <small>
-                                    {linkedEntity
-                                      ? `${getEntityChallenge(linkedEntity) || "CR не указан"} • ${linkedEntity.summary || linkedEntity.subtitle || "Готов к бою"}`
-                                      : "Эта запись больше не найдена в кампании и будет пропущена при старте боя."}
-                                  </small>
-                                </div>
-                              </div>
-                            </div>
-                          </article>
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="copy">Пока враги не добавлены. Выбери их слева и собери сцену так, как она должна стартовать.</p>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            <div className="actions">
-              <button className="ghost" onClick={requestCombatSetupModalClose} type="button">
-                Отмена
-              </button>
-              <button className="primary" disabled={saving} onClick={() => void saveCampaignPreparedCombatDraft()} type="button">
-                {saving ? "Сохраняю..." : "Сохранить заготовку"}
-              </button>
-            </div>
           </div>
         </div>
       ) : null}
