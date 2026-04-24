@@ -1,0 +1,6 @@
+root = true
+
+[*.{go,ts,tsx,js,jsx,json,md,css,html}]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true

@@ -1,0 +1,12 @@
+{
+  "name": "@shadow-edge/demo-data",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "@shadow-edge/shared-types": "*"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

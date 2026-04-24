@@ -1,0 +1,13 @@
+{
+  "name": "@shadow-edge/api-client",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "@shadow-edge/demo-data": "*",
+    "@shadow-edge/shared-types": "*"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

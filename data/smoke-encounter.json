@@ -1,0 +1,1183 @@
+{
+  "campaigns": [
+    {
+      "id": "campaign-shadow-edge",
+      "title": "Грань Тени",
+      "system": "D\u0026D 5e",
+      "settingName": "Северная граница после Раскола",
+      "inWorldDate": "17 Найтала, 1492 DR",
+      "summary": "Чистая backend-first кампания. Создавай города, НПС, монстров, квесты и лор прямо из интерфейса.",
+      "modules": [
+        {
+          "id": "dashboard",
+          "label": "Главная",
+          "hint": "Сводка кампании и подготовка"
+        },
+        {
+          "id": "combat",
+          "label": "Бой",
+          "hint": "Активная сцена, HP и опыт"
+        },
+        {
+          "id": "locations",
+          "label": "Локации",
+          "hint": "Города, регионы, руины и POI"
+        },
+        {
+          "id": "npcs",
+          "label": "НПС",
+          "hint": "Союзники, враги и социальные профили"
+        },
+        {
+          "id": "monsters",
+          "label": "Монстры",
+          "hint": "Бестиарий, stat block и боевые угрозы"
+        },
+        {
+          "id": "quests",
+          "label": "Квесты",
+          "hint": "Активные линии и последствия"
+        },
+        {
+          "id": "lore",
+          "label": "Лор",
+          "hint": "История мира и скрытая информация"
+        }
+      ],
+      "dashboardCards": [
+        {
+          "label": "Локации",
+          "value": "0",
+          "detail": "Города, регионы и точки интереса",
+          "tone": "warning"
+        },
+        {
+          "label": "НПС",
+          "value": "0",
+          "detail": "Союзники, соперники и действующие лица",
+          "tone": "success"
+        },
+        {
+          "label": "Монстры",
+          "value": "3",
+          "detail": "Бестиарий и боевые угрозы",
+          "tone": "danger"
+        },
+        {
+          "label": "Бой",
+          "value": "15",
+          "detail": "Существ в активном бою",
+          "tone": "danger"
+        }
+      ],
+      "locations": [],
+      "npcs": [],
+      "monsters": [
+        {
+          "id": "monster-1776846724672744800-1",
+          "kind": "monster",
+          "title": "?????????? ?????? ? ??????, 5",
+          "subtitle": "AI draft - encounter ready",
+          "summary": "Monster drafted for combat encounters and quick GM prep.",
+          "content": "?????????? ?????? ? ??????, 5 comes with an encounter-ready stat block, tactics and scene usage.",
+          "tags": [
+            "ai-draft",
+            "monster",
+            "encounter-generated",
+            "custom"
+          ],
+          "quickFacts": [
+            {
+              "label": "Threat",
+              "value": "Hostile",
+              "tone": "danger"
+            },
+            {
+              "label": "Role",
+              "value": "Encounter threat"
+            },
+            {
+              "label": "CR / XP",
+              "value": "2 (450 XP)"
+            }
+          ],
+          "related": null,
+          "role": "Encounter threat",
+          "status": "Hostile",
+          "importance": "Standard",
+          "statBlock": {
+            "size": "Large",
+            "creatureType": "monstrosity",
+            "alignment": "unaligned",
+            "armorClass": "13",
+            "hitPoints": "45 (6d10 + 12)",
+            "speed": "30 ft.",
+            "proficiencyBonus": "+2",
+            "challenge": "2 (450 XP)",
+            "senses": "darkvision 60 ft., passive Perception 11",
+            "abilityScores": {
+              "str": 15,
+              "dex": 14,
+              "con": 14,
+              "int": 4,
+              "wis": 12,
+              "cha": 6
+            },
+            "traits": [
+              {
+                "name": "Scaffold Predator",
+                "description": "?????????? ?????? ? ??????, 5 is a scaffold monster draft meant for encounter generation and quick refinement."
+              }
+            ],
+            "actions": [
+              {
+                "name": "Claw or Bite",
+                "toHit": "+4 to hit",
+                "damage": "2d6 + 2 damage",
+                "description": "Baseline monster attack placeholder for fast prep."
+              }
+            ]
+          },
+          "rewardProfile": {
+            "summary": "?????????? ?????? ? ??????, 5 оставляет после себя трофеи и полезные материалы, которые группа может собрать после боя.",
+            "loot": [
+              {
+                "name": "Трофейный материал",
+                "category": "Трофей",
+                "quantity": "1",
+                "check": "Выживание",
+                "dc": "СЛ 12",
+                "details": "Кости, чешуя, клыки или другой характерный компонент."
+              }
+            ]
+          }
+        },
+        {
+          "id": "monster-1776846747973071400-8",
+          "kind": "monster",
+          "title": "Разбойник-разведчик",
+          "subtitle": "Меткий стрелок и дозорный шайки",
+          "summary": "Ставит метки, держит дистанцию и помогает вести преследование.",
+          "content": "Разбойник-разведчик работает из укрытия, первым замечает засаду и старается снимать опасные цели издалека.",
+          "tags": [
+            "ai-draft",
+            "monster",
+            "bandit",
+            "scout",
+            "encounter-generated",
+            "custom"
+          ],
+          "quickFacts": [
+            {
+              "label": "Поведение",
+              "value": "Hostile",
+              "tone": "danger"
+            },
+            {
+              "label": "Роль",
+              "value": "Ranged support"
+            },
+            {
+              "label": "CR / XP",
+              "value": "1/4 (50 XP)"
+            },
+            {
+              "label": "Лут",
+              "value": "2 поз.",
+              "tone": "warning"
+            }
+          ],
+          "related": null,
+          "role": "Ranged support",
+          "status": "Hostile",
+          "importance": "Standard",
+          "statBlock": {
+            "size": "Medium",
+            "creatureType": "humanoid",
+            "alignment": "any non-good alignment",
+            "armorClass": "13 (leather armor)",
+            "hitPoints": "16 (3d8 + 3)",
+            "speed": "30 ft.",
+            "proficiencyBonus": "+2",
+            "challenge": "1/4 (50 XP)",
+            "senses": "passive Perception 13",
+            "languages": "Common",
+            "skills": "Perception +3, Stealth +4",
+            "abilityScores": {
+              "str": 10,
+              "dex": 15,
+              "con": 12,
+              "int": 10,
+              "wis": 13,
+              "cha": 10
+            },
+            "traits": [
+              {
+                "name": "Nimble Escape",
+                "description": "The scout can take the Disengage or Hide action as a bonus action on each of its turns."
+              }
+            ],
+            "actions": [
+              {
+                "name": "Shortsword",
+                "toHit": "+4 to hit",
+                "damage": "1d6 + 2 piercing damage",
+                "description": "Melee Weapon Attack: +4 to hit, reach 5 ft., one target."
+              },
+              {
+                "name": "Shortbow",
+                "toHit": "+4 to hit",
+                "damage": "1d6 + 2 piercing damage",
+                "description": "Ranged Weapon Attack: +4 to hit, range 80/320 ft., one target."
+              }
+            ]
+          },
+          "rewardProfile": {
+            "summary": "Рядовые разбойники оставляют мелкие деньги, оружие и заметки о перемещениях шайки.",
+            "loot": [
+              {
+                "name": "Потрёпанный кошель",
+                "category": "Деньги",
+                "quantity": "1d6 серебра",
+                "check": "Без проверки",
+                "details": "Мелкая дорожная добыча и карманные деньги."
+              },
+              {
+                "name": "Оружие налётчика",
+                "category": "Оружие",
+                "quantity": "1",
+                "check": "Без проверки",
+                "details": "Скимитар или лёгкий арбалет, пригодный после короткой чистки."
+              }
+            ]
+          }
+        },
+        {
+          "id": "monster-1776846747990834100-9",
+          "kind": "monster",
+          "title": "Атаман разбойников",
+          "subtitle": "Жестокий лидер крупной шайки",
+          "summary": "Тяжёлая цель для опасных засад и кульминационных столкновений с бандой.",
+          "content": "Атаман разбойников ведёт бой лично, давит мораль партии и использует подручных как живой щит, пока не увидит шанс добить цель.",
+          "tags": [
+            "ai-draft",
+            "monster",
+            "bandit",
+            "warlord",
+            "encounter-generated",
+            "custom"
+          ],
+          "quickFacts": [
+            {
+              "label": "Поведение",
+              "value": "Hostile",
+              "tone": "danger"
+            },
+            {
+              "label": "Роль",
+              "value": "Boss leader"
+            },
+            {
+              "label": "CR / XP",
+              "value": "5 (1800 XP)"
+            },
+            {
+              "label": "Лут",
+              "value": "3 поз.",
+              "tone": "warning"
+            }
+          ],
+          "related": null,
+          "role": "Boss leader",
+          "status": "Hostile",
+          "importance": "Boss",
+          "statBlock": {
+            "size": "Medium",
+            "creatureType": "humanoid",
+            "alignment": "any non-good alignment",
+            "armorClass": "17 (breastplate)",
+            "hitPoints": "95 (10d10 + 40)",
+            "speed": "30 ft.",
+            "proficiencyBonus": "+3",
+            "challenge": "5 (1800 XP)",
+            "senses": "passive Perception 13",
+            "languages": "Common plus two others",
+            "abilityScores": {
+              "str": 18,
+              "dex": 14,
+              "con": 18,
+              "int": 11,
+              "wis": 12,
+              "cha": 15
+            },
+            "traits": [
+              {
+                "name": "Tyrant's Command",
+                "description": "Allied bandits within 30 feet add +2 to attack rolls while the ataman is not incapacitated."
+              }
+            ],
+            "actions": [
+              {
+                "name": "Multiattack",
+                "description": "The ataman makes three weapon attacks."
+              },
+              {
+                "name": "Sabre",
+                "toHit": "+7 to hit",
+                "damage": "1d8 + 4 slashing damage",
+                "description": "Melee Weapon Attack: +7 to hit, reach 5 ft., one target."
+              },
+              {
+                "name": "Pistol Shot",
+                "toHit": "+6 to hit",
+                "damage": "2d10 + 2 piercing damage",
+                "description": "Ranged Weapon Attack: +6 to hit, range 30/90 ft., one target."
+              }
+            ]
+          },
+          "rewardProfile": {
+            "summary": "У главаря обычно есть деньги, лучшее оружие и следы, ведущие к тайнику или заказчику.",
+            "loot": [
+              {
+                "name": "Кошель главаря",
+                "category": "Деньги",
+                "quantity": "2d10 серебра и 1d6 золота",
+                "check": "Без проверки",
+                "details": "Личные сбережения и доля с недавнего налёта."
+              },
+              {
+                "name": "План засады",
+                "category": "Улика",
+                "quantity": "1",
+                "check": "Расследование",
+                "dc": "СЛ 12",
+                "details": "Показывает тайник, маршрут или имя связного."
+              },
+              {
+                "name": "Хорошее оружие",
+                "category": "Оружие",
+                "quantity": "1",
+                "check": "Без проверки",
+                "details": "Скимитар или арбалет в лучшем состоянии, чем у рядовых налётчиков."
+              }
+            ]
+          }
+        }
+      ],
+      "quests": [],
+      "lore": [],
+      "events": [],
+      "sessionPrep": [],
+      "activeCombat": {
+        "id": "combat-1776846724672744800-2",
+        "title": "Smoke Test Encounter",
+        "partySize": 4,
+        "thresholds": {
+          "easy": 1200,
+          "medium": 2400,
+          "hard": 3600,
+          "deadly": 5600
+        },
+        "difficulty": "deadly",
+        "targetAdjustedXp": 4000,
+        "targetBaseXp": 2000,
+        "actualBaseXp": 6250,
+        "actualAdjustedXp": 25000,
+        "entries": [
+          {
+            "id": "combat-entry-1776846724672744800-3",
+            "entityId": "monster-1776846724672744800-1",
+            "entityKind": "monster",
+            "title": "?????????? ?????? ? ??????, 5",
+            "summary": "Monster drafted for combat encounters and quick GM prep.",
+            "role": "Encounter threat",
+            "armorClass": "13",
+            "challenge": "2 (450 XP)",
+            "experience": 450,
+            "maxHitPoints": 45,
+            "currentHitPoints": 45,
+            "defeated": false,
+            "statBlock": {
+              "size": "Large",
+              "creatureType": "monstrosity",
+              "alignment": "unaligned",
+              "armorClass": "13",
+              "hitPoints": "45 (6d10 + 12)",
+              "speed": "30 ft.",
+              "proficiencyBonus": "+2",
+              "challenge": "2 (450 XP)",
+              "senses": "darkvision 60 ft., passive Perception 11",
+              "abilityScores": {
+                "str": 15,
+                "dex": 14,
+                "con": 14,
+                "int": 4,
+                "wis": 12,
+                "cha": 6
+              },
+              "traits": [
+                {
+                  "name": "Scaffold Predator",
+                  "description": "?????????? ?????? ? ??????, 5 is a scaffold monster draft meant for encounter generation and quick refinement."
+                }
+              ],
+              "actions": [
+                {
+                  "name": "Claw or Bite",
+                  "toHit": "+4 to hit",
+                  "damage": "2d6 + 2 damage",
+                  "description": "Baseline monster attack placeholder for fast prep."
+                }
+              ]
+            }
+          },
+          {
+            "id": "combat-entry-1776846724672744800-4",
+            "entityId": "monster-1776846724672744800-1",
+            "entityKind": "monster",
+            "title": "?????????? ?????? ? ??????, 5 #2",
+            "summary": "Monster drafted for combat encounters and quick GM prep.",
+            "role": "Encounter threat",
+            "armorClass": "13",
+            "challenge": "2 (450 XP)",
+            "experience": 450,
+            "maxHitPoints": 45,
+            "currentHitPoints": 45,
+            "defeated": false,
+            "statBlock": {
+              "size": "Large",
+              "creatureType": "monstrosity",
+              "alignment": "unaligned",
+              "armorClass": "13",
+              "hitPoints": "45 (6d10 + 12)",
+              "speed": "30 ft.",
+              "proficiencyBonus": "+2",
+              "challenge": "2 (450 XP)",
+              "senses": "darkvision 60 ft., passive Perception 11",
+              "abilityScores": {
+                "str": 15,
+                "dex": 14,
+                "con": 14,
+                "int": 4,
+                "wis": 12,
+                "cha": 6
+              },
+              "traits": [
+                {
+                  "name": "Scaffold Predator",
+                  "description": "?????????? ?????? ? ??????, 5 is a scaffold monster draft meant for encounter generation and quick refinement."
+                }
+              ],
+              "actions": [
+                {
+                  "name": "Claw or Bite",
+                  "toHit": "+4 to hit",
+                  "damage": "2d6 + 2 damage",
+                  "description": "Baseline monster attack placeholder for fast prep."
+                }
+              ]
+            }
+          },
+          {
+            "id": "combat-entry-1776846724672744800-5",
+            "entityId": "monster-1776846724672744800-1",
+            "entityKind": "monster",
+            "title": "?????????? ?????? ? ??????, 5 #3",
+            "summary": "Monster drafted for combat encounters and quick GM prep.",
+            "role": "Encounter threat",
+            "armorClass": "13",
+            "challenge": "2 (450 XP)",
+            "experience": 450,
+            "maxHitPoints": 45,
+            "currentHitPoints": 45,
+            "defeated": false,
+            "statBlock": {
+              "size": "Large",
+              "creatureType": "monstrosity",
+              "alignment": "unaligned",
+              "armorClass": "13",
+              "hitPoints": "45 (6d10 + 12)",
+              "speed": "30 ft.",
+              "proficiencyBonus": "+2",
+              "challenge": "2 (450 XP)",
+              "senses": "darkvision 60 ft., passive Perception 11",
+              "abilityScores": {
+                "str": 15,
+                "dex": 14,
+                "con": 14,
+                "int": 4,
+                "wis": 12,
+                "cha": 6
+              },
+              "traits": [
+                {
+                  "name": "Scaffold Predator",
+                  "description": "?????????? ?????? ? ??????, 5 is a scaffold monster draft meant for encounter generation and quick refinement."
+                }
+              ],
+              "actions": [
+                {
+                  "name": "Claw or Bite",
+                  "toHit": "+4 to hit",
+                  "damage": "2d6 + 2 damage",
+                  "description": "Baseline monster attack placeholder for fast prep."
+                }
+              ]
+            }
+          },
+          {
+            "id": "combat-entry-1776846724672744800-6",
+            "entityId": "monster-1776846724672744800-1",
+            "entityKind": "monster",
+            "title": "?????????? ?????? ? ??????, 5 #4",
+            "summary": "Monster drafted for combat encounters and quick GM prep.",
+            "role": "Encounter threat",
+            "armorClass": "13",
+            "challenge": "2 (450 XP)",
+            "experience": 450,
+            "maxHitPoints": 45,
+            "currentHitPoints": 45,
+            "defeated": false,
+            "statBlock": {
+              "size": "Large",
+              "creatureType": "monstrosity",
+              "alignment": "unaligned",
+              "armorClass": "13",
+              "hitPoints": "45 (6d10 + 12)",
+              "speed": "30 ft.",
+              "proficiencyBonus": "+2",
+              "challenge": "2 (450 XP)",
+              "senses": "darkvision 60 ft., passive Perception 11",
+              "abilityScores": {
+                "str": 15,
+                "dex": 14,
+                "con": 14,
+                "int": 4,
+                "wis": 12,
+                "cha": 6
+              },
+              "traits": [
+                {
+                  "name": "Scaffold Predator",
+                  "description": "?????????? ?????? ? ??????, 5 is a scaffold monster draft meant for encounter generation and quick refinement."
+                }
+              ],
+              "actions": [
+                {
+                  "name": "Claw or Bite",
+                  "toHit": "+4 to hit",
+                  "damage": "2d6 + 2 damage",
+                  "description": "Baseline monster attack placeholder for fast prep."
+                }
+              ]
+            }
+          },
+          {
+            "id": "combat-entry-1776846724672744800-7",
+            "entityId": "monster-1776846724672744800-1",
+            "entityKind": "monster",
+            "title": "?????????? ?????? ? ??????, 5 #5",
+            "summary": "Monster drafted for combat encounters and quick GM prep.",
+            "role": "Encounter threat",
+            "armorClass": "13",
+            "challenge": "2 (450 XP)",
+            "experience": 450,
+            "maxHitPoints": 45,
+            "currentHitPoints": 45,
+            "defeated": false,
+            "statBlock": {
+              "size": "Large",
+              "creatureType": "monstrosity",
+              "alignment": "unaligned",
+              "armorClass": "13",
+              "hitPoints": "45 (6d10 + 12)",
+              "speed": "30 ft.",
+              "proficiencyBonus": "+2",
+              "challenge": "2 (450 XP)",
+              "senses": "darkvision 60 ft., passive Perception 11",
+              "abilityScores": {
+                "str": 15,
+                "dex": 14,
+                "con": 14,
+                "int": 4,
+                "wis": 12,
+                "cha": 6
+              },
+              "traits": [
+                {
+                  "name": "Scaffold Predator",
+                  "description": "?????????? ?????? ? ??????, 5 is a scaffold monster draft meant for encounter generation and quick refinement."
+                }
+              ],
+              "actions": [
+                {
+                  "name": "Claw or Bite",
+                  "toHit": "+4 to hit",
+                  "damage": "2d6 + 2 damage",
+                  "description": "Baseline monster attack placeholder for fast prep."
+                }
+              ]
+            }
+          },
+          {
+            "id": "combat-entry-1776846748001938000-10",
+            "entityId": "monster-1776846747973071400-8",
+            "entityKind": "monster",
+            "title": "Разбойник-разведчик",
+            "summary": "Ставит метки, держит дистанцию и помогает вести преследование.",
+            "role": "Ranged support",
+            "armorClass": "13 (leather armor)",
+            "challenge": "1/4 (50 XP)",
+            "experience": 50,
+            "maxHitPoints": 16,
+            "currentHitPoints": 16,
+            "defeated": false,
+            "statBlock": {
+              "size": "Medium",
+              "creatureType": "humanoid",
+              "alignment": "any non-good alignment",
+              "armorClass": "13 (leather armor)",
+              "hitPoints": "16 (3d8 + 3)",
+              "speed": "30 ft.",
+              "proficiencyBonus": "+2",
+              "challenge": "1/4 (50 XP)",
+              "senses": "passive Perception 13",
+              "languages": "Common",
+              "skills": "Perception +3, Stealth +4",
+              "abilityScores": {
+                "str": 10,
+                "dex": 15,
+                "con": 12,
+                "int": 10,
+                "wis": 13,
+                "cha": 10
+              },
+              "traits": [
+                {
+                  "name": "Nimble Escape",
+                  "description": "The scout can take the Disengage or Hide action as a bonus action on each of its turns."
+                }
+              ],
+              "actions": [
+                {
+                  "name": "Shortsword",
+                  "toHit": "+4 to hit",
+                  "damage": "1d6 + 2 piercing damage",
+                  "description": "Melee Weapon Attack: +4 to hit, reach 5 ft., one target."
+                },
+                {
+                  "name": "Shortbow",
+                  "toHit": "+4 to hit",
+                  "damage": "1d6 + 2 piercing damage",
+                  "description": "Ranged Weapon Attack: +4 to hit, range 80/320 ft., one target."
+                }
+              ]
+            }
+          },
+          {
+            "id": "combat-entry-1776846748001938000-11",
+            "entityId": "monster-1776846747973071400-8",
+            "entityKind": "monster",
+            "title": "Разбойник-разведчик #2",
+            "summary": "Ставит метки, держит дистанцию и помогает вести преследование.",
+            "role": "Ranged support",
+            "armorClass": "13 (leather armor)",
+            "challenge": "1/4 (50 XP)",
+            "experience": 50,
+            "maxHitPoints": 16,
+            "currentHitPoints": 16,
+            "defeated": false,
+            "statBlock": {
+              "size": "Medium",
+              "creatureType": "humanoid",
+              "alignment": "any non-good alignment",
+              "armorClass": "13 (leather armor)",
+              "hitPoints": "16 (3d8 + 3)",
+              "speed": "30 ft.",
+              "proficiencyBonus": "+2",
+              "challenge": "1/4 (50 XP)",
+              "senses": "passive Perception 13",
+              "languages": "Common",
+              "skills": "Perception +3, Stealth +4",
+              "abilityScores": {
+                "str": 10,
+                "dex": 15,
+                "con": 12,
+                "int": 10,
+                "wis": 13,
+                "cha": 10
+              },
+              "traits": [
+                {
+                  "name": "Nimble Escape",
+                  "description": "The scout can take the Disengage or Hide action as a bonus action on each of its turns."
+                }
+              ],
+              "actions": [
+                {
+                  "name": "Shortsword",
+                  "toHit": "+4 to hit",
+                  "damage": "1d6 + 2 piercing damage",
+                  "description": "Melee Weapon Attack: +4 to hit, reach 5 ft., one target."
+                },
+                {
+                  "name": "Shortbow",
+                  "toHit": "+4 to hit",
+                  "damage": "1d6 + 2 piercing damage",
+                  "description": "Ranged Weapon Attack: +4 to hit, range 80/320 ft., one target."
+                }
+              ]
+            }
+          },
+          {
+            "id": "combat-entry-1776846748001938000-12",
+            "entityId": "monster-1776846747973071400-8",
+            "entityKind": "monster",
+            "title": "Разбойник-разведчик #3",
+            "summary": "Ставит метки, держит дистанцию и помогает вести преследование.",
+            "role": "Ranged support",
+            "armorClass": "13 (leather armor)",
+            "challenge": "1/4 (50 XP)",
+            "experience": 50,
+            "maxHitPoints": 16,
+            "currentHitPoints": 16,
+            "defeated": false,
+            "statBlock": {
+              "size": "Medium",
+              "creatureType": "humanoid",
+              "alignment": "any non-good alignment",
+              "armorClass": "13 (leather armor)",
+              "hitPoints": "16 (3d8 + 3)",
+              "speed": "30 ft.",
+              "proficiencyBonus": "+2",
+              "challenge": "1/4 (50 XP)",
+              "senses": "passive Perception 13",
+              "languages": "Common",
+              "skills": "Perception +3, Stealth +4",
+              "abilityScores": {
+                "str": 10,
+                "dex": 15,
+                "con": 12,
+                "int": 10,
+                "wis": 13,
+                "cha": 10
+              },
+              "traits": [
+                {
+                  "name": "Nimble Escape",
+                  "description": "The scout can take the Disengage or Hide action as a bonus action on each of its turns."
+                }
+              ],
+              "actions": [
+                {
+                  "name": "Shortsword",
+                  "toHit": "+4 to hit",
+                  "damage": "1d6 + 2 piercing damage",
+                  "description": "Melee Weapon Attack: +4 to hit, reach 5 ft., one target."
+                },
+                {
+                  "name": "Shortbow",
+                  "toHit": "+4 to hit",
+                  "damage": "1d6 + 2 piercing damage",
+                  "description": "Ranged Weapon Attack: +4 to hit, range 80/320 ft., one target."
+                }
+              ]
+            }
+          },
+          {
+            "id": "combat-entry-1776846748001938000-13",
+            "entityId": "monster-1776846747973071400-8",
+            "entityKind": "monster",
+            "title": "Разбойник-разведчик #4",
+            "summary": "Ставит метки, держит дистанцию и помогает вести преследование.",
+            "role": "Ranged support",
+            "armorClass": "13 (leather armor)",
+            "challenge": "1/4 (50 XP)",
+            "experience": 50,
+            "maxHitPoints": 16,
+            "currentHitPoints": 16,
+            "defeated": false,
+            "statBlock": {
+              "size": "Medium",
+              "creatureType": "humanoid",
+              "alignment": "any non-good alignment",
+              "armorClass": "13 (leather armor)",
+              "hitPoints": "16 (3d8 + 3)",
+              "speed": "30 ft.",
+              "proficiencyBonus": "+2",
+              "challenge": "1/4 (50 XP)",
+              "senses": "passive Perception 13",
+              "languages": "Common",
+              "skills": "Perception +3, Stealth +4",
+              "abilityScores": {
+                "str": 10,
+                "dex": 15,
+                "con": 12,
+                "int": 10,
+                "wis": 13,
+                "cha": 10
+              },
+              "traits": [
+                {
+                  "name": "Nimble Escape",
+                  "description": "The scout can take the Disengage or Hide action as a bonus action on each of its turns."
+                }
+              ],
+              "actions": [
+                {
+                  "name": "Shortsword",
+                  "toHit": "+4 to hit",
+                  "damage": "1d6 + 2 piercing damage",
+                  "description": "Melee Weapon Attack: +4 to hit, reach 5 ft., one target."
+                },
+                {
+                  "name": "Shortbow",
+                  "toHit": "+4 to hit",
+                  "damage": "1d6 + 2 piercing damage",
+                  "description": "Ranged Weapon Attack: +4 to hit, range 80/320 ft., one target."
+                }
+              ]
+            }
+          },
+          {
+            "id": "combat-entry-1776846748001938000-14",
+            "entityId": "monster-1776846747990834100-9",
+            "entityKind": "monster",
+            "title": "Атаман разбойников",
+            "summary": "Тяжёлая цель для опасных засад и кульминационных столкновений с бандой.",
+            "role": "Boss leader",
+            "armorClass": "17 (breastplate)",
+            "challenge": "5 (1800 XP)",
+            "experience": 1800,
+            "maxHitPoints": 95,
+            "currentHitPoints": 95,
+            "defeated": false,
+            "statBlock": {
+              "size": "Medium",
+              "creatureType": "humanoid",
+              "alignment": "any non-good alignment",
+              "armorClass": "17 (breastplate)",
+              "hitPoints": "95 (10d10 + 40)",
+              "speed": "30 ft.",
+              "proficiencyBonus": "+3",
+              "challenge": "5 (1800 XP)",
+              "senses": "passive Perception 13",
+              "languages": "Common plus two others",
+              "abilityScores": {
+                "str": 18,
+                "dex": 14,
+                "con": 18,
+                "int": 11,
+                "wis": 12,
+                "cha": 15
+              },
+              "traits": [
+                {
+                  "name": "Tyrant's Command",
+                  "description": "Allied bandits within 30 feet add +2 to attack rolls while the ataman is not incapacitated."
+                }
+              ],
+              "actions": [
+                {
+                  "name": "Multiattack",
+                  "description": "The ataman makes three weapon attacks."
+                },
+                {
+                  "name": "Sabre",
+                  "toHit": "+7 to hit",
+                  "damage": "1d8 + 4 slashing damage",
+                  "description": "Melee Weapon Attack: +7 to hit, reach 5 ft., one target."
+                },
+                {
+                  "name": "Pistol Shot",
+                  "toHit": "+6 to hit",
+                  "damage": "2d10 + 2 piercing damage",
+                  "description": "Ranged Weapon Attack: +6 to hit, range 30/90 ft., one target."
+                }
+              ]
+            }
+          },
+          {
+            "id": "combat-entry-1776846771976309700-17",
+            "entityId": "monster-1776846747973071400-8",
+            "entityKind": "monster",
+            "title": "Разбойник-разведчик #5",
+            "summary": "Ставит метки, держит дистанцию и помогает вести преследование.",
+            "role": "Ranged support",
+            "armorClass": "13 (leather armor)",
+            "challenge": "1/4 (50 XP)",
+            "experience": 50,
+            "maxHitPoints": 16,
+            "currentHitPoints": 16,
+            "defeated": false,
+            "statBlock": {
+              "size": "Medium",
+              "creatureType": "humanoid",
+              "alignment": "any non-good alignment",
+              "armorClass": "13 (leather armor)",
+              "hitPoints": "16 (3d8 + 3)",
+              "speed": "30 ft.",
+              "proficiencyBonus": "+2",
+              "challenge": "1/4 (50 XP)",
+              "senses": "passive Perception 13",
+              "languages": "Common",
+              "skills": "Perception +3, Stealth +4",
+              "abilityScores": {
+                "str": 10,
+                "dex": 15,
+                "con": 12,
+                "int": 10,
+                "wis": 13,
+                "cha": 10
+              },
+              "traits": [
+                {
+                  "name": "Nimble Escape",
+                  "description": "The scout can take the Disengage or Hide action as a bonus action on each of its turns."
+                }
+              ],
+              "actions": [
+                {
+                  "name": "Shortsword",
+                  "toHit": "+4 to hit",
+                  "damage": "1d6 + 2 piercing damage",
+                  "description": "Melee Weapon Attack: +4 to hit, reach 5 ft., one target."
+                },
+                {
+                  "name": "Shortbow",
+                  "toHit": "+4 to hit",
+                  "damage": "1d6 + 2 piercing damage",
+                  "description": "Ranged Weapon Attack: +4 to hit, range 80/320 ft., one target."
+                }
+              ]
+            }
+          },
+          {
+            "id": "combat-entry-1776846771976309700-18",
+            "entityId": "monster-1776846747973071400-8",
+            "entityKind": "monster",
+            "title": "Разбойник-разведчик #6",
+            "summary": "Ставит метки, держит дистанцию и помогает вести преследование.",
+            "role": "Ranged support",
+            "armorClass": "13 (leather armor)",
+            "challenge": "1/4 (50 XP)",
+            "experience": 50,
+            "maxHitPoints": 16,
+            "currentHitPoints": 16,
+            "defeated": false,
+            "statBlock": {
+              "size": "Medium",
+              "creatureType": "humanoid",
+              "alignment": "any non-good alignment",
+              "armorClass": "13 (leather armor)",
+              "hitPoints": "16 (3d8 + 3)",
+              "speed": "30 ft.",
+              "proficiencyBonus": "+2",
+              "challenge": "1/4 (50 XP)",
+              "senses": "passive Perception 13",
+              "languages": "Common",
+              "skills": "Perception +3, Stealth +4",
+              "abilityScores": {
+                "str": 10,
+                "dex": 15,
+                "con": 12,
+                "int": 10,
+                "wis": 13,
+                "cha": 10
+              },
+              "traits": [
+                {
+                  "name": "Nimble Escape",
+                  "description": "The scout can take the Disengage or Hide action as a bonus action on each of its turns."
+                }
+              ],
+              "actions": [
+                {
+                  "name": "Shortsword",
+                  "toHit": "+4 to hit",
+                  "damage": "1d6 + 2 piercing damage",
+                  "description": "Melee Weapon Attack: +4 to hit, reach 5 ft., one target."
+                },
+                {
+                  "name": "Shortbow",
+                  "toHit": "+4 to hit",
+                  "damage": "1d6 + 2 piercing damage",
+                  "description": "Ranged Weapon Attack: +4 to hit, range 80/320 ft., one target."
+                }
+              ]
+            }
+          },
+          {
+            "id": "combat-entry-1776846771976309700-19",
+            "entityId": "monster-1776846747973071400-8",
+            "entityKind": "monster",
+            "title": "Разбойник-разведчик #7",
+            "summary": "Ставит метки, держит дистанцию и помогает вести преследование.",
+            "role": "Ranged support",
+            "armorClass": "13 (leather armor)",
+            "challenge": "1/4 (50 XP)",
+            "experience": 50,
+            "maxHitPoints": 16,
+            "currentHitPoints": 16,
+            "defeated": false,
+            "statBlock": {
+              "size": "Medium",
+              "creatureType": "humanoid",
+              "alignment": "any non-good alignment",
+              "armorClass": "13 (leather armor)",
+              "hitPoints": "16 (3d8 + 3)",
+              "speed": "30 ft.",
+              "proficiencyBonus": "+2",
+              "challenge": "1/4 (50 XP)",
+              "senses": "passive Perception 13",
+              "languages": "Common",
+              "skills": "Perception +3, Stealth +4",
+              "abilityScores": {
+                "str": 10,
+                "dex": 15,
+                "con": 12,
+                "int": 10,
+                "wis": 13,
+                "cha": 10
+              },
+              "traits": [
+                {
+                  "name": "Nimble Escape",
+                  "description": "The scout can take the Disengage or Hide action as a bonus action on each of its turns."
+                }
+              ],
+              "actions": [
+                {
+                  "name": "Shortsword",
+                  "toHit": "+4 to hit",
+                  "damage": "1d6 + 2 piercing damage",
+                  "description": "Melee Weapon Attack: +4 to hit, reach 5 ft., one target."
+                },
+                {
+                  "name": "Shortbow",
+                  "toHit": "+4 to hit",
+                  "damage": "1d6 + 2 piercing damage",
+                  "description": "Ranged Weapon Attack: +4 to hit, range 80/320 ft., one target."
+                }
+              ]
+            }
+          },
+          {
+            "id": "combat-entry-1776846771976309700-20",
+            "entityId": "monster-1776846747973071400-8",
+            "entityKind": "monster",
+            "title": "Разбойник-разведчик #8",
+            "summary": "Ставит метки, держит дистанцию и помогает вести преследование.",
+            "role": "Ranged support",
+            "armorClass": "13 (leather armor)",
+            "challenge": "1/4 (50 XP)",
+            "experience": 50,
+            "maxHitPoints": 16,
+            "currentHitPoints": 16,
+            "defeated": false,
+            "statBlock": {
+              "size": "Medium",
+              "creatureType": "humanoid",
+              "alignment": "any non-good alignment",
+              "armorClass": "13 (leather armor)",
+              "hitPoints": "16 (3d8 + 3)",
+              "speed": "30 ft.",
+              "proficiencyBonus": "+2",
+              "challenge": "1/4 (50 XP)",
+              "senses": "passive Perception 13",
+              "languages": "Common",
+              "skills": "Perception +3, Stealth +4",
+              "abilityScores": {
+                "str": 10,
+                "dex": 15,
+                "con": 12,
+                "int": 10,
+                "wis": 13,
+                "cha": 10
+              },
+              "traits": [
+                {
+                  "name": "Nimble Escape",
+                  "description": "The scout can take the Disengage or Hide action as a bonus action on each of its turns."
+                }
+              ],
+              "actions": [
+                {
+                  "name": "Shortsword",
+                  "toHit": "+4 to hit",
+                  "damage": "1d6 + 2 piercing damage",
+                  "description": "Melee Weapon Attack: +4 to hit, reach 5 ft., one target."
+                },
+                {
+                  "name": "Shortbow",
+                  "toHit": "+4 to hit",
+                  "damage": "1d6 + 2 piercing damage",
+                  "description": "Ranged Weapon Attack: +4 to hit, range 80/320 ft., one target."
+                }
+              ]
+            }
+          },
+          {
+            "id": "combat-entry-1776846771976309700-21",
+            "entityId": "monster-1776846747990834100-9",
+            "entityKind": "monster",
+            "title": "Атаман разбойников #2",
+            "summary": "Тяжёлая цель для опасных засад и кульминационных столкновений с бандой.",
+            "role": "Boss leader",
+            "armorClass": "17 (breastplate)",
+            "challenge": "5 (1800 XP)",
+            "experience": 1800,
+            "maxHitPoints": 95,
+            "currentHitPoints": 95,
+            "defeated": false,
+            "statBlock": {
+              "size": "Medium",
+              "creatureType": "humanoid",
+              "alignment": "any non-good alignment",
+              "armorClass": "17 (breastplate)",
+              "hitPoints": "95 (10d10 + 40)",
+              "speed": "30 ft.",
+              "proficiencyBonus": "+3",
+              "challenge": "5 (1800 XP)",
+              "senses": "passive Perception 13",
+              "languages": "Common plus two others",
+              "abilityScores": {
+                "str": 18,
+                "dex": 14,
+                "con": 18,
+                "int": 11,
+                "wis": 12,
+                "cha": 15
+              },
+              "traits": [
+                {
+                  "name": "Tyrant's Command",
+                  "description": "Allied bandits within 30 feet add +2 to attack rolls while the ataman is not incapacitated."
+                }
+              ],
+              "actions": [
+                {
+                  "name": "Multiattack",
+                  "description": "The ataman makes three weapon attacks."
+                },
+                {
+                  "name": "Sabre",
+                  "toHit": "+7 to hit",
+                  "damage": "1d8 + 4 slashing damage",
+                  "description": "Melee Weapon Attack: +7 to hit, reach 5 ft., one target."
+                },
+                {
+                  "name": "Pistol Shot",
+                  "toHit": "+6 to hit",
+                  "damage": "2d10 + 2 piercing damage",
+                  "description": "Ranged Weapon Attack: +6 to hit, range 30/90 ft., one target."
+                }
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "updatedAt": "2026-04-22T08:32:51Z"
+}

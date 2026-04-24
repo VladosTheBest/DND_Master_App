@@ -1,0 +1,15 @@
+.git
+.idea
+.codex-run
+.gocache
+node_modules
+apps/web/node_modules
+apps/web/dist
+*.log
+*.out.log
+*.err.log
+*.exe
+.env
+.env.local
+.env.*.local
+apps/server/internal/httpapi/*.go.*

@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.DS_Store
+.idea/
+coverage/
+.env
+.env.local
+.env.*.local
+.codex-run/
+.gocache/
+*.log
+*.out.log
+*.err.log
+*.exe
+apps/server/internal/httpapi/*.go.*
