@@ -12,4 +12,5 @@ coverage/
 *.out.log
 *.err.log
 *.exe
+data/uploads/
 apps/server/internal/httpapi/*.go.*

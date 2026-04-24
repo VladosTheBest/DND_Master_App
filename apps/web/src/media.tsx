@@ -399,8 +399,13 @@ export function GalleryLightbox({
   }, [onClose, onSelect, viewer.currentIndex, viewer.items.length]);
 
   return (
-    <div className="gallery-lightbox-backdrop" role="presentation">
-      <div className="panel gallery-lightbox" onClick={(event) => event.stopPropagation()} role="dialog">
+    <div className="gallery-lightbox-backdrop" onClick={onClose} role="presentation">
+      <div
+        aria-modal="true"
+        className="panel gallery-lightbox"
+        onClick={(event) => event.stopPropagation()}
+        role="dialog"
+      >
         <div className="row">
           <div className="stack compact">
             <p className="eyebrow">Галерея / Fullscreen</p>
@@ -431,12 +436,23 @@ export function GalleryLightbox({
               Открыть файл
             </button>
             <button className="ghost" onClick={onClose} type="button">
-              Esc
+              Закрыть
             </button>
           </div>
         </div>
 
-        <div className="gallery-lightbox-image-shell">
+        <div
+          className="gallery-lightbox-image-shell"
+          onClick={onClose}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onClose();
+            }
+          }}
+          role="button"
+          tabIndex={0}
+        >
           <img alt={item.caption ?? galleryImageTitle(item, viewer.currentIndex)} className="gallery-lightbox-image" src={item.url} />
         </div>
 

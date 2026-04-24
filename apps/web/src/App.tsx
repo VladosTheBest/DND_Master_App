@@ -308,6 +308,11 @@ type EntityLinkSelection = {
   y: number;
   entityId?: string;
 };
+type EntityActionMenuState = {
+  entityId: string;
+  x: number;
+  y: number;
+};
 type CombatSearchItem = {
   key: string;
   source: "entity" | "bestiary";
@@ -1846,6 +1851,7 @@ export default function App() {
   const [activePlayback, setActivePlayback] = useState<ActivePlaylistPlayback | null>(null);
   const [entityLinkSelection, setEntityLinkSelection] = useState<EntityLinkSelection | null>(null);
   const [entityLinkMenuOpen, setEntityLinkMenuOpen] = useState(false);
+  const [entityActionMenu, setEntityActionMenu] = useState<EntityActionMenuState | null>(null);
   const [entityLinkModalOpen, setEntityLinkModalOpen] = useState(false);
   const [entityLinkQuery, setEntityLinkQuery] = useState("");
   const [entityLinkTargetId, setEntityLinkTargetId] = useState("");
@@ -1939,6 +1945,21 @@ export default function App() {
   const resizeRef = useRef<{ key: ResizeKey; startX: number; startWidth: number } | null>(null);
   const lastAppViewRef = useRef<{ module: ModuleId; tab: string }>({ module: "dashboard", tab: "Snapshot" });
   const combatPatchQueueRef = useRef(new Map<string, Promise<void>>());
+
+  useEffect(() => {
+    if (!entityActionMenu) {
+      return;
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        closeEntityActionMenu();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [entityActionMenu]);
 
   const hydrateCampaign = (data: CampaignData, preferredEntityId?: string) => {
     const normalized = normalizeCampaignForClient(data);
@@ -2720,6 +2741,8 @@ export default function App() {
     entityPlaylistEntityId && entityMap.has(entityPlaylistEntityId) ? entityMap.get(entityPlaylistEntityId) ?? null : null;
   const entityGalleryTarget =
     entityGalleryEntityId && entityMap.has(entityGalleryEntityId) ? entityMap.get(entityGalleryEntityId) ?? null : null;
+  const entityActionMenuTarget =
+    entityActionMenu && entityMap.has(entityActionMenu.entityId) ? entityMap.get(entityActionMenu.entityId) ?? null : null;
   const currentPlaybackTrack = activePlayback ? activePlayback.tracks[activePlayback.currentIndex] ?? null : null;
   const currentPlaybackTrackUrl = currentPlaybackTrack?.url ?? "";
   const currentPlaybackTrackLabel =
@@ -3687,6 +3710,57 @@ export default function App() {
     action?.();
   };
 
+  const performEntityDeletion = async (entityId: string) => {
+    if (!activeCampaignId) {
+      return;
+    }
+
+    try {
+      setSaving(true);
+      const result = await api.deleteEntity(activeCampaignId, entityId);
+      setPinnedIds((current) => current.filter((id) => id !== result.entityId));
+      hydrateCampaign(result.campaign);
+      setActiveModule(moduleByKind[result.kind]);
+
+      if (editingEntityId === entityId) {
+        closeEntityModal();
+      }
+      if (entityPlaylistEntityId === entityId) {
+        closeEntityPlaylistModal();
+      }
+      if (entityGalleryEntityId === entityId) {
+        closeEntityGalleryModal();
+      }
+      if (preparedCombatQuestId === entityId) {
+        closePreparedCombatModal();
+      }
+      if (playerFacingEntityId === entityId) {
+        closePlayerFacingView();
+      }
+      if (galleryViewer?.ownerId === entityId) {
+        closeGalleryViewer();
+      }
+
+      setBootError("");
+    } catch (error) {
+      setBootError(error instanceof Error ? error.message : "РќРµ СѓРґР°Р»РѕСЃСЊ СѓРґР°Р»РёС‚СЊ СЃСѓС‰РЅРѕСЃС‚СЊ.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const requestEntityDeletion = (entity: KnowledgeEntity) => {
+    closeEntityActionMenu();
+    requestModalClose(
+      `РЈРґР°Р»РёС‚СЊ В«${entity.title}В»?`,
+      () => {
+        void performEntityDeletion(entity.id);
+      },
+      "РЎСѓС‰РЅРѕСЃС‚СЊ Р±СѓРґРµС‚ СѓРґР°Р»РµРЅР° РёР· РєР°РјРїР°РЅРёРё. Р­С‚Рѕ РґРµР№СЃС‚РІРёРµ РЅРµР»СЊР·СЏ РѕС‚РјРµРЅРёС‚СЊ.",
+      "РЈРґР°Р»РёС‚СЊ"
+    );
+  };
+
   const openCampaignModal = () => {
     setCampaignForm(emptyCampaignForm());
     setCampaignModalOpen(true);
@@ -3863,12 +3937,27 @@ export default function App() {
     setEntityLinkMenuOpen(false);
   };
 
+  const closeEntityActionMenu = () => {
+    setEntityActionMenu(null);
+  };
+
   const closeEntityLinkModal = () => {
     setEntityLinkModalOpen(false);
     setEntityLinkSelection(null);
     setEntityLinkMenuOpen(false);
     setEntityLinkQuery("");
     setEntityLinkTargetId("");
+  };
+
+  const openEntityActionMenu = (entity: KnowledgeEntity, event: ReactMouseEvent<HTMLElement>) => {
+    event.preventDefault();
+    setEntityLinkSelection(null);
+    closeEntityLinkContextMenu();
+    setEntityActionMenu({
+      entityId: entity.id,
+      x: clamp(event.clientX, 12, window.innerWidth - 260),
+      y: clamp(event.clientY, 12, window.innerHeight - 120)
+    });
   };
 
   const handleEntityContentContextMenu = (field: EntityTextField, event: ReactMouseEvent<HTMLTextAreaElement>) => {
@@ -3884,6 +3973,7 @@ export default function App() {
     }
 
     event.preventDefault();
+    closeEntityActionMenu();
     setEntityLinkSelection({
       mode: "editor",
       field,
@@ -3910,6 +4000,7 @@ export default function App() {
     }
 
     event.preventDefault();
+    closeEntityActionMenu();
     setEntityLinkSelection({
       mode: "noteEditor",
       field: "noteContent",
@@ -3936,6 +4027,7 @@ export default function App() {
     }
 
     event.preventDefault();
+    closeEntityActionMenu();
     setEntityLinkSelection({
       mode: "entity",
       field,
@@ -4971,7 +5063,9 @@ export default function App() {
   };
 
   const deleteEntity = async () => {
-    if (!activeCampaignId || !editingEntityId) return;
+    if (!editingEntityId) {
+      return;
+    }
     if (!window.confirm("Удалить эту сущность из кампании?")) {
       return;
     }
@@ -7157,6 +7251,7 @@ export default function App() {
 
                 <section
                   className="card hero"
+                  onContextMenu={(event) => openEntityActionMenu(activeEntity, event)}
                   style={createHeroPanelStyle(gradients[activeEntity.kind], activeEntity.art?.url)}
                 >
                   <div className="hero-head">
@@ -7569,7 +7664,13 @@ export default function App() {
                               const sceneImage = resolveQuestSceneArtwork(quest, location, issuer, preparedEntries);
 
                               return (
-                                <button key={quest.id} className="directory-card quest-directory-card" onClick={() => openQuestFocus(quest.id)} type="button">
+                                <button
+                                  key={quest.id}
+                                  className="directory-card quest-directory-card"
+                                  onClick={() => openQuestFocus(quest.id)}
+                                  onContextMenu={(event) => openEntityActionMenu(quest, event)}
+                                  type="button"
+                                >
                                   <span className="directory-card-thumb">
                                     <img alt={quest.title} className="directory-card-image" loading="lazy" src={sceneImage} />
                                   </span>
@@ -7589,7 +7690,13 @@ export default function App() {
                               );
                             })
                         : moduleDirectoryEntities.map((entity) => (
-                            <button key={entity.id} className="directory-card" onClick={() => openEntity(entity.id)} type="button">
+                            <button
+                              key={entity.id}
+                              className="directory-card"
+                              onClick={() => openEntity(entity.id)}
+                              onContextMenu={(event) => openEntityActionMenu(entity, event)}
+                              type="button"
+                            >
                               <span className="directory-card-thumb">
                                 {hasVisibleArt(entity.art) ? (
                                   <img alt={entity.title} className="directory-card-image" loading="lazy" src={createPortraitSource(entity)} />
@@ -7711,6 +7818,7 @@ export default function App() {
 
               <section
                 className="preview-hero"
+                onContextMenu={(event) => openEntityActionMenu(previewEntity, event)}
                 style={createHeroPanelStyle(gradients[previewEntity.kind], previewEntity.art?.url)}
               >
                 <span>{kindTitle[previewEntity.kind]}</span>
@@ -7808,7 +7916,7 @@ export default function App() {
 
       {galleryViewer ? (
         <GalleryLightbox
-          onClose={requestGalleryViewerClose}
+          onClose={closeGalleryViewer}
           onCopyLink={handleCopyImageLink}
           onSelect={selectGalleryViewerIndex}
           viewer={galleryViewer}
@@ -9680,6 +9788,25 @@ export default function App() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      ) : null}
+
+      {entityActionMenu && entityActionMenuTarget ? (
+        <div className="entity-action-backdrop" onClick={closeEntityActionMenu} role="presentation">
+          <div
+            className="entity-action-menu"
+            onClick={(event) => event.stopPropagation()}
+            role="menu"
+            style={{ left: entityActionMenu.x, top: entityActionMenu.y }}
+          >
+            <div className="entity-action-menu-label">
+              <small>{kindTitle[entityActionMenuTarget.kind]}</small>
+              <strong>{entityActionMenuTarget.title}</strong>
+            </div>
+            <button className="ghost fill danger-action" onClick={() => requestEntityDeletion(entityActionMenuTarget)} type="button">
+              РЈРґР°Р»РёС‚СЊ
+            </button>
           </div>
         </div>
       ) : null}

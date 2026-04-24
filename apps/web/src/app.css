@@ -1362,16 +1362,19 @@ body, button, input, select, textarea, span, small, strong, p, h1, h2, h3 { over
 }
 .gallery-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 12rem));
+  justify-content: flex-start;
+  align-items: start;
   gap: .62rem;
 }
 .gallery-grid.compact {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 10rem));
 }
 .gallery-card {
   display: grid;
   gap: .55rem;
   padding: .62rem;
+  align-content: start;
 }
 .gallery-card-copy {
   display: grid;
@@ -1405,6 +1408,7 @@ body, button, input, select, textarea, span, small, strong, p, h1, h2, h3 { over
 }
 .gallery-image {
   width: 100%;
+  max-width: 12rem;
   aspect-ratio: 16 / 10;
   object-fit: cover;
   display: block;
@@ -2276,12 +2280,14 @@ select.input {
   background: rgba(224, 103, 95, .12);
 }
 .link-context-backdrop,
-.link-picker-backdrop {
+.link-picker-backdrop,
+.entity-action-backdrop {
   position: fixed;
   inset: 0;
   z-index: 70;
 }
-.link-context-menu {
+.link-context-menu,
+.entity-action-menu {
   position: fixed;
   z-index: 71;
   min-width: 13rem;
@@ -2290,6 +2296,19 @@ select.input {
   border-radius: var(--radius-md);
   background: rgba(14, 18, 28, .98);
   box-shadow: var(--shadow-md);
+}
+.entity-action-menu {
+  min-width: 15rem;
+  display: grid;
+  gap: .35rem;
+}
+.entity-action-menu-label {
+  display: grid;
+  gap: .14rem;
+  padding: .35rem .45rem .25rem;
+}
+.entity-action-menu-label small {
+  color: var(--text-soft);
 }
 .link-picker-backdrop {
   display: grid;
@@ -5719,6 +5738,7 @@ select.input {
   .combat-screen-grid,
   .gallery-editor-grid,
   .gallery-grid,
+  .gallery-grid.compact,
   .loot-grid,
   .spell-grid,
   .ability-edit-grid,

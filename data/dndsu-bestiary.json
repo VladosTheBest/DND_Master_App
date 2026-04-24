@@ -1,12 +1,12 @@
 {
-  "updatedAt": "2026-04-24T21:53:02Z",
+  "updatedAt": "2026-04-24T22:35:50Z",
   "sync": {
     "state": "ready",
     "total": 2874,
     "hydrated": 2874,
     "lastStartedAt": "2026-04-24T11:51:03Z",
     "lastFinishedAt": "2026-04-24T11:51:03Z",
-    "updatedAt": "2026-04-24T21:53:02Z"
+    "updatedAt": "2026-04-24T22:35:50Z"
   },
   "entries": [
     {
@@ -7209,8 +7209,8 @@
       "slug": "adult-amethyst-dragon",
       "title": "Взрослый аметистовый дракон",
       "englishTitle": "Adult Amethyst Dragon",
-      "subtitle": "Adult Amethyst Dragon • 16",
-      "summary": "Официальный монстр dnd.su. Детальная карточка подтянется в кэш при синхронизации или при первом открытии.",
+      "subtitle": "Adult Amethyst Dragon • Fizban's Treasury of Dragons",
+      "summary": "«Взрослый аметистовый дракон (Adult Amethyst Dragon)» - огромный дракон D\u0026D 5-й редакции с показателем опасности 16.",
       "challenge": "16",
       "challengeSort": 16,
       "creatureType": "? дракон (самоцветный)",
@@ -7221,7 +7221,7 @@
       "url": "https://dnd.su/bestiary/6240-adult-amethyst-dragon/",
       "searchText": "Взрослый аметистовый дракон,Adult Amethyst Dragon, Взрослый аметистовый дракон Adult Amethyst Dragon 16",
       "imageUrl": "https://dnd.su/img/thumbnail.jpg",
-      "lastSyncedAt": "2026-04-22T12:52:40Z"
+      "lastSyncedAt": "2026-04-24T22:35:50Z"
     },
     {
       "id": "112",
