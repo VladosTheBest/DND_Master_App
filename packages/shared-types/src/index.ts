@@ -494,6 +494,13 @@ export interface DeleteWorldEventResult {
   eventId: string;
 }
 
+export interface UploadImageResult {
+  url: string;
+  fileName: string;
+  contentType: string;
+  size: number;
+}
+
 export interface AddCombatantItem {
   entityId: string;
   quantity: number;
@@ -610,6 +617,7 @@ export interface ApiClient {
   }): Promise<BestiaryBrowseResult>;
   getBestiaryMonster(monsterId: string): Promise<BestiaryMonsterDetail>;
   importBestiaryMonster(campaignId: string, monsterId: string): Promise<CreateEntityResult>;
+  uploadImage(campaignId: string, file: File): Promise<UploadImageResult>;
   createEntity(campaignId: string, input: CreateEntityInput): Promise<CreateEntityResult>;
   updateEntity(campaignId: string, entityId: string, input: UpdateEntityInput): Promise<CreateEntityResult>;
   deleteEntity(campaignId: string, entityId: string): Promise<DeleteEntityResult>;

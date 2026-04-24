@@ -32,6 +32,10 @@ func main() {
 	if webDir == "" {
 		webDir = filepath.Join("apps", "web", "dist")
 	}
+	uploadDir := os.Getenv("SHADOW_EDGE_UPLOAD_DIR")
+	if uploadDir == "" {
+		uploadDir = filepath.Join("data", "uploads")
+	}
 
 	aiProvider := firstEnv("SHADOW_EDGE_AI_PROVIDER")
 	aiModel := firstEnv("SHADOW_EDGE_AI_MODEL", "OPENAI_MODEL")
@@ -42,6 +46,7 @@ func main() {
 		DataFile:          dataFile,
 		BestiaryCacheFile: bestiaryCacheFile,
 		WebDir:            webDir,
+		UploadDir:         uploadDir,
 		AI: httpapi.AIOptions{
 			Provider: aiProvider,
 			Model:    aiModel,
@@ -60,6 +65,7 @@ func main() {
 	}
 
 	log.Printf("shadow-edge server using data file %s", dataFile)
+	log.Printf("shadow-edge server using upload dir %s", uploadDir)
 	if aiProvider != "" {
 		log.Printf("shadow-edge AI provider requested: %s", aiProvider)
 	}

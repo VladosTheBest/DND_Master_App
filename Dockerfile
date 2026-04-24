@@ -46,6 +46,7 @@ ENV PORT=8080
 ENV SHADOW_EDGE_WEB_DIR=/app/apps/web/dist
 ENV SHADOW_EDGE_DATA_FILE=/data/store.json
 ENV SHADOW_EDGE_BESTIARY_CACHE_FILE=/data/dndsu-bestiary.json
+ENV SHADOW_EDGE_UPLOAD_DIR=/data/uploads
 
 COPY --from=server-build /out/shadow-edge-server /app/shadow-edge-server
 COPY --from=web-build /app/apps/web/dist /app/apps/web/dist

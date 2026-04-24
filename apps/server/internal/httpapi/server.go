@@ -12,6 +12,7 @@ type Options struct {
 	DataFile          string
 	BestiaryCacheFile string
 	WebDir            string
+	UploadDir         string
 	AI                AIOptions
 	Auth              AuthOptions
 	PublicBaseURL     string
@@ -24,6 +25,8 @@ type server struct {
 	shares    *initiativeShareManager
 	auth      *authManager
 	web       http.Handler
+	uploads   http.Handler
+	uploadDir string
 }
 
 type envelope struct {
@@ -53,6 +56,11 @@ func NewServer(options Options) (http.Handler, error) {
 		return nil, err
 	}
 
+	uploadHandler, err := newUploadsHandler(options.UploadDir)
+	if err != nil {
+		return nil, err
+	}
+
 	srv := &server{
 		store:     store,
 		bestiary:  bestiary,
@@ -60,6 +68,8 @@ func NewServer(options Options) (http.Handler, error) {
 		shares:    newInitiativeShareManager(store, options.PublicBaseURL),
 		auth:      newAuthManager(options.Auth),
 		web:       webHandler,
+		uploads:   uploadHandler,
+		uploadDir: options.UploadDir,
 	}
 
 	mux := http.NewServeMux()
@@ -74,6 +84,9 @@ func NewServer(options Options) (http.Handler, error) {
 	mux.HandleFunc("/api/campaigns/", srv.handleCampaignByPath)
 	mux.HandleFunc("/api/bestiary", srv.handleBestiary)
 	mux.HandleFunc("/api/bestiary/", srv.handleBestiaryByPath)
+	if uploadHandler != nil {
+		mux.Handle("/uploads/", uploadHandler)
+	}
 
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		applyCORSHeaders(writer, request)
@@ -99,7 +112,7 @@ func NewServer(options Options) (http.Handler, error) {
 }
 
 func isServerManagedPath(path string) bool {
-	return path == "/healthz" || strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/initiative/")
+	return path == "/healthz" || strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/initiative/") || strings.HasPrefix(path, "/uploads/")
 }
 
 func (srv *server) handleHealth(writer http.ResponseWriter, _ *http.Request) {
@@ -300,6 +313,8 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 		}
 
 		writeJSON(writer, http.StatusOK, results)
+	case len(segments) == 2 && segments[1] == "uploads":
+		srv.handleCampaignUpload(writer, request, campaignID)
 	case len(segments) == 2 && segments[1] == "entities":
 		if request.Method != http.MethodPost {
 			writeError(writer, http.StatusMethodNotAllowed, "method_not_allowed", "Only POST is supported")

@@ -14,5 +14,6 @@ seed_if_missing() {
 }
 
 seed_if_missing "${SHADOW_EDGE_DATA_FILE:-/data/store.json}" "/app/seed-data/store.json"
+mkdir -p "${SHADOW_EDGE_UPLOAD_DIR:-/data/uploads}"
 
 exec /app/shadow-edge-server

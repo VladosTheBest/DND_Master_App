@@ -1,6 +1,100 @@
-﻿import "@shadow-edge/design-tokens/theme.css";
-import loginBgUrl from "./assets/login-bg.jpg";
-import victoryBloodOverlayUrl from "./assets/victory-blood-overlay.png";
+import "@shadow-edge/design-tokens/theme.css";
+import {
+  CollapsibleSection,
+  NEW_LORE_NOTE_ID,
+  NEW_WORLD_EVENT_ID,
+  abilityLabels,
+  badge,
+  clamp,
+  createBestiaryPortraitSource,
+  createHeroPanelStyle,
+  createPortraitSource,
+  EntityVisual,
+  formatModifier,
+  gradients,
+  hasVisibleArt,
+  isRewardableEntity,
+  kindTitle,
+  loreNoteExcerpt,
+  matchesEntityDirectorySearch,
+  playlistTrackHost,
+  playlistTrackTitle,
+  resolveLoreNoteTitle,
+  rewardSectionLabel,
+  rewardSummaryText,
+  sigil,
+  toneClass,
+  truncateInlineText,
+  worldEventExcerpt,
+  worldEventTypeLabels,
+  worldEventTypeOptions,
+  worldEventTypeTones
+} from "./app-shared";
+import {
+  buildInitiativeHash,
+  parseAppRoute,
+  type AppRouteState
+} from "./app-route";
+import {
+  DndGenerationProgress,
+  LoginScreen
+} from "./auth-ui";
+import { FloatingPlaylistPlayer } from "./floating-player";
+import { InitiativeTrackerScreen } from "./initiative-screen";
+import {
+  CombatEntityPreviewSummary,
+  CombatEntityStatSheet,
+  combatEntryInitiative,
+  combatEntrySelectionKey,
+  combatRosterFilters,
+  combatVictoryLoserLabel,
+  CombatEntryCard,
+  CombatEntryTile,
+  isCombatEntryOut,
+  RewardSection,
+  sortCombatEntriesByInitiative,
+  StatEntryEditorSection,
+  type CombatRosterFilter
+} from "./combat-ui";
+import { ItemsWorkspace } from "./items";
+import {
+  GalleryEditorSection,
+  GalleryLightbox,
+  GallerySection,
+  type GalleryViewerState,
+  PlaylistEditorSection,
+  PlaylistSection
+} from "./media";
+import {
+  EventsWorkspace,
+  NotesWorkspace
+} from "./notes-events";
+import {
+  PlayerFacingEntityModal,
+  collectQuestSectionLines,
+  parseQuestTextSections,
+  splitQuestNarrative,
+  type QuestCombatEntrySummary,
+  type QuestLinkedEntity,
+  QuestPreviewPanel,
+  resolveQuestSceneArtwork,
+  questStatusTone,
+  QuestWorkspace
+} from "./quests";
+import {
+  createWikiLinkMarkup,
+  resolveRichSelectionFromContainer,
+  RichParagraphs
+} from "./rich-text";
+import {
+  RailIcon,
+  type RailIconName
+} from "./rail-icon";
+import {
+  formatPlaybackTime,
+  pickRandomTrackIndex,
+  resolvePlaylistSource
+} from "./playback";
 import { createApiClient } from "@shadow-edge/api-client";
 import type {
   ActiveCombat,
@@ -65,33 +159,6 @@ import {
   type ReactNode
 } from "react";
 
-declare global {
-  interface Window {
-    YT?: {
-      Player: new (element: string | HTMLElement, options: Record<string, unknown>) => {
-        destroy?: () => void;
-        loadVideoById?: (options: Record<string, unknown> | string) => void;
-        playVideo?: () => void;
-        pauseVideo?: () => void;
-        seekTo?: (seconds: number, allowSeekAhead?: boolean) => void;
-        getCurrentTime?: () => number;
-        getDuration?: () => number;
-        setVolume?: (volume: number) => void;
-      };
-      PlayerState: {
-        UNSTARTED: number;
-        ENDED: number;
-        PLAYING: number;
-        PAUSED: number;
-        BUFFERING: number;
-        CUED: number;
-      };
-    };
-    onYouTubeIframeAPIReady?: () => void;
-    __shadowEdgeYouTubeApiPromise?: Promise<NonNullable<Window["YT"]>>;
-  }
-}
-
 const tabs: Record<ModuleId, string[]> = {
   dashboard: ["Snapshot", "Prep"],
   combat: ["Encounter"],
@@ -110,24 +177,6 @@ const moduleByKind: Record<EntityKind, ModuleId> = {
   monster: "monsters",
   quest: "quests",
   lore: "lore"
-};
-
-const gradients: Record<EntityKind, string> = {
-  location: "linear-gradient(135deg, rgba(124,166,255,.88), rgba(68,93,148,.72))",
-  player: "linear-gradient(135deg, rgba(109,221,205,.9), rgba(27,109,129,.74))",
-  npc: "linear-gradient(135deg, rgba(126,214,161,.88), rgba(46,119,85,.74))",
-  monster: "linear-gradient(135deg, rgba(229,124,98,.92), rgba(127,44,38,.78))",
-  quest: "linear-gradient(135deg, rgba(241,192,125,.9), rgba(176,105,38,.76))",
-  lore: "linear-gradient(135deg, rgba(192,153,255,.88), rgba(96,73,150,.76))"
-};
-
-const kindTitle: Record<EntityKind, string> = {
-  location: "Локация",
-  player: "Игрок",
-  npc: "НПС",
-  monster: "Монстр",
-  quest: "Квест",
-  lore: "Лор"
 };
 
 const combatDifficultyLabel: Record<CombatDifficulty, string> = {
@@ -175,44 +224,9 @@ const challengeFilterOptions = [
   "30"
 ] as const;
 
-const worldEventTypeOptions = ["funny", "combat", "heist", "social", "oddity", "danger"] as const satisfies readonly WorldEventType[];
-const worldEventTypeLabels: Record<WorldEventType, string> = {
-  funny: "Смешное",
-  combat: "Бой",
-  heist: "Ограбление",
-  social: "Социальное",
-  oddity: "Странное",
-  danger: "Опасное"
-};
-const worldEventTypeTones: Record<WorldEventType, QuickFactTone> = {
-  funny: "accent",
-  combat: "danger",
-  heist: "warning",
-  social: "success",
-  oddity: "accent",
-  danger: "warning"
-};
-
 const entityGenerationSteps = ["Собираю контекст кампании", "Зову оракула", "Вписываю черновик в форму"];
 const combatGenerationSteps = ["Считаю силу партии", "Подбираю противников", "Собираю бой для стола"];
 const randomEventGenerationSteps = ["Читаю контекст локации", "Плету маленькую сцену", "Собираю реплики и лут"];
-
-const toneClass: Record<QuickFactTone, string> = {
-  default: "tone-default",
-  accent: "tone-accent",
-  success: "tone-success",
-  warning: "tone-warning",
-  danger: "tone-danger"
-};
-
-const abilityLabels: Array<{ key: AbilityKey; label: string }> = [
-  { key: "str", label: "СИЛ" },
-  { key: "dex", label: "ЛОВ" },
-  { key: "con", label: "ТЕЛ" },
-  { key: "int", label: "ИНТ" },
-  { key: "wis", label: "МДР" },
-  { key: "cha", label: "ХАР" }
-];
 
 const emptyCampaignForm = (): CreateCampaignInput => ({
   title: "",
@@ -248,7 +262,7 @@ const emptyEntityForm = (kind: EntityKind = "location"): CreateEntityInput => ({
   subtitle: "",
   summary: "",
   content: "",
-  playerContent: kind === "npc" || kind === "quest" ? "" : undefined,
+  playerContent: "",
   tags: [],
   playlist: [],
   gallery: [],
@@ -279,10 +293,8 @@ type ResizeKey = "rail" | "list" | "preview";
 type EntityModalMode = "create" | "edit";
 type StatEntrySectionKey = "traits" | "actions" | "bonusActions" | "reactions";
 type CombatProfileEntity = PlayerEntity | NpcEntity | MonsterEntity;
-type RewardableEntity = NpcEntity | MonsterEntity | QuestEntity;
 type RailAlias = "items" | "events" | "notes";
 type RailNavKey = "dashboard" | "locations" | "players" | "npcs" | "monsters" | "quests" | RailAlias;
-type RailIconName = "brand" | "home" | "quest" | "location" | "player" | "npc" | "monster" | "item" | "event" | "note";
 type EntityTextField = "content" | "playerContent";
 type LinkableTextField = EntityTextField | "noteContent";
 type LoreNoteEntity = Extract<KnowledgeEntity, { kind: "lore" }>;
@@ -308,31 +320,6 @@ type CombatSearchItem = {
   entity?: CombatProfileEntity;
   bestiary?: BestiaryMonsterSummary;
 };
-type PreparedCombatStartEntry = {
-  key: string;
-  entityId: string;
-  entityKind: CombatEntry["entityKind"];
-  side: CombatEntry["side"];
-  title: string;
-  initiative: number;
-};
-type AppRouteState =
-  | { mode: "app" }
-  | {
-      mode: "initiative";
-      campaignId: string;
-    };
-type PortraitEntityLike = {
-  kind: EntityKind;
-  title: string;
-  art?: HeroArt;
-};
-type GalleryViewerState = {
-  ownerId: string;
-  ownerTitle: string;
-  items: GalleryImage[];
-  currentIndex: number;
-};
 type PlaylistOwnerScope = "entity" | "combat";
 type ActivePlaylistPlayback = {
   scope: PlaylistOwnerScope;
@@ -342,9 +329,6 @@ type ActivePlaylistPlayback = {
   currentIndex: number;
   token: number;
 };
-
-const NEW_LORE_NOTE_ID = "__new_lore_note__";
-const NEW_WORLD_EVENT_ID = "__new_world_event__";
 
 const resolveApiBaseUrl = () => {
   const configured = import.meta.env.VITE_API_BASE_URL;
@@ -357,7 +341,6 @@ const resolveApiBaseUrl = () => {
 
 const api = createApiClient(resolveApiBaseUrl());
 
-const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const isBestiaryBrowseTab = (moduleId: ModuleId, tab: string) => moduleId === "monsters" && tab !== "Imported";
 const combatSelectionEntityKey = (id: string) => `entity:${id}`;
 const combatSelectionBestiaryKey = (id: string) => `bestiary:${id}`;
@@ -366,6 +349,45 @@ const isCombatSelectionBestiaryKey = (value: string) => value.startsWith("bestia
 const unwrapCombatSelectionKey = (value: string) => {
   const separator = value.indexOf(":");
   return separator >= 0 ? value.slice(separator + 1) : value;
+};
+const combatSetupTypeLabelMap: Record<string, string> = {
+  all: "Все",
+  monster: "Монстры",
+  humanoid: "Гуманоиды",
+  undead: "Нежить",
+  beast: "Звери",
+  elemental: "Стихии",
+  fiend: "Изверги",
+  dragon: "Драконы",
+  monstrosity: "Чудовища"
+};
+const normalizeCombatSetupTypeKey = (value: string) => value.trim().toLowerCase();
+const formatCombatSetupTypeLabel = (value: string) => {
+  const normalized = normalizeCombatSetupTypeKey(value);
+  if (!normalized) {
+    return combatSetupTypeLabelMap.monster;
+  }
+  return combatSetupTypeLabelMap[normalized] ?? value.charAt(0).toUpperCase() + value.slice(1);
+};
+const resolveCombatSearchItemType = (item: CombatSearchItem) => {
+  if (item.bestiary?.creatureType) {
+    return normalizeCombatSetupTypeKey(item.bestiary.creatureType);
+  }
+  if (item.entity?.statBlock?.creatureType) {
+    return normalizeCombatSetupTypeKey(item.entity.statBlock.creatureType);
+  }
+  return item.kind === "npc" ? "humanoid" : "monster";
+};
+const resolveCombatSearchItemTypeLabel = (item: CombatSearchItem) =>
+  item.bestiary?.creatureTypeLabel ||
+  formatCombatSetupTypeLabel(item.entity?.statBlock?.creatureType || resolveCombatSearchItemType(item));
+const parseChallengeXp = (challenge: string) => {
+  const match = challenge.match(/([\d\s]+)\s*XP/i);
+  if (!match) {
+    return 0;
+  }
+  const digits = match[1].replace(/[^\d]/g, "");
+  return digits ? Number.parseInt(digits, 10) : 0;
 };
 
 const createEmptyStatEntry = (): StatBlockEntry => ({
@@ -392,6 +414,18 @@ const createEmptyGalleryImage = (): GalleryImage => ({
   url: "",
   caption: ""
 });
+
+const acceptedImageUploadTypes = "image/png,image/jpeg,image/webp,image/gif";
+
+const imageTitleFromFileName = (fileName: string) => {
+  const trimmed = fileName.trim();
+  if (!trimmed) {
+    return "";
+  }
+
+  const extensionStart = trimmed.lastIndexOf(".");
+  return extensionStart > 0 ? trimmed.slice(0, extensionStart) : trimmed;
+};
 
 const createEmptySpellcasting = (): SpellcastingBlock => ({
   title: "Spellcasting",
@@ -688,9 +722,6 @@ const serializeWorldEventInput = (input: WorldEventInput): WorldEventInput => {
     origin: input.origin === "ai" ? "ai" : "manual"
   };
 };
-
-const worldEventExcerpt = (event: Pick<WorldEvent, "summary" | "sceneText">, max = 120) =>
-  truncateInlineText(event.summary?.trim() || event.sceneText?.trim() || "Сценка ещё не заполнена.", max);
 
 const normalizeCampaignForClient = (data: CampaignData): CampaignData => ({
   ...data,
@@ -1083,15 +1114,6 @@ const moduleEntities = (campaign: CampaignData, moduleId: ModuleId) => {
   return [];
 };
 
-const badge = (tone?: QuickFactTone) => `badge ${toneClass[tone ?? "default"]}`;
-
-const sigil = (title: string) =>
-  title
-    .split(" ")
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("");
-
 const toResult = (entity: KnowledgeEntity): SearchResult => ({
   id: entity.id,
   kind: entity.kind,
@@ -1124,7 +1146,7 @@ const railNavKeyFromView = (moduleId: ModuleId, alias: RailAlias | null): RailNa
 };
 
 const preserveRailAliasForModule = (current: RailAlias | null, moduleId: ModuleId) => {
-  if (moduleId === "lore" && (current === "items" || current === "notes")) {
+  if (moduleId === "lore" && current === "notes") {
     return current;
   }
   return null;
@@ -1133,180 +1155,8 @@ const preserveRailAliasForModule = (current: RailAlias | null, moduleId: ModuleI
 const railSectionTitle = (campaign: CampaignData, moduleId: ModuleId, alias: RailAlias | null) =>
   alias ? railAliasTitle[alias] : moduleId === "lore" ? railAliasTitle.notes : getModuleTitle(campaign, moduleId);
 
-function RailIcon({ name }: { name: RailIconName }) {
-  const common = {
-    fill: "none",
-    stroke: "currentColor",
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    strokeWidth: 1.75
-  };
-
-  switch (name) {
-    case "brand":
-      return (
-        <svg aria-hidden="true" className="rail-icon-svg" viewBox="0 0 20 20">
-          <path
-            d="M10 1.8 14.8 5 18.2 10l-3.4 5-4.8 3.2L5.2 15 1.8 10l3.4-5L10 1.8Z"
-            fill="url(#rail-brand-gradient)"
-            stroke="rgba(248,240,255,.82)"
-            strokeWidth="1"
-          />
-          <path {...common} d="m10 5.6 1.2 3.2 3.2 1.2-3.2 1.2-1.2 3.2-1.2-3.2-3.2-1.2 3.2-1.2L10 5.6Z" />
-          <defs>
-            <linearGradient id="rail-brand-gradient" x1="3" x2="17" y1="2" y2="18">
-              <stop offset="0" stopColor="#c38dff" />
-              <stop offset="1" stopColor="#6a42f4" />
-            </linearGradient>
-          </defs>
-        </svg>
-      );
-    case "home":
-      return (
-        <svg aria-hidden="true" className="rail-icon-svg" viewBox="0 0 20 20">
-          <path {...common} d="M3.5 9.2 10 4l6.5 5.2" />
-          <path {...common} d="M5.6 8.5v7h8.8v-7" />
-        </svg>
-      );
-    case "quest":
-      return (
-        <svg aria-hidden="true" className="rail-icon-svg" viewBox="0 0 20 20">
-          <rect {...common} height="12" rx="2.2" width="12" x="4" y="4" />
-          <path {...common} d="M7.2 7.4h5.6M7.2 10h5.6M7.2 12.6h3.4" />
-        </svg>
-      );
-    case "location":
-      return (
-        <svg aria-hidden="true" className="rail-icon-svg" viewBox="0 0 20 20">
-          <path {...common} d="M10 17s4.4-4.7 4.4-8.1A4.4 4.4 0 0 0 10 4.5a4.4 4.4 0 0 0-4.4 4.4C5.6 12.3 10 17 10 17Z" />
-          <circle {...common} cx="10" cy="8.9" r="1.6" />
-        </svg>
-      );
-    case "player":
-      return (
-        <svg aria-hidden="true" className="rail-icon-svg" viewBox="0 0 20 20">
-          <circle {...common} cx="10" cy="6.8" r="2.4" />
-          <path {...common} d="M5.1 15.4c1-2.2 2.7-3.3 4.9-3.3s3.9 1.1 4.9 3.3" />
-          <path {...common} d="M15.4 5.6v3.2M13.8 7.2h3.2" />
-        </svg>
-      );
-    case "npc":
-      return (
-        <svg aria-hidden="true" className="rail-icon-svg" viewBox="0 0 20 20">
-          <circle {...common} cx="8" cy="7.2" r="2.4" />
-          <circle {...common} cx="13.1" cy="8.1" r="1.8" />
-          <path {...common} d="M4.5 14.8c.8-2 2.3-3 4.4-3 2 0 3.6 1 4.3 3" />
-          <path {...common} d="M11.5 14.5c.5-1.3 1.5-2 2.8-2 1.1 0 2 .5 2.7 1.5" />
-        </svg>
-      );
-    case "monster":
-      return (
-        <svg aria-hidden="true" className="rail-icon-svg" viewBox="0 0 20 20">
-          <path {...common} d="M6.2 6.3 4.8 4.6M13.8 6.3l1.4-1.7M6 13.8c1 .8 2.3 1.2 4 1.2 1.7 0 3-.4 4-1.2" />
-          <path {...common} d="M5.2 11.6c0-3 2-5.1 4.8-5.1s4.8 2.1 4.8 5.1" />
-          <circle cx="8" cy="10.3" fill="currentColor" r="1" />
-          <circle cx="12" cy="10.3" fill="currentColor" r="1" />
-        </svg>
-      );
-    case "item":
-      return (
-        <svg aria-hidden="true" className="rail-icon-svg" viewBox="0 0 20 20">
-          <path {...common} d="M4.6 7.1h10.8v8.3H4.6z" />
-          <path {...common} d="M7.2 7.1V5.8c0-.9.8-1.7 1.7-1.7h2.2c.9 0 1.7.8 1.7 1.7v1.3" />
-          <path {...common} d="M4.6 10.2h10.8" />
-        </svg>
-      );
-    case "event":
-      return (
-        <svg aria-hidden="true" className="rail-icon-svg" viewBox="0 0 20 20">
-          <rect {...common} height="11" rx="2.2" width="12" x="4" y="5" />
-          <path {...common} d="M7 3.9v2.4M13 3.9v2.4M4 8.3h12" />
-        </svg>
-      );
-    case "note":
-      return (
-        <svg aria-hidden="true" className="rail-icon-svg" viewBox="0 0 20 20">
-          <path {...common} d="M6 3.8h6l3 3v9.4a1.8 1.8 0 0 1-1.8 1.8H6.8A1.8 1.8 0 0 1 5 16.2V5.6A1.8 1.8 0 0 1 6.8 3.8Z" />
-          <path {...common} d="M12 3.8v3.1h3" />
-          <path {...common} d="M7.5 10.2h5M7.5 13h4" />
-        </svg>
-      );
-    default:
-      return null;
-  }
-}
-
-const formatModifier = (score: number) => {
-  const modifier = Math.floor((score - 10) / 2);
-  return modifier >= 0 ? `+${modifier}` : `${modifier}`;
-};
-
 const isCombatProfileEntity = (entity: KnowledgeEntity | null): entity is CombatProfileEntity =>
   Boolean(entity && (entity.kind === "player" || entity.kind === "npc" || entity.kind === "monster"));
-
-const isRewardableEntity = (entity: KnowledgeEntity | null): entity is RewardableEntity =>
-  Boolean(entity && (entity.kind === "npc" || entity.kind === "monster" || entity.kind === "quest"));
-
-const rewardSectionLabel = (kind: EntityKind) => {
-  switch (kind) {
-    case "quest":
-      return { title: "Награда", hint: "Оплата, артефакты, репутация и условия получения" };
-    case "npc":
-      return { title: "Награда и лут", hint: "Что НПС может дать, носит с собой или оставить после смерти" };
-    case "monster":
-    default:
-      return { title: "Награды и добыча", hint: "Лут, трофеи, оружие и проверки на разделку" };
-  }
-};
-
-const rewardSummaryText = (rewardProfile?: MonsterRewardProfile) => {
-  if (!rewardProfile) {
-    return "";
-  }
-  if (rewardProfile.summary.trim()) {
-    return rewardProfile.summary.trim();
-  }
-  if (rewardProfile.loot.length) {
-    return `${rewardProfile.loot.length} позиций`;
-  }
-  return "";
-};
-
-const truncateInlineText = (value: string, maxLength = 96) =>
-  value.length > maxLength ? `${value.slice(0, maxLength - 1).trimEnd()}…` : value;
-
-const loreNoteExcerpt = (
-  note: Pick<LoreNoteEntity, "summary" | "content"> | { summary?: string; content: string },
-  maxLength = 140
-) => {
-  const source = (note.summary ?? "").trim() || note.content.replace(/\s+/g, " ").trim();
-  return source ? truncateInlineText(source, maxLength) : "Пустая заметка";
-};
-
-const resolveLoreNoteTitle = (title: string, content: string) => {
-  const explicitTitle = title.trim();
-  if (explicitTitle) {
-    return truncateInlineText(explicitTitle, 72);
-  }
-
-  const firstLine = content
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .find(Boolean);
-  return firstLine ? truncateInlineText(firstLine, 72) : "Новая заметка";
-};
-
-const matchesEntityDirectorySearch = (entity: KnowledgeEntity, query: string) => {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) {
-    return true;
-  }
-
-  return [entity.title, entity.subtitle, entity.summary, entity.tags.join(" ")]
-    .join(" ")
-    .toLowerCase()
-    .includes(normalized);
-};
 
 const composeVisibleQuickFacts = (entity: KnowledgeEntity) => {
   const facts = [...(entity.quickFacts ?? [])];
@@ -1380,120 +1230,6 @@ const formatDateTime = (value: string) => {
   });
 };
 
-const createPortraitSource = (entity: PortraitEntityLike) => {
-  if (entity.art?.url) {
-    return entity.art.url;
-  }
-
-  const initials =
-    sigil(entity.title) ||
-    (entity.kind === "monster" ? "MN" : entity.kind === "player" ? "PL" : "NPC");
-  const safeTitle = entity.title
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-  const accentA = entity.kind === "monster" ? "#e57c62" : entity.kind === "player" ? "#6dddcf" : "#7ed6a1";
-  const accentB = entity.kind === "monster" ? "#4d1914" : entity.kind === "player" ? "#164f63" : "#1e3d32";
-  const label =
-    entity.kind === "monster" ? "MONSTER DOSSIER" : entity.kind === "player" ? "PLAYER DOSSIER" : "NPC DOSSIER";
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 900">
-      <defs>
-        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="${accentA}"/>
-          <stop offset="100%" stop-color="${accentB}"/>
-        </linearGradient>
-        <radialGradient id="glow" cx="50%" cy="30%" r="60%">
-          <stop offset="0%" stop-color="rgba(255,255,255,0.2)"/>
-          <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
-        </radialGradient>
-      </defs>
-      <rect width="720" height="900" rx="42" fill="url(#bg)"/>
-      <rect width="720" height="900" rx="42" fill="url(#glow)"/>
-      <circle cx="360" cy="310" r="146" fill="rgba(7, 14, 20, 0.18)"/>
-      <path d="M233 620c34-112 107-169 127-182 20-13 40-13 40-13s20 0 40 13c20 13 93 70 127 182" fill="rgba(7, 14, 20, 0.22)"/>
-      <text x="64" y="98" fill="rgba(255,255,255,0.92)" font-family="Segoe UI, Arial, sans-serif" font-size="40" letter-spacing="7">${label}</text>
-      <text x="64" y="792" fill="rgba(255,255,255,0.96)" font-family="Georgia, serif" font-size="52" font-weight="700">${safeTitle}</text>
-      <text x="64" y="852" fill="rgba(255,255,255,0.72)" font-family="Segoe UI, Arial, sans-serif" font-size="28">Портрет-заглушка, пока не задан art.url</text>
-      <text x="360" y="352" text-anchor="middle" fill="rgba(255,255,255,0.88)" font-family="Georgia, serif" font-size="126" font-weight="700">${initials}</text>
-    </svg>
-  `;
-
-  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
-};
-
-const createHeroPanelStyle = (gradient: string, imageUrl?: string): CSSProperties => ({
-  backgroundImage: imageUrl
-    ? `linear-gradient(180deg, rgba(6, 10, 16, 0.24), rgba(6, 10, 16, 0.7)), ${gradient}, url("${imageUrl}")`
-    : `linear-gradient(180deg, rgba(6, 10, 16, 0.18), rgba(6, 10, 16, 0.42)), ${gradient}`,
-  backgroundSize: imageUrl ? "cover, cover, cover" : undefined,
-  backgroundPosition: imageUrl ? "center, center, center" : undefined
-});
-
-const createBestiaryPortraitSource = (monster: Pick<BestiaryMonsterSummary, "title" | "imageUrl">) =>
-  createPortraitSource({
-    kind: "monster",
-    title: monster.title,
-    art: monster.imageUrl ? { url: monster.imageUrl, alt: monster.title } : undefined
-  });
-
-const defaultFloatingPlayerPosition = () => {
-  if (typeof window === "undefined") {
-    return { x: 16, y: 16 };
-  }
-
-  return {
-    x: Math.max(16, window.innerWidth - 428),
-    y: Math.max(16, window.innerHeight - 232)
-  };
-};
-
-const playlistTrackTitle = (track: PlaylistTrack, index: number) => track.title.trim() || `Трек ${index + 1}`;
-const galleryImageTitle = (item: GalleryImage, index: number) => item.title.trim() || `Изображение ${index + 1}`;
-
-const playlistTrackHost = (url: string) => {
-  try {
-    return new URL(url).hostname.replace(/^www\./, "");
-  } catch {
-    return "внешняя ссылка";
-  }
-};
-
-const extractYouTubeVideoId = (value: string) => {
-  const url = value.trim();
-  if (!url) {
-    return "";
-  }
-
-  try {
-    const parsed = new URL(url);
-    const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
-
-    if (host === "youtu.be") {
-      return parsed.pathname.split("/").filter(Boolean)[0] ?? "";
-    }
-
-    if (
-      host === "youtube.com" ||
-      host === "m.youtube.com" ||
-      host === "music.youtube.com" ||
-      host === "youtube-nocookie.com"
-    ) {
-      if (parsed.pathname === "/watch") {
-        return parsed.searchParams.get("v") ?? "";
-      }
-      const segments = parsed.pathname.split("/").filter(Boolean);
-      if (segments[0] === "embed" || segments[0] === "shorts" || segments[0] === "live") {
-        return segments[1] ?? "";
-      }
-    }
-  } catch {
-    return "";
-  }
-
-  return "";
-};
-
 const copyTextToClipboard = async (value: string) => {
   const text = value.trim();
   if (!text) {
@@ -1520,110 +1256,6 @@ const copyTextToClipboard = async (value: string) => {
   }
 };
 
-const resolvePlaylistSource = (url: string) => {
-  const videoId = extractYouTubeVideoId(url);
-  if (videoId) {
-    return {
-      kind: "youtube" as const,
-      videoId,
-      embedUrl: `https://www.youtube.com/embed/${videoId}?autoplay=1&controls=0&rel=0&modestbranding=1&playsinline=1`
-    };
-  }
-
-  return {
-    kind: "audio" as const,
-    url
-  };
-};
-
-const pickRandomTrackIndex = (tracks: PlaylistTrack[], excludeIndex?: number) => {
-  if (!tracks.length) {
-    return -1;
-  }
-  if (tracks.length === 1) {
-    return 0;
-  }
-
-  let nextIndex = Math.floor(Math.random() * tracks.length);
-  if (excludeIndex === undefined) {
-    return nextIndex;
-  }
-
-  while (nextIndex === excludeIndex) {
-    nextIndex = Math.floor(Math.random() * tracks.length);
-  }
-
-  return nextIndex;
-};
-
-const formatPlaybackTime = (seconds: number) => {
-  const safe = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
-  const minutes = Math.floor(safe / 60);
-  const remainder = safe % 60;
-  return `${minutes}:${String(remainder).padStart(2, "0")}`;
-};
-
-const loadYouTubeIframeApi = (): Promise<NonNullable<Window["YT"]>> => {
-  if (typeof window === "undefined") {
-    return Promise.reject(new Error("YouTube API недоступен вне браузера."));
-  }
-
-  if (window.YT?.Player) {
-    return Promise.resolve(window.YT);
-  }
-
-  if (window.__shadowEdgeYouTubeApiPromise) {
-    return window.__shadowEdgeYouTubeApiPromise;
-  }
-
-  window.__shadowEdgeYouTubeApiPromise = new Promise((resolve, reject) => {
-    const existingScript = document.querySelector<HTMLScriptElement>('script[src="https://www.youtube.com/iframe_api"]');
-    const previousReady = window.onYouTubeIframeAPIReady;
-
-    window.onYouTubeIframeAPIReady = () => {
-      previousReady?.();
-      if (window.YT?.Player) {
-        resolve(window.YT);
-      } else {
-        reject(new Error("YouTube API загрузилась некорректно."));
-      }
-    };
-
-    if (!existingScript) {
-      const script = document.createElement("script");
-      script.src = "https://www.youtube.com/iframe_api";
-      script.async = true;
-      script.onerror = () => reject(new Error("Не удалось загрузить YouTube IFrame API."));
-      document.head.appendChild(script);
-    }
-  });
-
-  return window.__shadowEdgeYouTubeApiPromise;
-};
-
-const hasVisibleArt = (art?: HeroArt) => Boolean(art?.url?.trim());
-
-function EntityVisual({
-  entity,
-  variant = "row"
-}: {
-  entity: Pick<PortraitEntityLike, "kind" | "title" | "art">;
-  variant?: "row" | "hero" | "relation";
-}) {
-  if (!hasVisibleArt(entity.art)) {
-    return (
-      <span className={`sigil ${variant === "hero" ? "big" : ""}`} style={{ backgroundImage: gradients[entity.kind] }}>
-        {sigil(entity.title)}
-      </span>
-    );
-  }
-
-  return (
-    <span className={`entity-thumb-frame entity-thumb-${variant}`}>
-      <img alt={entity.art?.alt ?? entity.title} className="entity-thumb" loading="lazy" src={createPortraitSource(entity)} />
-    </span>
-  );
-}
 
 const filterEntities = (
   campaign: CampaignData | null,
@@ -1700,3882 +1332,6 @@ const filterEntities = (
     return true;
   });
 };
-
-const parseWikiLinkToken = (token: string) => {
-  const match = token.match(/^\[\[([^[\]|]+)(?:\|([^[\]]+))?\]\]$/);
-  if (!match) {
-    return null;
-  }
-
-  return {
-    targetTitle: match[1].trim(),
-    label: (match[2] ?? match[1]).trim()
-  };
-};
-
-const createWikiLinkMarkup = (targetTitle: string, label: string) => {
-  const safeTarget = targetTitle.replace(/\]\]/g, "").trim();
-  const safeLabel = label.replace(/\]\]/g, "").replace(/\|/g, " ").trim();
-  if (!safeTarget) {
-    return label;
-  }
-
-  return safeLabel && safeLabel !== safeTarget ? `[[${safeTarget}|${safeLabel}]]` : `[[${safeTarget}]]`;
-};
-
-type RichSegment = {
-  key: string;
-  kind: "text" | "link";
-  sourceStart: number;
-  sourceEnd: number;
-  raw: string;
-  visibleText: string;
-  targetTitle?: string;
-};
-
-type RichParagraph = {
-  key: string;
-  segments: RichSegment[];
-};
-
-const parseRichParagraphs = (content: string): RichParagraph[] => {
-  const parts = content.split(/(\n+)/);
-  const paragraphs: RichParagraph[] = [];
-  let offset = 0;
-  let paragraphIndex = 0;
-
-  for (const part of parts) {
-    if (!part) {
-      continue;
-    }
-
-    if (/^\n+$/.test(part)) {
-      offset += part.length;
-      continue;
-    }
-
-    const segments: RichSegment[] = [];
-    const tokenPattern = /\[\[[^[\]]+\]\]/g;
-    let cursor = 0;
-    let match: RegExpExecArray | null;
-
-    while ((match = tokenPattern.exec(part)) !== null) {
-      if (match.index > cursor) {
-        const rawText = part.slice(cursor, match.index);
-        segments.push({
-          key: `p${paragraphIndex}-text-${cursor}`,
-          kind: "text",
-          sourceStart: offset + cursor,
-          sourceEnd: offset + match.index,
-          raw: rawText,
-          visibleText: rawText
-        });
-      }
-
-      const parsed = parseWikiLinkToken(match[0]);
-      const visibleText = parsed?.label ?? match[0];
-      segments.push({
-        key: `p${paragraphIndex}-link-${match.index}`,
-        kind: "link",
-        sourceStart: offset + match.index,
-        sourceEnd: offset + match.index + match[0].length,
-        raw: match[0],
-        visibleText,
-        targetTitle: parsed?.targetTitle
-      });
-      cursor = match.index + match[0].length;
-    }
-
-    if (cursor < part.length) {
-      const rawText = part.slice(cursor);
-      segments.push({
-        key: `p${paragraphIndex}-tail-${cursor}`,
-        kind: "text",
-        sourceStart: offset + cursor,
-        sourceEnd: offset + part.length,
-        raw: rawText,
-        visibleText: rawText
-      });
-    }
-
-    paragraphs.push({
-      key: `paragraph-${paragraphIndex}-${offset}`,
-      segments
-    });
-    offset += part.length;
-    paragraphIndex += 1;
-  }
-
-  return paragraphs;
-};
-
-const resolveSelectionOffsetWithinElement = (element: HTMLElement, node: Node, nodeOffset: number) => {
-  const range = document.createRange();
-  range.selectNodeContents(element);
-  try {
-    range.setEnd(node, nodeOffset);
-  } catch {
-    return 0;
-  }
-  return range.toString().length;
-};
-
-const resolveRichSelectionPoint = (node: Node, offset: number) => {
-  const element =
-    node instanceof HTMLElement
-      ? node.closest<HTMLElement>("[data-rich-source-start]")
-      : node.parentElement?.closest<HTMLElement>("[data-rich-source-start]") ?? null;
-
-  if (!element || element.dataset.richLink === "true") {
-    return null;
-  }
-
-  const sourceStart = Number(element.dataset.richSourceStart ?? "");
-  const sourceEnd = Number(element.dataset.richSourceEnd ?? "");
-  if (!Number.isFinite(sourceStart) || !Number.isFinite(sourceEnd)) {
-    return null;
-  }
-
-  const localVisibleOffset = clamp(resolveSelectionOffsetWithinElement(element, node, offset), 0, element.textContent?.length ?? 0);
-  return clamp(sourceStart + localVisibleOffset, sourceStart, sourceEnd);
-};
-
-const resolveRichSelectionFromContainer = (container: HTMLElement) => {
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
-    return null;
-  }
-
-  const range = selection.getRangeAt(0);
-  if (!container.contains(range.commonAncestorContainer)) {
-    return null;
-  }
-
-  const start = resolveRichSelectionPoint(range.startContainer, range.startOffset);
-  const end = resolveRichSelectionPoint(range.endContainer, range.endOffset);
-  if (start == null || end == null || start === end) {
-    return null;
-  }
-
-  return {
-    start: Math.min(start, end),
-    end: Math.max(start, end),
-    text: selection.toString()
-  };
-};
-
-function RichParagraphs({
-  content,
-  entityByTitle,
-  onMentionClick
-}: {
-  content: string;
-  entityByTitle: Map<string, KnowledgeEntity>;
-  onMentionClick: (id: string) => void;
-}) {
-  const paragraphs = useMemo(() => parseRichParagraphs(content), [content]);
-
-  return (
-    <div className="rich">
-      {paragraphs.map((paragraph) => (
-        <p key={paragraph.key}>
-          {paragraph.segments.map((segment) => {
-            if (segment.kind === "text") {
-              return (
-                <span
-                  key={segment.key}
-                  data-rich-link="false"
-                  data-rich-source-end={segment.sourceEnd}
-                  data-rich-source-start={segment.sourceStart}
-                  className="rich-inline-text"
-                >
-                  {segment.visibleText}
-                </span>
-              );
-            }
-
-            const linked = segment.targetTitle ? entityByTitle.get(segment.targetTitle) : undefined;
-            return linked ? (
-              <button
-                key={segment.key}
-                className="mention"
-                data-rich-link="true"
-                data-rich-source-end={segment.sourceEnd}
-                data-rich-source-start={segment.sourceStart}
-                onClick={() => onMentionClick(linked.id)}
-                type="button"
-              >
-                {segment.visibleText}
-              </button>
-            ) : (
-              <span
-                key={segment.key}
-                data-rich-link="true"
-                data-rich-source-end={segment.sourceEnd}
-                data-rich-source-start={segment.sourceStart}
-              >
-                {segment.visibleText}
-              </span>
-            );
-          })}
-        </p>
-      ))}
-    </div>
-  );
-}
-
-function CollapsibleSection({
-  title,
-  hint,
-  summary,
-  defaultCollapsed = false,
-  action,
-  className = "",
-  children
-}: {
-  title: string;
-  hint?: string;
-  summary?: ReactNode;
-  defaultCollapsed?: boolean;
-  action?: ReactNode;
-  className?: string;
-  children: ReactNode;
-}) {
-  const [collapsed, setCollapsed] = useState(defaultCollapsed);
-
-  return (
-    <section className={`card section-card collapsible-section ${collapsed ? "collapsed" : ""} ${className}`.trim()}>
-      <div className="collapsible-head">
-        <button
-          aria-expanded={!collapsed}
-          className="collapsible-toggle"
-          onClick={() => setCollapsed((current) => !current)}
-          type="button"
-        >
-          <span className="collapsible-copy">
-            <strong>{title}</strong>
-            {hint ? <small>{hint}</small> : null}
-          </span>
-          <span className={`collapsible-chevron ${collapsed ? "collapsed" : ""}`}>{collapsed ? "Развернуть" : "Свернуть"}</span>
-        </button>
-        {action ? <div className="collapsible-action">{action}</div> : null}
-      </div>
-
-      {collapsed ? (summary ? <div className="collapsible-summary">{summary}</div> : null) : <div className="collapsible-body">{children}</div>}
-    </section>
-  );
-}
-
-function PlaylistSection({
-  title,
-  hint,
-  tracks,
-  activeTrackUrl,
-  activeTrackLabel,
-  isActive,
-  compact = false,
-  defaultCollapsed = false,
-  action,
-  onPlayRandom,
-  onPlayTrack,
-  onNextRandom,
-  onStop
-}: {
-  title: string;
-  hint: string;
-  tracks: PlaylistTrack[];
-  activeTrackUrl?: string;
-  activeTrackLabel?: string;
-  isActive?: boolean;
-  compact?: boolean;
-  defaultCollapsed?: boolean;
-  action?: ReactNode;
-  onPlayRandom: () => void;
-  onPlayTrack: (index: number) => void;
-  onNextRandom: () => void;
-  onStop: () => void;
-}) {
-  return (
-    <CollapsibleSection
-      action={action}
-      className={`playlist-section ${compact ? "compact" : ""}`}
-      defaultCollapsed={defaultCollapsed}
-      hint={hint}
-      summary={
-        <p className="copy">
-          {tracks.length
-            ? `${tracks.length} треков${isActive && activeTrackLabel ? ` • сейчас играет: ${activeTrackLabel}` : " • готов к случайному запуску"}`
-            : "Плейлист пока пуст."}
-        </p>
-      }
-      title={title}
-    >
-      {tracks.length ? (
-        <>
-          <div className="actions playlist-runtime-toolbar">
-            <button className="primary" onClick={onPlayRandom} type="button">
-              {isActive ? "Случайный следующий" : "Случайный трек"}
-            </button>
-            <button className="ghost" disabled={!isActive} onClick={onNextRandom} type="button">
-              Следующий
-            </button>
-            <button className="ghost" disabled={!isActive} onClick={onStop} type="button">
-              Стоп
-            </button>
-          </div>
-
-          <div className={`playlist-track-list ${compact ? "compact-entry-list" : ""}`}>
-            {tracks.map((track, index) => {
-              const label = playlistTrackTitle(track, index);
-              const active = Boolean(isActive && activeTrackUrl && track.url === activeTrackUrl);
-              return (
-                <button
-                  key={`${track.url}-${index}`}
-                  className={`ghost fill playlist-track-row ${active ? "active" : ""}`}
-                  onClick={() => onPlayTrack(index)}
-                  type="button"
-                >
-                  <span className="playlist-track-copy">
-                    <strong>{label}</strong>
-                    <small>{playlistTrackHost(track.url)}</small>
-                  </span>
-                  {active ? <span className={badge("success")}>Играет</span> : <span className={badge()}>Play</span>}
-                </button>
-              );
-            })}
-          </div>
-        </>
-      ) : (
-        <p className="copy">Добавь сюда несколько ссылок на YouTube или прямые аудио URL, чтобы запускать атмосферу одним кликом.</p>
-      )}
-    </CollapsibleSection>
-  );
-}
-
-function PlaylistEditorSection({
-  title,
-  hint,
-  tracks,
-  onChange,
-  onAdd,
-  onRemove
-}: {
-  title: string;
-  hint: string;
-  tracks: PlaylistTrack[];
-  onChange: (index: number, patch: Partial<PlaylistTrack>) => void;
-  onAdd: () => void;
-  onRemove: (index: number) => void;
-}) {
-  return (
-    <section className="card npc-section form-subsection">
-      <div className="row muted">
-        <div className="stack compact">
-          <span>{title}</span>
-          <small>{hint}</small>
-        </div>
-        <button className="ghost" onClick={onAdd} type="button">
-          Добавить трек
-        </button>
-      </div>
-
-      <div className="playlist-editor-list">
-        {tracks.length ? (
-          tracks.map((track, index) => (
-            <article key={`${track.url}-${index}`} className="entry-editor playlist-track-editor">
-              <div className="row">
-                <strong>Трек #{index + 1}</strong>
-                <button className="ghost danger-action" onClick={() => onRemove(index)} type="button">
-                  Удалить
-                </button>
-              </div>
-
-              <div className="form-grid">
-                <label className="field">
-                  <span>Название</span>
-                  <input
-                    className="input"
-                    onChange={(event) => onChange(index, { title: event.target.value })}
-                    placeholder="Ночной порт"
-                    value={track.title}
-                  />
-                </label>
-                <label className="field">
-                  <span>Ссылка</span>
-                  <input
-                    className="input"
-                    onChange={(event) => onChange(index, { url: event.target.value })}
-                    placeholder="https://youtu.be/... или https://...mp3"
-                    value={track.url}
-                  />
-                </label>
-              </div>
-            </article>
-          ))
-        ) : (
-          <p className="copy">Пока треков нет. Можно вставлять ссылки на YouTube-видео или прямые аудио URL.</p>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function GallerySection({
-  title,
-  hint,
-  items,
-  compact = false,
-  defaultCollapsed = false,
-  displayLimit,
-  action,
-  onOpenFullscreen,
-  onCopyLink
-}: {
-  title: string;
-  hint: string;
-  items: GalleryImage[];
-  compact?: boolean;
-  defaultCollapsed?: boolean;
-  displayLimit?: number;
-  action?: ReactNode;
-  onOpenFullscreen: (index: number) => void;
-  onCopyLink: (url: string) => Promise<void> | void;
-}) {
-  const visibleItems = typeof displayLimit === "number" ? items.slice(0, displayLimit) : items;
-
-  return (
-    <CollapsibleSection
-      action={action}
-      className={`gallery-section ${compact ? "compact" : ""}`}
-      defaultCollapsed={defaultCollapsed}
-      hint={hint}
-      summary={
-        <p className="copy">
-          {items.length
-            ? `${items.length} изображений${displayLimit && items.length > visibleItems.length ? ` • показаны первые ${visibleItems.length}` : ""}`
-            : "Галерея пока пустая."}
-        </p>
-      }
-      title={title}
-    >
-      {visibleItems.length ? (
-        <div className={`gallery-grid ${compact ? "compact" : ""}`}>
-          {visibleItems.map((item, index) => (
-            <article key={`${item.url}-${index}`} className="card gallery-card">
-              <button className="gallery-image-button" onClick={() => onOpenFullscreen(index)} type="button">
-                <img alt={item.caption ?? galleryImageTitle(item, index)} className="gallery-image" loading="lazy" src={item.url} />
-              </button>
-              <div className="gallery-card-copy">
-                <strong>{galleryImageTitle(item, index)}</strong>
-                <small>{item.caption?.trim() || "Открывается на весь экран, ссылку можно копировать отдельно."}</small>
-              </div>
-              <div className="actions gallery-card-actions">
-                <button
-                  className="ghost"
-                  onClick={() => {
-                    void onCopyLink(item.url);
-                  }}
-                  type="button"
-                >
-                  Скопировать
-                </button>
-                <button className="ghost" onClick={() => window.open(item.url, "_blank", "noopener,noreferrer")} type="button">
-                  Файл
-                </button>
-                <button className="primary" onClick={() => onOpenFullscreen(index)} type="button">
-                  Открыть
-                </button>
-              </div>
-            </article>
-          ))}
-        </div>
-      ) : (
-        <p className="copy">Сюда удобно складывать карты, письма, договоры, гербы, handout-арты и любые другие игровые изображения.</p>
-      )}
-    </CollapsibleSection>
-  );
-}
-
-function GalleryEditorSection({
-  title,
-  hint,
-  items,
-  onChange,
-  onAdd,
-  onRemove
-}: {
-  title: string;
-  hint: string;
-  items: GalleryImage[];
-  onChange: (index: number, patch: Partial<GalleryImage>) => void;
-  onAdd: () => void;
-  onRemove: (index: number) => void;
-}) {
-  return (
-    <section className="card npc-section form-subsection">
-      <div className="row muted">
-        <div className="stack compact">
-          <span>{title}</span>
-          <small>{hint}</small>
-        </div>
-        <button className="ghost" onClick={onAdd} type="button">
-          Добавить изображение
-        </button>
-      </div>
-
-      <div className="playlist-editor-list">
-        {items.length ? (
-          items.map((item, index) => (
-            <article key={`${item.url}-${index}`} className="entry-editor gallery-editor-card">
-              <div className="row">
-                <strong>{galleryImageTitle(item, index)}</strong>
-                <button className="ghost danger-action" onClick={() => onRemove(index)} type="button">
-                  Удалить
-                </button>
-              </div>
-
-              <div className="gallery-editor-grid">
-                <label className="field">
-                  <span>Название</span>
-                  <input
-                    className="input"
-                    onChange={(event) => onChange(index, { title: event.target.value })}
-                    placeholder="Карта Нижнего рынка"
-                    value={item.title}
-                  />
-                </label>
-                <label className="field">
-                  <span>Ссылка</span>
-                  <input
-                    className="input"
-                    onChange={(event) => onChange(index, { url: event.target.value })}
-                    placeholder="https://...png"
-                    value={item.url}
-                  />
-                </label>
-                <label className="field field-full">
-                  <span>Подпись</span>
-                  <input
-                    className="input"
-                    onChange={(event) => onChange(index, { caption: event.target.value })}
-                    placeholder="Что это за handout и когда его показать игрокам"
-                    value={item.caption ?? ""}
-                  />
-                </label>
-              </div>
-
-              {item.url.trim() ? (
-                <button className="gallery-editor-preview" onClick={() => window.open(item.url, "_blank", "noopener,noreferrer")} type="button">
-                  <img alt={item.caption ?? galleryImageTitle(item, index)} className="gallery-image" loading="lazy" src={item.url} />
-                </button>
-              ) : null}
-            </article>
-          ))
-        ) : (
-          <p className="copy">Пока изображений нет. Можно вставлять прямые URL на карты, письма, портреты и любые handout-материалы.</p>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function GalleryLightbox({
-  viewer,
-  onClose,
-  onSelect,
-  onCopyLink
-}: {
-  viewer: GalleryViewerState;
-  onClose: () => void;
-  onSelect: (index: number) => void;
-  onCopyLink: (url: string) => Promise<void>;
-}) {
-  const item = viewer.items[viewer.currentIndex];
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    setCopied(false);
-  }, [viewer.currentIndex, item.url]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-        return;
-      }
-      if (event.key === "ArrowLeft" && viewer.items.length > 1) {
-        onSelect(viewer.currentIndex - 1);
-      }
-      if (event.key === "ArrowRight" && viewer.items.length > 1) {
-        onSelect(viewer.currentIndex + 1);
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onClose, onSelect, viewer.currentIndex, viewer.items.length]);
-
-  return (
-    <div className="gallery-lightbox-backdrop" role="presentation">
-      <div className="panel gallery-lightbox" onClick={(event) => event.stopPropagation()} role="dialog">
-        <div className="row">
-          <div className="stack compact">
-            <p className="eyebrow">Галерея / Fullscreen</p>
-            <strong>{galleryImageTitle(item, viewer.currentIndex)}</strong>
-            <small>
-              {viewer.ownerTitle} • {viewer.currentIndex + 1}/{viewer.items.length}
-            </small>
-          </div>
-          <div className="actions">
-            <button className="ghost" disabled={viewer.items.length < 2} onClick={() => onSelect(viewer.currentIndex - 1)} type="button">
-              ←
-            </button>
-            <button className="ghost" disabled={viewer.items.length < 2} onClick={() => onSelect(viewer.currentIndex + 1)} type="button">
-              →
-            </button>
-            <button
-              className="ghost"
-              onClick={() => {
-                void onCopyLink(item.url)
-                  .then(() => setCopied(true))
-                  .catch(() => undefined);
-              }}
-              type="button"
-            >
-              {copied ? "Скопировано" : "Скопировать ссылку"}
-            </button>
-            <button className="ghost" onClick={() => window.open(item.url, "_blank", "noopener,noreferrer")} type="button">
-              Открыть файл
-            </button>
-            <button className="ghost" onClick={onClose} type="button">
-              Esc
-            </button>
-          </div>
-        </div>
-
-        <div className="gallery-lightbox-image-shell">
-          <img alt={item.caption ?? galleryImageTitle(item, viewer.currentIndex)} className="gallery-lightbox-image" src={item.url} />
-        </div>
-
-        <div className="stack compact">
-          {item.caption?.trim() ? <p className="copy">{item.caption}</p> : null}
-          <small>{item.url}</small>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function FloatingPlaylistPlayer({
-  playback,
-  track,
-  trackLabel,
-  source,
-  onSelectTrack,
-  onPrevious,
-  onNext,
-  onStop
-}: {
-  playback: ActivePlaylistPlayback;
-  track: PlaylistTrack;
-  trackLabel: string;
-  source: ReturnType<typeof resolvePlaylistSource>;
-  onSelectTrack: (index: number) => void;
-  onPrevious: () => void;
-  onNext: () => void;
-  onStop: () => void;
-}) {
-  const panelRef = useRef<HTMLElement | null>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const youtubeHostRef = useRef<HTMLDivElement | null>(null);
-  const youtubePlayerRef = useRef<{
-    destroy?: () => void;
-    loadVideoById?: (options: Record<string, unknown> | string) => void;
-    playVideo?: () => void;
-    pauseVideo?: () => void;
-    seekTo?: (seconds: number, allowSeekAhead?: boolean) => void;
-    getCurrentTime?: () => number;
-    getDuration?: () => number;
-    setVolume?: (volume: number) => void;
-  } | null>(null);
-  const youtubePollRef = useRef<number | null>(null);
-  const dragRef = useRef<{ pointerId: number; offsetX: number; offsetY: number } | null>(null);
-  const onNextRef = useRef(onNext);
-  const volumeRef = useRef(72);
-  const [collapsed, setCollapsed] = useState(false);
-  const [trackPickerOpen, setTrackPickerOpen] = useState(false);
-  const [position, setPosition] = useState(defaultFloatingPlayerPosition);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [duration, setDuration] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
-  const [bootError, setBootError] = useState("");
-  const [volume, setVolume] = useState(() => {
-    if (typeof window === "undefined") {
-      return 72;
-    }
-    const stored = Number.parseInt(window.localStorage.getItem("shadow-edge-player-volume") ?? "72", 10);
-    return clamp(Number.isFinite(stored) ? stored : 72, 0, 100);
-  });
-  const sourceKey = source.kind === "youtube" ? source.videoId : source.url;
-
-  useEffect(() => {
-    onNextRef.current = onNext;
-  }, [onNext]);
-
-  useEffect(() => {
-    volumeRef.current = volume;
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("shadow-edge-player-volume", String(volume));
-    }
-    if (audioRef.current) {
-      audioRef.current.volume = volume / 100;
-    }
-    youtubePlayerRef.current?.setVolume?.(volume);
-  }, [volume]);
-
-  const clampPosition = (x: number, y: number) => {
-    const panelWidth = panelRef.current?.offsetWidth ?? (collapsed ? 320 : 420);
-    const panelHeight = panelRef.current?.offsetHeight ?? (collapsed ? 80 : 240);
-    return {
-      x: clamp(x, 12, Math.max(12, window.innerWidth - panelWidth - 12)),
-      y: clamp(y, 12, Math.max(12, window.innerHeight - panelHeight - 12))
-    };
-  };
-
-  const syncYouTubeMetrics = () => {
-    const player = youtubePlayerRef.current;
-    if (!player?.getCurrentTime || !player.getDuration) {
-      return;
-    }
-
-    setCurrentTime(player.getCurrentTime() ?? 0);
-    setDuration(player.getDuration() ?? 0);
-  };
-
-  const stopYouTubePolling = () => {
-    if (youtubePollRef.current !== null) {
-      window.clearInterval(youtubePollRef.current);
-      youtubePollRef.current = null;
-    }
-  };
-
-  const startYouTubePolling = () => {
-    stopYouTubePolling();
-    youtubePollRef.current = window.setInterval(syncYouTubeMetrics, 500);
-  };
-
-  useEffect(() => {
-    const onResize = () => setPosition((current) => clampPosition(current.x, current.y));
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, [collapsed]);
-
-  useEffect(() => {
-    const onPointerMove = (event: PointerEvent) => {
-      if (!dragRef.current || dragRef.current.pointerId !== event.pointerId) {
-        return;
-      }
-
-      setPosition(clampPosition(event.clientX - dragRef.current.offsetX, event.clientY - dragRef.current.offsetY));
-    };
-
-    const onPointerUp = (event: PointerEvent) => {
-      if (!dragRef.current || dragRef.current.pointerId !== event.pointerId) {
-        return;
-      }
-
-      dragRef.current = null;
-      document.body.style.removeProperty("user-select");
-      document.body.style.removeProperty("cursor");
-    };
-
-    window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerup", onPointerUp);
-    return () => {
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", onPointerUp);
-    };
-  }, [collapsed]);
-
-  useEffect(() => {
-    setBootError("");
-    setDuration(0);
-    setCurrentTime(0);
-    setIsPlaying(true);
-    setTrackPickerOpen(false);
-  }, [playback.token, playback.currentIndex, source.kind, track.url]);
-
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) {
-      return;
-    }
-
-    if (source.kind !== "audio") {
-      audio.pause();
-      audio.removeAttribute("src");
-      audio.load();
-      return;
-    }
-
-    const handleLoadedMetadata = () => {
-      setDuration(audio.duration || 0);
-      setCurrentTime(audio.currentTime || 0);
-    };
-    const handleTimeUpdate = () => setCurrentTime(audio.currentTime || 0);
-    const handlePlay = () => setIsPlaying(true);
-    const handlePause = () => setIsPlaying(false);
-    const handleEnded = () => onNextRef.current();
-    const handleError = () => setBootError("Этот аудио-источник не удалось воспроизвести.");
-
-    audio.addEventListener("loadedmetadata", handleLoadedMetadata);
-    audio.addEventListener("timeupdate", handleTimeUpdate);
-    audio.addEventListener("play", handlePlay);
-    audio.addEventListener("pause", handlePause);
-    audio.addEventListener("ended", handleEnded);
-    audio.addEventListener("error", handleError);
-    audio.src = source.url;
-    audio.volume = volumeRef.current / 100;
-    audio.currentTime = 0;
-    void audio.play().catch(() => {
-      setIsPlaying(false);
-      setBootError("Браузер не дал запустить этот аудио-источник автоматически.");
-    });
-
-    return () => {
-      audio.pause();
-      audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
-      audio.removeEventListener("timeupdate", handleTimeUpdate);
-      audio.removeEventListener("play", handlePlay);
-      audio.removeEventListener("pause", handlePause);
-      audio.removeEventListener("ended", handleEnded);
-      audio.removeEventListener("error", handleError);
-    };
-  }, [source.kind, sourceKey, track.url]);
-
-  useEffect(() => {
-    if (source.kind !== "youtube") {
-      stopYouTubePolling();
-      youtubePlayerRef.current?.pauseVideo?.();
-      return;
-    }
-
-    let cancelled = false;
-    setBootError("");
-
-    void loadYouTubeIframeApi()
-      .then((YT) => {
-        if (cancelled || !youtubeHostRef.current) {
-          return;
-        }
-
-        const bindPlayer = () => {
-          if (!youtubePlayerRef.current) {
-            youtubePlayerRef.current = new YT.Player(youtubeHostRef.current as HTMLElement, {
-              width: "1",
-              height: "1",
-              videoId: source.videoId,
-              playerVars: {
-                autoplay: 1,
-                controls: 0,
-                rel: 0,
-                playsinline: 1,
-                modestbranding: 1,
-                origin: window.location.origin
-              },
-              events: {
-                onReady: (event: { target: { playVideo?: () => void; setVolume?: (volume: number) => void } }) => {
-                  if (cancelled) {
-                    return;
-                  }
-                  event.target.setVolume?.(volumeRef.current);
-                  event.target.playVideo?.();
-                  startYouTubePolling();
-                  syncYouTubeMetrics();
-                },
-                onStateChange: (event: { data: number }) => {
-                  if (cancelled) {
-                    return;
-                  }
-                  setIsPlaying(event.data === YT.PlayerState.PLAYING || event.data === YT.PlayerState.BUFFERING);
-                  if (event.data === YT.PlayerState.ENDED) {
-                    onNextRef.current();
-                  }
-                  syncYouTubeMetrics();
-                },
-                onError: () => {
-                  if (cancelled) {
-                    return;
-                  }
-                  setBootError("YouTube не дал воспроизвести этот трек.");
-                }
-              }
-            });
-            return;
-          }
-
-          youtubePlayerRef.current.loadVideoById?.({
-            videoId: source.videoId,
-            startSeconds: 0
-          });
-          startYouTubePolling();
-          syncYouTubeMetrics();
-        };
-
-        bindPlayer();
-      })
-      .catch((error) => {
-        if (cancelled) {
-          return;
-        }
-        setBootError(error instanceof Error ? error.message : "Не удалось подключить YouTube player.");
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [source.kind, sourceKey]);
-
-  useEffect(() => {
-    return () => {
-      stopYouTubePolling();
-      youtubePlayerRef.current?.destroy?.();
-      youtubePlayerRef.current = null;
-    };
-  }, []);
-
-  const togglePlayback = () => {
-    if (source.kind === "audio") {
-      const audio = audioRef.current;
-      if (!audio) {
-        return;
-      }
-      if (audio.paused) {
-        void audio.play().catch(() => {
-          setBootError("Браузер не дал продолжить аудио.");
-        });
-      } else {
-        audio.pause();
-      }
-      return;
-    }
-
-    const player = youtubePlayerRef.current;
-    if (!player) {
-      return;
-    }
-    if (isPlaying) {
-      player.pauseVideo?.();
-    } else {
-      player.playVideo?.();
-    }
-  };
-
-  const seekPlayback = (nextValue: number) => {
-    const normalized = Number.isFinite(nextValue) ? Math.max(0, nextValue) : 0;
-    if (source.kind === "audio") {
-      const audio = audioRef.current;
-      if (!audio) {
-        return;
-      }
-      audio.currentTime = normalized;
-      setCurrentTime(normalized);
-      return;
-    }
-
-    youtubePlayerRef.current?.seekTo?.(normalized, true);
-    setCurrentTime(normalized);
-  };
-
-  const beginDrag = (event: ReactPointerEvent<HTMLButtonElement>) => {
-    const target = event.currentTarget;
-    const rect = panelRef.current?.getBoundingClientRect();
-    dragRef.current = {
-      pointerId: event.pointerId,
-      offsetX: event.clientX - (rect?.left ?? position.x),
-      offsetY: event.clientY - (rect?.top ?? position.y)
-    };
-    target.setPointerCapture(event.pointerId);
-    document.body.style.cursor = "grabbing";
-    document.body.style.userSelect = "none";
-  };
-
-  return (
-    <div
-      className={`playlist-player-shell ${collapsed ? "collapsed" : ""}`}
-      style={{ left: `${position.x}px`, top: `${position.y}px` }}
-    >
-      <section ref={panelRef} className="panel playlist-player">
-        <div className="row playlist-player-topbar">
-          <button className="ghost playlist-drag-handle" onPointerDown={beginDrag} type="button">
-            Перетащить
-          </button>
-          <div className="actions">
-            <button className="ghost" onClick={() => setCollapsed((current) => !current)} type="button">
-              {collapsed ? "Развернуть" : "Свернуть"}
-            </button>
-            <button className="ghost" onClick={onStop} type="button">
-              Закрыть
-            </button>
-          </div>
-        </div>
-
-        <div className="stack compact">
-          <p className="eyebrow">Now Playing</p>
-          <strong>{trackLabel}</strong>
-          <small>{playback.ownerTitle}</small>
-          {bootError ? <small>{bootError}</small> : null}
-        </div>
-
-        <div className="playlist-inline-controls">
-          <button className="ghost" onClick={onPrevious} type="button">
-            ←
-          </button>
-          <button className="primary" onClick={togglePlayback} type="button">
-            {isPlaying ? "Пауза" : "Play"}
-          </button>
-          <button className="ghost" onClick={onNext} type="button">
-            →
-          </button>
-          <button className="ghost" onClick={() => setTrackPickerOpen((current) => !current)} type="button">
-            {trackPickerOpen ? "Скрыть треки" : "Выбрать трек"}
-          </button>
-          <button
-            className="ghost"
-            onClick={() => window.open(track.url, "_blank", "noopener,noreferrer")}
-            type="button"
-          >
-            Источник
-          </button>
-        </div>
-
-        {!collapsed ? (
-          <>
-            <label className="playlist-volume-shell">
-              <span>Громкость</span>
-              <input
-                className="playlist-volume"
-                max={100}
-                min={0}
-                onChange={(event) => setVolume(clamp(Number.parseInt(event.target.value, 10) || 0, 0, 100))}
-                step={1}
-                type="range"
-                value={volume}
-              />
-              <strong>{volume}%</strong>
-            </label>
-
-            <label className="playlist-progress-shell">
-              <input
-                className="playlist-progress"
-                max={Math.max(duration, 0.1)}
-                min={0}
-                onChange={(event) => seekPlayback(Number.parseFloat(event.target.value) || 0)}
-                step={0.1}
-                type="range"
-                value={Math.min(currentTime, duration || 0)}
-              />
-            </label>
-
-            <div className="row muted">
-              <span>{formatPlaybackTime(currentTime)}</span>
-              <span>{source.kind === "youtube" ? "YouTube" : playlistTrackHost(track.url)}</span>
-              <span>{formatPlaybackTime(duration)}</span>
-            </div>
-
-            {trackPickerOpen ? (
-              <div className="playlist-floating-track-list">
-                {playback.tracks.map((playlistTrack, index) => {
-                  const active = index === playback.currentIndex;
-                  return (
-                    <button
-                      key={`${playlistTrack.url}-${index}`}
-                      className={`ghost fill playlist-track-row ${active ? "active" : ""}`}
-                      onClick={() => {
-                        onSelectTrack(index);
-                        setTrackPickerOpen(false);
-                      }}
-                      type="button"
-                    >
-                      <span className="playlist-track-copy">
-                        <strong>{playlistTrackTitle(playlistTrack, index)}</strong>
-                        <small>{playlistTrackHost(playlistTrack.url)}</small>
-                      </span>
-                      <span className={badge(active ? "success" : "default")}>{active ? "Играет" : "Выбрать"}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : null}
-          </>
-        ) : null}
-
-        <audio ref={audioRef} className="playlist-audio-hidden" preload="auto" />
-        <div className="playlist-media-shell" aria-hidden="true">
-          <div ref={youtubeHostRef} />
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function StatEntriesSection({
-  title,
-  hint,
-  entries
-}: {
-  title: string;
-  hint: string;
-  entries: StatBlockEntry[];
-}) {
-  if (!entries.length) {
-    return null;
-  }
-
-  return (
-    <CollapsibleSection
-      className="npc-section"
-      defaultCollapsed
-      hint={hint}
-      summary={<p className="copy">{entries.length} записей в сокращённом виде.</p>}
-      title={title}
-    >
-      <div className="entry-list">
-        {entries.map((entry) => {
-          const meta: ReactNode[] = [];
-
-          if (entry.subtitle) {
-            meta.push(
-              <span key={`${entry.name}-subtitle`} className="entry-chip">
-                {entry.subtitle}
-              </span>
-            );
-          }
-
-          if (entry.toHit) {
-            meta.push(
-              <span key={`${entry.name}-tohit`} className="entry-chip">
-                Попадание: {entry.toHit}
-              </span>
-            );
-          }
-
-          if (entry.damage) {
-            meta.push(
-              <span key={`${entry.name}-damage`} className="entry-chip">
-                Урон: {entry.damage}
-              </span>
-            );
-          }
-
-          if (entry.saveDc) {
-            meta.push(
-              <span key={`${entry.name}-save`} className="entry-chip">
-                {entry.saveDc}
-              </span>
-            );
-          }
-
-          return (
-            <article key={entry.name} className="entry-card">
-              <div className="entry-header">
-                <h3>{entry.name}</h3>
-                {meta.length ? <div className="entry-meta">{meta}</div> : null}
-              </div>
-              <p className="copy">{entry.description}</p>
-            </article>
-          );
-        })}
-      </div>
-    </CollapsibleSection>
-  );
-}
-
-function CombatEntityStatSheet({ entity }: { entity: CombatProfileEntity }) {
-  if (!entity.statBlock) {
-    return null;
-  }
-
-  const { statBlock } = entity;
-  const headerLabel = entity.kind === "monster" ? "Боевой профиль" : "Статы и способности";
-  const detailRows = [
-    { label: "Спасброски", value: statBlock.savingThrows },
-    { label: "Навыки", value: statBlock.skills },
-    { label: "Чувства", value: statBlock.senses },
-    { label: "Языки", value: statBlock.languages },
-    { label: "Сопротивления", value: statBlock.resistances },
-    { label: "Иммунитеты", value: statBlock.immunities },
-    { label: "Иммунитеты к состояниям", value: statBlock.conditionImmunities }
-  ].filter((row): row is { label: string; value: string } => Boolean(row.value));
-
-  return (
-    <CollapsibleSection
-      className="npc-sheet"
-      defaultCollapsed
-      hint={entity.kind === "monster" ? "Полный боевой профиль угрозы" : "Полный боевой и ролевой профиль"}
-      summary={
-        <div className="preview-stat-grid">
-          <article className="card preview-stat-card">
-            <small>КБ</small>
-            <strong>{statBlock.armorClass}</strong>
-          </article>
-          <article className="card preview-stat-card">
-            <small>ХП</small>
-            <strong>{statBlock.hitPoints}</strong>
-          </article>
-          <article className="card preview-stat-card">
-            <small>CR</small>
-            <strong>{statBlock.challenge ?? "—"}</strong>
-          </article>
-        </div>
-      }
-      title={headerLabel}
-    >
-      <div className="npc-top">
-        <figure className="npc-portrait-frame">
-          <img
-            alt={entity.art?.alt ?? entity.title}
-            className="npc-portrait"
-            src={createPortraitSource(entity)}
-          />
-          <figcaption>{entity.art?.caption ?? "Добавь art.url, чтобы заменить заглушку реальным артом."}</figcaption>
-        </figure>
-
-        <div className="npc-overview">
-          <div className="stack">
-            <div>
-              <p className="eyebrow">Профиль</p>
-              <h2>{entity.title}</h2>
-              <p className="npc-type-line">
-                {statBlock.size} {statBlock.creatureType}, {statBlock.alignment}
-              </p>
-            </div>
-
-            <div className="npc-core-grid">
-              <article className="card npc-core-card">
-                <small>КБ</small>
-                <strong>{statBlock.armorClass}</strong>
-              </article>
-              <article className="card npc-core-card">
-                <small>ХП</small>
-                <strong>{statBlock.hitPoints}</strong>
-              </article>
-              <article className="card npc-core-card">
-                <small>Скорость</small>
-                <strong>{statBlock.speed}</strong>
-              </article>
-              <article className="card npc-core-card">
-                <small>Бонус мастерства</small>
-                <strong>{statBlock.proficiencyBonus ?? "—"}</strong>
-              </article>
-              <article className="card npc-core-card">
-              <small>CR / Опасность</small>
-              <strong>{statBlock.challenge ?? "—"}</strong>
-            </article>
-          </div>
-          </div>
-
-          {detailRows.length ? (
-            <div className="npc-detail-list">
-              {detailRows.map((row) => (
-                <div key={row.label} className="npc-detail-row">
-                  <span>{row.label}</span>
-                  <strong>{row.value}</strong>
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="npc-ability-grid">
-        {abilityLabels.map(({ key, label }) => {
-          const score = statBlock.abilityScores[key];
-
-          return (
-            <article key={key} className="card ability-card">
-              <small>{label}</small>
-              <strong>{score}</strong>
-              <span>{formatModifier(score)}</span>
-            </article>
-          );
-        })}
-      </div>
-
-      {statBlock.spellcasting ? (
-        <CollapsibleSection
-          className="npc-section"
-          defaultCollapsed
-          hint="Магия, СЛ спасброска и подготовленные заклинания"
-          summary={
-            <p className="copy">
-              {statBlock.spellcasting.title} • {statBlock.spellcasting.spells.length} заклинаний
-            </p>
-          }
-          title={statBlock.spellcasting.title}
-        >
-          <div className="spell-grid">
-            <article className="card npc-core-card">
-              <small>Базовая характеристика</small>
-              <strong>{statBlock.spellcasting.ability}</strong>
-            </article>
-            <article className="card npc-core-card">
-              <small>СЛ спасброска</small>
-              <strong>{statBlock.spellcasting.saveDc}</strong>
-            </article>
-            <article className="card npc-core-card">
-              <small>Модификатор атаки</small>
-              <strong>{statBlock.spellcasting.attackBonus}</strong>
-            </article>
-          </div>
-
-          {statBlock.spellcasting.slots?.length ? (
-            <div className="spell-slots">
-              {statBlock.spellcasting.slots.map((slot) => (
-                <span key={slot.level} className="entry-chip">
-                  {slot.level}: {slot.slots}
-                </span>
-              ))}
-            </div>
-          ) : null}
-
-          <div className="stack">
-            {statBlock.spellcasting.description ? <p className="copy">{statBlock.spellcasting.description}</p> : null}
-            <div className="spell-list">
-              {statBlock.spellcasting.spells.map((spell) => (
-                <span key={spell} className="spell-pill">
-                  {spell}
-                </span>
-              ))}
-            </div>
-          </div>
-        </CollapsibleSection>
-      ) : null}
-
-      <StatEntriesSection entries={statBlock.traits} hint="Пассивные особенности" title="Способности" />
-      <StatEntriesSection entries={statBlock.actions} hint="Действия и атаки" title="Действия" />
-      <StatEntriesSection entries={statBlock.bonusActions ?? []} hint="Дополнительные действия" title="Бонусные действия" />
-      <StatEntriesSection entries={statBlock.reactions ?? []} hint="Реакции" title="Реакции" />
-    </CollapsibleSection>
-  );
-}
-
-function StatEntryEditorSection({
-  title,
-  hint,
-  entries,
-  onChange,
-  onAdd,
-  onRemove
-}: {
-  title: string;
-  hint: string;
-  entries: StatBlockEntry[];
-  onChange: (index: number, patch: Partial<StatBlockEntry>) => void;
-  onAdd: () => void;
-  onRemove: (index: number) => void;
-}) {
-  return (
-    <section className="card npc-section form-subsection">
-      <div className="row muted">
-        <div className="stack compact">
-          <span>{title}</span>
-          <small>{hint}</small>
-        </div>
-        <button className="ghost" onClick={onAdd} type="button">
-          Добавить
-        </button>
-      </div>
-
-      <div className="entry-editor-list">
-        {entries.length ? (
-          entries.map((entry, index) => (
-            <article key={`${title}-${index}`} className="entry-editor">
-              <div className="row">
-                <strong>{title} #{index + 1}</strong>
-                <button className="ghost danger-action" onClick={() => onRemove(index)} type="button">
-                  Удалить
-                </button>
-              </div>
-
-              <div className="form-grid">
-                <label className="field">
-                  <span>Название</span>
-                  <input
-                    className="input"
-                    onChange={(event) => onChange(index, { name: event.target.value })}
-                    value={entry.name}
-                  />
-                </label>
-                <label className="field">
-                  <span>Подпись</span>
-                  <input
-                    className="input"
-                    onChange={(event) => onChange(index, { subtitle: event.target.value })}
-                    value={entry.subtitle ?? ""}
-                  />
-                </label>
-                <label className="field">
-                  <span>Попадание</span>
-                  <input
-                    className="input"
-                    onChange={(event) => onChange(index, { toHit: event.target.value })}
-                    placeholder="+5 к попаданию"
-                    value={entry.toHit ?? ""}
-                  />
-                </label>
-                <label className="field">
-                  <span>Урон</span>
-                  <input
-                    className="input"
-                    onChange={(event) => onChange(index, { damage: event.target.value })}
-                    placeholder="2d6 + 3 рубящего"
-                    value={entry.damage ?? ""}
-                  />
-                </label>
-                <label className="field field-full">
-                  <span>СЛ / спасбросок</span>
-                  <input
-                    className="input"
-                    onChange={(event) => onChange(index, { saveDc: event.target.value })}
-                    placeholder="СЛ 13 Ловкости"
-                    value={entry.saveDc ?? ""}
-                  />
-                </label>
-                <label className="field field-full">
-                  <span>Описание</span>
-                  <textarea
-                    className="input textarea"
-                    onChange={(event) => onChange(index, { description: event.target.value })}
-                    value={entry.description}
-                  />
-                </label>
-              </div>
-            </article>
-          ))
-        ) : (
-          <p className="copy">Секция пока пустая.</p>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function CombatEntityPreviewSummary({ entity }: { entity: CombatProfileEntity }) {
-  if (!entity.statBlock) {
-    return null;
-  }
-
-  return (
-    <div className="stack">
-      <div className="preview-stat-grid">
-        <article className="card preview-stat-card">
-          <small>КБ</small>
-          <strong>{entity.statBlock.armorClass}</strong>
-        </article>
-        <article className="card preview-stat-card">
-          <small>ХП</small>
-          <strong>{entity.statBlock.hitPoints}</strong>
-        </article>
-        <article className="card preview-stat-card">
-          <small>Скорость</small>
-          <strong>{entity.statBlock.speed}</strong>
-        </article>
-      </div>
-
-      <div className="stack">
-        {entity.statBlock.actions.slice(0, 2).map((action) => (
-          <article key={action.name} className="card mini preview-entry">
-            <strong>{action.name}</strong>
-            <p className="copy">
-              {[action.toHit, action.damage].filter(Boolean).join(" • ") || action.description}
-            </p>
-          </article>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function RewardSection({
-  rewardProfile,
-  compact = false,
-  kind = "monster"
-}: {
-  rewardProfile?: MonsterRewardProfile;
-  compact?: boolean;
-  kind?: EntityKind;
-}) {
-  if (!rewardProfile || (!rewardProfile.summary && !rewardProfile.loot.length)) {
-    return null;
-  }
-
-  const visibleLoot = compact ? rewardProfile.loot.slice(0, 2) : rewardProfile.loot;
-  const sectionMeta = rewardSectionLabel(kind);
-
-  return (
-    <CollapsibleSection
-      className="npc-section monster-reward-section"
-      defaultCollapsed={compact}
-      hint={compact ? "Короткая сводка" : sectionMeta.hint}
-      summary={<p className="copy">{rewardSummaryText(rewardProfile) || `${rewardProfile.loot.length} записей.`}</p>}
-      title={sectionMeta.title}
-    >
-      {rewardProfile.summary ? <p className="copy">{rewardProfile.summary}</p> : null}
-
-      <div className="loot-grid">
-        {visibleLoot.map((item, index) => (
-          <article key={`${item.name}-${index}`} className="entry-card loot-card">
-            <div className="entry-header">
-              <h3>{item.name}</h3>
-              <div className="entry-meta">
-                <span className="entry-chip">{item.category}</span>
-                <span className="entry-chip">{item.quantity}</span>
-              </div>
-            </div>
-            <p className="copy">
-              Проверка: {item.check}
-              {item.dc ? ` • ${item.dc}` : ""}
-            </p>
-            {item.details ? <p className="copy">{item.details}</p> : null}
-          </article>
-        ))}
-      </div>
-
-      {compact && rewardProfile.loot.length > visibleLoot.length ? (
-        <small>Ещё {rewardProfile.loot.length - visibleLoot.length} записей в полной карточке.</small>
-      ) : null}
-    </CollapsibleSection>
-  );
-}
-
-type QuestTextSection = {
-  title: string;
-  body: string[];
-};
-
-type QuestActionCard = {
-  title: string;
-  description: string;
-  detail: string;
-  tone: QuickFactTone;
-};
-
-type QuestChecklistItem = {
-  key: string;
-  label: string;
-  done: boolean;
-};
-
-type QuestCombatEntrySummary = {
-  entity: CombatProfileEntity;
-  quantity: number;
-};
-
-type QuestLinkedEntity = {
-  entity: KnowledgeEntity;
-  label: string;
-  tone: QuickFactTone;
-  note?: string;
-};
-
-const escapeSvgText = (value: string) =>
-  value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-
-const stripWikiMarkup = (value: string) =>
-  value.replace(/\[\[([^[\]|]+)(?:\|([^[\]]+))?\]\]/g, (_, targetTitle: string, label?: string) => label ?? targetTitle);
-
-const normalizeQuestText = (value: string) =>
-  stripWikiMarkup(value)
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/\*\*(.*?)\*\*/g, "$1")
-    .replace(/__(.*?)__/g, "$1")
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(/^>\s*/gm, "")
-    .trim();
-
-const cleanQuestLine = (value: string) =>
-  normalizeQuestText(value)
-    .replace(/^\s*[-*+]\s+/, "")
-    .replace(/^\s*\d+\.\s+/, "")
-    .replace(/\s+/g, " ")
-    .trim();
-
-const splitQuestNarrative = (value: string, maxItems = 5) =>
-  normalizeQuestText(value)
-    .replace(/\r/g, "")
-    .split(/\n+/)
-    .flatMap((paragraph) => paragraph.split(/(?:[.!?])\s+/u))
-    .map((line) => cleanQuestLine(line))
-    .filter(Boolean)
-    .slice(0, maxItems);
-
-const parseQuestTextSections = (value?: string): QuestTextSection[] => {
-  if (!value?.trim()) {
-    return [];
-  }
-
-  const lines = value.replace(/\r/g, "").split("\n");
-  const sections: QuestTextSection[] = [];
-  let currentTitle = "";
-  let currentBody: string[] = [];
-
-  const pushCurrent = () => {
-    const body = currentBody.map((line) => line.trim()).filter(Boolean);
-    if (currentTitle || body.length) {
-      sections.push({
-        title: cleanQuestLine(currentTitle || "Общее"),
-        body
-      });
-    }
-  };
-
-  lines.forEach((rawLine) => {
-    const line = rawLine.trim();
-    if (!line) {
-      return;
-    }
-
-    if (/^#{1,6}\s+/.test(line)) {
-      pushCurrent();
-      currentTitle = line.replace(/^#{1,6}\s+/, "");
-      currentBody = [];
-      return;
-    }
-
-    currentBody.push(line);
-  });
-
-  pushCurrent();
-
-  return sections;
-};
-
-const findQuestTextSection = (sections: QuestTextSection[], keywords: string[]) =>
-  sections.find((section) => {
-    const title = section.title.toLowerCase();
-    return keywords.some((keyword) => title.includes(keyword));
-  });
-
-const collectQuestSectionLines = (section?: QuestTextSection | null, maxItems = 5) => {
-  if (!section) {
-    return [];
-  }
-
-  return section.body
-    .flatMap((line) =>
-      /^\s*[-*+]\s+/.test(line) || /^\s*\d+\.\s+/.test(line) ? [cleanQuestLine(line)] : splitQuestNarrative(line, maxItems)
-    )
-    .filter(Boolean)
-    .slice(0, maxItems);
-};
-
-const dedupeQuestLines = (lines: string[], maxItems = 5) => {
-  const seen = new Set<string>();
-  return lines
-    .filter((line) => {
-      const key = line.toLowerCase();
-      if (seen.has(key)) {
-        return false;
-      }
-      seen.add(key);
-      return true;
-    })
-    .slice(0, maxItems);
-};
-
-const questStatusTone = (status: QuestEntity["status"]): QuickFactTone => {
-  switch (status) {
-    case "active":
-      return "success";
-    case "paused":
-      return "warning";
-    case "completed":
-      return "accent";
-    default:
-      return "default";
-  }
-};
-
-const questUrgencyTone = (urgency?: QuestEntity["urgency"]): QuickFactTone => {
-  switch (urgency) {
-    case "Critical":
-      return "danger";
-    case "High":
-      return "warning";
-    case "Medium":
-      return "accent";
-    case "Low":
-      return "success";
-    default:
-      return "default";
-  }
-};
-
-const actionToneFromText = (value: string): QuickFactTone => {
-  const lower = value.toLowerCase();
-  if (/(атак|бой|угроз|силой|оруж|удар)/.test(lower)) {
-    return "danger";
-  }
-  if (/(осмотр|след|улики|проверк|поиск|замет)/.test(lower)) {
-    return "accent";
-  }
-  if (/(скрыт|подкра|тихо|развед|обойти)/.test(lower)) {
-    return "warning";
-  }
-  return "success";
-};
-
-const actionDetailFromText = (value: string) => {
-  const lower = value.toLowerCase();
-  if (/(поговор|спрос|убеж|соц|допрос)/.test(lower)) {
-    return "Социально";
-  }
-  if (/(маг|заклин|чары|ритуал)/.test(lower)) {
-    return "Магия";
-  }
-  if (/(осмотр|след|улики|проверк|воспр|анализ)/.test(lower)) {
-    return "Наблюдение";
-  }
-  if (/(скрыт|подкра|тихо|развед|обойти)/.test(lower)) {
-    return "Скрытность";
-  }
-  if (/(атак|бой|сил|угроз|оруж)/.test(lower)) {
-    return "Силовое решение";
-  }
-  return "Свободный ход";
-};
-
-const buildQuestActionCards = ({
-  quest,
-  playerSections,
-  location,
-  issuer,
-  preparedCombatEntries
-}: {
-  quest: QuestEntity;
-  playerSections: QuestTextSection[];
-  location: LocationEntity | null;
-  issuer: NpcEntity | null;
-  preparedCombatEntries: QuestCombatEntrySummary[];
-}): QuestActionCard[] => {
-  const actionSection = findQuestTextSection(playerSections, ["что вы можете", "возможные действия", "действия игроков"]);
-  const explicitActions = collectQuestSectionLines(actionSection, 6).map((line, index) => {
-    const match = line.match(/^([^:.-]{2,48})[:.-]\s*(.+)$/);
-    const title = cleanQuestLine(match?.[1] ?? `Ход ${index + 1}`);
-    const description = cleanQuestLine(match?.[2] ?? line);
-    const source = `${title} ${description}`;
-
-    return {
-      title,
-      description,
-      detail: actionDetailFromText(source),
-      tone: actionToneFromText(source)
-    };
-  });
-
-  if (explicitActions.length) {
-    return explicitActions.slice(0, 4);
-  }
-
-  const fallback: QuestActionCard[] = [];
-
-  if (issuer) {
-    fallback.push({
-      title: "Поговорить",
-      description: `Расспросить ${issuer.title} о мотивах, маршруте и том, что здесь пошло не так.`,
-      detail: "Социально",
-      tone: "success"
-    });
-  }
-
-  if (location) {
-    fallback.push({
-      title: "Осмотреть место",
-      description: `Проверить ${location.title} и собрать улики, пока сцена не успела сменить темп.`,
-      detail: "Наблюдение",
-      tone: "accent"
-    });
-  }
-
-  fallback.push({
-    title: "Проверить подвох",
-    description: "Сверить детали, отследить противоречия и понять, где именно сцена может сорваться.",
-    detail: "Проверка",
-    tone: "warning"
-  });
-
-  if (preparedCombatEntries.length) {
-    fallback.push({
-      title: "Вступить в бой",
-      description: `Если переговоры провалятся, сцена может перейти в столкновение с ${preparedCombatEntries.reduce(
-        (sum, item) => sum + item.quantity,
-        0
-      )} противниками.`,
-      detail: "Силовое решение",
-      tone: "danger"
-    });
-  }
-
-  if (quest.rewardProfile?.summary.trim()) {
-    fallback.push({
-      title: "Торговаться",
-      description: truncateInlineText(cleanQuestLine(quest.rewardProfile.summary), 110),
-      detail: "Ставка",
-      tone: "accent"
-    });
-  }
-
-  return fallback.slice(0, 4);
-};
-
-const buildQuestChecklistItems = ({
-  quest,
-  location,
-  issuer,
-  preparedCombatEntries
-}: {
-  quest: QuestEntity;
-  location: LocationEntity | null;
-  issuer: NpcEntity | null;
-  preparedCombatEntries: QuestCombatEntrySummary[];
-}): QuestChecklistItem[] => [
-  {
-    key: "players",
-    label: quest.playerContent?.trim() ? "Версия для игроков подготовлена" : "Подготовить версию для игроков",
-    done: Boolean(quest.playerContent?.trim())
-  },
-  {
-    key: "issuer",
-    label: issuer ? `Ввести в сцену ${issuer.title}` : "Определить квестодателя",
-    done: Boolean(issuer)
-  },
-  {
-    key: "location",
-    label: location ? `Собрать сцену в ${location.title}` : "Привязать сцену к локации",
-    done: Boolean(location)
-  },
-  {
-    key: "combat",
-    label: preparedCombatEntries.length ? "Заготовленный бой готов" : "Собрать возможный бой",
-    done: preparedCombatEntries.length > 0
-  },
-  {
-    key: "rewards",
-    label: rewardSummaryText(quest.rewardProfile) ? "Награды и последствия описаны" : "Прописать награды и последствия",
-    done: Boolean(rewardSummaryText(quest.rewardProfile))
-  },
-  {
-    key: "followup",
-    label: quest.related.length ? "Следующие связи сцены отмечены" : "Добавить продолжение и связи",
-    done: quest.related.length > 0
-  }
-];
-
-const buildQuestObjectiveLines = ({
-  quest,
-  location,
-  issuer,
-  preparedCombatEntries,
-  relatedQuests
-}: {
-  quest: QuestEntity;
-  location: LocationEntity | null;
-  issuer: NpcEntity | null;
-  preparedCombatEntries: QuestCombatEntrySummary[];
-  relatedQuests: QuestEntity[];
-}) => {
-  const lines = [
-    quest.summary.trim(),
-    location ? `Локация сцены: ${location.title}.` : "",
-    issuer ? `Квест ведёт ${issuer.title}.` : "",
-    quest.urgency ? `Срочность: ${quest.urgency}.` : "",
-    preparedCombatEntries.length
-      ? `В резерве ${preparedCombatEntries.reduce((sum, item) => sum + item.quantity, 0)} противников, если сцена сорвётся в бой.`
-      : "Сцена пока не привязана к отдельному бою и может решиться разговором, осмотром или обходным ходом.",
-    rewardSummaryText(quest.rewardProfile) ? `Ставка: ${cleanQuestLine(rewardSummaryText(quest.rewardProfile) ?? "")}.` : "",
-    relatedQuests.length ? `${relatedQuests.length} соседних квестовых нитей уже связаны с этой сценой.` : ""
-  ].filter(Boolean);
-
-  return dedupeQuestLines(lines.map((line) => cleanQuestLine(line)), 5);
-};
-
-const createGeneratedQuestSceneBackdrop = (quest: QuestEntity, location: LocationEntity | null) => {
-  const accent =
-    quest.urgency === "Critical"
-      ? "#f0937d"
-      : quest.urgency === "High"
-        ? "#e6c07d"
-        : quest.urgency === "Medium"
-          ? "#8ea7ff"
-          : "#7ed6a1";
-  const safeTitle = escapeSvgText(quest.title);
-  const safeLocation = escapeSvgText(location?.title ?? quest.subtitle ?? "Quest dossier");
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 720">
-      <defs>
-        <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#0e1624"/>
-          <stop offset="55%" stop-color="#111c2f"/>
-          <stop offset="100%" stop-color="#060a11"/>
-        </linearGradient>
-        <linearGradient id="ground" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="#11161d"/>
-          <stop offset="100%" stop-color="#05070b"/>
-        </linearGradient>
-      </defs>
-      <rect width="1600" height="720" fill="url(#sky)"/>
-      <circle cx="1180" cy="150" r="120" fill="rgba(146,179,255,0.12)"/>
-      <circle cx="1180" cy="150" r="58" fill="rgba(255,255,255,0.14)"/>
-      <path d="M0 430 C180 360 340 370 520 420 C660 458 760 430 900 390 C1060 344 1220 336 1600 420 L1600 720 L0 720 Z" fill="rgba(16,20,29,0.88)"/>
-      <path d="M0 520 C140 468 280 470 430 520 C600 575 760 560 920 514 C1080 468 1260 462 1600 540 L1600 720 L0 720 Z" fill="url(#ground)"/>
-      <path d="M1060 330 L1105 230 L1148 330 Z" fill="rgba(32,39,52,0.82)"/>
-      <path d="M1110 330 L1164 190 L1220 330 Z" fill="rgba(26,33,44,0.9)"/>
-      <path d="M1180 330 L1230 215 L1280 330 Z" fill="rgba(32,39,52,0.82)"/>
-      <rect x="1122" y="330" width="126" height="98" rx="8" fill="rgba(18,22,30,0.92)"/>
-      <rect x="1172" y="360" width="28" height="48" rx="4" fill="rgba(255,214,136,0.72)"/>
-      <path d="M320 520 C412 436 504 426 604 466 C686 500 744 496 820 462" fill="none" stroke="rgba(184,155,102,0.22)" stroke-width="34" stroke-linecap="round"/>
-      <path d="M280 502 C362 422 462 412 560 452" fill="none" stroke="rgba(0,0,0,0.26)" stroke-width="6" stroke-linecap="round"/>
-      <g fill="rgba(14,18,24,0.92)">
-        <path d="M314 466 l40 -70 l42 70 z"/>
-        <path d="M354 470 l48 -86 l52 86 z"/>
-        <path d="M402 470 l40 -72 l44 72 z"/>
-        <path d="M1240 470 l36 -66 l38 66 z"/>
-        <path d="M1270 472 l48 -92 l52 92 z"/>
-        <path d="M1322 472 l36 -66 l40 66 z"/>
-      </g>
-      <rect x="84" y="70" width="340" height="36" rx="18" fill="rgba(18,23,33,0.62)" stroke="rgba(255,255,255,0.06)"/>
-      <text x="112" y="95" fill="rgba(235,241,255,0.72)" font-family="Segoe UI, Arial, sans-serif" font-size="20" letter-spacing="3">${safeLocation}</text>
-      <text x="84" y="618" fill="rgba(243,246,255,0.95)" font-family="Georgia, serif" font-size="66" font-weight="700">${safeTitle}</text>
-      <text x="84" y="664" fill="${accent}" font-family="Segoe UI, Arial, sans-serif" font-size="24">Scene preview</text>
-      <rect x="0" y="0" width="1600" height="720" fill="rgba(4,7,12,0.14)"/>
-    </svg>
-  `;
-
-  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
-};
-
-const resolveQuestSceneArtwork = (
-  quest: QuestEntity,
-  location: LocationEntity | null,
-  issuer: NpcEntity | null,
-  preparedCombatEntries: QuestCombatEntrySummary[] = []
-) =>
-  quest.art?.url ||
-  location?.art?.url ||
-  issuer?.art?.url ||
-  preparedCombatEntries.find((item) => item.entity.art?.url)?.entity.art?.url ||
-  createGeneratedQuestSceneBackdrop(quest, location);
-
-function QuestMetaPill({
-  label,
-  value,
-  tone = "default"
-}: {
-  label: string;
-  value: string;
-  tone?: QuickFactTone;
-}) {
-  return (
-    <div className={`quest-meta-pill quest-tone-${tone}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-    </div>
-  );
-}
-
-function QuestEntityChip({
-  entity,
-  label,
-  tone = "default",
-  onOpen
-}: {
-  entity: KnowledgeEntity;
-  label: string;
-  tone?: QuickFactTone;
-  onOpen: (id: string) => void;
-}) {
-  return (
-    <button className={`quest-entity-chip quest-tone-${tone}`} onClick={() => onOpen(entity.id)} type="button">
-      <small>{label}</small>
-      <strong>{entity.title}</strong>
-    </button>
-  );
-}
-
-function QuestPreviewActionButton({
-  label,
-  hint,
-  tone = "default",
-  disabled = false,
-  onClick
-}: {
-  label: string;
-  hint: string;
-  tone?: QuickFactTone;
-  disabled?: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button className={`quest-preview-action quest-tone-${tone}`} disabled={disabled} onClick={onClick} type="button">
-      <strong>{label}</strong>
-      <span>{hint}</span>
-    </button>
-  );
-}
-
-function QuestPreviewEntityCard({
-  item,
-  onOpen
-}: {
-  item: QuestLinkedEntity;
-  onOpen: (id: string) => void;
-}) {
-  return (
-    <button className="quest-preview-entity" onClick={() => onOpen(item.entity.id)} type="button">
-      <EntityVisual entity={item.entity} />
-      <span className="quest-preview-entity-copy">
-        <small>{item.label}</small>
-        <strong>{item.entity.title}</strong>
-        <span>{item.note || item.entity.subtitle || item.entity.summary}</span>
-      </span>
-    </button>
-  );
-}
-
-function QuestWorkspace({
-  quest,
-  location,
-  issuer,
-  linkedEntities,
-  relatedQuests,
-  preparedCombatEntries,
-  previousQuest,
-  nextQuest,
-  pinned,
-  onEdit,
-  onTogglePin,
-  onOpenDirectory,
-  onOpenPlayerView,
-  onOpenEntity,
-  onOpenQuest
-}: {
-  quest: QuestEntity;
-  location: LocationEntity | null;
-  issuer: NpcEntity | null;
-  linkedEntities: QuestLinkedEntity[];
-  relatedQuests: QuestEntity[];
-  preparedCombatEntries: QuestCombatEntrySummary[];
-  previousQuest: QuestEntity | null;
-  nextQuest: QuestEntity | null;
-  pinned: boolean;
-  onEdit: (id: string) => void;
-  onTogglePin: (id: string) => void;
-  onOpenDirectory: () => void;
-  onOpenPlayerView: (quest: QuestEntity) => void;
-  onOpenEntity: (id: string) => void;
-  onOpenQuest: (id: string) => void;
-}) {
-  const playerSections = useMemo(() => parseQuestTextSections(quest.playerContent), [quest.playerContent]);
-  const gmSections = useMemo(() => parseQuestTextSections(quest.content), [quest.content]);
-  const sceneImage = useMemo(
-    () => resolveQuestSceneArtwork(quest, location, issuer, preparedCombatEntries),
-    [issuer, location, preparedCombatEntries, quest]
-  );
-  const visibleHighlights = useMemo(
-    () =>
-      dedupeQuestLines(
-        [
-          ...collectQuestSectionLines(findQuestTextSection(playerSections, ["что видят", "видят сразу", "общее впечатление"]), 3),
-          ...collectQuestSectionLines(findQuestTextSection(playerSections, ["можно заметить", "вниматель", "странности"]), 3),
-          ...collectQuestSectionLines(findQuestTextSection(playerSections, ["кто первым", "кто заговорит"]), 2)
-        ],
-        5
-      ),
-    [playerSections]
-  );
-  const hiddenHighlights = useMemo(() => {
-    const prioritized = [
-      ...collectQuestSectionLines(findQuestTextSection(gmSections, ["на самом деле", "что происходит", "скрыто", "правда"]), 5),
-      ...collectQuestSectionLines(findQuestTextSection(gmSections, ["опасность", "угроза", "засада"]), 3)
-    ];
-    return prioritized.length ? dedupeQuestLines(prioritized, 5) : splitQuestNarrative(quest.content, 5);
-  }, [gmSections, quest.content]);
-  const objectiveLines = useMemo(
-    () =>
-      buildQuestObjectiveLines({
-        quest,
-        location,
-        issuer,
-        preparedCombatEntries,
-        relatedQuests
-      }),
-    [issuer, location, preparedCombatEntries, quest, relatedQuests]
-  );
-  const actionCards = useMemo(
-    () =>
-      buildQuestActionCards({
-        quest,
-        playerSections,
-        location,
-        issuer,
-        preparedCombatEntries
-      }),
-    [issuer, location, playerSections, preparedCombatEntries, quest]
-  );
-  const checklistItems = useMemo(
-    () =>
-      buildQuestChecklistItems({
-        quest,
-        location,
-        issuer,
-        preparedCombatEntries
-      }),
-    [issuer, location, preparedCombatEntries, quest]
-  );
-  const rewardItems = quest.rewardProfile?.loot ?? [];
-  const playerVisible = Boolean(quest.playerContent?.trim());
-  const preparedCombatCount = preparedCombatEntries.reduce((sum, item) => sum + item.quantity, 0);
-  const heroLinkedEntities = linkedEntities.slice(0, 4);
-  const sceneLead =
-    collectQuestSectionLines(findQuestTextSection(playerSections, ["что происходит", "суть", "контекст"]), 1)[0] ??
-    quest.summary;
-
-  return (
-    <div className="quest-shell">
-      <section className="card quest-hero-panel">
-        <div className="quest-hero-top">
-          <div className="quest-breadcrumbs">
-            <button className="quest-breadcrumb-btn" onClick={onOpenDirectory} type="button">
-              Квесты
-            </button>
-            <span>/</span>
-            <strong>{quest.title}</strong>
-          </div>
-
-          <div className="quest-nav-buttons">
-            <button className="ghost quest-nav-btn" disabled={!previousQuest} onClick={() => previousQuest && onOpenQuest(previousQuest.id)} type="button">
-              Предыдущий
-            </button>
-            <button className="ghost quest-nav-btn" disabled={!nextQuest} onClick={() => nextQuest && onOpenQuest(nextQuest.id)} type="button">
-              Следующий
-            </button>
-          </div>
-        </div>
-
-        <div className="quest-hero-main">
-          <div className="quest-hero-copy">
-            <div className="quest-title-row">
-              <h1>{quest.title}</h1>
-              <span className={badge("warning")}>Квест</span>
-            </div>
-            <p className="quest-hero-summary">{quest.summary}</p>
-            <p className="quest-hero-subtitle">{quest.subtitle}</p>
-
-            {heroLinkedEntities.length ? (
-              <div className="quest-anchor-row">
-                {heroLinkedEntities.map((item) => (
-                  <QuestEntityChip key={`${quest.id}-hero-link-${item.entity.id}`} entity={item.entity} label={item.label} onOpen={onOpenEntity} tone={item.tone} />
-                ))}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="quest-hero-actions">
-            <button className="ghost" onClick={() => onEdit(quest.id)} type="button">
-              Редактировать
-            </button>
-            <button className="ghost" disabled={!playerVisible} onClick={() => onOpenPlayerView(quest)} type="button">
-              Показать игрокам
-            </button>
-            <button className={pinned ? "primary" : "ghost"} onClick={() => onTogglePin(quest.id)} type="button">
-              {pinned ? "Закреплено" : "Закрепить"}
-            </button>
-          </div>
-        </div>
-
-        <div className="quest-status-grid">
-          <QuestMetaPill label="Статус" tone={questStatusTone(quest.status)} value={quest.status} />
-          <QuestMetaPill label="Срочность" tone={questUrgencyTone(quest.urgency)} value={quest.urgency} />
-          <QuestMetaPill label="Игроки" tone={playerVisible ? "success" : "warning"} value={playerVisible ? "Есть версия" : "Не заполнено"} />
-          <QuestMetaPill label="Бой" tone={preparedCombatCount ? "danger" : "default"} value={preparedCombatCount ? `${preparedCombatCount} в сцене` : "Не настроен"} />
-          <QuestMetaPill
-            label="Награда"
-            tone={rewardSummaryText(quest.rewardProfile) ? "success" : "default"}
-            value={rewardSummaryText(quest.rewardProfile) || "Не заполнена"}
-          />
-        </div>
-      </section>
-
-      <section className="card quest-scene-spotlight">
-        <div className="quest-scene-copy">
-          <span className="quest-scene-label">Суть сцены</span>
-          <strong>{findQuestTextSection(playerSections, ["что происходит", "суть"])?.title || "Фокус текущего эпизода"}</strong>
-          <p>{sceneLead}</p>
-          <div className="quest-scene-inline-meta">
-            {location ? <span>{location.title}</span> : null}
-            {issuer ? <span>{issuer.title}</span> : null}
-            {preparedCombatCount ? <span>{preparedCombatCount} противников в резерве</span> : null}
-          </div>
-        </div>
-
-        <div className="quest-scene-visual">
-          <img alt={quest.title} className="quest-scene-image" loading="lazy" src={sceneImage} />
-        </div>
-      </section>
-
-      <div className="quest-story-grid">
-        <article className="card quest-story-card quest-story-card-players">
-          <div className="quest-story-head">
-            <strong>Игроки видят</strong>
-            <span className={badge("success")}>{playerVisible ? "Player-safe" : "Черновик нужен"}</span>
-          </div>
-
-          {visibleHighlights.length ? (
-            <ul className="quest-bullet-list">
-              {visibleHighlights.map((line) => (
-                <li key={`${quest.id}-visible-${line}`}>{line}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="copy">Пока нет отдельного player-facing описания. Его можно заполнить через редактор квеста.</p>
-          )}
-
-          <button className="ghost fill" disabled={!playerVisible} onClick={() => onOpenPlayerView(quest)} type="button">
-            Показать игрокам
-          </button>
-        </article>
-
-        <article className="card quest-story-card quest-story-card-hidden">
-          <div className="quest-story-head">
-            <strong>Скрыто от игроков</strong>
-            <span className={badge("warning")}>GM only</span>
-          </div>
-
-          {hiddenHighlights.length ? (
-            <ul className="quest-bullet-list">
-              {hiddenHighlights.map((line) => (
-                <li key={`${quest.id}-hidden-${line}`}>{line}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="copy">GM-заметки пока не заполнены.</p>
-          )}
-        </article>
-
-        <article className="card quest-story-card quest-story-card-goal">
-          <div className="quest-story-head">
-            <strong>Цель сцены</strong>
-            <span className={badge("accent")}>Фокус мастера</span>
-          </div>
-
-          <ul className="quest-bullet-list">
-            {objectiveLines.map((line) => (
-              <li key={`${quest.id}-goal-${line}`}>{line}</li>
-            ))}
-          </ul>
-
-          {relatedQuests.length ? (
-            <div className="quest-inline-links">
-              {relatedQuests.slice(0, 2).map((item) => (
-                <button key={`${quest.id}-inline-related-${item.id}`} className="ghost" onClick={() => onOpenQuest(item.id)} type="button">
-                  {item.title}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </article>
-      </div>
-
-      <section className="card quest-action-section">
-        <div className="row">
-          <strong>Возможные действия игроков</strong>
-          <small>{actionCards.length} направления сцены</small>
-        </div>
-
-        <div className="quest-action-grid">
-          {actionCards.map((action) => (
-            <article key={`${quest.id}-${action.title}`} className={`quest-action-card quest-tone-${action.tone}`}>
-              <span>{action.detail}</span>
-              <strong>{action.title}</strong>
-              <p>{action.description}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="card quest-checklist-section">
-        <div className="row">
-          <strong>Чек-лист мастера</strong>
-          <small>
-            {checklistItems.filter((item) => item.done).length}/{checklistItems.length} готово
-          </small>
-        </div>
-
-        <div className="quest-checklist-grid">
-          {checklistItems.map((item) => (
-            <label key={`${quest.id}-${item.key}`} className={`quest-checklist-item ${item.done ? "done" : ""}`}>
-              <input defaultChecked={item.done} type="checkbox" />
-              <span>{item.label}</span>
-            </label>
-          ))}
-        </div>
-      </section>
-
-      <section className="card quest-reward-section">
-        <div className="row">
-          <strong>Награды и ставка</strong>
-          <small>{rewardItems.length ? `${rewardItems.length} позиций` : "Награды пока не заданы"}</small>
-        </div>
-
-        {quest.rewardProfile?.summary.trim() ? <p className="copy quest-reward-summary">{quest.rewardProfile.summary.trim()}</p> : null}
-
-        {rewardItems.length ? (
-          <div className="quest-reward-grid">
-            {rewardItems.slice(0, 4).map((item, index) => (
-              <article key={`${quest.id}-reward-${item.name}-${index}`} className="quest-reward-card">
-                <span>{item.category}</span>
-                <strong>{item.name}</strong>
-                <p>{item.quantity}</p>
-                <small>
-                  {item.check}
-                  {item.dc ? ` • ${item.dc}` : ""}
-                </small>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p className="quest-empty-state">
-            Здесь пока пусто. Когда заполнишь награды в редакторе, они появятся в этом компактном блоке.
-          </p>
-        )}
-      </section>
-    </div>
-  );
-}
-
-function QuestPreviewPanel({
-  quest,
-  location,
-  issuer,
-  linkedEntities,
-  relatedQuests,
-  preparedCombatEntries,
-  pinned,
-  hasActiveCombat,
-  combatPartyLevelsText,
-  combatPartySummary,
-  hasExplicitPartyLevels,
-  effectiveCombatThresholds,
-  onTogglePin,
-  onRunCombat,
-  onOpenRandomEvent,
-  onOpenPlayerView,
-  onEdit,
-  onOpenEntity,
-  onOpenQuest,
-  onOpenPlaylist,
-  onOpenGallery,
-  onCombatPartyLevelsChange
-}: {
-  quest: QuestEntity;
-  location: LocationEntity | null;
-  issuer: NpcEntity | null;
-  linkedEntities: QuestLinkedEntity[];
-  relatedQuests: QuestEntity[];
-  preparedCombatEntries: QuestCombatEntrySummary[];
-  pinned: boolean;
-  hasActiveCombat: boolean;
-  combatPartyLevelsText: string;
-  combatPartySummary: string;
-  hasExplicitPartyLevels: boolean;
-  effectiveCombatThresholds: CombatThresholds;
-  onTogglePin: (id: string) => void;
-  onRunCombat: (quest: QuestEntity) => void;
-  onOpenRandomEvent: () => void;
-  onOpenPlayerView: (quest: QuestEntity) => void;
-  onEdit: (id: string) => void;
-  onOpenEntity: (id: string) => void;
-  onOpenQuest: (id: string) => void;
-  onOpenPlaylist: (quest: QuestEntity) => void;
-  onOpenGallery: (quest: QuestEntity) => void;
-  onCombatPartyLevelsChange: (value: string) => void;
-}) {
-  const sceneImage = useMemo(
-    () => resolveQuestSceneArtwork(quest, location, issuer, preparedCombatEntries),
-    [issuer, location, preparedCombatEntries, quest]
-  );
-  const preparedCombatCount = preparedCombatEntries.reduce((sum, item) => sum + item.quantity, 0);
-  const participants = useMemo(() => {
-    const nextItems: Array<{ key: string; title: string; note: string; tone: QuickFactTone; quantity?: number; id: string }> = [];
-
-    if (issuer) {
-      nextItems.push({
-        key: `issuer-${issuer.id}`,
-        id: issuer.id,
-        title: issuer.title,
-        note: issuer.role || "Квестодатель",
-        tone: "accent"
-      });
-    }
-
-    preparedCombatEntries.forEach((item) => {
-      nextItems.push({
-        key: `combat-${item.entity.id}`,
-        id: item.entity.id,
-        title: item.entity.title,
-        note: item.entity.kind === "monster" ? "Противник" : "Участник сцены",
-        tone: item.entity.kind === "monster" ? "danger" : "warning",
-        quantity: item.quantity
-      });
-    });
-
-    if (!nextItems.length) {
-      linkedEntities
-        .filter((item) => item.entity.kind === "npc" || item.entity.kind === "monster")
-        .slice(0, 4)
-        .forEach((item) => {
-          nextItems.push({
-            key: `linked-${item.entity.id}`,
-            id: item.entity.id,
-            title: item.entity.title,
-            note: item.note || item.label,
-            tone: item.tone
-          });
-        });
-    }
-
-    return nextItems.slice(0, 6);
-  }, [issuer, linkedEntities, preparedCombatEntries]);
-  const hasPlayerFacingVersion = Boolean(quest.playerContent?.trim());
-  const combatPrimaryLabel = hasActiveCombat ? "Открыть бой" : preparedCombatCount ? "Начать бой" : "Настроить бой";
-  const combatPrimaryHint = hasActiveCombat
-    ? "Сейчас уже идёт активная сцена"
-    : preparedCombatCount
-      ? `${preparedCombatCount} противников готовы`
-      : "Собрать сцену перед запуском";
-
-  return (
-    <div className="quest-preview-shell">
-      <div className="row">
-        <p className="eyebrow">Peek / Preview</p>
-        <button className={`quest-pin-toggle ${pinned ? "active" : ""}`} onClick={() => onTogglePin(quest.id)} type="button">
-          {pinned ? "Pinned" : "Pin"}
-        </button>
-      </div>
-
-      <section className="quest-preview-hero" style={createHeroPanelStyle(gradients.quest, sceneImage)}>
-        <span>Квест</span>
-        <strong>{quest.title}</strong>
-        <small>{quest.summary}</small>
-      </section>
-
-      {linkedEntities.length ? (
-        <section className="quest-preview-section">
-          <div className="row">
-            <strong>Закреплённые сущности</strong>
-            <small>{linkedEntities.length}</small>
-          </div>
-          <div className="quest-preview-entity-grid">
-            {linkedEntities.slice(0, 4).map((item) => (
-              <QuestPreviewEntityCard key={`${quest.id}-preview-link-${item.entity.id}`} item={item} onOpen={onOpenEntity} />
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      <section className="quest-preview-section">
-        <div className="row">
-          <strong>Быстрые действия</strong>
-          <small>{preparedCombatCount ? "Сцена готова к запуску" : "Можно добрать настройку"}</small>
-        </div>
-
-        <div className="quest-preview-action-grid">
-          <QuestPreviewActionButton hint={combatPrimaryHint} label={combatPrimaryLabel} onClick={() => onRunCombat(quest)} tone="danger" />
-          <QuestPreviewActionButton hint="Подбросить поворот прямо в текущую сцену" label="Случайное событие" onClick={onOpenRandomEvent} tone="warning" />
-          <QuestPreviewActionButton
-            disabled={!hasPlayerFacingVersion}
-            hint={hasPlayerFacingVersion ? "Открыть версию для игроков" : "Отдельная версия не заполнена"}
-            label="Показать игрокам"
-            onClick={() => onOpenPlayerView(quest)}
-            tone="accent"
-          />
-          <QuestPreviewActionButton hint="Исправить текст, связи и награды" label="Редактировать" onClick={() => onEdit(quest.id)} tone="success" />
-        </div>
-
-        {preparedCombatCount ? (
-          <div className="quest-preview-combat-settings">
-            <label className="field">
-              <span>Уровни группы</span>
-              <input
-                className="input"
-                onChange={(event) => onCombatPartyLevelsChange(event.target.value)}
-                placeholder="4,4,4,4"
-                value={combatPartyLevelsText}
-              />
-            </label>
-            <p className="copy quest-preview-note">{combatPartySummary}</p>
-            {!hasExplicitPartyLevels ? (
-              <p className="copy quest-preview-note">
-                Пороги: Easy {effectiveCombatThresholds.easy} • Medium {effectiveCombatThresholds.medium} • Hard{" "}
-                {effectiveCombatThresholds.hard} • Deadly {effectiveCombatThresholds.deadly}
-              </p>
-            ) : null}
-          </div>
-        ) : null}
-      </section>
-
-      <section className="quest-preview-section">
-        <div className="row">
-          <strong>Участники сцены</strong>
-          <small>{participants.length}</small>
-        </div>
-
-        {participants.length ? (
-          <div className="quest-preview-list">
-            {participants.map((item) => (
-              <button key={item.key} className={`quest-preview-list-item quest-tone-${item.tone}`} onClick={() => onOpenEntity(item.id)} type="button">
-                <span className="quest-preview-list-copy">
-                  <strong>{item.title}</strong>
-                  <small>{item.note}</small>
-                </span>
-                {item.quantity ? <span className="quest-preview-list-badge">x{item.quantity}</span> : null}
-              </button>
-            ))}
-          </div>
-        ) : (
-          <p className="quest-empty-state">Пока отдельные участники сцены не отмечены.</p>
-        )}
-      </section>
-
-      {location ? (
-        <section className="quest-preview-section">
-          <div className="row">
-            <strong>Связанная локация</strong>
-            <small>1</small>
-          </div>
-          <QuestPreviewEntityCard
-            item={{
-              entity: location,
-              label: "Локация",
-              tone: "accent",
-              note: location.summary
-            }}
-            onOpen={onOpenEntity}
-          />
-        </section>
-      ) : null}
-
-      {relatedQuests.length ? (
-        <section className="quest-preview-section">
-          <div className="row">
-            <strong>Связанные квесты</strong>
-            <small>{relatedQuests.length}</small>
-          </div>
-          <div className="quest-preview-list">
-            {relatedQuests.slice(0, 3).map((item) => (
-              <button key={`${quest.id}-related-preview-${item.id}`} className="quest-preview-list-item quest-tone-warning" onClick={() => onOpenQuest(item.id)} type="button">
-                <span className="quest-preview-list-copy">
-                  <strong>{item.title}</strong>
-                  <small>{item.summary}</small>
-                </span>
-              </button>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {quest.tags.length ? (
-        <section className="quest-preview-section">
-          <strong>Метки</strong>
-          <div className="quest-tag-list">
-            {quest.tags.map((tag) => (
-              <span key={`${quest.id}-tag-${tag}`} className="quest-tag">
-                {tag}
-              </span>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      <div className="quest-preview-footer">
-        {quest.playlist?.length ? (
-          <button className="ghost" onClick={() => onOpenPlaylist(quest)} type="button">
-            Плейлист
-          </button>
-        ) : null}
-        {quest.gallery?.length ? (
-          <button className="ghost" onClick={() => onOpenGallery(quest)} type="button">
-            Галерея
-          </button>
-        ) : null}
-        <button className="primary" onClick={() => onOpenQuest(quest.id)} type="button">
-          Открыть полностью
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function PlayerFacingEntityModal({
-  entity,
-  onClose
-}: {
-  entity: QuestEntity | NpcEntity;
-  onClose: () => void;
-}) {
-  const sections = useMemo(() => parseQuestTextSections(entity.playerContent), [entity.playerContent]);
-  const fallbackLines = useMemo(() => splitQuestNarrative(entity.playerContent ?? "", 8), [entity.playerContent]);
-
-  return (
-    <div className="overlay" role="presentation">
-      <div className="panel palette player-facing-modal" onClick={(event) => event.stopPropagation()} role="dialog">
-        <div className="stack wide">
-          <div className="row">
-            <div>
-              <p className="eyebrow">Player View</p>
-              <h2>{entity.title}</h2>
-              <p className="copy">{entity.subtitle}</p>
-            </div>
-            <button className="ghost" onClick={onClose} type="button">
-              Закрыть
-            </button>
-          </div>
-
-          <section className="card section-card player-facing-card">
-            {sections.length ? (
-              <div className="player-facing-sections">
-                {sections.map((section, index) => {
-                  const lines = collectQuestSectionLines(section, 12);
-                  return (
-                    <article key={`${entity.id}-player-section-${section.title}-${index}`} className="player-facing-section">
-                      <strong>{section.title}</strong>
-                      {lines.length > 1 ? (
-                        <ul className="quest-bullet-list">
-                          {lines.map((line) => (
-                            <li key={`${entity.id}-player-line-${line}`}>{line}</li>
-                          ))}
-                        </ul>
-                      ) : lines[0] ? (
-                        <p>{lines[0]}</p>
-                      ) : null}
-                    </article>
-                  );
-                })}
-              </div>
-            ) : fallbackLines.length ? (
-              <ul className="quest-bullet-list">
-                {fallbackLines.map((line) => (
-                  <li key={`${entity.id}-player-fallback-${line}`}>{line}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="copy">Отдельная версия для игроков пока не заполнена.</p>
-            )}
-          </section>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function EventsWorkspace({
-  events,
-  locations,
-  searchQuery,
-  selectedEventId,
-  draftId,
-  draft,
-  saving,
-  generating,
-  notice,
-  error,
-  onSearchChange,
-  onSelectEvent,
-  onCreateEvent,
-  onOpenGenerator,
-  onSave,
-  onDelete,
-  onOpenLocation,
-  onDraftChange,
-  onBranchChange,
-  onAddBranch,
-  onRemoveBranch,
-  onLootChange,
-  onAddLoot,
-  onRemoveLoot
-}: {
-  events: WorldEvent[];
-  locations: LocationEntity[];
-  searchQuery: string;
-  selectedEventId: string;
-  draftId: string;
-  draft: WorldEventInput;
-  saving: boolean;
-  generating: boolean;
-  notice: string;
-  error: string;
-  onSearchChange: (value: string) => void;
-  onSelectEvent: (eventId: string) => void;
-  onCreateEvent: () => void;
-  onOpenGenerator: () => void;
-  onSave: () => void;
-  onDelete: () => void;
-  onOpenLocation: (locationId: string) => void;
-  onDraftChange: (updater: (current: WorldEventInput) => WorldEventInput) => void;
-  onBranchChange: (index: number, updater: (current: WorldEventDialogueBranch) => WorldEventDialogueBranch) => void;
-  onAddBranch: () => void;
-  onRemoveBranch: (index: number) => void;
-  onLootChange: (index: number, value: string) => void;
-  onAddLoot: () => void;
-  onRemoveLoot: (index: number) => void;
-}) {
-  const normalizedQuery = searchQuery.trim().toLowerCase();
-  const filteredEvents = useMemo(
-    () =>
-      events.filter((event) =>
-        !normalizedQuery
-          ? true
-          : [
-              event.title,
-              event.summary,
-              event.sceneText,
-              event.locationLabel ?? "",
-              worldEventTypeLabels[event.type],
-              event.loot.join(" "),
-              event.tags.join(" ")
-            ]
-              .join(" ")
-              .toLowerCase()
-              .includes(normalizedQuery)
-      ),
-    [events, normalizedQuery]
-  );
-  const selectedLocation = draft.locationId ? locations.find((location) => location.id === draft.locationId) ?? null : null;
-  const resolvedLoot = (draft.loot ?? []).filter((item) => item.trim());
-  const isDraft = draftId === NEW_WORLD_EVENT_ID;
-
-  return (
-    <div className="notes-workspace events-workspace">
-      <section className="card notes-workspace-head">
-        <div className="notes-workspace-copy">
-          <p className="eyebrow">События</p>
-          <h1>Маленькие сценки для стола</h1>
-          <p className="notes-workspace-copy">
-            Здесь живут короткие смешные, тревожные или боевые эпизоды. Они не тянут на полноценный квест, зато
-            отлично оживляют сессию и дают мгновенную сцену с репликами, лутом и быстрым выбором.
-          </p>
-        </div>
-        <div className="actions">
-          <button className="ghost" onClick={onCreateEvent} type="button">
-            Новое событие
-          </button>
-          <button className="ghost" onClick={onOpenGenerator} type="button">
-            Сгенерировать ИИ
-          </button>
-          <button className="primary" disabled={saving || generating} onClick={onSave} type="button">
-            {saving ? "Сохраняю..." : "Сохранить"}
-          </button>
-        </div>
-      </section>
-
-      <div className="notes-workspace-grid events-workspace-grid">
-        <aside className="card notes-directory-panel">
-          <div className="row">
-            <strong>Все события</strong>
-            <small>{filteredEvents.length}</small>
-          </div>
-
-          <label className="field">
-            <span>Поиск</span>
-            <input
-              className="input"
-              onChange={(event) => onSearchChange(event.target.value)}
-              placeholder="Искать сценку, лут или тип..."
-              value={searchQuery}
-            />
-          </label>
-
-          <div className="notes-list">
-            <button
-              className={`notes-list-item ${isDraft ? "selected unsaved" : ""}`}
-              onClick={onCreateEvent}
-              type="button"
-            >
-              <span className="notes-list-item-copy">
-                <strong>Новый черновик</strong>
-                <small>Ручная сценка</small>
-                <p>Пустой лист для короткого события без квестовой формы.</p>
-              </span>
-            </button>
-
-            {filteredEvents.length ? (
-              filteredEvents.map((event) => (
-                <button
-                  key={event.id}
-                  className={`notes-list-item ${selectedEventId === event.id ? "selected" : ""}`}
-                  onClick={() => onSelectEvent(event.id)}
-                  type="button"
-                >
-                  <span className="notes-list-item-copy">
-                    <div className="row">
-                      <strong>{event.title}</strong>
-                      <span className={badge(worldEventTypeTones[event.type])}>{worldEventTypeLabels[event.type]}</span>
-                    </div>
-                    <small>
-                      {event.locationLabel ? `${event.locationLabel} • ` : ""}
-                      {event.date || (event.origin === "ai" ? "AI" : "Ручное")}
-                    </small>
-                    <p>{worldEventExcerpt(event, 110)}</p>
-                  </span>
-                </button>
-              ))
-            ) : (
-              <div className="notes-empty-state">
-                <strong>Пока пусто</strong>
-                <span>Создай сценку вручную или попроси ИИ подбросить что-то живое.</span>
-              </div>
-            )}
-          </div>
-        </aside>
-
-        <section className="card notes-editor-panel events-editor-panel">
-          <div className="notes-editor-head">
-            <div className="stack tight">
-              <div className="row">
-                <strong>{draft.title.trim() || "Новое событие"}</strong>
-                <span className={badge(worldEventTypeTones[draft.type])}>{worldEventTypeLabels[draft.type]}</span>
-                <span className={badge(draft.origin === "ai" ? "accent" : "default")}>{draft.origin === "ai" ? "AI" : "Ручное"}</span>
-              </div>
-              <small className="copy">
-                {selectedLocation ? `Привязано к локации ${selectedLocation.title}.` : "Можно оставить без привязки к локации."}
-              </small>
-            </div>
-            {!isDraft ? (
-              <button className="ghost danger-action" disabled={saving} onClick={onDelete} type="button">
-                Удалить
-              </button>
-            ) : null}
-          </div>
-
-          {notice ? <div className="notes-status notes-status-success">{notice}</div> : null}
-          {error ? <div className="notes-status notes-status-error">{error}</div> : null}
-
-          <div className="form-grid">
-            <label className="field">
-              <span>Название</span>
-              <input
-                className="input notes-title-input"
-                onChange={(event) => onDraftChange((current) => ({ ...current, title: event.target.value }))}
-                placeholder="Например: Торговец-сквернослов"
-                value={draft.title}
-              />
-            </label>
-
-            <label className="field">
-              <span>Дата в мире</span>
-              <input
-                className="input"
-                onChange={(event) => onDraftChange((current) => ({ ...current, date: event.target.value }))}
-                placeholder="17 Nightal, 1492 DR"
-                value={draft.date ?? ""}
-              />
-            </label>
-
-            <label className="field">
-              <span>Локация</span>
-              <select
-                className="input"
-                onChange={(event) =>
-                  onDraftChange((current) => ({
-                    ...current,
-                    locationId: event.target.value,
-                    locationLabel: locations.find((location) => location.id === event.target.value)?.title ?? ""
-                  }))
-                }
-                value={draft.locationId ?? ""}
-              >
-                <option value="">Без привязки</option>
-                {locations.map((location) => (
-                  <option key={location.id} value={location.id}>
-                    {location.title}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="field">
-              <span>Тип</span>
-              <select
-                className="input"
-                onChange={(event) => onDraftChange((current) => ({ ...current, type: event.target.value as WorldEventType }))}
-                value={draft.type}
-              >
-                {worldEventTypeOptions.map((type) => (
-                  <option key={type} value={type}>
-                    {worldEventTypeLabels[type]}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="field field-full">
-              <span>Коротко о сцене</span>
-              <textarea
-                className="input textarea"
-                onChange={(event) => onDraftChange((current) => ({ ...current, summary: event.target.value }))}
-                placeholder="Один короткий абзац: что это за сценка и почему партии не всё равно."
-                value={draft.summary}
-              />
-            </label>
-          </div>
-
-          <section className="card mini event-editor-block">
-            <div className="row">
-              <strong>Что можно получить</strong>
-              <small>{resolvedLoot.length}</small>
-            </div>
-            <div className="stack tight">
-              {(draft.loot ?? []).map((item, index) => (
-                <div key={`loot-${index}`} className="event-loot-row">
-                  <input
-                    className="input"
-                    onChange={(event) => onLootChange(index, event.target.value)}
-                    placeholder={index === 0 ? "15 зм" : "Кинжал, пропуск, 2 какашки бабуина"}
-                    value={item}
-                  />
-                  <button className="ghost" onClick={() => onRemoveLoot(index)} type="button">
-                    Убрать
-                  </button>
-                </div>
-              ))}
-            </div>
-            <div className="actions">
-              <button className="ghost" onClick={onAddLoot} type="button">
-                Добавить лут
-              </button>
-            </div>
-          </section>
-
-          <label className="field notes-editor-field">
-            <span>Текст сцены</span>
-            <textarea
-              className="input textarea notes-editor-textarea event-scene-textarea"
-              onChange={(event) => onDraftChange((current) => ({ ...current, sceneText: event.target.value }))}
-              placeholder="Что происходит прямо сейчас, кто начинает сцену, чем она цепляет игроков и куда может качнуться."
-              value={draft.sceneText}
-            />
-          </label>
-
-          <section className="stack event-branch-list">
-            <div className="row">
-              <strong>Ветки диалога</strong>
-              <button className="ghost" onClick={onAddBranch} type="button">
-                Добавить ветку
-              </button>
-            </div>
-
-            {(draft.dialogueBranches ?? []).map((branch, index) => (
-              <article key={`branch-${index}`} className="card mini event-branch-card">
-                <div className="row">
-                  <span className={badge("accent")}>Ветка {index + 1}</span>
-                  <button className="ghost" onClick={() => onRemoveBranch(index)} type="button">
-                    Убрать
-                  </button>
-                </div>
-
-                <div className="form-grid">
-                  <label className="field">
-                    <span>Заголовок</span>
-                    <input
-                      className="input"
-                      onChange={(event) => onBranchChange(index, (current) => ({ ...current, title: event.target.value }))}
-                      placeholder="Если ответить шуткой"
-                      value={branch.title}
-                    />
-                  </label>
-
-                  <label className="field">
-                    <span>Чем кончается</span>
-                    <input
-                      className="input"
-                      onChange={(event) => onBranchChange(index, (current) => ({ ...current, outcome: event.target.value }))}
-                      placeholder="Торговец смягчается и сдаёт слух"
-                      value={branch.outcome ?? ""}
-                    />
-                  </label>
-
-                  <label className="field field-full">
-                    <span>Реплики и ходы</span>
-                    <textarea
-                      className="input textarea"
-                      onChange={(event) =>
-                        onBranchChange(index, (current) => ({
-                          ...current,
-                          lines: event.target.value.split("\n")
-                        }))
-                      }
-                      placeholder="Каждая строка отдельной репликой или реакцией."
-                      value={(branch.lines ?? []).join("\n")}
-                    />
-                  </label>
-                </div>
-              </article>
-            ))}
-          </section>
-
-          {selectedLocation ? (
-            <div className="actions">
-              <button className="ghost" onClick={() => onOpenLocation(selectedLocation.id)} type="button">
-                Открыть локацию
-              </button>
-            </div>
-          ) : null}
-        </section>
-      </div>
-    </div>
-  );
-}
-
-function NotesWorkspace({
-  notes,
-  searchQuery,
-  selectedNoteId,
-  draftId,
-  draftTitle,
-  draftContent,
-  saving,
-  notice,
-  error,
-  onSearchChange,
-  onSelectNote,
-  onCreateNote,
-  onSave,
-  onOpenPreview,
-  onTitleChange,
-  onContentChange,
-  onContentContextMenu,
-  editorRef
-}: {
-  notes: LoreNoteEntity[];
-  searchQuery: string;
-  selectedNoteId: string;
-  draftId: string;
-  draftTitle: string;
-  draftContent: string;
-  saving: boolean;
-  notice: string;
-  error: string;
-  onSearchChange: (value: string) => void;
-  onSelectNote: (noteId: string) => void;
-  onCreateNote: () => void;
-  onSave: () => void;
-  onOpenPreview: (noteId: string) => void;
-  onTitleChange: (value: string) => void;
-  onContentChange: (value: string) => void;
-  onContentContextMenu: (event: ReactMouseEvent<HTMLTextAreaElement>) => void;
-  editorRef: { current: HTMLTextAreaElement | null };
-}) {
-  const filteredNotes = useMemo(
-    () => notes.filter((note) => matchesEntityDirectorySearch(note, searchQuery)),
-    [notes, searchQuery]
-  );
-  const editingNewNote = draftId === NEW_LORE_NOTE_ID;
-  const selectedNote = notes.find((note) => note.id === selectedNoteId) ?? null;
-  const editorTitle = resolveLoreNoteTitle(draftTitle, draftContent);
-  const canSave = Boolean(draftTitle.trim() || draftContent.trim());
-
-  return (
-    <div className="notes-workspace">
-      <section className="card notes-workspace-head">
-        <div className="notes-workspace-copy">
-          <div className="quest-breadcrumbs">
-            <span className="quest-breadcrumb-btn">Главная</span>
-            <span>/</span>
-            <strong>Заметки</strong>
-          </div>
-          <h1>Заметки мастера</h1>
-          <p className="copy">
-            Только рабочий текст и быстрые записи. Здесь новая заметка создаётся без общей формы сущности и без лишних полей.
-          </p>
-        </div>
-
-        <div className="actions">
-          <button className="ghost" onClick={onCreateNote} type="button">
-            Новая заметка
-          </button>
-          <button className="primary" disabled={saving || !canSave} onClick={onSave} type="button">
-            {saving ? "Сохраняю..." : "Сохранить"}
-          </button>
-        </div>
-      </section>
-
-      <div className="notes-workspace-grid">
-        <aside className="card notes-directory-panel">
-          <div className="row muted">
-            <strong>Все заметки</strong>
-            <span className={badge("accent")}>{filteredNotes.length}</span>
-          </div>
-
-          <label className="field field-full">
-            <span>Поиск заметки</span>
-            <input
-              className="input"
-              onChange={(event) => onSearchChange(event.target.value)}
-              placeholder="Поиск заметок..."
-              value={searchQuery}
-            />
-          </label>
-
-          <div className="notes-list">
-            {editingNewNote ? (
-              <button aria-pressed className="notes-list-item selected unsaved" onClick={onCreateNote} type="button">
-                <span className="notes-list-item-copy">
-                  <strong>{editorTitle}</strong>
-                  <small>Черновик</small>
-                  <p>{draftContent.trim() ? truncateInlineText(draftContent.replace(/\s+/g, " ").trim(), 90) : "Новая пустая заметка."}</p>
-                </span>
-              </button>
-            ) : null}
-
-            {filteredNotes.length ? (
-              filteredNotes.map((note) => (
-                <button
-                  key={note.id}
-                  aria-pressed={!editingNewNote && selectedNoteId === note.id}
-                  className={`notes-list-item ${!editingNewNote && selectedNoteId === note.id ? "selected" : ""}`}
-                  onClick={() => onSelectNote(note.id)}
-                  type="button"
-                >
-                  <span className="notes-list-item-copy">
-                    <strong>{note.title}</strong>
-                    <small>{note.visibility === "gm_only" ? "GM only" : "Player safe"}</small>
-                    <p>{loreNoteExcerpt(note, 90)}</p>
-                  </span>
-                </button>
-              ))
-            ) : (
-              <div className="notes-empty-state">
-                <strong>Ничего не найдено</strong>
-                <p className="copy">Либо заметок пока нет, либо текущий поиск ничего не дал.</p>
-              </div>
-            )}
-          </div>
-        </aside>
-
-        <section className="card notes-editor-panel">
-          <div className="notes-editor-head">
-            <div className="stack compact">
-              <p className="eyebrow">Editor</p>
-              <strong>{editorTitle}</strong>
-              <p className="copy">
-                {draftContent.trim()
-                  ? truncateInlineText(draftContent.replace(/\s+/g, " ").trim(), 180)
-                  : "Здесь можно вести сценовые заметки, планы сессии, скрытые мотивы, подсказки или просто быстрые GM-записи."}
-              </p>
-            </div>
-            {selectedNote && !editingNewNote ? (
-              <button className="ghost" onClick={() => onOpenPreview(selectedNote.id)} type="button">
-                Открыть в preview
-              </button>
-            ) : null}
-          </div>
-
-          {notice ? (
-            <div className="notes-status notes-status-success" role="status">
-              {notice}
-            </div>
-          ) : null}
-          {error ? (
-            <div className="notes-status notes-status-error" role="status">
-              {error}
-            </div>
-          ) : null}
-
-          <label className="field field-full">
-            <span>Название</span>
-            <input
-              className="input notes-title-input"
-              onChange={(event) => onTitleChange(event.target.value)}
-              placeholder="Например: Засада у тракта"
-              value={draftTitle}
-            />
-          </label>
-
-          <label className="field field-full notes-editor-field">
-            <span>Текст заметки</span>
-            <textarea
-              className="input textarea notes-editor-textarea"
-              onContextMenu={onContentContextMenu}
-              onChange={(event) => onContentChange(event.target.value)}
-              placeholder="Пиши заметку как есть: ход сцены, реплики, скрытые мотивы, проверку, последствия, слух или рабочий план на сессию."
-              ref={editorRef}
-              value={draftContent}
-            />
-          </label>
-        </section>
-      </div>
-    </div>
-  );
-}
-
-const combatDifficultyTone = (difficulty?: string): QuickFactTone => {
-  switch (difficulty) {
-    case "deadly":
-      return "danger";
-    case "hard":
-      return "warning";
-    case "medium":
-      return "accent";
-    case "easy":
-      return "success";
-    default:
-      return "default";
-  }
-};
-
-const combatEntryHealthPercent = (entry: CombatEntry) =>
-  entry.maxHitPoints > 0 ? clamp((entry.currentHitPoints / entry.maxHitPoints) * 100, 0, 100) : 0;
-
-const isCombatEntryOut = (entry: CombatEntry) => entry.defeated || entry.currentHitPoints <= 0;
-
-const combatEntrySelectionKey = (entry: CombatEntry, index: number) => `${entry.id}:${entry.entityId}:${index}`;
-
-const combatEntryInitiative = (entry: CombatEntry) => (Number.isFinite(entry.initiative) ? entry.initiative : 0);
-
-const sortCombatEntriesByInitiative = (entries: CombatEntry[]) =>
-  [...entries].sort((left, right) => {
-    const initiativeDelta = combatEntryInitiative(right) - combatEntryInitiative(left);
-    if (initiativeDelta !== 0) {
-      return initiativeDelta;
-    }
-    if (left.side !== right.side) {
-      return left.side === "player" ? -1 : 1;
-    }
-    return left.title.localeCompare(right.title, "ru");
-  });
-
-type CombatFocusTab = "overview" | "stats" | "abilities" | "combat" | "rewards";
-type CombatRosterFilter = "all" | "players" | "enemies";
-
-const combatFocusTabs: Array<{ id: CombatFocusTab; label: string }> = [
-  { id: "overview", label: "Главное" },
-  { id: "stats", label: "Характеристики" },
-  { id: "abilities", label: "Способности" },
-  { id: "combat", label: "Бой" },
-  { id: "rewards", label: "Награды" }
-];
-
-const combatRosterFilters: Array<{ id: CombatRosterFilter; label: string }> = [
-  { id: "all", label: "Все" },
-  { id: "players", label: "Игроки" },
-  { id: "enemies", label: "Враги" }
-];
-
-const combatEntryConditionLabel = (entry: CombatEntry) => {
-  if (isCombatEntryOut(entry)) {
-    return "Выведен";
-  }
-  if (entry.maxHitPoints <= 0) {
-    return "Стабилен";
-  }
-
-  const ratio = entry.currentHitPoints / Math.max(entry.maxHitPoints, 1);
-  if (ratio <= 0.1) {
-    return "На грани";
-  }
-  if (ratio < 0.5) {
-    return "Окровавлен";
-  }
-  return "Стабилен";
-};
-
-const combatEntryConditionTone = (entry: CombatEntry): QuickFactTone => {
-  if (isCombatEntryOut(entry)) {
-    return "danger";
-  }
-  if (entry.maxHitPoints <= 0) {
-    return "default";
-  }
-
-  const ratio = entry.currentHitPoints / Math.max(entry.maxHitPoints, 1);
-  if (ratio <= 0.1) {
-    return "danger";
-  }
-  if (ratio < 0.5) {
-    return "warning";
-  }
-  return "success";
-};
-
-const combatVictoryLoserLabel = (entry: CombatEntry) => {
-  if (entry.challenge) {
-    return `CR ${entry.challenge}`;
-  }
-  if (entry.role) {
-    return entry.role;
-  }
-  return "Противник";
-};
-
-const combatEntryRoleLabel = (entry: CombatEntry) =>
-  entry.side === "player" ? "Игрок" : entry.challenge || entry.role || "Противник";
-
-const parseCombatStatRows = (value?: string) =>
-  (value ?? "")
-    .split(/[;,]\s*/u)
-    .map((part) => part.trim())
-    .filter(Boolean)
-    .map((part) => {
-      const match = part.match(/^(.+?)\s*([+-]\d+(?:\s*\([^)]*\))?)$/u);
-      if (match) {
-        return {
-          label: match[1].trim(),
-          value: match[2].trim()
-        };
-      }
-      return {
-        label: part,
-        value: "—"
-      };
-    });
-
-const parseAppRoute = (hash: string): AppRouteState => {
-  const normalized = hash.replace(/^#/, "").trim();
-  if (normalized.toLowerCase().startsWith("initiative/")) {
-    const campaignId = decodeURIComponent(normalized.slice("initiative/".length)).trim();
-    if (campaignId) {
-      return {
-        mode: "initiative",
-        campaignId
-      };
-    }
-  }
-  return { mode: "app" };
-};
-
-const buildInitiativeHash = (campaignId: string) => `#initiative/${encodeURIComponent(campaignId)}`;
-
-function CombatFactListCard({
-  title,
-  rows,
-  emptyLabel = "Нет данных"
-}: {
-  title: string;
-  rows: Array<{ label: string; value: string }>;
-  emptyLabel?: string;
-}) {
-  return (
-    <section className="card mini combat-focus-list-card">
-      <div className="stack compact">
-        <small>{title}</small>
-        {rows.length ? (
-          rows.map((row) => (
-            <div key={`${title}-${row.label}-${row.value}`} className="combat-focus-list-row">
-              <span>{row.label}</span>
-              <strong>{row.value}</strong>
-            </div>
-          ))
-        ) : (
-          <p className="copy">{emptyLabel}</p>
-        )}
-      </div>
-    </section>
-  );
-}
-
-function CombatEntryCard({
-  entry,
-  linkedEntity,
-  currentTurnEntryId,
-  busy,
-  onChangeHitPoints,
-  onChangeInitiative,
-  onSetCurrentTurn,
-  onNextTurn
-}: {
-  entry: CombatEntry;
-  linkedEntity: KnowledgeEntity | null;
-  currentTurnEntryId?: string;
-  busy: boolean;
-  onChangeHitPoints: (entry: CombatEntry, nextHp: number) => void;
-  onChangeInitiative: (entry: CombatEntry, nextInitiative: number) => void;
-  onSetCurrentTurn: (entryId: string) => void;
-  onNextTurn: () => void;
-}) {
-  const kindLabel = entry.entityKind === "monster" ? "Монстр" : entry.entityKind === "player" ? "Игрок" : "НПС";
-  const tone: QuickFactTone = entry.entityKind === "monster" ? "danger" : entry.entityKind === "player" ? "success" : "accent";
-  const [activeTab, setActiveTab] = useState<CombatFocusTab>("overview");
-  const [initiativeDraft, setInitiativeDraft] = useState(() => String(combatEntryInitiative(entry)));
-  const [hitPointsDraft, setHitPointsDraft] = useState(() => String(entry.currentHitPoints));
-  const parsedHitPointsDraft = Number.parseInt(hitPointsDraft, 10);
-  const effectiveDraftHitPoints = Number.isFinite(parsedHitPointsDraft)
-    ? clamp(parsedHitPointsDraft, 0, Math.max(entry.maxHitPoints, 0))
-    : entry.currentHitPoints;
-  const isCurrentTurn = currentTurnEntryId === entry.id;
-  const portraitSource = linkedEntity
-    ? createPortraitSource(linkedEntity)
-    : createPortraitSource({
-        kind: entry.entityKind === "monster" ? "monster" : entry.entityKind === "player" ? "player" : "npc",
-        title: entry.title
-      });
-  const savingThrowRows = parseCombatStatRows(entry.statBlock?.savingThrows);
-  const skillRows = parseCombatStatRows(entry.statBlock?.skills);
-  const detailRows = [
-    { label: "Размер", value: entry.statBlock?.size || "—" },
-    { label: "Тип", value: entry.statBlock?.creatureType || kindLabel },
-    { label: "Мировоззрение", value: entry.statBlock?.alignment || "—" },
-    { label: "Скорость", value: entry.statBlock?.speed || "—" },
-    { label: "Чувства", value: entry.statBlock?.senses || "—" },
-    { label: "Языки", value: entry.statBlock?.languages || "—" },
-    { label: "Сопротивления", value: entry.statBlock?.resistances || "—" },
-    { label: "Иммунитеты", value: entry.statBlock?.immunities || "—" }
-  ].filter((row) => row.value && row.value !== "—");
-  const quickFactsRows = (linkedEntity?.quickFacts ?? []).map((fact) => ({
-    label: fact.label,
-    value: fact.value
-  }));
-  const visibleTraits = entry.statBlock?.traits ?? [];
-  const visibleActions = entry.statBlock?.actions ?? [];
-  const visibleBonusActions = entry.statBlock?.bonusActions ?? [];
-  const visibleReactions = entry.statBlock?.reactions ?? [];
-
-  useEffect(() => {
-    setInitiativeDraft(String(combatEntryInitiative(entry)));
-  }, [entry.id, entry.initiative]);
-
-  useEffect(() => {
-    setHitPointsDraft(String(entry.currentHitPoints));
-  }, [entry.id, entry.currentHitPoints]);
-
-  useEffect(() => {
-    setActiveTab("overview");
-  }, [entry.id]);
-
-  const commitInitiativeDraft = () => {
-    const nextValue = Number.parseInt(initiativeDraft, 10);
-    onChangeInitiative(entry, Number.isFinite(nextValue) ? nextValue : 0);
-  };
-
-  const commitHitPointsDraft = () => {
-    onChangeHitPoints(entry, effectiveDraftHitPoints);
-  };
-
-  const applyHitPointsDelta = (nextValue: number) => {
-    const clampedValue = clamp(nextValue, 0, Math.max(entry.maxHitPoints, 0));
-    setHitPointsDraft(String(clampedValue));
-    onChangeHitPoints(entry, clampedValue);
-  };
-
-  const renderStatEntries = (entries: StatBlockEntry[], emptyLabel: string) =>
-    entries.length ? (
-      <div className="entry-list compact-entry-list combat-focus-entry-grid">
-        {entries.map((action) => (
-          <article key={action.name} className="entry-card combat-focus-entry-card">
-            <div className="entry-header">
-              <h3>{action.name}</h3>
-              <div className="entry-meta">
-                {action.toHit ? <span className="entry-chip">{action.toHit}</span> : null}
-                {action.damage ? <span className="entry-chip">{action.damage}</span> : null}
-                {action.saveDc ? <span className="entry-chip">{action.saveDc}</span> : null}
-              </div>
-            </div>
-            {action.subtitle ? <small>{action.subtitle}</small> : null}
-            <p className="copy">{action.description}</p>
-          </article>
-        ))}
-      </div>
-    ) : (
-      <p className="copy">{emptyLabel}</p>
-    );
-
-  return (
-    <article className={`card combat-focus-card ${entry.defeated ? "defeated" : ""}`}>
-      <header className="combat-focus-hero">
-        <div className="combat-focus-portrait-shell">
-          <img alt={linkedEntity?.art?.alt ?? entry.title} className="combat-focus-portrait" loading="lazy" src={portraitSource} />
-        </div>
-
-        <div className="combat-focus-hero-copy">
-          <div className="row combat-focus-topline">
-            <div className="actions">
-              <span className={badge(entry.defeated ? "danger" : tone)}>{kindLabel}</span>
-              {entry.challenge ? <span className={badge()}>{entry.challenge}</span> : null}
-              {entry.experience > 0 ? <span className={badge("accent")}>{entry.experience} XP</span> : null}
-              <span className={badge(combatEntryConditionTone(entry))}>{combatEntryConditionLabel(entry)}</span>
-            </div>
-            {isCurrentTurn ? <span className={badge("accent")}>Текущий ход</span> : null}
-          </div>
-
-          <div className="stack compact">
-            <h3>{entry.title}</h3>
-            <p className="combat-focus-subtitle">
-              {entry.role || combatEntryRoleLabel(entry)}
-              {entry.statBlock?.challenge ? ` • ${entry.statBlock.challenge}` : ""}
-            </p>
-            <p className="copy">{entry.summary}</p>
-          </div>
-
-          <div className="combat-focus-hero-metrics">
-            <span className="combat-focus-hero-pill">КД {entry.armorClass}</span>
-            <span className="combat-focus-hero-pill">Инициатива +{combatEntryInitiative(entry)}</span>
-            <span className="combat-focus-hero-pill">Скорость {entry.statBlock?.speed || "—"}</span>
-            <span className="combat-focus-hero-pill">
-              {entry.maxHitPoints > 0 ? `${entry.currentHitPoints}/${entry.maxHitPoints} HP` : "HP не отслеживается"}
-            </span>
-          </div>
-        </div>
-
-        <div className="combat-focus-hero-actions">
-          <button className="ghost" disabled={busy || isCurrentTurn} onClick={() => onSetCurrentTurn(entry.id)} type="button">
-            {isCurrentTurn ? "Ход активен" : "Сделать текущим"}
-          </button>
-          <button className="primary" disabled={busy} onClick={onNextTurn} type="button">
-            {busy ? "Переключаю..." : "Следующий ход"}
-          </button>
-        </div>
-      </header>
-
-      <nav className="combat-focus-tabs" aria-label="Вкладки участника">
-        {combatFocusTabs.map((tab) => (
-          <button
-            key={`${entry.id}-${tab.id}`}
-            className={`combat-focus-tab ${activeTab === tab.id ? "active" : ""}`}
-            onClick={() => setActiveTab(tab.id)}
-            type="button"
-          >
-            {tab.label}
-          </button>
-        ))}
-      </nav>
-
-      {activeTab === "overview" ? (
-        <div className="combat-focus-body">
-          <div className="combat-focus-overview-grid">
-            <section className="card mini combat-focus-health-card">
-              <small>Здоровье</small>
-              <strong>{entry.maxHitPoints > 0 ? `${entry.currentHitPoints} / ${entry.maxHitPoints}` : "Не отслеживается"}</strong>
-              {entry.maxHitPoints > 0 ? (
-                <>
-                  <div className="combat-focus-health-bar">
-                    <span style={{ width: `${combatEntryHealthPercent(entry)}%` }} />
-                  </div>
-                  <div className="combat-focus-health-adjust">
-                    <button className="ghost" onClick={() => applyHitPointsDelta(Math.max(0, effectiveDraftHitPoints - 5))} type="button">
-                      -5
-                    </button>
-                    <button className="ghost" onClick={() => applyHitPointsDelta(Math.max(0, effectiveDraftHitPoints - 1))} type="button">
-                      -1
-                    </button>
-                    <button className="ghost" onClick={() => applyHitPointsDelta(Math.min(entry.maxHitPoints, effectiveDraftHitPoints + 1))} type="button">
-                      +1
-                    </button>
-                    <button className="ghost" onClick={() => applyHitPointsDelta(Math.min(entry.maxHitPoints, effectiveDraftHitPoints + 5))} type="button">
-                      +5
-                    </button>
-                    <button className="ghost" onClick={() => applyHitPointsDelta(entry.maxHitPoints)} type="button">
-                      / Max
-                    </button>
-                  </div>
-                  <div className="combat-focus-health-form">
-                    <input
-                      className="input combatant-health-input"
-                      max={entry.maxHitPoints}
-                      min={0}
-                      onBlur={commitHitPointsDraft}
-                      onChange={(event) => setHitPointsDraft(event.target.value)}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") {
-                          event.preventDefault();
-                          commitHitPointsDraft();
-                        }
-                      }}
-                      type="number"
-                      value={hitPointsDraft}
-                    />
-                    <button className="ghost" onClick={() => applyHitPointsDelta(0)} type="button">
-                      Вывести
-                    </button>
-                    <button className="primary" onClick={commitHitPointsDraft} type="button">
-                      Сохранить
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <p className="copy">Для этого участника ХП не заведены.</p>
-              )}
-            </section>
-
-            <section className="card mini combat-focus-kpi-card">
-              <small>Класс брони</small>
-              <strong>{entry.armorClass}</strong>
-              <span>{entry.statBlock?.armorClass ? `Базовый КД: ${entry.statBlock.armorClass}` : "Из карточки боя"}</span>
-              <div className="combat-focus-inline-metrics">
-                <span>Init {combatEntryInitiative(entry)}</span>
-                <span>{entry.statBlock?.proficiencyBonus ? `ПМ ${entry.statBlock.proficiencyBonus}` : "Без ПМ"}</span>
-              </div>
-            </section>
-
-            <CombatFactListCard emptyLabel="Спасброски не заполнены" rows={savingThrowRows} title="Спасброски" />
-            <CombatFactListCard emptyLabel="Навыки не заполнены" rows={skillRows} title="Навыки" />
-          </div>
-
-          <section className="card mini combat-focus-section">
-            <div className="row muted">
-              <span>Атаки</span>
-              <span>{visibleActions.length ? `${visibleActions.length} записей` : "Пока пусто"}</span>
-            </div>
-            {renderStatEntries(visibleActions.slice(0, 4), "Атаки ещё не заполнены.")}
-          </section>
-
-          <section className="card mini combat-focus-section">
-            <div className="row muted">
-              <span>Особенности</span>
-              <span>{visibleTraits.length ? `${visibleTraits.length} записей` : "Пока пусто"}</span>
-            </div>
-            {renderStatEntries(visibleTraits.slice(0, 4), "Особенности ещё не заполнены.")}
-          </section>
-        </div>
-      ) : null}
-
-      {activeTab === "stats" ? (
-        <div className="combat-focus-body">
-          {entry.statBlock ? (
-            <div className="combatant-ability-grid">
-              {abilityLabels.map(({ key, label }) => {
-                const score = entry.statBlock?.abilityScores[key] ?? 10;
-
-                return (
-                  <article key={key} className="card ability-card">
-                    <small>{label}</small>
-                    <strong>{score}</strong>
-                    <span>{formatModifier(score)}</span>
-                  </article>
-                );
-              })}
-            </div>
-          ) : null}
-
-          <div className="combat-focus-overview-grid">
-            <CombatFactListCard emptyLabel="Профиль не заполнен" rows={detailRows} title="Профиль" />
-            <CombatFactListCard emptyLabel="Быстрые факты не заполнены" rows={quickFactsRows} title="Быстрые факты" />
-          </div>
-        </div>
-      ) : null}
-
-      {activeTab === "abilities" ? (
-        <div className="combat-focus-body">
-          <section className="card mini combat-focus-section">
-            <div className="row muted">
-              <span>Способности</span>
-              <span>{visibleTraits.length} записей</span>
-            </div>
-            {renderStatEntries(visibleTraits, "Способности ещё не заполнены.")}
-          </section>
-
-          {entry.statBlock?.spellcasting ? (
-            <section className="card mini combat-focus-section">
-              <div className="row muted">
-                <span>{entry.statBlock.spellcasting.title}</span>
-                <span>{entry.statBlock.spellcasting.spells.length} заклинаний</span>
-              </div>
-              <div className="combat-focus-overview-grid">
-                <CombatFactListCard
-                  rows={[
-                    { label: "Базовая характеристика", value: entry.statBlock.spellcasting.ability },
-                    { label: "СЛ", value: entry.statBlock.spellcasting.saveDc },
-                    { label: "Атака", value: entry.statBlock.spellcasting.attackBonus }
-                  ]}
-                  title="Магия"
-                />
-                <section className="card mini combat-focus-list-card">
-                  <div className="stack compact">
-                    <small>Заклинания</small>
-                    <div className="entry-meta combat-focus-spell-list">
-                      {entry.statBlock.spellcasting.spells.map((spell) => (
-                        <span key={`${entry.id}-${spell}`} className="entry-chip">
-                          {spell}
-                        </span>
-                      ))}
-                    </div>
-                    {entry.statBlock.spellcasting.description ? <p className="copy">{entry.statBlock.spellcasting.description}</p> : null}
-                  </div>
-                </section>
-              </div>
-            </section>
-          ) : null}
-        </div>
-      ) : null}
-
-      {activeTab === "combat" ? (
-        <div className="combat-focus-body">
-          <section className="card mini combat-focus-section">
-            <div className="row muted">
-              <span>Действия и атаки</span>
-              <span>{visibleActions.length} записей</span>
-            </div>
-            {renderStatEntries(visibleActions, "Боевые действия ещё не заполнены.")}
-          </section>
-
-          {visibleBonusActions.length ? (
-            <section className="card mini combat-focus-section">
-              <div className="row muted">
-                <span>Бонусные действия</span>
-                <span>{visibleBonusActions.length} записей</span>
-              </div>
-              {renderStatEntries(visibleBonusActions, "Бонусные действия ещё не заполнены.")}
-            </section>
-          ) : null}
-
-          {visibleReactions.length ? (
-            <section className="card mini combat-focus-section">
-              <div className="row muted">
-                <span>Реакции</span>
-                <span>{visibleReactions.length} записей</span>
-              </div>
-              {renderStatEntries(visibleReactions, "Реакции ещё не заполнены.")}
-            </section>
-          ) : null}
-
-          <section className="card mini combatant-init-editor">
-            <div className="row muted">
-              <span>Инициатива участника</span>
-              <span>Изменение сразу влияет на боевой порядок</span>
-            </div>
-            <div className="combatant-inline-controls">
-              <label className="field combat-inline-field">
-                <span>Инициатива</span>
-                <input
-                  className="input combatant-init-input"
-                  onBlur={commitInitiativeDraft}
-                  onChange={(event) => setInitiativeDraft(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      commitInitiativeDraft();
-                    }
-                  }}
-                  type="number"
-                  value={initiativeDraft}
-                />
-              </label>
-              <button className="ghost" onClick={commitInitiativeDraft} type="button">
-                Сохранить
-              </button>
-            </div>
-          </section>
-        </div>
-      ) : null}
-
-      {activeTab === "rewards" ? (
-        <div className="combat-focus-body">
-          {isRewardableEntity(linkedEntity) ? (
-            <RewardSection kind={linkedEntity.kind} rewardProfile={linkedEntity.rewardProfile} />
-          ) : (
-            <section className="card mini combat-focus-section">
-              <div className="row muted">
-                <span>Награды</span>
-                <span>Пока пусто</span>
-              </div>
-              <p className="copy">Для этой цели награды ещё не заданы. Можно добавить их в карточке сущности.</p>
-            </section>
-          )}
-        </div>
-      ) : null}
-    </article>
-  );
-}
-
-function CombatEntryTile({
-  entry,
-  linkedEntity,
-  selected,
-  currentTurn,
-  onSelect
-}: {
-  entry: CombatEntry;
-  linkedEntity: KnowledgeEntity | null;
-  selected: boolean;
-  currentTurn: boolean;
-  onSelect: () => void;
-}) {
-  const portraitSource = linkedEntity
-    ? createPortraitSource(linkedEntity)
-    : createPortraitSource({
-        kind: entry.entityKind === "monster" ? "monster" : entry.entityKind === "player" ? "player" : "npc",
-        title: entry.title
-      });
-
-  return (
-    <button
-      aria-pressed={selected}
-      className={`combat-roster-tile ${selected ? "selected" : ""} ${currentTurn ? "current" : ""} ${entry.defeated ? "defeated" : ""}`}
-      onClick={onSelect}
-      type="button"
-    >
-      <span className={`combat-roster-initiative ${entry.side === "player" ? "player" : "enemy"}`}>{combatEntryInitiative(entry)}</span>
-      <div className="combat-roster-portrait-shell">
-        <img alt={linkedEntity?.art?.alt ?? entry.title} className="combat-roster-portrait" loading="lazy" src={portraitSource} />
-      </div>
-      <div className="combat-roster-copy">
-        <div className="combat-roster-topline">
-          <strong title={entry.title}>{entry.title}</strong>
-          {currentTurn ? <span className={`${badge("accent")} combat-roster-turn-badge`}>Ход</span> : null}
-        </div>
-        <small className="combat-roster-secondary">
-          <span>{combatEntryRoleLabel(entry)}</span>
-          <span>КД {entry.armorClass}</span>
-        </small>
-        <small>{entry.maxHitPoints > 0 ? `${entry.currentHitPoints}/${entry.maxHitPoints} HP` : "HP не отслеживается"}</small>
-        {entry.maxHitPoints > 0 ? (
-          <div className="combat-roster-health-bar">
-            <span style={{ width: `${combatEntryHealthPercent(entry)}%` }} />
-          </div>
-        ) : null}
-      </div>
-    </button>
-  );
-}
-
-function InitiativeRibbon({
-  entries,
-  selectedEntryId,
-  onSelect
-}: {
-  entries: CombatEntry[];
-  selectedEntryId?: string;
-  onSelect?: (entryId: string) => void;
-}) {
-  const ordered = sortCombatEntriesByInitiative(entries);
-
-  return (
-    <div className="initiative-ribbon">
-      {ordered.map((entry) => {
-        const active = entry.id === selectedEntryId;
-        const initiativeValue = combatEntryInitiative(entry);
-        return (
-          <button
-            key={`initiative-${entry.id}`}
-            className={`initiative-chip ${active ? "active" : ""} ${entry.defeated ? "defeated" : ""}`}
-            onClick={() => onSelect?.(entry.id)}
-            type="button"
-          >
-            <span className={`initiative-chip-badge ${entry.side === "player" ? "player" : "enemy"}`}>{initiativeValue}</span>
-            <span className="initiative-chip-copy">
-              <strong>{entry.title}</strong>
-              <small>{entry.side === "player" ? "Игрок" : entry.challenge || entry.role || "Враг"}</small>
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 function CombatWorkbench({
   campaign,
@@ -6039,570 +1795,6 @@ function CombatWorkbench({
   );
 }
 
-function InitiativeTrackerScreen({
-  activeCombat,
-  lastCombatSummary,
-  entityMap,
-  busy,
-  error,
-  onNextTurn,
-  onSelectTurn
-}: {
-  activeCombat: ActiveCombat | null;
-  lastCombatSummary: LastCombatSummary | null;
-  entityMap: Map<string, KnowledgeEntity>;
-  busy: boolean;
-  error: string;
-  onNextTurn: () => void;
-  onSelectTurn: (entryId: string) => void;
-}) {
-  const orderedEntries = activeCombat ? sortCombatEntriesByInitiative(activeCombat.entries) : [];
-  const enemyEntries = activeCombat?.entries.filter((entry) => entry.side === "enemy") ?? [];
-  const showActiveCombatVictory = Boolean(activeCombat && enemyEntries.length && enemyEntries.every((entry) => isCombatEntryOut(entry)));
-  const activeVictoryPlayerEntries = orderedEntries.filter((entry) => entry.side === "player");
-  const victoryEntries = showActiveCombatVictory
-    ? orderedEntries
-    : lastCombatSummary?.entries
-      ? sortCombatEntriesByInitiative(lastCombatSummary.entries)
-      : [];
-  const victoryTotalExperience = showActiveCombatVictory
-    ? enemyEntries.reduce((sum, entry) => sum + (isCombatEntryOut(entry) ? entry.experience : 0), 0)
-    : lastCombatSummary?.totalExperience ?? 0;
-  const activeVictoryExperiencePerPlayer = activeVictoryPlayerEntries.length
-    ? Math.round(victoryTotalExperience / activeVictoryPlayerEntries.length)
-    : 0;
-  const victoryPlayerRewards = showActiveCombatVictory
-    ? activeVictoryPlayerEntries.map((entry) => ({
-          title: entry.title,
-          experience: activeVictoryExperiencePerPlayer
-        }))
-    : lastCombatSummary?.playerRewards ?? [];
-  const victoryRound = showActiveCombatVictory ? Math.max(1, activeCombat?.round || 1) : Math.max(1, lastCombatSummary?.round || 1);
-  const victoryPerPlayerExperience = showActiveCombatVictory
-    ? activeVictoryExperiencePerPlayer
-    : lastCombatSummary?.experiencePerPlayer ?? victoryPlayerRewards[0]?.experience ?? 0;
-  const victoryRewardByTitle = new Map(victoryPlayerRewards.map((reward) => [reward.title, reward.experience]));
-  const victoryWinnerEntries = victoryEntries.filter((entry) => entry.side === "player");
-  const victoryLoserEntries = victoryEntries.filter((entry) => entry.side === "enemy");
-  const trackViewportRef = useRef<HTMLDivElement | null>(null);
-  const cardRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const currentTurnEntry =
-    (activeCombat?.currentTurnEntryId ? orderedEntries.find((entry) => entry.id === activeCombat.currentTurnEntryId) ?? null : null) ??
-    orderedEntries[0] ??
-    null;
-
-  useEffect(() => {
-    if (!currentTurnEntry?.id) {
-      return;
-    }
-
-    const viewport = trackViewportRef.current;
-    const card = cardRefs.current[currentTurnEntry.id];
-    if (!viewport || !card) {
-      return;
-    }
-
-    const viewportRect = viewport.getBoundingClientRect();
-    const cardRect = card.getBoundingClientRect();
-    const nextLeft =
-      viewport.scrollLeft +
-      (cardRect.left - viewportRect.left) -
-      Math.max(0, viewportRect.width / 2 - cardRect.width / 2);
-
-    viewport.scrollTo({
-      left: Math.max(0, nextLeft),
-      behavior: "smooth"
-    });
-  }, [currentTurnEntry?.id, orderedEntries.length]);
-
-  return (
-    <div className="initiative-display-screen">
-      {activeCombat && orderedEntries.length && !showActiveCombatVictory ? (
-        <div className="initiative-display-shell">
-          <div className="initiative-round-banner">
-            <span className="initiative-ornament-line" />
-            <h1>{`Раунд ${Math.max(1, activeCombat.round || 1)}`}</h1>
-            <span className="initiative-ornament-line" />
-          </div>
-
-          <div className="initiative-display-viewport" ref={trackViewportRef}>
-            <div className="initiative-display-track">
-              {orderedEntries.map((entry, index) => {
-                const linkedEntity = entityMap.get(entry.entityId) ?? null;
-                const isCurrent = currentTurnEntry?.id === entry.id;
-                const visualSource = linkedEntity
-                  ? createPortraitSource(linkedEntity)
-                  : createPortraitSource({
-                      kind: entry.entityKind === "monster" ? "monster" : "npc",
-                      title: entry.title
-                    });
-
-                return (
-                  <button
-                    key={`initiative-card-${entry.id}`}
-                    className={`initiative-display-card ${isCurrent ? "current" : ""} ${entry.defeated ? "defeated" : ""}`}
-                    onClick={() => onSelectTurn(entry.id)}
-                    ref={(node) => {
-                      cardRefs.current[entry.id] = node;
-                    }}
-                    type="button"
-                  >
-                    <span className="initiative-order-badge">{index + 1}</span>
-                    <div className="initiative-card-frame">
-                      {isCurrent ? <span aria-hidden="true" className="initiative-current-chevron" /> : null}
-                      <div className="initiative-card-image-shell">
-                        <img alt={entry.title} className="initiative-card-image" loading="lazy" src={visualSource} />
-                      </div>
-                      <div className="initiative-card-copy">
-                        <strong>{entry.title}</strong>
-                        <span>{combatEntryInitiative(entry)}</span>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="initiative-progress-rail">
-            <span className="initiative-progress-line" />
-            {orderedEntries.map((entry, index) => (
-              <span
-                key={`initiative-dot-${entry.id}`}
-                className={`initiative-progress-dot ${currentTurnEntry?.id === entry.id ? "current" : ""} ${entry.defeated ? "defeated" : ""}`}
-                style={{ animationDelay: `${index * 90}ms` }}
-              />
-            ))}
-          </div>
-
-          <div className="initiative-display-actions">
-            <button className="initiative-next-turn" disabled={busy} onClick={onNextTurn} type="button">
-              {busy ? "Переключаю..." : "Следующий ход"}
-            </button>
-          </div>
-
-          {error ? <p className="initiative-display-error">{error}</p> : null}
-        </div>
-      ) : showActiveCombatVictory || lastCombatSummary ? (
-        <div className="initiative-display-shell">
-          <div className="initiative-round-banner">
-            <span className="initiative-ornament-line" />
-            <h1>Победа</h1>
-            <span className="initiative-ornament-line" />
-          </div>
-
-          <div className="initiative-victory-display">
-            <p className="initiative-victory-kicker">{showActiveCombatVictory ? activeCombat?.title || "Активный бой" : lastCombatSummary?.title || "Последний бой"}</p>
-            <h2>Победа</h2>
-            <p className="initiative-victory-copy">{`Раунд ${victoryRound}. Бой завершён, и игроки забирают награду.`}</p>
-
-            {victoryWinnerEntries.length ? (
-              <section className="initiative-victory-section">
-                <p className="initiative-victory-section-label">Победители</p>
-                <div className="initiative-victory-grid">
-                  {victoryWinnerEntries.map((entry) => {
-                    const linkedEntity = entityMap.get(entry.entityId) ?? null;
-                    const visualSource = linkedEntity
-                      ? createPortraitSource(linkedEntity)
-                      : createPortraitSource({
-                          kind: entry.entityKind === "monster" ? "monster" : entry.entityKind === "player" ? "player" : "npc",
-                          title: entry.title
-                        });
-                    const rewardExperience = victoryRewardByTitle.get(entry.title) ?? victoryPerPlayerExperience;
-
-                    return (
-                      <article key={`victory-winner-${entry.id}`} className="initiative-victory-panel initiative-victory-panel-winner">
-                        <div className="initiative-victory-avatar-shell">
-                          <img alt={entry.title} className="initiative-victory-avatar" loading="lazy" src={visualSource} />
-                        </div>
-                        <strong className="initiative-victory-name">{entry.title}</strong>
-                        <span className="initiative-victory-value">{`${rewardExperience} XP`}</span>
-                      </article>
-                    );
-                  })}
-                </div>
-              </section>
-            ) : null}
-
-            <section className="initiative-victory-total">
-              <small>Общий опыт</small>
-              <strong>{`${victoryTotalExperience} XP`}</strong>
-              <span>{`${victoryPerPlayerExperience} XP на игрока`}</span>
-            </section>
-
-            {victoryLoserEntries.length ? (
-              <section className="initiative-victory-section initiative-victory-section-defeated">
-                <p className="initiative-victory-section-label defeated">Проигравшие</p>
-                <div className="initiative-victory-grid initiative-victory-grid-defeated">
-                  {victoryLoserEntries.map((entry) => {
-                    const linkedEntity = entityMap.get(entry.entityId) ?? null;
-                    const visualSource = linkedEntity
-                      ? createPortraitSource(linkedEntity)
-                      : createPortraitSource({
-                          kind: entry.entityKind === "monster" ? "monster" : entry.entityKind === "player" ? "player" : "npc",
-                          title: entry.title
-                        });
-
-                    return (
-                      <article key={`victory-loser-${entry.id}`} className="initiative-victory-panel initiative-victory-panel-loser">
-                        <div className="initiative-victory-avatar-shell initiative-victory-avatar-shell-loser">
-                          <img alt={entry.title} className="initiative-victory-avatar" loading="lazy" src={visualSource} />
-                          <img
-                            alt=""
-                            aria-hidden="true"
-                            className="initiative-victory-blood-overlay"
-                            loading="lazy"
-                            src={victoryBloodOverlayUrl}
-                          />
-                        </div>
-                        <strong className="initiative-victory-name">{entry.title}</strong>
-                        <span className="initiative-victory-loser-meta">{combatVictoryLoserLabel(entry)}</span>
-                      </article>
-                    );
-                  })}
-                </div>
-              </section>
-            ) : null}
-          </div>
-
-          {error ? <p className="initiative-display-error">{error}</p> : null}
-        </div>
-      ) : (
-        <div className="initiative-empty-display">
-          <h1>Инициатива ждёт бой</h1>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function DndGenerationProgress({
-  title,
-  detail,
-  steps
-}: {
-  title: string;
-  detail: string;
-  steps: string[];
-}) {
-  const normalizedSteps = steps.length ? steps : ["Идёт генерация"];
-  const [elapsedMs, setElapsedMs] = useState(0);
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return undefined;
-    }
-
-    const startedAt = Date.now();
-    const tick = window.setInterval(() => {
-      setElapsedMs(Date.now() - startedAt);
-    }, 250);
-
-    return () => {
-      window.clearInterval(tick);
-    };
-  }, []);
-
-  const completedStepIndex = Math.min(normalizedSteps.length - 1, Math.floor(elapsedMs / 2200));
-  const runePulseIndex = Math.floor(elapsedMs / 900) % normalizedSteps.length;
-  const elapsedLabel = formatPlaybackTime(elapsedMs / 1000);
-
-  return (
-    <section aria-live="polite" className="dnd-progress-panel">
-      <div className="dnd-progress-head">
-        <div className="stack compact">
-          <p className="eyebrow">AI Generation</p>
-          <strong>{title}</strong>
-        </div>
-        <span className="dnd-progress-time">{elapsedLabel}</span>
-      </div>
-
-      <p className="copy dnd-progress-copy">{detail}</p>
-
-      <div aria-valuetext={`Идёт генерация: ${normalizedSteps[completedStepIndex]}`} className="dnd-progress-bar" role="progressbar">
-        <span aria-hidden="true" className="dnd-progress-bar-fill" />
-      </div>
-
-      <div className="dnd-progress-steps">
-        {normalizedSteps.map((step, index) => (
-          <div
-            key={`${title}-${step}`}
-            className={`dnd-progress-step ${index <= completedStepIndex ? "active" : ""} ${index === runePulseIndex ? "pulse" : ""}`}
-          >
-            <span className="dnd-progress-step-rune">{index + 1}</span>
-            <span>{step}</span>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function LoginFieldGlyph({ kind }: { kind: "user" | "lock" | "eye" | "eye-off" | "spark" }) {
-  const common = {
-    fill: "none",
-    stroke: "currentColor",
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    strokeWidth: 1.7
-  };
-
-  switch (kind) {
-    case "user":
-      return (
-        <svg aria-hidden="true" className="login-glyph" viewBox="0 0 20 20">
-          <circle {...common} cx="10" cy="6.7" r="2.7" />
-          <path {...common} d="M4.8 15.2c1.1-2.4 2.9-3.6 5.2-3.6s4.1 1.2 5.2 3.6" />
-        </svg>
-      );
-    case "lock":
-      return (
-        <svg aria-hidden="true" className="login-glyph" viewBox="0 0 20 20">
-          <rect {...common} height="8.2" rx="2" width="10.2" x="4.9" y="8.1" />
-          <path {...common} d="M6.8 8.1V6.7A3.2 3.2 0 0 1 10 3.5a3.2 3.2 0 0 1 3.2 3.2v1.4" />
-        </svg>
-      );
-    case "eye":
-      return (
-        <svg aria-hidden="true" className="login-glyph" viewBox="0 0 20 20">
-          <path {...common} d="M2.4 10s2.6-4.3 7.6-4.3 7.6 4.3 7.6 4.3-2.6 4.3-7.6 4.3S2.4 10 2.4 10Z" />
-          <circle {...common} cx="10" cy="10" r="2.1" />
-        </svg>
-      );
-    case "eye-off":
-      return (
-        <svg aria-hidden="true" className="login-glyph" viewBox="0 0 20 20">
-          <path {...common} d="M2.8 2.8 17.2 17.2" />
-          <path {...common} d="M7.8 6A8.6 8.6 0 0 1 10 5.7c5 0 7.6 4.3 7.6 4.3a14 14 0 0 1-2.9 3.1" />
-          <path {...common} d="M5.3 7.2A13.4 13.4 0 0 0 2.4 10s2.6 4.3 7.6 4.3c.8 0 1.5-.1 2.2-.3" />
-        </svg>
-      );
-    default:
-      return (
-        <svg aria-hidden="true" className="login-glyph" viewBox="0 0 20 20">
-          <path {...common} d="m10 2.8 1.2 4 4 1.2-4 1.2-1.2 4-1.2-4-4-1.2 4-1.2 1.2-4Z" />
-          <path {...common} d="m15 12.8.6 2 .2.6.6.2 2 .6-2 .6-.6.2-.2.6-.6 2-.6-2-.2-.6-.6-.2-2-.6 2-.6.6-.2.2-.6.6-2Z" />
-        </svg>
-      );
-  }
-}
-
-function LoginScreen({
-  username,
-  password,
-  onUsernameChange,
-  onPasswordChange,
-  onSubmit,
-  busy,
-  error
-}: {
-  username: string;
-  password: string;
-  onUsernameChange: (value: string) => void;
-  onPasswordChange: (value: string) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  busy: boolean;
-  error: string;
-}) {
-  const [rememberMe, setRememberMe] = useState(true);
-  const [showPassword, setShowPassword] = useState(false);
-  const [ritualMode, setRitualMode] = useState(false);
-  const loginFeatures: Array<{ title: string; detail: string; icon: RailIconName }> = [
-    { title: "Квесты", detail: "Веди истории и кампании", icon: "quest" },
-    { title: "Инициатива", detail: "Удобные боевые сцены", icon: "player" },
-    { title: "Карты", detail: "Локации и регионы", icon: "location" },
-    { title: "Заметки", detail: "Твои записи и идеи", icon: "note" }
-  ];
-
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    const storedUsername = window.localStorage.getItem("shadow_edge_login_username");
-    if (storedUsername && !username.trim()) {
-      onUsernameChange(storedUsername);
-    }
-  }, []);
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    if (typeof window !== "undefined") {
-      if (rememberMe && username.trim()) {
-        window.localStorage.setItem("shadow_edge_login_username", username.trim());
-      } else {
-        window.localStorage.removeItem("shadow_edge_login_username");
-      }
-    }
-    onSubmit(event);
-  };
-
-  return (
-    <div className="login-screen">
-      <div className={`login-scene ${ritualMode ? "ritual-mode" : ""}`} style={{ backgroundImage: `url(${loginBgUrl})` }}>
-        <div className="login-scene-glow" aria-hidden="true" />
-        <div className="login-frame">
-          <header className="login-topbar">
-            <div className="login-brand">
-              <span className="login-brand-mark" aria-hidden="true">
-                <RailIcon name="brand" />
-              </span>
-              <div className="login-brand-copy">
-                <p className="eyebrow">Shadow Edge GM</p>
-                <strong>Shadow Edge GM</strong>
-              </div>
-            </div>
-
-            <button
-              aria-label={ritualMode ? "Переключить на лунный тон" : "Переключить на ритуальный тон"}
-              className="login-theme-toggle"
-              onClick={() => setRitualMode((current) => !current)}
-              type="button"
-            >
-              <span className={`login-theme-icon ${!ritualMode ? "active" : ""}`}>
-                <LoginFieldGlyph kind="spark" />
-              </span>
-              <span className={`login-theme-icon ${ritualMode ? "active" : ""}`}>
-                <LoginFieldGlyph kind="eye" />
-              </span>
-            </button>
-          </header>
-
-          <div className="login-shell">
-            <section className="login-copy">
-              <div className="login-copy-inner">
-                <div className="login-kicker">
-                  <span className="login-kicker-line" aria-hidden="true" />
-                  <span className="eyebrow">Врата мастерской</span>
-                  <span className="login-kicker-gem" aria-hidden="true">
-                    <RailIcon name="brand" />
-                  </span>
-                  <span className="login-kicker-line" aria-hidden="true" />
-                </div>
-
-                <h1>
-                  <span>Только</span>
-                  <span>
-                    для <em>мастера</em>
-                  </span>
-                </h1>
-                <p className="copy">
-                  Карты, квесты, заметки и боевые сцены теперь открываются только после входа.
-                </p>
-              </div>
-
-              <div className="login-feature-grid">
-                {loginFeatures.map((feature) => (
-                  <article key={feature.title} className="login-feature-card">
-                    <span className="login-feature-icon" aria-hidden="true">
-                      <RailIcon name={feature.icon} />
-                    </span>
-                    <strong>{feature.title}</strong>
-                    <small>{feature.detail}</small>
-                  </article>
-                ))}
-              </div>
-
-              <blockquote className="login-quote-card">
-                <p>Мир ждёт твоей истории. Готов ли ты её написать?</p>
-                <span className="login-quote-mark" aria-hidden="true">
-                  <RailIcon name="brand" />
-                </span>
-              </blockquote>
-            </section>
-
-            <form className="panel login-card" onSubmit={handleSubmit}>
-              <div className="login-card-ornament" aria-hidden="true">
-                <span />
-                <i />
-                <span />
-              </div>
-
-              <h2>Войти в Shadow Edge</h2>
-              <p className="copy">
-                Один логин открывает кабинет мастера, а публичный трекер инициативы остаётся отдельной ссылкой для игроков.
-              </p>
-
-              <label className="field login-field">
-                <span>Логин</span>
-                <div className="login-input-shell">
-                  <span className="login-input-icon" aria-hidden="true">
-                    <LoginFieldGlyph kind="user" />
-                  </span>
-                  <input
-                    autoComplete="username"
-                    className="input login-input"
-                    onChange={(event) => onUsernameChange(event.target.value)}
-                    placeholder="vladyur4ik"
-                    value={username}
-                  />
-                  {username ? (
-                    <button className="login-input-action" onClick={() => onUsernameChange("")} type="button">
-                      ×
-                    </button>
-                  ) : null}
-                </div>
-              </label>
-
-              <label className="field login-field">
-                <span>Пароль</span>
-                <div className="login-input-shell">
-                  <span className="login-input-icon" aria-hidden="true">
-                    <LoginFieldGlyph kind="lock" />
-                  </span>
-                  <input
-                    autoComplete="current-password"
-                    className="input login-input"
-                    onChange={(event) => onPasswordChange(event.target.value)}
-                    placeholder="Введите пароль"
-                    type={showPassword ? "text" : "password"}
-                    value={password}
-                  />
-                  <button className="login-input-action" onClick={() => setShowPassword((current) => !current)} type="button">
-                    <LoginFieldGlyph kind={showPassword ? "eye-off" : "eye"} />
-                  </button>
-                </div>
-              </label>
-
-              <div className="login-meta-row">
-                <label className="login-remember">
-                  <input checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} type="checkbox" />
-                  <span className="login-checkbox" aria-hidden="true" />
-                  <span>Запомнить меня</span>
-                </label>
-                <button className="login-link" onClick={() => onPasswordChange("")} type="button">
-                  Забыли пароль?
-                </button>
-              </div>
-
-              {error ? <p className="login-error">{error}</p> : null}
-
-              <button className="primary login-submit" disabled={busy} type="submit">
-                <span>{busy ? "Открываю кабинет..." : "Войти в кабинет"}</span>
-                <span aria-hidden="true">→</span>
-              </button>
-
-              <div className="login-divider" aria-hidden="true">
-                <span />
-                <small>или</small>
-                <span />
-              </div>
-
-              <div className="login-public-note">
-                <div className="ghost login-secondary login-secondary-static" role="note">
-                  <span>Публичный трекер для игроков открывается из боя</span>
-                  <span aria-hidden="true">↗</span>
-                </div>
-              </div>
-            </form>
-          </div>
-
-          <footer className="login-footer">© 2026 Shadow Edge GM. Все права защищены.</footer>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function App() {
   const [appRoute, setAppRoute] = useState<AppRouteState>(() =>
     typeof window === "undefined" ? { mode: "app" } : parseAppRoute(window.location.hash)
@@ -6668,6 +1860,8 @@ export default function App() {
   const [eventEditorNotice, setEventEditorNotice] = useState("");
   const [campaignForm, setCampaignForm] = useState<CreateCampaignInput>(emptyCampaignForm);
   const [entityForm, setEntityForm] = useState<CreateEntityInput>(emptyEntityForm);
+  const [entityArtUploading, setEntityArtUploading] = useState(false);
+  const [galleryUploadKey, setGalleryUploadKey] = useState("");
   const [draftPrompt, setDraftPrompt] = useState("");
   const [draftNotes, setDraftNotes] = useState<string[]>([]);
   const [randomEventLocationId, setRandomEventLocationId] = useState("");
@@ -6689,8 +1883,10 @@ export default function App() {
   const [combatSelectionId, setCombatSelectionId] = useState("");
   const [combatSelectionQuantity, setCombatSelectionQuantity] = useState(1);
   const [combatSelectionInitiative, setCombatSelectionInitiative] = useState(0);
+  const [combatPlayerSearchQuery, setCombatPlayerSearchQuery] = useState("");
   const [combatSearchQuery, setCombatSearchQuery] = useState("");
   const [combatSearchChallenge, setCombatSearchChallenge] = useState("");
+  const [combatEnemyTypeFilter, setCombatEnemyTypeFilter] = useState("all");
   const [combatBestiary, setCombatBestiary] = useState<BestiaryBrowseResult | null>(null);
   const [combatBestiaryLoading, setCombatBestiaryLoading] = useState(false);
   const [combatSelectedBestiaryMonster, setCombatSelectedBestiaryMonster] = useState<BestiaryMonsterDetail | null>(null);
@@ -6702,8 +1898,8 @@ export default function App() {
   const [combatSetupOpen, setCombatSetupOpen] = useState(false);
   const [campaignPreparedCombatDraft, setCampaignPreparedCombatDraft] = useState<CampaignPreparedCombat>(createEmptyCampaignPreparedCombat);
   const [campaignPreparedCombatNotice, setCampaignPreparedCombatNotice] = useState("");
-  const [preparedCombatStartModalOpen, setPreparedCombatStartModalOpen] = useState(false);
-  const [preparedCombatStartEntries, setPreparedCombatStartEntries] = useState<PreparedCombatStartEntry[]>([]);
+  const [preparedCombatPlayerInitiatives, setPreparedCombatPlayerInitiatives] = useState<Record<string, number>>({});
+  const [preparedCombatEnemyInitiatives, setPreparedCombatEnemyInitiatives] = useState<Record<string, number>>({});
   const [combatPlayerEntityId, setCombatPlayerEntityId] = useState("");
   const [combatPlayerInitiative, setCombatPlayerInitiative] = useState(0);
   const [combatPortraitNotice, setCombatPortraitNotice] = useState("");
@@ -6733,6 +1929,7 @@ export default function App() {
   const pendingModalCloseRef = useRef<(() => void) | null>(null);
   const deferredQuery = useDeferredValue(query);
   const deferredBestiarySearch = useDeferredValue(bestiarySearch);
+  const deferredCombatPlayerSearchQuery = useDeferredValue(combatPlayerSearchQuery);
   const deferredCombatSearchQuery = useDeferredValue(combatSearchQuery);
   const deferredPreparedCombatSearchQuery = useDeferredValue(preparedCombatSearchQuery);
   const contentRef = useRef<HTMLElement | null>(null);
@@ -7228,7 +2425,7 @@ export default function App() {
   }, [activeEntityId, activeModule, activeTab, campaign, scopedEntities]);
 
   useEffect(() => {
-    if (activeModule !== "lore") {
+    if (activeModule !== "lore" || activeRailAlias === "items") {
       return;
     }
 
@@ -7258,7 +2455,7 @@ export default function App() {
     setNoteEditorTitle(nextNote.title);
     setNoteEditorContent(nextNote.content);
     setNoteEditorDirty(false);
-  }, [activeModule, activeEntityId, campaign?.lore, entityMap, noteEditorEntityId]);
+  }, [activeModule, activeEntityId, activeRailAlias, campaign?.lore, entityMap, noteEditorEntityId]);
 
   useEffect(() => {
     if (activeRailAlias !== "events") {
@@ -7595,8 +2792,81 @@ export default function App() {
   const configuredCombatEnemyCount = configuredCombatEnemies.reduce((sum, item) => sum + item.quantity, 0);
   const hasConfiguredCombat = configuredCombatPlayers.length > 0 || configuredCombatEnemies.length > 0;
   const canStartConfiguredCombat = configuredCombatPlayers.length > 0 && configuredCombatEnemyCount > 0;
+  const draftPreparedCombatPlayers = useMemo(
+    () =>
+      campaignPreparedCombatDraft.playerIds
+        .map((playerId) => entityMap.get(playerId))
+        .filter((entity): entity is PlayerEntity => entity?.kind === "player"),
+    [campaignPreparedCombatDraft.playerIds, entityMap]
+  );
+  const draftPreparedCombatEnemies = useMemo(
+    () =>
+      campaignPreparedCombatDraft.items
+        .map((item) => {
+          const entity = entityMap.get(item.entityId);
+          return entity?.kind === "npc" || entity?.kind === "monster"
+            ? {
+                entity,
+                quantity: Math.max(1, item.quantity)
+              }
+            : null;
+        })
+        .filter((item): item is { entity: NpcEntity | MonsterEntity; quantity: number } => Boolean(item)),
+    [campaignPreparedCombatDraft.items, entityMap]
+  );
+  const campaignPreparedCombatDraftEnemyCount = draftPreparedCombatEnemies.reduce((sum, item) => sum + item.quantity, 0);
+  const canStartPreparedCombatDraft =
+    draftPreparedCombatPlayers.length > 0 && campaignPreparedCombatDraftEnemyCount > 0;
+  useEffect(() => {
+    setPreparedCombatPlayerInitiatives((current) => {
+      const next = draftPreparedCombatPlayers.reduce<Record<string, number>>((accumulator, player) => {
+        accumulator[player.id] = Number.isFinite(current[player.id]) ? current[player.id] : 0;
+        return accumulator;
+      }, {});
+      const nextKeys = Object.keys(next);
+      const currentKeys = Object.keys(current);
+      if (nextKeys.length === currentKeys.length && nextKeys.every((key) => current[key] === next[key])) {
+        return current;
+      }
+      return next;
+    });
+  }, [draftPreparedCombatPlayers]);
+  useEffect(() => {
+    setPreparedCombatEnemyInitiatives((current) => {
+      const next = draftPreparedCombatEnemies.reduce<Record<string, number>>((accumulator, item) => {
+        accumulator[item.entity.id] = Number.isFinite(current[item.entity.id]) ? current[item.entity.id] : 0;
+        return accumulator;
+      }, {});
+      const nextKeys = Object.keys(next);
+      const currentKeys = Object.keys(current);
+      if (nextKeys.length === currentKeys.length && nextKeys.every((key) => current[key] === next[key])) {
+        return current;
+      }
+      return next;
+    });
+  }, [draftPreparedCombatEnemies]);
+  const combatPlayerCatalogItems = useMemo(
+    () =>
+      (campaign?.players ?? []).filter((player) =>
+        [player.title, player.subtitle, player.summary, player.role ?? "", player.tags.join(" ")]
+          .join(" ")
+          .toLowerCase()
+          .includes(deferredCombatPlayerSearchQuery.trim().toLowerCase())
+      ),
+    [campaign?.players, deferredCombatPlayerSearchQuery]
+  );
+  const draftEnemyExperienceTotal = draftPreparedCombatEnemies.reduce(
+    (sum, item) => sum + parseChallengeXp(item.entity.statBlock?.challenge ?? "") * item.quantity,
+    0
+  );
   const playerFacingEntity =
     playerFacingEntityId && entityMap.has(playerFacingEntityId) ? entityMap.get(playerFacingEntityId) ?? null : null;
+  const activeEntityPlayerSections = useMemo(() => parseQuestTextSections(activeEntity?.playerContent), [activeEntity?.playerContent]);
+  const activeEntityPlayerHighlights = useMemo(() => {
+    const primarySection = activeEntityPlayerSections.find((section) => section.body.length);
+    const sectionLines = collectQuestSectionLines(primarySection, 4);
+    return sectionLines.length ? sectionLines : splitQuestNarrative(activeEntity?.playerContent ?? "", 4);
+  }, [activeEntity?.playerContent, activeEntityPlayerSections]);
   const resolveQuestLocation = (quest: QuestEntity | null) => {
     if (!quest?.locationId) {
       return null;
@@ -8180,7 +3450,7 @@ export default function App() {
     requestAnimationFrame(scrollContentToTop);
   };
 
-  const openPlayerFacingView = (entity: QuestEntity | NpcEntity) => {
+  const openPlayerFacingView = (entity: KnowledgeEntity) => {
     if (!entity.playerContent?.trim()) {
       setBootError("Для этой сущности пока не заполнена отдельная версия для игроков.");
       return;
@@ -8203,10 +3473,15 @@ export default function App() {
     peekEntity(linked.id);
   };
 
-  const openCombatScreen = () => {
+  const focusCombatModule = () => {
     setActiveModule("combat");
     setActiveRailAlias(null);
     setActiveTab("Encounter");
+  };
+
+  const openCombatScreen = () => {
+    focusCombatModule();
+    setCombatSetupOpen(false);
   };
 
   const selectCombatEntryById = (entryId: string) => {
@@ -8439,9 +3714,14 @@ export default function App() {
   };
 
   const openCombatSetupModal = () => {
+    focusCombatModule();
     setBootError("");
     setCampaignPreparedCombatNotice("");
     setCampaignPreparedCombatDraft(cloneCampaignPreparedCombat(campaignPreparedCombat));
+    setCombatPlayerSearchQuery("");
+    setCombatSearchQuery("");
+    setCombatSearchChallenge("");
+    setCombatEnemyTypeFilter("all");
     setCombatSelectionQuantity(1);
     setCombatSelectionInitiative(0);
     setCombatSetupOpen(true);
@@ -8532,6 +3812,8 @@ export default function App() {
     setEntityModalMode("create");
     setEditingEntityId("");
     setEntityModalSourceNpcId("");
+    setEntityArtUploading(false);
+    setGalleryUploadKey("");
     setGeneratedQuestIssuerDraft(null);
     setGeneratedQuestIssuerNote("");
     setDraftPrompt("");
@@ -8560,11 +3842,8 @@ export default function App() {
   const closeCombatSetupModal = () => {
     setCombatSetupOpen(false);
     setCampaignPreparedCombatNotice("");
-  };
-
-  const closePreparedCombatStartModal = () => {
-    setPreparedCombatStartModalOpen(false);
-    setPreparedCombatStartEntries([]);
+    setCombatPlayerSearchQuery("");
+    setCombatEnemyTypeFilter("all");
   };
 
   const closeEntityPlaylistModal = () => {
@@ -8577,6 +3856,7 @@ export default function App() {
     setEntityGalleryModalOpen(false);
     setEntityGalleryEntityId("");
     setEntityGalleryDraft([]);
+    setGalleryUploadKey("");
   };
 
   const closeEntityLinkContextMenu = () => {
@@ -8770,6 +4050,62 @@ export default function App() {
     setEntityForm((current) => updater(current));
   };
 
+  const uploadCampaignImage = async (file: File) => {
+    if (!activeCampaignId) {
+      throw new Error("Сначала открой кампанию, а потом уже загружай изображения.");
+    }
+
+    return api.uploadImage(activeCampaignId, file);
+  };
+
+  const uploadEntityArtFile = async (file: File) => {
+    try {
+      setBootError("");
+      setEntityArtUploading(true);
+      const uploaded = await uploadCampaignImage(file);
+      const suggestedAlt = imageTitleFromFileName(file.name);
+
+      updateEntityForm((current) => ({
+        ...current,
+        art: {
+          ...(current.art ?? {}),
+          url: uploaded.url,
+          alt: current.art?.alt?.trim() || current.title.trim() || suggestedAlt
+        }
+      }));
+    } catch (error) {
+      setBootError(error instanceof Error ? error.message : "Не удалось загрузить изображение в приложение.");
+    } finally {
+      setEntityArtUploading(false);
+    }
+  };
+
+  const uploadEntityGalleryFile = async (index: number, file: File) => {
+    try {
+      setBootError("");
+      setGalleryUploadKey(`entity-form:${index}`);
+      const uploaded = await uploadCampaignImage(file);
+
+      updateEntityForm((current) => {
+        const nextGallery = [...(current.gallery ?? [])];
+        const existing = nextGallery[index] ?? createEmptyGalleryImage();
+        nextGallery[index] = {
+          ...existing,
+          title: existing.title.trim() || imageTitleFromFileName(file.name) || `Изображение ${index + 1}`,
+          url: uploaded.url
+        };
+        return {
+          ...current,
+          gallery: nextGallery
+        };
+      });
+    } catch (error) {
+      setBootError(error instanceof Error ? error.message : "Не удалось загрузить изображение в галерею.");
+    } finally {
+      setGalleryUploadKey("");
+    }
+  };
+
   const updateEntityPlaylistTrack = (index: number, patch: Partial<PlaylistTrack>) => {
     updateEntityForm((current) => ({
       ...current,
@@ -8838,6 +4174,29 @@ export default function App() {
 
   const updateEntityGalleryDraftItem = (index: number, patch: Partial<GalleryImage>) => {
     setEntityGalleryDraft((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)));
+  };
+
+  const uploadEntityGalleryDraftFile = async (index: number, file: File) => {
+    try {
+      setBootError("");
+      setGalleryUploadKey(`entity-gallery:${index}`);
+      const uploaded = await uploadCampaignImage(file);
+
+      setEntityGalleryDraft((current) => {
+        const nextGallery = [...current];
+        const existing = nextGallery[index] ?? createEmptyGalleryImage();
+        nextGallery[index] = {
+          ...existing,
+          title: existing.title.trim() || imageTitleFromFileName(file.name) || `Изображение ${index + 1}`,
+          url: uploaded.url
+        };
+        return nextGallery;
+      });
+    } catch (error) {
+      setBootError(error instanceof Error ? error.message : "Не удалось загрузить изображение в галерею.");
+    } finally {
+      setGalleryUploadKey("");
+    }
   };
 
   const addEntityGalleryDraftItem = () => {
@@ -9032,10 +4391,6 @@ export default function App() {
       "Текущая настройка боя закроется. Если что-то ещё не сохранено, эти правки пропадут.",
       kind === "player" ? "К игроку" : "К монстру"
     );
-  };
-
-  const requestPreparedCombatStartModalClose = () => {
-    requestModalClose("Закрыть запуск боя?", closePreparedCombatStartModal, "Введённая инициатива участников пропадёт, и её придётся вводить заново.");
   };
 
   const requestEntityPlaylistModalClose = () => {
@@ -9764,6 +5119,24 @@ export default function App() {
     () => [...combatEntitySearchItems.slice(0, 18), ...combatBestiarySearchItems.slice(0, 24)],
     [combatBestiarySearchItems, combatEntitySearchItems]
   );
+  const combatEnemyTypeOptions = useMemo(() => {
+    const entries = new Map<string, string>();
+    entries.set("all", combatSetupTypeLabelMap.all);
+    combatSearchItems.forEach((item) => {
+      const key = resolveCombatSearchItemType(item);
+      if (!entries.has(key)) {
+        entries.set(key, resolveCombatSearchItemTypeLabel(item));
+      }
+    });
+    return Array.from(entries, ([value, label]) => ({ value, label }));
+  }, [combatSearchItems]);
+  const filteredCombatCatalogItems = useMemo(
+    () =>
+      combatSearchItems.filter((item) =>
+        combatEnemyTypeFilter === "all" ? true : resolveCombatSearchItemType(item) === combatEnemyTypeFilter
+      ),
+    [combatEnemyTypeFilter, combatSearchItems]
+  );
   useEffect(() => {
     if (!preparedCombatModalOpen) {
       return;
@@ -9845,6 +5218,15 @@ export default function App() {
       setCombatSelectionId(combatSearchItems[0]?.key ?? "");
     }
   }, [combatSearchItems, combatSelectionId, combatSetupOpen]);
+  useEffect(() => {
+    if (!combatSetupOpen || activeCombat?.entries.length) {
+      return;
+    }
+
+    if (!filteredCombatCatalogItems.some((item) => item.key === combatSelectionId)) {
+      setCombatSelectionId(filteredCombatCatalogItems[0]?.key ?? "");
+    }
+  }, [activeCombat?.entries.length, combatSelectionId, combatSetupOpen, filteredCombatCatalogItems]);
   const selectedCombatEntryIndex = activeCombat?.entries.findIndex(
     (entry, index) => combatEntrySelectionKey(entry, index) === selectedCombatEntryKey
   );
@@ -9997,12 +5379,12 @@ export default function App() {
     });
   };
 
-  const addCampaignPreparedCombatDraftItem = async () => {
+  const addCampaignPreparedCombatDraftItem = async (pickedItem?: CombatSearchItem) => {
     if (!activeCampaignId) {
       return;
     }
 
-    const selected = selectedCombatSearchItem;
+    const selected = pickedItem ?? selectedCombatSearchItem;
     if (!selected) {
       setBootError("Сначала выбери противника, которого нужно добавить в заготовленный бой.");
       return;
@@ -10020,9 +5402,9 @@ export default function App() {
         }
         hydrateCampaign(imported.campaign);
         entityId = imported.entity.id;
-        setCombatSelectionId(combatSelectionEntityKey(entityId));
         setPreviewEntityId(imported.entity.id);
       }
+      setCombatSelectionId(combatSelectionEntityKey(entityId));
 
       updateCampaignPreparedCombatDraft((current) => {
         const existingIndex = current.items.findIndex((item) => item.entityId === entityId);
@@ -10076,6 +5458,20 @@ export default function App() {
     }));
   };
 
+  const setPreparedCombatPlayerInitiative = (playerId: string, value: number) => {
+    setPreparedCombatPlayerInitiatives((current) => ({
+      ...current,
+      [playerId]: Number.isFinite(value) ? value : 0
+    }));
+  };
+
+  const setPreparedCombatEnemyInitiative = (entityId: string, value: number) => {
+    setPreparedCombatEnemyInitiatives((current) => ({
+      ...current,
+      [entityId]: Number.isFinite(value) ? value : 0
+    }));
+  };
+
   const saveCampaignPreparedCombatDraft = async () => {
     if (!activeCampaignId) {
       return;
@@ -10118,13 +5514,14 @@ export default function App() {
     }
   };
 
-  const openPreparedCombatStart = () => {
-    if (activeCombat?.entries.length) {
-      openCombatScreen();
+  const startConfiguredCombat = async () => {
+    if (!activeCampaignId) {
       return;
     }
 
-    const plan = sanitizeCampaignPreparedCombat(campaignPreparedCombat);
+    const plan = sanitizeCampaignPreparedCombat(
+      combatSetupOpen && !(activeCombat?.entries.length) ? campaignPreparedCombatDraft : campaignPreparedCombat
+    );
     if (!plan) {
       setBootError("Сначала настрой состав боя, а потом уже запускай сцену.");
       return;
@@ -10138,55 +5535,37 @@ export default function App() {
       return;
     }
 
-    const entries: PreparedCombatStartEntry[] = [];
-    const counts = new Map<string, number>();
-    const pushEntry = (entityId: string, entityKind: CombatEntry["entityKind"], side: CombatEntry["side"], fallbackTitle: string) => {
-      counts.set(entityId, (counts.get(entityId) ?? 0) + 1);
-      const sequence = counts.get(entityId) ?? 1;
-      entries.push({
-        key: `${entityId}-${sequence}-${entries.length}`,
-        entityId,
-        entityKind,
-        side,
-        title: sequence > 1 ? `${fallbackTitle} #${sequence}` : fallbackTitle,
-        initiative: 0
-      });
-    };
+    const startItems = [
+      ...plan.playerIds
+        .map((playerId) => {
+          const entity = entityMap.get(playerId);
+          if (entity?.kind !== "player") {
+            return null;
+          }
+          return {
+            entityId: entity.id,
+            quantity: 1,
+            initiative: preparedCombatPlayerInitiatives[entity.id] ?? 0
+          };
+        })
+        .filter((item): item is { entityId: string; quantity: number; initiative: number } => Boolean(item)),
+      ...plan.items
+        .map((item) => {
+          const entity = entityMap.get(item.entityId);
+          if (entity?.kind !== "npc" && entity?.kind !== "monster") {
+            return null;
+          }
+          return {
+            entityId: entity.id,
+            quantity: Math.max(1, item.quantity),
+            initiative: preparedCombatEnemyInitiatives[entity.id] ?? 0
+          };
+        })
+        .filter((item): item is { entityId: string; quantity: number; initiative: number } => Boolean(item))
+    ];
 
-    plan.playerIds.forEach((playerId) => {
-      const entity = entityMap.get(playerId);
-      if (entity?.kind === "player") {
-        pushEntry(entity.id, "player", "player", entity.title);
-      }
-    });
-
-    plan.items.forEach((item) => {
-      const entity = entityMap.get(item.entityId);
-      if (entity?.kind === "npc" || entity?.kind === "monster") {
-        for (let index = 0; index < Math.max(1, item.quantity); index += 1) {
-          pushEntry(entity.id, entity.kind, "enemy", entity.title);
-        }
-      }
-    });
-
-    if (!entries.length) {
-      setBootError("Не удалось собрать участников боя из сохранённой заготовки.");
-      return;
-    }
-
-    setBootError("");
-    setPreparedCombatStartEntries(entries);
-    setPreparedCombatStartModalOpen(true);
-  };
-
-  const updatePreparedCombatStartEntry = (key: string, initiative: number) => {
-    setPreparedCombatStartEntries((current) =>
-      current.map((entry) => (entry.key === key ? { ...entry, initiative } : entry))
-    );
-  };
-
-  const startConfiguredCombat = async () => {
-    if (!activeCampaignId || !preparedCombatStartEntries.length) {
+    if (!startItems.length) {
+      setBootError("Не удалось собрать участников боя из текущей подготовки.");
       return;
     }
 
@@ -10194,17 +5573,16 @@ export default function App() {
       setSaving(true);
       setBootError("");
       const result = await api.startCombat(activeCampaignId, {
-        title: campaignPreparedCombat?.title?.trim() || combatTitle.trim() || "Активный бой",
+        title:
+          campaignPreparedCombatDraft.title?.trim() ||
+          campaignPreparedCombat?.title?.trim() ||
+          combatTitle.trim() ||
+          "Активный бой",
         partySize: effectivePartySize,
         thresholds: effectiveCombatThresholds,
-        items: preparedCombatStartEntries.map((entry) => ({
-          entityId: entry.entityId,
-          quantity: 1,
-          initiative: entry.initiative
-        }))
+        items: startItems
       });
       applyCombatPayload(result);
-      closePreparedCombatStartModal();
       closeCombatSetupModal();
       openCombatScreen();
     } catch (error) {
@@ -10412,6 +5790,7 @@ export default function App() {
   const previewPinned = previewEntity ? pinnedIds.includes(previewEntity.id) : false;
   const activeEntityPinned = activeEntity ? pinnedIds.includes(activeEntity.id) : false;
   const isCombatScreen = activeModule === "combat";
+  const isItemsRail = activeRailAlias === "items";
   const latestCombatSummary =
     campaign?.lastCombatSummary ??
     (combatReport
@@ -10450,71 +5829,57 @@ export default function App() {
       ? importedMonsterTitles.has(selectedBestiaryMonster.monster.title.trim().toLowerCase())
       : false;
   const isEditingEntity = entityModalMode === "edit";
+  const entityFormImageUploading = entityArtUploading || galleryUploadKey.startsWith("entity-form:");
+  const entityGalleryModalUploading = galleryUploadKey.startsWith("entity-gallery:");
   const entityModalTitle = isEditingEntity ? "Edit Entity" : "Create Entity";
   const entityModalDescription = isEditingEntity
     ? "Измени поля, статблок и затем сохрани сущность на backend"
     : "Сгенерируй черновик, отредактируй поля и потом создай сущность в кампании";
   const entitySubmitLabel = isEditingEntity ? "Сохранить изменения" : "Создать";
-  const campaignPreparedCombatDraftEnemyCount = campaignPreparedCombatDraft.items.reduce((sum, item) => sum + item.quantity, 0);
   const campaignCombatSetupView =
     campaign ? (
-      <div className="combat-preparation-page">
-        <section className="card section-card combat-preparation-hero">
-          <div className="combat-preparation-hero-head">
-            <div className="stack compact">
-              <div className="row muted">
-                <span>Подготовка боя</span>
-                <span>Отдельный экран настройки сцены</span>
+      <div className="combat-prep-page">
+        <section className="card section-card combat-prep-topbar">
+          <div className="combat-prep-topbar-main">
+            <button className="ghost" onClick={requestCombatSetupModalClose} type="button">
+              К обзору боя
+            </button>
+            <div className="combat-prep-breadcrumbs">
+              <div className="stack compact">
+                <span>Кампания</span>
+                <strong>{campaign.title}</strong>
               </div>
-              <h2>Собери сцену до старта</h2>
-              <p className="copy">
-                Выбери игроков, подбери врагов из кампании или dnd.su и сохрани заготовку. Инициативу мы спросим уже в момент
-                запуска, чтобы бой стартовал быстро и без хаоса.
-              </p>
-            </div>
-
-            <div className="combat-preparation-hero-actions">
-              <button className="ghost" onClick={requestCombatSetupModalClose} type="button">
-                К обзору боя
-              </button>
-              <button
-                className="ghost"
-                onClick={() => {
-                  requestCombatSetupSwapToEntity("player");
-                }}
-                type="button"
-              >
-                Новый игрок
-              </button>
-              <button
-                className="ghost"
-                onClick={() => {
-                  requestCombatSetupSwapToEntity("monster");
-                }}
-                type="button"
-              >
-                Новый монстр
-              </button>
+              <div className="stack compact">
+                <span>Боевая сцена</span>
+                <strong>{campaignPreparedCombatDraft.title?.trim() || "Активный бой"}</strong>
+              </div>
             </div>
           </div>
-
-          <div className="combat-preparation-summary-grid">
-            <article className="card mini fact-box">
-              <small>Игроки в сцене</small>
-              <strong className="fact-value">{campaignPreparedCombatDraft.playerIds.length}</strong>
-            </article>
-            <article className="card mini fact-box">
-              <small>Противники в сцене</small>
-              <strong className="fact-value">{campaignPreparedCombatDraftEnemyCount}</strong>
-            </article>
-            <article className="card mini fact-box">
-              <small>Сохранённая сцена</small>
-              <strong className="fact-value">{hasConfiguredCombat ? "Готова" : "Ещё нет"}</strong>
-            </article>
-            <article className="card mini fact-box">
-              <small>Партия</small>
-              <strong className="fact-value">{effectivePartySize}</strong>
-            </article>
+          <div className="combat-prep-topbar-actions">
+            <button
+              className="ghost"
+              onClick={() => {
+                requestCombatSetupSwapToEntity("player");
+              }}
+              type="button"
+            >
+              Новый игрок
+            </button>
+            <button
+              className="ghost"
+              onClick={() => {
+                requestCombatSetupSwapToEntity("monster");
+              }}
+              type="button"
+            >
+              Свой противник
+            </button>
+            <button className="ghost" disabled={saving} onClick={() => void saveCampaignPreparedCombatDraft()} type="button">
+              {saving ? "Сохраняю..." : "Сохранить"}
+            </button>
+            <button className="primary" disabled={!canStartPreparedCombatDraft || saving} onClick={() => void startConfiguredCombat()} type="button">
+              {saving ? "Запускаю..." : "Начать бой"}
+            </button>
           </div>
         </section>
 
@@ -10532,268 +5897,285 @@ export default function App() {
           </div>
         ) : null}
 
-        <div className="combat-preparation-shell">
-          <div className="combat-preparation-main">
-            <section className="card section-card combat-party-card">
-              <div className="row muted">
-                <span>Сцена и партия</span>
-                <span>Название сцены и уровни нужны для аккуратного старта и расчёта сложности</span>
-              </div>
-              <div className="form-grid">
-                <label className="field field-full">
-                  <span>Название боя</span>
-                  <input
-                    className="input"
-                    onChange={(event) =>
-                      updateCampaignPreparedCombatDraft((current) => ({
-                        ...current,
-                        title: event.target.value
-                      }))
-                    }
-                    placeholder="Например: Засада на тракте"
-                    value={campaignPreparedCombatDraft.title ?? ""}
-                  />
-                </label>
-                <label className="field field-full">
-                  <span>Уровни партии через запятую</span>
-                  <input
-                    className="input"
-                    onChange={(event) => setCombatPartyLevelsText(event.target.value)}
-                    placeholder="Например: 5, 5, 5, 5"
-                    value={combatPartyLevelsText}
-                  />
-                </label>
-              </div>
-              <p className="copy combat-inline-note">{combatPartySummary}</p>
-            </section>
-
-            <section className="card section-card combat-tool-card">
-              <div className="row muted">
-                <span>Игроки партии</span>
-                <span>Выбранные персонажи попадут в трекер инициативы со своими портретами</span>
-              </div>
-              {campaign.players.length ? (
-                <div className="combat-player-selector-grid">
-                  {campaign.players.map((player) => {
-                    const selected = campaignPreparedCombatDraft.playerIds.includes(player.id);
-                    return (
+        <div className="combat-prep-layout">
+          <section className="card section-card combat-prep-column">
+            <div className="row muted">
+              <span>Добавить игроков</span>
+              <span>{combatPlayerCatalogItems.length}</span>
+            </div>
+            <label className="field field-full">
+              <input
+                className="input"
+                onChange={(event) => setCombatPlayerSearchQuery(event.target.value)}
+                placeholder="Поиск по игрокам..."
+                value={combatPlayerSearchQuery}
+              />
+            </label>
+            <div className="combat-prep-scroll-list">
+              {combatPlayerCatalogItems.length ? (
+                combatPlayerCatalogItems.map((player) => {
+                  const selected = campaignPreparedCombatDraft.playerIds.includes(player.id);
+                  return (
+                    <article key={`combat-prep-player-${player.id}`} className="combat-prep-catalog-row">
+                      <img alt={player.title} className="combat-prep-avatar" loading="lazy" src={createPortraitSource(player)} />
+                      <div className="combat-prep-row-copy">
+                        <strong>{player.title}</strong>
+                        <small>{player.subtitle || player.role || player.summary || "Персонаж партии"}</small>
+                      </div>
                       <button
-                        key={`prepared-player-${player.id}`}
-                        className={`card mini fill relation-card relation-card-with-visual combat-player-selector ${
-                          selected ? "selected" : ""
-                        }`}
+                        className={`combat-prep-icon-button ${selected ? "active" : ""}`}
                         onClick={() => toggleCampaignPreparedCombatPlayer(player.id)}
                         type="button"
                       >
-                        <EntityVisual entity={player} variant="relation" />
-                        <span className={badge(selected ? "success" : "default")}>{selected ? "В бою" : "Не выбран"}</span>
+                        {selected ? "✓" : "+"}
+                      </button>
+                    </article>
+                  );
+                })
+              ) : (
+                <p className="copy">По текущему поиску игроков не нашлось.</p>
+              )}
+            </div>
+            <button
+              className="ghost fill"
+              onClick={() => {
+                requestCombatSetupSwapToEntity("player");
+              }}
+              type="button"
+            >
+              Создать нового игрока
+            </button>
+          </section>
+
+          <section className="card section-card combat-prep-center">
+            <div className="combat-prep-selected-block">
+              <div className="row muted">
+                <span>{`Выбранные игроки (${draftPreparedCombatPlayers.length})`}</span>
+                <span>Войдут в бой с портретами</span>
+              </div>
+              <div className="combat-prep-selected-list">
+                {draftPreparedCombatPlayers.length ? (
+                  draftPreparedCombatPlayers.map((player) => (
+                    <article key={`combat-prep-selected-player-${player.id}`} className="combat-prep-selected-row">
+                      <img alt={player.title} className="combat-prep-avatar" loading="lazy" src={createPortraitSource(player)} />
+                      <div className="combat-prep-row-copy">
                         <strong>{player.title}</strong>
-                        <p>{player.role || player.summary || "Персонаж партии"}</p>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="copy">
-                  Пока нет игроков. Создай их во вкладке `Игроки`, и потом здесь можно будет быстро включать их в бой.
-                </p>
-              )}
-            </section>
-
-            <section className="card section-card combat-tool-card prepared-combat-card">
-              <div className="row muted">
-                <span>Противники сцены</span>
-                <span>Поиск идёт по кампании и dnd.su, а инициативу ты введёшь уже при старте</span>
-              </div>
-              <div className="form-grid combat-preparation-form-grid">
-                <label className="field field-full">
-                  <span>Поиск по названию</span>
-                  <input
-                    className="input"
-                    onChange={(event) => setCombatSearchQuery(event.target.value)}
-                    placeholder="Бандит, волк, giant spider, капитан..."
-                    value={combatSearchQuery}
-                  />
-                </label>
-                <label className="field">
-                  <span>CR</span>
-                  <select className="input" onChange={(event) => setCombatSearchChallenge(event.target.value)} value={combatSearchChallenge}>
-                    <option value="">Все значения</option>
-                    {challengeFilterOptions.map((option) => (
-                      <option key={option} value={option}>
-                        {`CR ${option}`}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="field">
-                  <span>Количество</span>
-                  <input
-                    className="input"
-                    min={1}
-                    onChange={(event) => setCombatSelectionQuantity(Math.max(1, Number.parseInt(event.target.value, 10) || 1))}
-                    type="number"
-                    value={combatSelectionQuantity}
-                  />
-                </label>
-              </div>
-
-              <div className="combat-preparation-search-layout">
-                <div className="stack">
-                  <div className="row muted">
-                    <span>НПС кампании + бестиарий dnd.su</span>
-                    <span>{combatSearchItems.length} результатов</span>
-                  </div>
-                  <div className="combat-search-results prepared-combat-results combat-preparation-results">
-                    {combatSearchItems.length ? (
-                      combatSearchItems.map((item) => (
-                        <button
-                          key={item.key}
-                          className={`entity-row combat-search-result has-thumb ${combatSelectionId === item.key ? "active" : ""}`}
-                          onClick={() => setCombatSelectionId(item.key)}
-                          type="button"
-                        >
-                          <span className="entity-thumb-frame">
-                            <img
-                              alt={item.title}
-                              className="entity-thumb"
-                              loading="lazy"
-                              src={
-                                item.source === "entity" && item.entity
-                                  ? createPortraitSource(item.entity)
-                                  : item.bestiary
-                                    ? createBestiaryPortraitSource(item.bestiary)
-                                    : createPortraitSource({ kind: item.kind, title: item.title })
-                              }
-                            />
-                          </span>
-                          <span className="entity-row-copy">
-                            <strong>{item.title}</strong>
-                            <small>
-                              {[
-                                item.source === "bestiary" ? "dnd.su" : item.kind === "monster" ? "Кампания • монстр" : "Кампания • НПС",
-                                item.challenge ? `CR ${extractChallengeToken(item.challenge)}` : "CR не задан",
-                                item.subtitle || item.summary
-                              ]
-                                .filter(Boolean)
-                                .join(" • ")}
-                            </small>
-                          </span>
-                        </button>
-                      ))
-                    ) : (
-                      <p className="copy">По текущему запросу ничего не найдено.</p>
-                    )}
-                  </div>
-                  {combatBestiaryLoading ? <p className="copy">Подтягиваю dnd.su под текущий поиск…</p> : null}
-                </div>
-
-                <div className="stack combat-preparation-selection">
-                  {selectedCombatSearchItem ? (
-                    <div className="combat-selected-summary combat-preparation-selected-card">
-                      <div className="row">
-                        <span className={badge(selectedCombatSearchItem.source === "bestiary" ? "accent" : "default")}>
-                          {selectedCombatSearchItem.source === "bestiary" ? "dnd.su" : "Кампания"}
-                        </span>
-                        <span className={badge("accent")}>
-                          {selectedCombatSearchItem.challenge ? `CR ${extractChallengeToken(selectedCombatSearchItem.challenge)}` : "CR не указан"}
-                        </span>
+                        <small>{player.subtitle || player.role || "Игрок партии"}</small>
                       </div>
-                      <strong>{selectedCombatSearchItem.title}</strong>
-                      <small>
-                        {selectedCombatSearchItem.source === "entity" && selectedCombatSearchItem.entity?.statBlock
-                          ? `КБ ${selectedCombatSearchItem.entity.statBlock.armorClass ?? "—"} • ХП ${selectedCombatSearchItem.entity.statBlock.hitPoints ?? "—"}`
-                          : selectedCombatSearchItem.subtitle || "Монстр будет импортирован в кампанию при добавлении в сцену."}
-                      </small>
-                      <small>{selectedCombatSearchItem.summary || "Готовый боевой профиль."}</small>
-                      <button
-                        className="primary"
-                        disabled={saving || !combatSelectionId || !selectedCombatSearchItem}
-                        onClick={() => void addCampaignPreparedCombatDraftItem()}
-                        type="button"
-                      >
-                        {saving ? "Добавляю..." : "Добавить в сцену"}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="card mini fact-box combat-preparation-placeholder">
-                      <small>Выбери цель</small>
-                      <strong className="fact-value">Готово</strong>
-                      <p className="copy">Нажми на противника слева, и здесь появится его сводка с кнопкой добавления.</p>
-                    </div>
-                  )}
-                </div>
+                      <div className="combat-prep-entry-controls">
+                        <label className="combat-prep-metric">
+                          <span>Инициатива</span>
+                          <input
+                            className="input"
+                            inputMode="numeric"
+                            onChange={(event) => setPreparedCombatPlayerInitiative(player.id, Number.parseInt(event.target.value, 10) || 0)}
+                            type="number"
+                            value={preparedCombatPlayerInitiatives[player.id] ?? 0}
+                          />
+                        </label>
+                        <button className="combat-prep-remove" onClick={() => toggleCampaignPreparedCombatPlayer(player.id)} type="button">
+                          Г—
+                        </button>
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <p className="copy">Добавь хотя бы одного игрока слева.</p>
+                )}
               </div>
-            </section>
-          </div>
+            </div>
 
-          <aside className="combat-preparation-side">
-            <section className="card section-card combat-preparation-side-card">
+            <div className="combat-prep-selected-block enemy-block">
               <div className="row muted">
-                <span>Текущий состав сцены</span>
-                <span>
-                  {campaignPreparedCombatDraft.playerIds.length} игроков • {campaignPreparedCombatDraftEnemyCount} противников
-                </span>
+                <span>{`Выбранные противники (${campaignPreparedCombatDraftEnemyCount})`}</span>
+                <span>{draftEnemyExperienceTotal > 0 ? `${draftEnemyExperienceTotal} XP` : "XP появится из CR"}</span>
               </div>
+              <div className="combat-prep-selected-list">
+                {draftPreparedCombatEnemies.length ? (
+                  draftPreparedCombatEnemies.map(({ entity, quantity }) => (
+                    <article key={`combat-prep-selected-enemy-${entity.id}`} className="combat-prep-selected-row enemy">
+                      <img alt={entity.title} className="combat-prep-avatar" loading="lazy" src={createPortraitSource(entity)} />
+                      <div className="combat-prep-row-copy">
+                        <strong>{entity.title}</strong>
+                        <small>
+                          {entity.statBlock?.creatureType || kindTitle[entity.kind]} • {getEntityChallenge(entity) || "CR не указан"}
+                        </small>
+                      </div>
+                      <div className="combat-prep-entry-controls">
+                        <label className="combat-prep-metric">
+                          <span>Кол-во</span>
+                          <input
+                            className="input"
+                            min={1}
+                            onChange={(event) =>
+                              updateCampaignPreparedCombatDraftItem(entity.id, {
+                                quantity: Math.max(1, Number.parseInt(event.target.value, 10) || 1)
+                              })
+                            }
+                            type="number"
+                            value={quantity}
+                          />
+                        </label>
+                        <label className="combat-prep-metric">
+                          <span>Инициатива</span>
+                          <input
+                            className="input"
+                            inputMode="numeric"
+                            onChange={(event) => setPreparedCombatEnemyInitiative(entity.id, Number.parseInt(event.target.value, 10) || 0)}
+                            type="number"
+                            value={preparedCombatEnemyInitiatives[entity.id] ?? 0}
+                          />
+                        </label>
+                        <button className="combat-prep-remove" onClick={() => removeCampaignPreparedCombatDraftItem(entity.id)} type="button">
+                          Г—
+                        </button>
+                      </div>
+                    </article>
+                  ))
+                ) : (
+                  <p className="copy">Добавь противников справа, и они сразу появятся здесь.</p>
+                )}
+              </div>
+            </div>
+          </section>
 
-              {campaignPreparedCombatDraft.items.length ? (
-                <div className="entry-editor-list prepared-combat-entry-list combat-preparation-entry-list">
-                  {campaignPreparedCombatDraft.items.map((item) => {
-                    const linked = entityMap.get(item.entityId);
-                    const linkedEntity = linked && (linked.kind === "npc" || linked.kind === "monster") ? linked : null;
-                    return (
-                      <article key={`campaign-prepared-combat-${item.entityId}`} className="entry-editor">
-                        <div className="row">
-                          <strong>{linkedEntity?.title ?? "Сущность не найдена"}</strong>
-                          <button className="ghost danger-action" onClick={() => removeCampaignPreparedCombatDraftItem(item.entityId)} type="button">
-                            Удалить
-                          </button>
-                        </div>
-                        <div className="form-grid combat-preparation-entry-grid">
-                          <label className="field">
-                            <span>Количество</span>
-                            <input
-                              className="input"
-                              min={1}
-                              onChange={(event) =>
-                                updateCampaignPreparedCombatDraftItem(item.entityId, {
-                                  quantity: Math.max(1, Number.parseInt(event.target.value, 10) || 1)
-                                })
-                              }
-                              type="number"
-                              value={item.quantity}
-                            />
-                          </label>
-                          <div className="field field-full">
-                            <span>Профиль</span>
-                            <div className="combat-selected-summary">
-                              <strong>{linkedEntity ? `${kindTitle[linkedEntity.kind]} • ${linkedEntity.title}` : item.entityId}</strong>
-                              <small>
-                                {linkedEntity
-                                  ? `${getEntityChallenge(linkedEntity) || "CR не указан"} • ${linkedEntity.summary || linkedEntity.subtitle || "Готов к бою"}`
-                                  : "Эта запись больше не найдена в кампании и будет пропущена при старте боя."}
-                              </small>
-                            </div>
-                          </div>
-                        </div>
-                      </article>
-                    );
-                  })}
-                </div>
+          <section className="card section-card combat-prep-column">
+            <div className="row muted">
+              <span>Добавить противников</span>
+              <span>{filteredCombatCatalogItems.length}</span>
+            </div>
+            <div className="stack compact">
+              <label className="field field-full">
+                <input
+                  className="input"
+                  onChange={(event) => setCombatSearchQuery(event.target.value)}
+                  placeholder="Поиск по противникам..."
+                  value={combatSearchQuery}
+                />
+              </label>
+              <div className="combat-prep-filter-row">
+                {combatEnemyTypeOptions.map((option) => (
+                  <button
+                    key={`combat-type-${option.value}`}
+                    className={`combat-prep-filter-chip ${combatEnemyTypeFilter === option.value ? "active" : ""}`}
+                    onClick={() => setCombatEnemyTypeFilter(option.value)}
+                    type="button"
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="combat-prep-scroll-list">
+              {filteredCombatCatalogItems.length ? (
+                filteredCombatCatalogItems.map((item) => (
+                  <article key={`combat-prep-enemy-${item.key}`} className="combat-prep-catalog-row enemy">
+                    <img
+                      alt={item.title}
+                      className="combat-prep-avatar"
+                      loading="lazy"
+                      src={
+                        item.source === "entity" && item.entity
+                          ? createPortraitSource(item.entity)
+                          : item.bestiary
+                            ? createBestiaryPortraitSource(item.bestiary)
+                            : createPortraitSource({ kind: item.kind, title: item.title })
+                      }
+                    />
+                    <button className="combat-prep-row-main" onClick={() => setCombatSelectionId(item.key)} type="button">
+                      <div className="combat-prep-row-copy">
+                        <strong>{item.title}</strong>
+                        <small>
+                          {resolveCombatSearchItemTypeLabel(item)} • {item.challenge ? `CR ${extractChallengeToken(item.challenge)}` : "CR не указан"}
+                        </small>
+                      </div>
+                    </button>
+                    <button
+                      className={`combat-prep-icon-button ${combatSelectionId === item.key ? "active" : ""}`}
+                      onClick={() => {
+                        setCombatSelectionId(item.key);
+                        void addCampaignPreparedCombatDraftItem(item);
+                      }}
+                      type="button"
+                    >
+                      +
+                    </button>
+                  </article>
+                ))
               ) : (
-                <p className="copy">Пока враги не добавлены. Выбери их слева и собери сцену так, как она должна стартовать.</p>
+                <p className="copy">По текущему фильтру противники не найдены.</p>
               )}
+            </div>
+            <button
+              className="ghost fill"
+              onClick={() => {
+                requestCombatSetupSwapToEntity("monster");
+              }}
+              type="button"
+            >
+              Создать своего противника
+            </button>
+          </section>
+        </div>
 
-              <div className="combat-preparation-side-actions">
-                <button className="ghost fill" onClick={requestCombatSetupModalClose} type="button">
-                  Вернуться к обзору
-                </button>
-                <button className="primary" disabled={saving} onClick={() => void saveCampaignPreparedCombatDraft()} type="button">
-                  {saving ? "Сохраняю..." : "Сохранить заготовку"}
-                </button>
-              </div>
-            </section>
-          </aside>
+        <div className="combat-prep-footer">
+          <section className="card section-card combat-prep-settings">
+            <div className="row muted">
+              <span>Настройки боя</span>
+              <span>{hasExplicitPartyLevels ? "Пороги считаются по уровням" : "Используются текущие пороги сложности"}</span>
+            </div>
+            <div className="combat-prep-settings-grid">
+              <label className="field">
+                <span>Название сцены</span>
+                <input
+                  className="input"
+                  onChange={(event) =>
+                    updateCampaignPreparedCombatDraft((current) => ({
+                      ...current,
+                      title: event.target.value
+                    }))
+                  }
+                  placeholder="Например: Засада на тракте"
+                  value={campaignPreparedCombatDraft.title ?? ""}
+                />
+              </label>
+              <label className="field">
+                <span>Уровни партии</span>
+                <input
+                  className="input"
+                  onChange={(event) => setCombatPartyLevelsText(event.target.value)}
+                  placeholder="Например: 5, 5, 5, 5"
+                  value={combatPartyLevelsText}
+                />
+              </label>
+            </div>
+            <p className="copy combat-inline-note">{combatPartySummary}</p>
+          </section>
+
+          <section className="card section-card combat-prep-summary">
+            <div className="row muted">
+              <span>Общий итог</span>
+              <span>{canStartPreparedCombatDraft ? "Сцена готова к старту" : "Нужно выбрать игроков и врагов"}</span>
+            </div>
+            <div className="combat-prep-summary-grid">
+              <article className="combat-prep-summary-card players">
+                <small>Игроки</small>
+                <strong>{draftPreparedCombatPlayers.length}</strong>
+                <span>{effectivePartySize} в расчёте порогов</span>
+              </article>
+              <article className="combat-prep-summary-card enemies">
+                <small>Противники</small>
+                <strong>{campaignPreparedCombatDraftEnemyCount}</strong>
+                <span>{draftEnemyExperienceTotal > 0 ? `${draftEnemyExperienceTotal} XP` : "XP возьмётся из CR"}</span>
+              </article>
+            </div>
+            <div className="combat-prep-thresholds">
+              <span>{`Easy ${effectiveCombatThresholds.easy}`}</span>
+              <span>{`Medium ${effectiveCombatThresholds.medium}`}</span>
+              <span>{`Hard ${effectiveCombatThresholds.hard}`}</span>
+              <span>{`Deadly ${effectiveCombatThresholds.deadly}`}</span>
+            </div>
+          </section>
         </div>
       </div>
     ) : null;
@@ -10937,7 +6319,7 @@ export default function App() {
 
   return (
     <>
-      <div className={`shell ${isCombatScreen ? "combat-layout" : ""}`} style={shellStyle}>
+      <div className={`shell ${isCombatScreen ? "combat-layout" : ""} ${isItemsRail ? "items-shell" : ""}`.trim()} style={shellStyle}>
         {!isCombatScreen ? (
           <>
             <aside className="panel rail">
@@ -11110,7 +6492,17 @@ export default function App() {
                 </button>
 
                 <div className="chips">
-                  <button className={`ghost ${isCombatScreen ? "active" : ""}`} onClick={openCombatScreen} type="button">
+                  <button
+                    className={`ghost ${isCombatScreen ? "active" : ""}`}
+                    onClick={() => {
+                      if (activeCombat?.entries.length) {
+                        openCombatScreen();
+                        return;
+                      }
+                      openCombatSetupModal();
+                    }}
+                    type="button"
+                  >
                     Бой
                   </button>
                   {!isCombatScreen && activeModule !== "dashboard" && (activeEntity || (isBestiaryScreen && selectedBestiaryMonster)) ? (
@@ -11136,36 +6528,40 @@ export default function App() {
                   <button className="ghost" disabled={authBusy} onClick={() => void logout()} type="button">
                     {authBusy ? "Выходим..." : "Выйти"}
                   </button>
-                  <button className="ghost" onClick={() => openEntityModal()} type="button">
-                    Создать
-                  </button>
+                  {!isItemsRail ? (
+                    <button className="ghost" onClick={() => openEntityModal()} type="button">
+                      Создать
+                    </button>
+                  ) : null}
                 </div>
               </header>
 
-              <div className="panel tabs">
-                {tabs[activeModule].map((tab) => (
-                  <button
-                    key={tab}
-                    className={`tab ${activeTab === tab ? "active" : ""}`}
-                    onClick={() => {
-                      setModuleEntitySearch("");
-                      setActiveTab(tab);
-                      if (activeModule !== "dashboard") {
-                        setActiveEntityId("");
-                        setPreviewEntityId("");
-                      }
-                      if (activeModule === "monsters") {
-                        setSelectedBestiaryId("");
-                        setSelectedBestiaryMonster(null);
-                      }
-                      requestAnimationFrame(scrollContentToTop);
-                    }}
-                    type="button"
-                  >
-                    {tab}
-                  </button>
-                ))}
-              </div>
+              {!isItemsRail ? (
+                <div className="panel tabs">
+                  {tabs[activeModule].map((tab) => (
+                    <button
+                      key={tab}
+                      className={`tab ${activeTab === tab ? "active" : ""}`}
+                      onClick={() => {
+                        setModuleEntitySearch("");
+                        setActiveTab(tab);
+                        if (activeModule !== "dashboard") {
+                          setActiveEntityId("");
+                          setPreviewEntityId("");
+                        }
+                        if (activeModule === "monsters") {
+                          setSelectedBestiaryId("");
+                          setSelectedBestiaryMonster(null);
+                        }
+                        requestAnimationFrame(scrollContentToTop);
+                      }}
+                      type="button"
+                    >
+                      {tab}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
             </>
           )}
 
@@ -11354,7 +6750,7 @@ export default function App() {
                           <h2>Подготовь сцену перед стартом</h2>
                           <p className="copy">
                             {hasConfiguredCombat
-                              ? "Состав боя уже подготовлен. Можно поправить участников и потом запустить сцену с вводом инициативы."
+                              ? "Состав боя уже подготовлен. Открой подготовку, впиши инициативу рядом с участниками и стартуй бой сразу."
                               : "Сначала настрой состав боя: выбери игроков партии и добавь врагов, которых хочешь держать заготовленными для быстрого старта."}
                           </p>
                           {hasConfiguredCombat ? (
@@ -11415,8 +6811,8 @@ export default function App() {
                             <button className="ghost" onClick={openCombatSetupModal} type="button">
                               Настроить бой
                             </button>
-                            <button className="primary" disabled={!canStartConfiguredCombat} onClick={openPreparedCombatStart} type="button">
-                              Начать бой
+                            <button className="primary" disabled={!canStartConfiguredCombat} onClick={openCombatSetupModal} type="button">
+                              К старту боя
                             </button>
                           </div>
                         </div>
@@ -11602,6 +6998,8 @@ export default function App() {
                   </section>
                 )}
               </div>
+            ) : activeRailAlias === "items" ? (
+              <ItemsWorkspace campaignId={campaign.id} />
             ) : activeRailAlias === "events" ? (
               <EventsWorkspace
                 draft={eventEditorDraft}
@@ -11792,6 +7190,32 @@ export default function App() {
                     </button>
                     <button className="primary" onClick={() => openPreview(activeEntity.id)} type="button">
                       Открыть в preview
+                    </button>
+                  </div>
+                </section>
+
+                <section className="card entity-player-facing-panel">
+                  <div className="quest-story-head">
+                    <strong>Игроки видят</strong>
+                    <span className={badge("success")}>{activeEntity.playerContent?.trim() ? "Player-safe" : "Черновик нужен"}</span>
+                  </div>
+
+                  {activeEntityPlayerHighlights.length ? (
+                    <ul className="quest-bullet-list">
+                      {activeEntityPlayerHighlights.map((line, index) => (
+                        <li key={`${activeEntity.id}-player-highlight-${index}`}>{line}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="copy">
+                      Пока здесь пусто. Добавь короткое описание встречи, чтобы открыть его отдельной модалкой и спокойно зачитать
+                      игрокам.
+                    </p>
+                  )}
+
+                  <div className="entity-player-facing-actions">
+                    <button className="ghost fill" disabled={!activeEntity.playerContent?.trim()} onClick={() => openPlayerFacingView(activeEntity)} type="button">
+                      Показать
                     </button>
                   </div>
                 </section>
@@ -12016,66 +7440,20 @@ export default function App() {
                   <RewardSection kind={activeEntity.kind} rewardProfile={activeEntity.rewardProfile} />
                 ) : null}
 
-                {activeEntity.kind === "npc" || activeEntity.kind === "quest" ? (
-                  <>
-                    <CollapsibleSection
-                      key={`${activeEntity.id}-players`}
-                      hint="Что эта сущность может открыть партии без мастерских секретов"
-                      summary={
-                        <p className="copy">
-                          {activeEntity.playerContent?.trim()
-                            ? truncateInlineText(activeEntity.playerContent, 180)
-                            : "Пока нет отдельной версии для игроков. Её можно заполнить в редакторе сущности."}
-                        </p>
-                      }
-                      title="Информация для игроков"
-                    >
-                      {activeEntity.playerContent?.trim() ? (
-                        <div onContextMenu={(event) => handleActiveEntityContentContextMenu(activeEntity, "playerContent", event)}>
-                          <RichParagraphs
-                            content={activeEntity.playerContent}
-                            entityByTitle={entityByTitle}
-                            onMentionClick={openPreview}
-                          />
-                        </div>
-                      ) : (
-                        <p className="copy">
-                          Пока не подготовлена отдельная player-facing версия. Здесь удобно хранить то, что НПС или квест реально раскрывает группе.
-                        </p>
-                      )}
-                    </CollapsibleSection>
-
-                    <CollapsibleSection
-                      key={`${activeEntity.id}-knowledge`}
-                      hint="Полная версия для мастера: правда, скрытые мотивы, связи и последствия"
-                      summary={<p className="copy">{activeEntity.summary || activeEntity.content.slice(0, 180)}</p>}
-                      title="Информация для мастера"
-                    >
-                      <div onContextMenu={(event) => handleActiveEntityContentContextMenu(activeEntity, "content", event)}>
-                        <RichParagraphs
-                          content={activeEntity.content}
-                          entityByTitle={entityByTitle}
-                          onMentionClick={openPreview}
-                        />
-                      </div>
-                    </CollapsibleSection>
-                  </>
-                ) : (
-                  <CollapsibleSection
-                    key={`${activeEntity.id}-knowledge`}
-                    hint="Главная информация по сущности"
-                    summary={<p className="copy">{activeEntity.summary || activeEntity.content.slice(0, 180)}</p>}
-                    title="Knowledge Page"
-                  >
-                    <div onContextMenu={(event) => handleActiveEntityContentContextMenu(activeEntity, "content", event)}>
-                      <RichParagraphs
-                        content={activeEntity.content}
-                        entityByTitle={entityByTitle}
-                        onMentionClick={openPreview}
-                      />
-                    </div>
-                  </CollapsibleSection>
-                )}
+                <CollapsibleSection
+                  key={`${activeEntity.id}-knowledge`}
+                  hint="Полная версия для мастера: скрытые детали, связи, последствия и служебные заметки"
+                  summary={<p className="copy">{activeEntity.summary || activeEntity.content.slice(0, 180)}</p>}
+                  title="Информация для мастера"
+                >
+                  <div onContextMenu={(event) => handleActiveEntityContentContextMenu(activeEntity, "content", event)}>
+                    <RichParagraphs
+                      content={activeEntity.content}
+                      entityByTitle={entityByTitle}
+                      onMentionClick={openPreview}
+                    />
+                  </div>
+                </CollapsibleSection>
 
                 <CollapsibleSection
                   key={`${activeEntity.id}-related`}
@@ -12244,7 +7622,7 @@ export default function App() {
           </section>
         </main>
 
-        {!isCombatScreen ? (
+        {!isCombatScreen && !isItemsRail ? (
           <>
         <div
           className="resize-handle preview-handle"
@@ -12617,14 +7995,17 @@ export default function App() {
               onAdd={addEntityGalleryDraftItem}
               onChange={updateEntityGalleryDraftItem}
               onRemove={removeEntityGalleryDraftItem}
+              onUpload={uploadEntityGalleryDraftFile}
               title="Галерея сущности"
+              uploadDisabled={entityGalleryModalUploading}
+              uploadingIndex={entityGalleryModalUploading ? Number.parseInt(galleryUploadKey.split(":")[1] ?? "-1", 10) : null}
             />
 
             <div className="actions">
               <button className="ghost" onClick={requestEntityGalleryModalClose} type="button">
                 Отмена
               </button>
-              <button className="primary" disabled={saving} onClick={() => void saveEntityGallery()} type="button">
+              <button className="primary" disabled={saving || entityGalleryModalUploading} onClick={() => void saveEntityGallery()} type="button">
                 {saving ? "Сохраняю..." : "Сохранить галерею"}
               </button>
             </div>
@@ -12964,71 +8345,6 @@ export default function App() {
         </div>
       ) : null}
 
-      {preparedCombatStartModalOpen ? (
-        <div className="overlay" role="presentation">
-          <div className="panel palette form-modal prepared-combat-modal" onClick={(event) => event.stopPropagation()} role="dialog">
-            <div className="row">
-              <div>
-                <p className="eyebrow">Start Combat</p>
-                <strong>Введи инициативу для всех участников, и бой сразу стартует</strong>
-              </div>
-              <button className="ghost" onClick={requestPreparedCombatStartModalClose} type="button">
-                Esc
-              </button>
-            </div>
-
-            <section className="card section-card prepared-combat-card">
-              <div className="row muted">
-                <span>{campaignPreparedCombat?.title?.trim() || "Подготовленная сцена"}</span>
-                <span>{preparedCombatStartEntries.length} участников</span>
-              </div>
-
-              <div className="entry-editor-list prepared-combat-entry-list">
-                {preparedCombatStartEntries.map((entry) => {
-                  const linked = entityMap.get(entry.entityId);
-                  const linkedEntity =
-                    linked && (linked.kind === "player" || linked.kind === "npc" || linked.kind === "monster") ? linked : null;
-                  return (
-                    <article key={entry.key} className="entry-editor">
-                      <div className="row">
-                        <div className="row">
-                          {linkedEntity ? <EntityVisual entity={linkedEntity} variant="relation" /> : null}
-                          <div className="stack compact">
-                            <span className={badge(entry.side === "player" ? "success" : entry.entityKind === "monster" ? "danger" : "accent")}>
-                              {entry.side === "player" ? "Игрок" : kindTitle[entry.entityKind]}
-                            </span>
-                            <strong>{entry.title}</strong>
-                            <small>{linkedEntity?.summary || "Инициатива сохранится в живой трекер сразу после старта."}</small>
-                          </div>
-                        </div>
-                        <label className="field combat-start-initiative-field">
-                          <span>Init</span>
-                          <input
-                            className="input"
-                            onChange={(event) => updatePreparedCombatStartEntry(entry.key, Number.parseInt(event.target.value, 10) || 0)}
-                            type="number"
-                            value={entry.initiative}
-                          />
-                        </label>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </section>
-
-            <div className="actions">
-              <button className="ghost" onClick={requestPreparedCombatStartModalClose} type="button">
-                Отмена
-              </button>
-              <button className="primary" disabled={saving || !preparedCombatStartEntries.length} onClick={() => void startConfiguredCombat()} type="button">
-                {saving ? "Запускаю..." : "Начать бой"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
       {entityModalOpen ? (
         <div className="overlay" role="presentation">
           <div className="panel palette form-modal" onClick={(event) => event.stopPropagation()} role="dialog">
@@ -13138,6 +8454,26 @@ export default function App() {
                   placeholder="https://..."
                   value={entityForm.art?.url ?? ""}
                 />
+                <div className="actions entity-art-upload-actions">
+                  <label className={`ghost media-upload-trigger ${entityArtUploading ? "disabled" : ""}`}>
+                    <input
+                      accept={acceptedImageUploadTypes}
+                      className="media-upload-input"
+                      disabled={entityArtUploading}
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        event.target.value = "";
+                        if (!file) {
+                          return;
+                        }
+                        void uploadEntityArtFile(file);
+                      }}
+                      type="file"
+                    />
+                    {entityArtUploading ? "Загружаю..." : "Загрузить в приложение"}
+                  </label>
+                  <small className="field-hint">Можно оставить внешний URL или загрузить файл прямо в приложение.</small>
+                </div>
               </label>
               <label className="field">
                 <span>Alt-текст</span>
@@ -13217,8 +8553,8 @@ export default function App() {
                           </h2>
                           <p className="npc-type-line">
                             {entityForm.art?.url?.trim()
-                              ? "Ссылка сохранится в сущности и будет видна на странице, в preview и в боевом профиле."
-                              : "Можно вставить внешний URL вручную или оставить пустым до позднего редактирования."}
+                              ? "Изображение сохранится в сущности и будет видно в карточке, preview и боевом профиле."
+                              : "Можно вставить внешний URL вручную или загрузить файл прямо в приложение."}
                           </p>
                         </div>
                       </div>
@@ -13247,7 +8583,10 @@ export default function App() {
                     onAdd={addEntityGalleryItem}
                     onChange={updateEntityGalleryItem}
                     onRemove={removeEntityGalleryItem}
+                    onUpload={uploadEntityGalleryFile}
                     title="Галерея сущности"
+                    uploadDisabled={galleryUploadKey.startsWith("entity-form:")}
+                    uploadingIndex={galleryUploadKey.startsWith("entity-form:") ? Number.parseInt(galleryUploadKey.split(":")[1] ?? "-1", 10) : null}
                   />
                 </div>
               ) : null}
@@ -13513,11 +8852,24 @@ export default function App() {
                 />
               </label>
               <label className="field field-full">
-                <span>{entityForm.kind === "npc" || entityForm.kind === "quest" ? "Информация для мастера" : "Основной текст"}</span>
+                <span>Что зачитывается при встрече</span>
                 <small className="field-hint">
-                  {entityForm.kind === "npc" || entityForm.kind === "quest"
-                    ? "Полная GM-версия: скрытые мотивы, правда, тайные связи, последствия и всё, что игроки пока не знают. Выдели текст и нажми правой кнопкой, чтобы привязать его к другой сущности."
-                    : "Выдели текст, нажми правой кнопкой мыши и выбери `Создать ссылку`, чтобы привязать его к другой сущности."}
+                  Player-safe версия без мастерских секретов: речь NPC, описание первой встречи, слух, объявление о задании или любой текст,
+                  который удобно показать и зачитать игрокам.
+                </small>
+                <textarea
+                  className="input textarea textarea-lg"
+                  onContextMenu={(event) => handleEntityContentContextMenu("playerContent", event)}
+                  onChange={(event) => setEntityForm((current) => ({ ...current, playerContent: event.target.value }))}
+                  ref={entityPlayerContentRef}
+                  value={entityForm.playerContent ?? ""}
+                />
+              </label>
+              <label className="field field-full">
+                <span>Информация для мастера</span>
+                <small className="field-hint">
+                  Полная GM-версия сущности: скрытые мотивы, правда, тайные связи, последствия и служебные заметки. Выдели текст и нажми
+                  правой кнопкой, чтобы привязать его к другой сущности.
                 </small>
                 <textarea
                   className="input textarea textarea-lg"
@@ -13527,21 +8879,6 @@ export default function App() {
                   value={entityForm.content}
                 />
               </label>
-              {entityForm.kind === "npc" || entityForm.kind === "quest" ? (
-                <label className="field field-full">
-                  <span>Информация для игроков</span>
-                  <small className="field-hint">
-                    Сюда попадает то, что НПС реально расскажет, что можно услышать как слух, формулировка задания и безопасная версия правды без мастерских секретов.
-                  </small>
-                  <textarea
-                    className="input textarea textarea-lg"
-                    onContextMenu={(event) => handleEntityContentContextMenu("playerContent", event)}
-                    onChange={(event) => setEntityForm((current) => ({ ...current, playerContent: event.target.value }))}
-                    ref={entityPlayerContentRef}
-                    value={entityForm.playerContent ?? ""}
-                  />
-                </label>
-              ) : null}
             </div>
 
             {(entityForm.kind === "player" || entityForm.kind === "npc" || entityForm.kind === "monster") && entityForm.statBlock ? (
@@ -13982,7 +9319,7 @@ export default function App() {
                   Удалить
                 </button>
               ) : null}
-              <button className="primary" disabled={saving} onClick={() => void submitEntity()} type="button">
+              <button className="primary" disabled={saving || entityFormImageUploading} onClick={() => void submitEntity()} type="button">
                 {saving ? "Сохраняю..." : entitySubmitLabel}
               </button>
             </div>
@@ -14080,7 +9417,7 @@ export default function App() {
         </div>
       ) : null}
 
-      {playerFacingEntity && (playerFacingEntity.kind === "quest" || playerFacingEntity.kind === "npc") ? (
+      {playerFacingEntity ? (
         <PlayerFacingEntityModal entity={playerFacingEntity} onClose={requestPlayerFacingViewClose} />
       ) : null}
 

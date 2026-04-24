@@ -22,6 +22,7 @@ import type {
   LoginInput,
   SearchResult,
   StartCombatInput,
+  UploadImageResult,
   UpdateCampaignInput,
   UpdateCombatStateInput,
   UpdateCombatEntryInput,
@@ -70,6 +71,15 @@ const requestJson = async <T>(input: RequestInfo | URL, init?: RequestInit): Pro
   return ensureJson<T>(response);
 };
 
+const requestFormData = async <T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> => {
+  const response = await fetch(input, {
+    credentials: "include",
+    ...init
+  });
+
+  return ensureJson<T>(response);
+};
+
 export const createHttpApiClient = (baseUrl: string): ApiClient => ({
   async getSession() {
     return requestJson<AuthSessionResult>(`${baseUrl}/api/auth/session`);
@@ -107,6 +117,15 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => ({
   async importBestiaryMonster(campaignId, monsterId) {
     return requestJson<CreateEntityResult>(`${baseUrl}/api/campaigns/${campaignId}/bestiary/${monsterId}/import`, {
       method: "POST"
+    });
+  },
+  async uploadImage(campaignId, file) {
+    const formData = new FormData();
+    formData.set("file", file);
+
+    return requestFormData<UploadImageResult>(`${baseUrl}/api/campaigns/${campaignId}/uploads`, {
+      method: "POST",
+      body: formData
     });
   },
   async createCampaign(input) {
