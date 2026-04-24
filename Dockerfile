@@ -12,6 +12,7 @@ RUN npm ci
 
 COPY apps/web apps/web
 COPY packages packages
+COPY dnd_items_150_ru_official_basic_rules_2014.json ./
 
 RUN npm run build --workspace @shadow-edge/web
 
