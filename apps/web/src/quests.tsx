@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type {
   CombatThresholds,
   KnowledgeEntity,
@@ -6,6 +6,7 @@ import type {
   MonsterEntity,
   NpcEntity,
   PlayerEntity,
+  PlayerFacingCard,
   QuestEntity,
   QuickFactTone
 } from "@shadow-edge/shared-types";
@@ -17,6 +18,11 @@ import {
   rewardSummaryText,
   truncateInlineText
 } from "./app-shared";
+import {
+  extractPlainTextFromPlayerFacingHTML,
+  playerFacingPlainTextToHTML,
+  sanitizePlayerFacingHTML
+} from "./player-facing-rich";
 
 type CombatProfileEntity = PlayerEntity | NpcEntity | MonsterEntity;
 
@@ -1093,61 +1099,254 @@ export function QuestPreviewPanel({
   );
 }
 
-export function PlayerFacingEntityModal({
-  entity,
-  onClose
-}: {
+type PlayerFacingEntityModalProps = {
+  content?: string;
+  contentHtml?: string;
+  editable?: boolean;
+  editMode?: boolean;
   entity: KnowledgeEntity;
+  formatting?: boolean;
+  isNew?: boolean;
+  onAutoFormat?: (card: PlayerFacingCard) => Promise<PlayerFacingCard | void>;
+  onCancelEdit?: () => void;
   onClose: () => void;
-}) {
-  const sections = useMemo(() => parseQuestTextSections(entity.playerContent), [entity.playerContent]);
-  const fallbackLines = useMemo(() => splitQuestNarrative(entity.playerContent ?? "", 8), [entity.playerContent]);
+  onEnterEdit?: () => void;
+  onSave?: (card: PlayerFacingCard) => void | Promise<void>;
+  saving?: boolean;
+  title?: string;
+};
+
+export function PlayerFacingEntityModal({
+  content,
+  contentHtml,
+  editable = false,
+  editMode = false,
+  entity,
+  formatting = false,
+  isNew = false,
+  onAutoFormat,
+  onCancelEdit,
+  onClose,
+  onEnterEdit,
+  onSave,
+  saving = false,
+  title
+}: PlayerFacingEntityModalProps) {
+  const resolvedContent = content ?? entity.playerContent ?? "";
+  const resolvedTitle = title?.trim() || entity.title;
+  const resolvedContentHtml = useMemo(() => sanitizePlayerFacingHTML(contentHtml), [contentHtml]);
+  const sections = useMemo(() => parseQuestTextSections(resolvedContent), [resolvedContent]);
+  const fallbackLines = useMemo(() => splitQuestNarrative(resolvedContent, 8), [resolvedContent]);
+  const initialEditableHtml = useMemo(
+    () => resolvedContentHtml || playerFacingPlainTextToHTML(resolvedContent),
+    [resolvedContent, resolvedContentHtml]
+  );
+  const editorRef = useRef<HTMLDivElement | null>(null);
+  const [draftTitle, setDraftTitle] = useState(resolvedTitle);
+  const [draftContent, setDraftContent] = useState(resolvedContent);
+  const [draftContentHtml, setDraftContentHtml] = useState(initialEditableHtml);
+
+  useEffect(() => {
+    setDraftTitle(resolvedTitle);
+    setDraftContent(resolvedContent);
+    setDraftContentHtml(initialEditableHtml);
+  }, [initialEditableHtml, resolvedContent, resolvedTitle]);
+
+  useEffect(() => {
+    if (!editMode || !editorRef.current) {
+      return;
+    }
+
+    const nextHtml = draftContentHtml || playerFacingPlainTextToHTML(draftContent) || "<p></p>";
+    if (editorRef.current.innerHTML !== nextHtml) {
+      editorRef.current.innerHTML = nextHtml;
+    }
+  }, [draftContent, draftContentHtml, editMode]);
+
+  const readDraftCard = (): PlayerFacingCard => {
+    const liveHtml = editMode && editorRef.current ? sanitizePlayerFacingHTML(editorRef.current.innerHTML) : sanitizePlayerFacingHTML(draftContentHtml);
+    const normalizedHtml = liveHtml || (draftContent.trim() ? playerFacingPlainTextToHTML(draftContent) : "");
+    const normalizedContent = draftContent.trim() || extractPlainTextFromPlayerFacingHTML(normalizedHtml);
+
+    return {
+      title: draftTitle.trim(),
+      content: normalizedContent,
+      contentHtml: normalizedHtml || undefined
+    };
+  };
+
+  const syncDraftCard = (card: PlayerFacingCard) => {
+    const normalizedHtml = sanitizePlayerFacingHTML(card.contentHtml) || playerFacingPlainTextToHTML(card.content);
+    const normalizedContent = card.content.trim() || extractPlainTextFromPlayerFacingHTML(normalizedHtml);
+    setDraftTitle(card.title);
+    setDraftContent(normalizedContent);
+    setDraftContentHtml(normalizedHtml);
+  };
+
+  const initialDraftCard = useMemo<PlayerFacingCard>(
+    () => ({
+      title: resolvedTitle,
+      content: resolvedContent,
+      contentHtml: initialEditableHtml || undefined
+    }),
+    [initialEditableHtml, resolvedContent, resolvedTitle]
+  );
+  const liveDraftCard = readDraftCard();
+  const hasDraftChanges =
+    draftTitle.trim() !== initialDraftCard.title.trim() ||
+    liveDraftCard.content !== initialDraftCard.content.trim() ||
+    (liveDraftCard.contentHtml ?? "") !== (initialDraftCard.contentHtml ?? "");
+
+  const handleEditorInput = () => {
+    if (!editorRef.current) {
+      return;
+    }
+
+    const nextHtml = sanitizePlayerFacingHTML(editorRef.current.innerHTML);
+    setDraftContentHtml(nextHtml);
+    setDraftContent(extractPlainTextFromPlayerFacingHTML(nextHtml));
+  };
+
+  const handleRequestClose = () => {
+    if (editMode && hasDraftChanges && !window.confirm("Закрыть карточку без сохранения?")) {
+      return;
+    }
+
+    onClose();
+  };
+
+  const handleCancelEdit = () => {
+    if (hasDraftChanges && !window.confirm("Отменить изменения в карточке?")) {
+      return;
+    }
+
+    syncDraftCard(initialDraftCard);
+    onCancelEdit?.();
+  };
+
+  const handleSave = async () => {
+    if (!onSave) {
+      return;
+    }
+
+    const nextCard = readDraftCard();
+    syncDraftCard(nextCard);
+    await onSave(nextCard);
+  };
+
+  const handleAutoFormat = async () => {
+    if (!onAutoFormat) {
+      return;
+    }
+
+    try {
+      const formatted = await onAutoFormat(readDraftCard());
+      if (formatted) {
+        syncDraftCard(formatted);
+      }
+    } catch {
+      // Parent already reports the error to the shared UI notice area.
+    }
+  };
 
   return (
     <div className="overlay" role="presentation">
       <div className="panel palette player-facing-modal" onClick={(event) => event.stopPropagation()} role="dialog">
-        <div className="stack wide">
-          <div className="row">
+        <div className="stack wide player-facing-modal-layout">
+          <div className="row player-facing-modal-head">
             <div>
-              <p className="eyebrow">Текст для игроков</p>
-              <h2>{entity.title}</h2>
-              <p className="copy">{entity.subtitle || entity.summary}</p>
+              <p className="eyebrow">{editMode ? (isNew ? "Новая карточка игроков" : "Редактирование карточки") : "Текст для игроков"}</p>
+              {editMode ? (
+                <input
+                  className="input player-facing-title-input"
+                  onChange={(event) => setDraftTitle(event.target.value)}
+                  placeholder="Название карточки"
+                  value={draftTitle}
+                />
+              ) : (
+                <h2>{resolvedTitle}</h2>
+              )}
+              <p className="copy">{resolvedTitle !== entity.title ? entity.title : entity.subtitle || entity.summary}</p>
             </div>
-            <button className="ghost" onClick={onClose} type="button">
-              Закрыть
-            </button>
+
+            <div className="player-facing-modal-toolbar">
+              {editable && !editMode ? (
+                <button className="ghost fill" onClick={onEnterEdit} type="button">
+                  Редактировать
+                </button>
+              ) : null}
+              {editMode ? (
+                <button className="ghost" disabled={formatting || saving} onClick={() => void handleAutoFormat()} type="button">
+                  {formatting ? "AI форматирует..." : "AI форматирование"}
+                </button>
+              ) : null}
+              {editMode ? (
+                <button className="ghost fill" disabled={saving || formatting} onClick={() => void handleSave()} type="button">
+                  {saving ? "Сохраняем..." : "Сохранить"}
+                </button>
+              ) : null}
+              {editMode ? (
+                <button className="ghost" disabled={saving} onClick={handleCancelEdit} type="button">
+                  Отмена
+                </button>
+              ) : null}
+              <button className="ghost" onClick={handleRequestClose} type="button">
+                Закрыть
+              </button>
+            </div>
           </div>
 
           <section className="card section-card player-facing-card">
-            {sections.length ? (
-              <div className="player-facing-sections">
-                {sections.map((section, index) => {
-                  const lines = collectQuestSectionLines(section, 12);
-                  return (
-                    <article key={`${entity.id}-player-section-${section.title}-${index}`} className="player-facing-section">
-                      <strong>{section.title}</strong>
-                      {lines.length > 1 ? (
-                        <ul className="quest-bullet-list">
-                          {lines.map((line) => (
-                            <li key={`${entity.id}-player-line-${line}`}>{line}</li>
-                          ))}
-                        </ul>
-                      ) : lines[0] ? (
-                        <p>{lines[0]}</p>
-                      ) : null}
-                    </article>
-                  );
-                })}
-              </div>
-            ) : fallbackLines.length ? (
-              <ul className="quest-bullet-list">
-                {fallbackLines.map((line) => (
-                  <li key={`${entity.id}-player-fallback-${line}`}>{line}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="copy">Отдельная версия для игроков пока не заполнена.</p>
-            )}
+            <div className="player-facing-scroll">
+              {editMode ? (
+                <div className="player-facing-editor-layout">
+                  <p className="copy player-facing-editor-copy">
+                    Редактируй карточку прямо в том виде, в котором будешь её показывать игрокам. Можно вставлять HTML со стилями и потом
+                    дооформить через AI.
+                  </p>
+                  <div
+                    className="player-facing-rich player-facing-rich-editor"
+                    contentEditable
+                    onInput={handleEditorInput}
+                    ref={editorRef}
+                    suppressContentEditableWarning
+                  />
+                </div>
+              ) : resolvedContentHtml ? (
+                <div
+                  className="player-facing-rich"
+                  dangerouslySetInnerHTML={{ __html: resolvedContentHtml }}
+                />
+              ) : sections.length ? (
+                <div className="player-facing-sections">
+                  {sections.map((section, index) => {
+                    const lines = collectQuestSectionLines(section, 12);
+                    return (
+                      <article key={`${entity.id}-player-section-${section.title}-${index}`} className="player-facing-section">
+                        <strong>{section.title}</strong>
+                        {lines.length > 1 ? (
+                          <ul className="quest-bullet-list">
+                            {lines.map((line) => (
+                              <li key={`${entity.id}-player-line-${line}`}>{line}</li>
+                            ))}
+                          </ul>
+                        ) : lines[0] ? (
+                          <p>{lines[0]}</p>
+                        ) : null}
+                      </article>
+                    );
+                  })}
+                </div>
+              ) : fallbackLines.length ? (
+                <ul className="quest-bullet-list">
+                  {fallbackLines.map((line) => (
+                    <li key={`${entity.id}-player-fallback-${line}`}>{line}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="copy">Отдельная версия для игроков пока не заполнена.</p>
+              )}
+            </div>
           </section>
         </div>
       </div>

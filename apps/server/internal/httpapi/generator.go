@@ -12,6 +12,7 @@ type AIOptions struct {
 type entityGenerator interface {
 	Generate(campaign campaignData, input generateEntityDraftInput) (generateEntityDraftResult, error)
 	GenerateWorldEvent(campaign campaignData, input generateWorldEventInput) (generateWorldEventResult, error)
+	FormatPlayerFacingCard(campaign campaignData, input formatPlayerFacingCardInput) (formatPlayerFacingCardResult, error)
 }
 
 type encounterGenerator interface {
@@ -131,6 +132,22 @@ func (generator scaffoldGenerator) GenerateWorldEvent(campaign campaignData, inp
 		Provider: generator.config.activeProvider,
 		Notes:    append(generator.buildNotes(), "Короткое событие собрано локальным scaffold-провайдером."),
 		Event:    normalizeWorldEventDraftInput(campaign, input, buildWorldEventDraft(campaign, input)),
+	}, nil
+}
+
+func (generator scaffoldGenerator) FormatPlayerFacingCard(_ campaignData, input formatPlayerFacingCardInput) (formatPlayerFacingCardResult, error) {
+	card := normalizeFormattedPlayerFacingCard(playerFacingCard{
+		Title:       strings.TrimSpace(input.Title),
+		Content:     strings.TrimSpace(input.Content),
+		ContentHTML: firstNonEmpty(strings.TrimSpace(input.ContentHTML), buildScaffoldPlayerFacingHTML(input.Title, input.Content)),
+	})
+
+	return formatPlayerFacingCardResult{
+		Provider: generator.config.activeProvider,
+		Notes: append(generator.buildNotes(),
+			"Оформление собрано локальным formatter-провайдером без внешнего AI.",
+		),
+		Card: card,
 	}, nil
 }
 

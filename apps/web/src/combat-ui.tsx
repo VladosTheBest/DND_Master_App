@@ -102,7 +102,15 @@ const combatEntryConditionTone = (entry: CombatEntry): QuickFactTone => {
 
 export const combatVictoryLoserLabel = (entry: CombatEntry) => {
   if (entry.challenge) {
-    return `CR ${entry.challenge}`;
+    const challengeLabel = entry.challenge.trim();
+    const prefixedChallenge = challengeLabel.toLowerCase().startsWith("cr") ? challengeLabel : `CR ${challengeLabel}`;
+    const includesExperience = /\bxp\b/i.test(challengeLabel);
+
+    if (!includesExperience && entry.experience > 0) {
+      return `${prefixedChallenge} (${entry.experience} XP)`;
+    }
+
+    return prefixedChallenge;
   }
   if (entry.role) {
     return entry.role;

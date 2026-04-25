@@ -62,6 +62,14 @@ func ensureKnowledgeEntities(entities []knowledgeEntity) []knowledgeEntity {
 		if entities[index].Tags == nil {
 			entities[index].Tags = []string{}
 		}
+		entities[index].PlayerCards = normalizePlayerFacingCards(
+			entities[index].Kind,
+			entities[index].PlayerCards,
+			entities[index].PlayerContent,
+		)
+		if entities[index].Kind == "location" && strings.TrimSpace(entities[index].PlayerContent) == "" && len(entities[index].PlayerCards) > 0 {
+			entities[index].PlayerContent = entities[index].PlayerCards[0].Content
+		}
 		if entities[index].QuickFacts == nil || len(entities[index].QuickFacts) == 0 {
 			entities[index].QuickFacts = defaultQuickFacts(entities[index])
 		}
@@ -75,6 +83,51 @@ func ensureKnowledgeEntities(entities []knowledgeEntity) []knowledgeEntity {
 	}
 
 	return entities
+}
+
+func normalizePlayerFacingCards(kind string, cards []playerFacingCard, legacyContent string) []playerFacingCard {
+	result := make([]playerFacingCard, 0, len(cards))
+	for _, card := range cards {
+		normalizedCard := normalizeFormattedPlayerFacingCard(card)
+		if normalizedCard.Title == "" && normalizedCard.Content == "" && normalizedCard.ContentHTML == "" {
+			continue
+		}
+		if normalizedCard.Content == "" {
+			continue
+		}
+		result = append(result, normalizedCard)
+	}
+
+	for index := range result {
+		if result[index].Title == "" {
+			result[index].Title = defaultPlayerFacingCardTitle(kind, index)
+		}
+	}
+
+	if len(result) == 0 && kind == "location" {
+		trimmedLegacy := strings.TrimSpace(legacyContent)
+		if trimmedLegacy != "" {
+			return []playerFacingCard{
+				{
+					Title:   defaultPlayerFacingCardTitle(kind, 0),
+					Content: trimmedLegacy,
+				},
+			}
+		}
+	}
+
+	if len(result) == 0 {
+		return []playerFacingCard{}
+	}
+
+	return result
+}
+
+func defaultPlayerFacingCardTitle(kind string, index int) string {
+	if kind == "location" && index == 0 {
+		return "Игроки видят"
+	}
+	return "Карточка " + strconv.Itoa(index+1)
 }
 
 func ensureWorldEvents(events []worldEvent, locations []knowledgeEntity, fallbackDate string) []worldEvent {
@@ -212,6 +265,12 @@ func ensureCombatEntries(entries []combatEntry) []combatEntry {
 			} else {
 				entries[index].ArmorClass = "10"
 			}
+		}
+		if challenge := challengeForCombatEntry(entries[index]); challenge != "" {
+			entries[index].Challenge = challenge
+		}
+		if entries[index].Experience <= 0 {
+			entries[index].Experience = experienceForCombatEntry(entries[index])
 		}
 		entries[index].Defeated = entries[index].Defeated || (entries[index].MaxHitPoints > 0 && entries[index].CurrentHitPoints <= 0)
 	}

@@ -92,27 +92,61 @@ func findKnowledgeEntity(campaign campaignData, entityID string) (knowledgeEntit
 }
 
 func parseChallengeExperience(challenge string) int {
+	token := parseChallengeToken(challenge)
+	if token != "" {
+		if xp, ok := challengeExperienceTable[token]; ok {
+			return xp
+		}
+	}
+
 	trimmed := strings.TrimSpace(challenge)
 	if trimmed == "" {
 		return 0
 	}
 
-	token := trimmed
+	fallbackToken := trimmed
 	for _, separator := range []string{" ", "("} {
-		if before, _, ok := strings.Cut(token, separator); ok {
-			token = before
+		if before, _, ok := strings.Cut(fallbackToken, separator); ok {
+			fallbackToken = before
 		}
 	}
 
-	token = strings.TrimSpace(strings.TrimPrefix(strings.ToLower(token), "cr"))
-	token = strings.TrimSpace(strings.TrimPrefix(token, "по"))
-	token = strings.TrimSpace(token)
+	fallbackToken = strings.TrimSpace(strings.TrimPrefix(strings.ToLower(fallbackToken), "cr"))
+	fallbackToken = strings.TrimSpace(strings.TrimPrefix(fallbackToken, "по"))
+	fallbackToken = strings.TrimSpace(fallbackToken)
 
-	if xp, ok := challengeExperienceTable[token]; ok {
+	if xp, ok := challengeExperienceTable[fallbackToken]; ok {
 		return xp
 	}
 
 	return 0
+}
+
+func parseChallengeToken(challenge string) string {
+	token := strings.TrimSpace(strings.ToLower(challenge))
+	if token == "" {
+		return ""
+	}
+
+	for _, prefix := range []string{"cr", "challenge", "challenge rating", "опасность", "рїрѕ"} {
+		if strings.HasPrefix(token, prefix) {
+			token = strings.TrimSpace(strings.TrimPrefix(token, prefix))
+			break
+		}
+	}
+
+	if before, _, ok := strings.Cut(token, "("); ok {
+		token = before
+	}
+
+	token = strings.TrimSpace(token)
+	fields := strings.Fields(token)
+	if len(fields) > 0 {
+		token = fields[0]
+	}
+
+	token = strings.TrimSpace(strings.Trim(token, ":.-"))
+	return token
 }
 
 func parseMaximumHitPoints(statBlock *npcStatBlock) int {
@@ -277,6 +311,7 @@ func buildCombatEntry(entity knowledgeEntity, sequence int, initiative int) comb
 	if sequence > 1 {
 		title = fmt.Sprintf("%s #%d", entity.Title, sequence)
 	}
+	challenge := challengeForEntityCombat(entity)
 
 	side := "enemy"
 	if entity.Kind == "player" {
@@ -293,8 +328,8 @@ func buildCombatEntry(entity knowledgeEntity, sequence int, initiative int) comb
 		Role:             entity.Role,
 		ArmorClass:       armorClassForCombat(entity.StatBlock),
 		Initiative:       initiative,
-		Challenge:        challengeForCombat(entity.StatBlock),
-		Experience:       experienceForEntity(entity),
+		Challenge:        challenge,
+		Experience:       parseChallengeExperience(challenge),
 		MaxHitPoints:     maxHitPoints,
 		CurrentHitPoints: maxHitPoints,
 		Defeated:         false,
@@ -442,18 +477,58 @@ func armorClassForCombat(statBlock *npcStatBlock) string {
 	return strings.TrimSpace(statBlock.ArmorClass)
 }
 
-func challengeForCombat(statBlock *npcStatBlock) string {
-	if statBlock == nil {
-		return ""
+func challengeForEntityCombat(entity knowledgeEntity) string {
+	if entity.StatBlock != nil {
+		if challenge := strings.TrimSpace(entity.StatBlock.Challenge); challenge != "" {
+			return challenge
+		}
 	}
-	return strings.TrimSpace(statBlock.Challenge)
+
+	if challenge := challengeFromQuickFacts(entity.QuickFacts); challenge != "" {
+		return challenge
+	}
+
+	return strings.TrimSpace(entity.Danger)
 }
 
 func experienceForEntity(entity knowledgeEntity) int {
-	if entity.StatBlock == nil {
-		return 0
+	return parseChallengeExperience(challengeForEntityCombat(entity))
+}
+
+func challengeForCombatEntry(entry combatEntry) string {
+	if challenge := strings.TrimSpace(entry.Challenge); challenge != "" {
+		return challenge
 	}
-	return parseChallengeExperience(entity.StatBlock.Challenge)
+	if entry.StatBlock != nil {
+		return strings.TrimSpace(entry.StatBlock.Challenge)
+	}
+	return ""
+}
+
+func experienceForCombatEntry(entry combatEntry) int {
+	return parseChallengeExperience(challengeForCombatEntry(entry))
+}
+
+func challengeFromQuickFacts(facts []quickFact) string {
+	for _, fact := range facts {
+		if !isChallengeQuickFactLabel(fact.Label) {
+			continue
+		}
+		if value := strings.TrimSpace(fact.Value); value != "" {
+			return value
+		}
+	}
+	return ""
+}
+
+func isChallengeQuickFactLabel(label string) bool {
+	normalized := strings.ReplaceAll(strings.ToLower(strings.TrimSpace(label)), " ", "")
+	switch normalized {
+	case "cr", "cr/xp", "challenge", "challengerating", "опасность", "опасность/cr", "cr/опасность":
+		return true
+	default:
+		return false
+	}
 }
 
 func targetThresholdValue(thresholds combatThresholds, difficulty string) int {

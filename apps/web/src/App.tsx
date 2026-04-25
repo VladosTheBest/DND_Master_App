@@ -95,6 +95,11 @@ import {
   pickRandomTrackIndex,
   resolvePlaylistSource
 } from "./playback";
+import {
+  extractPlainTextFromPlayerFacingHTML,
+  preparePlayerFacingHTMLImport,
+  sanitizePlayerFacingHTML
+} from "./player-facing-rich";
 import { createApiClient } from "@shadow-edge/api-client";
 import type {
   ActiveCombat,
@@ -116,6 +121,7 @@ import type {
   CreateEntityResult,
   EntityKind,
   FinishCombatResult,
+  FormatPlayerFacingCardResult,
   GalleryImage,
   GenerateEntityDraftResult,
   GenerateCombatResult,
@@ -130,6 +136,7 @@ import type {
   NpcEntity,
   NpcStatBlock,
   PlayerEntity,
+  PlayerFacingCard,
   PlaylistTrack,
   PreparedCombatItem,
   PreparedCombatPlan,
@@ -256,6 +263,12 @@ const emptyWorldEventInput = (): WorldEventInput => ({
   origin: "manual"
 });
 
+const createEmptyPlayerFacingCard = (title = ""): PlayerFacingCard => ({
+  title,
+  content: "",
+  contentHtml: ""
+});
+
 const emptyEntityForm = (kind: EntityKind = "location"): CreateEntityInput => ({
   kind,
   title: "",
@@ -263,6 +276,7 @@ const emptyEntityForm = (kind: EntityKind = "location"): CreateEntityInput => ({
   summary: "",
   content: "",
   playerContent: "",
+  playerCards: kind === "location" ? [] : undefined,
   tags: [],
   playlist: [],
   gallery: [],
@@ -297,6 +311,15 @@ type RailAlias = "items" | "events" | "notes";
 type RailNavKey = "dashboard" | "locations" | "players" | "npcs" | "monsters" | "quests" | RailAlias;
 type EntityTextField = "content" | "playerContent";
 type LinkableTextField = EntityTextField | "noteContent";
+type PlayerFacingViewState = {
+  entityId: string;
+  title?: string;
+  content: string;
+  contentHtml?: string;
+  cardIndex?: number;
+  editMode?: boolean;
+  isNew?: boolean;
+};
 type LoreNoteEntity = Extract<KnowledgeEntity, { kind: "lore" }>;
 type EntityLinkSelection = {
   mode: "editor" | "entity" | "noteEditor";
@@ -421,6 +444,7 @@ const createEmptyGalleryImage = (): GalleryImage => ({
 });
 
 const acceptedImageUploadTypes = "image/png,image/jpeg,image/webp,image/gif";
+const acceptedPlayerFacingHtmlUploadTypes = ".html,.htm,text/html";
 
 const imageTitleFromFileName = (fileName: string) => {
   const trimmed = fileName.trim();
@@ -607,6 +631,55 @@ const clonePlaylistTracks = (tracks?: PlaylistTrack[]): PlaylistTrack[] | undefi
 const cloneGalleryImages = (items?: GalleryImage[]): GalleryImage[] | undefined =>
   items ? items.map((item) => ({ ...item })) : undefined;
 
+const clonePlayerFacingCards = (cards?: PlayerFacingCard[]): PlayerFacingCard[] | undefined =>
+  cards ? cards.map((card) => ({ ...card })) : undefined;
+
+const defaultPlayerFacingCardTitle = (kind: EntityKind, index: number) =>
+  kind === "location" && index === 0 ? "Игроки видят" : `Карточка ${index + 1}`;
+
+const normalizePlayerFacingCardsForClient = (
+  kind: EntityKind,
+  cards?: PlayerFacingCard[],
+  legacyContent?: string
+): PlayerFacingCard[] => {
+  const normalized = (cards ?? [])
+    .map((card) => ({
+      title: card.title.trim(),
+      content: card.content.trim(),
+      contentHtml: sanitizePlayerFacingHTML(card.contentHtml)
+    }))
+    .map((card) => ({
+      ...card,
+      content: card.content || extractPlainTextFromPlayerFacingHTML(card.contentHtml)
+    }))
+    .filter((card) => card.title || card.content || card.contentHtml)
+    .filter((card) => card.content)
+    .map((card, index) => ({
+      title: card.title || defaultPlayerFacingCardTitle(kind, index),
+      content: card.content,
+      contentHtml: card.contentHtml || undefined
+    }));
+
+  if (!normalized.length && kind === "location" && legacyContent?.trim()) {
+    return [
+      {
+        title: defaultPlayerFacingCardTitle(kind, 0),
+        content: legacyContent.trim(),
+        contentHtml: ""
+      }
+    ];
+  }
+
+  return normalized;
+};
+
+const summarizePlayerFacingContent = (value?: string, maxItems = 4) => {
+  const sections = parseQuestTextSections(value);
+  const primarySection = sections.find((section) => section.body.length);
+  const sectionLines = collectQuestSectionLines(primarySection, maxItems);
+  return sectionLines.length ? sectionLines : splitQuestNarrative(value ?? "", maxItems);
+};
+
 const normalizeRewardProfileForClient = (profile?: MonsterRewardProfile): MonsterRewardProfile | undefined =>
   profile
     ? {
@@ -628,6 +701,7 @@ const normalizeEntityForClient = <T extends KnowledgeEntity>(entity: T): T => ({
   tags: entity.tags ?? [],
   quickFacts: entity.quickFacts ?? [],
   related: entity.related ?? [],
+  playerCards: normalizePlayerFacingCardsForClient(entity.kind, entity.playerCards, entity.playerContent),
   playlist: entity.playlist ?? [],
   gallery: entity.gallery ?? [],
   ...(("rewardProfile" in entity
@@ -783,6 +857,7 @@ const entityToForm = (entity: KnowledgeEntity): CreateEntityInput => ({
   summary: entity.summary,
   content: entity.content,
   playerContent: entity.playerContent,
+  playerCards: clonePlayerFacingCards(normalizePlayerFacingCardsForClient(entity.kind, entity.playerCards, entity.playerContent)) ?? [],
   tags: [...(entity.tags ?? [])],
   playlist: clonePlaylistTracks(entity.playlist) ?? [],
   gallery: cloneGalleryImages(entity.gallery) ?? [],
@@ -813,6 +888,44 @@ const entityToForm = (entity: KnowledgeEntity): CreateEntityInput => ({
 const sanitizeOptionalText = (value?: string) => {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
+};
+
+const sanitizeSinglePlayerFacingCard = (kind: EntityKind, card: PlayerFacingCard, index: number): PlayerFacingCard | null => {
+  const title = card.title.trim();
+  const contentHtml = sanitizePlayerFacingHTML(card.contentHtml);
+  const content = card.content.trim() || extractPlainTextFromPlayerFacingHTML(contentHtml);
+
+  if (!title && !content && !contentHtml) {
+    return null;
+  }
+
+  if (!content) {
+    return null;
+  }
+
+  return {
+    title: title || defaultPlayerFacingCardTitle(kind, index),
+    content,
+    contentHtml: contentHtml || undefined
+  };
+};
+
+const sanitizePlayerFacingCards = (kind: EntityKind, cards: PlayerFacingCard[] = [], legacyContent?: string) => {
+  const normalized = cards
+    .map((card, index) => sanitizeSinglePlayerFacingCard(kind, card, index))
+    .filter((card): card is PlayerFacingCard => Boolean(card));
+
+  if (!normalized.length && kind === "location" && legacyContent?.trim()) {
+    return [
+      {
+        title: defaultPlayerFacingCardTitle(kind, 0),
+        content: legacyContent.trim(),
+        contentHtml: undefined
+      }
+    ];
+  }
+
+  return normalized;
 };
 
 const sanitizeTags = (tags: string[]) => {
@@ -1035,13 +1148,17 @@ const sanitizeNpcStatBlock = (statBlock?: NpcStatBlock): NpcStatBlock | undefine
 };
 
 const serializeEntityForm = (form: CreateEntityInput): CreateEntityInput => {
+  const playerCards = sanitizePlayerFacingCards(form.kind, form.playerCards ?? [], form.playerContent);
+  const playerContent =
+    form.kind === "location" && playerCards.length ? playerCards[0].content : sanitizeOptionalText(form.playerContent);
   const common = {
     kind: form.kind,
     title: form.title.trim(),
     subtitle: form.subtitle.trim(),
     summary: form.summary.trim(),
     content: form.content.trim(),
-    playerContent: sanitizeOptionalText(form.playerContent),
+    playerContent,
+    playerCards,
     tags: sanitizeTags(form.tags ?? []),
     playlist: sanitizePlaylistTracks(form.playlist ?? []),
     gallery: sanitizeGalleryImages(form.gallery ?? []),
@@ -1826,7 +1943,9 @@ export default function App() {
   const [combatPlaylistModalOpen, setCombatPlaylistModalOpen] = useState(false);
   const [entityPlaylistModalOpen, setEntityPlaylistModalOpen] = useState(false);
   const [entityGalleryModalOpen, setEntityGalleryModalOpen] = useState(false);
-  const [playerFacingEntityId, setPlayerFacingEntityId] = useState("");
+  const [playerFacingView, setPlayerFacingView] = useState<PlayerFacingViewState | null>(null);
+  const [playerFacingModalSaving, setPlayerFacingModalSaving] = useState(false);
+  const [playerFacingModalFormatting, setPlayerFacingModalFormatting] = useState(false);
   const [entityModalMode, setEntityModalMode] = useState<EntityModalMode>("create");
   const [editingEntityId, setEditingEntityId] = useState("");
   const [entityModalSourceNpcId, setEntityModalSourceNpcId] = useState("");
@@ -1870,6 +1989,7 @@ export default function App() {
   const [galleryUploadKey, setGalleryUploadKey] = useState("");
   const [draftPrompt, setDraftPrompt] = useState("");
   const [draftNotes, setDraftNotes] = useState<string[]>([]);
+  const [playerCardFormattingIndex, setPlayerCardFormattingIndex] = useState<number | null>(null);
   const [randomEventLocationId, setRandomEventLocationId] = useState("");
   const [randomEventType, setRandomEventType] = useState<WorldEventType>("social");
   const [randomEventPrompt, setRandomEventPrompt] = useState("");
@@ -1941,6 +2061,7 @@ export default function App() {
   const contentRef = useRef<HTMLElement | null>(null);
   const entityContentRef = useRef<HTMLTextAreaElement | null>(null);
   const entityPlayerContentRef = useRef<HTMLTextAreaElement | null>(null);
+  const playerCardImportInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const noteEditorContentRef = useRef<HTMLTextAreaElement | null>(null);
   const resizeRef = useRef<{ key: ResizeKey; startX: number; startWidth: number } | null>(null);
   const lastAppViewRef = useRef<{ module: ModuleId; tab: string }>({ module: "dashboard", tab: "Snapshot" });
@@ -2931,13 +3052,146 @@ export default function App() {
     0
   );
   const playerFacingEntity =
-    playerFacingEntityId && entityMap.has(playerFacingEntityId) ? entityMap.get(playerFacingEntityId) ?? null : null;
-  const activeEntityPlayerSections = useMemo(() => parseQuestTextSections(activeEntity?.playerContent), [activeEntity?.playerContent]);
-  const activeEntityPlayerHighlights = useMemo(() => {
-    const primarySection = activeEntityPlayerSections.find((section) => section.body.length);
-    const sectionLines = collectQuestSectionLines(primarySection, 4);
-    return sectionLines.length ? sectionLines : splitQuestNarrative(activeEntity?.playerContent ?? "", 4);
-  }, [activeEntity?.playerContent, activeEntityPlayerSections]);
+    playerFacingView?.entityId && entityMap.has(playerFacingView.entityId) ? entityMap.get(playerFacingView.entityId) ?? null : null;
+  const activeEntityPlayerCards = useMemo(
+    () => (activeEntity ? normalizePlayerFacingCardsForClient(activeEntity.kind, activeEntity.playerCards, activeEntity.playerContent) : []),
+    [activeEntity]
+  );
+  const activeEntityPlayerHighlights = useMemo(() => summarizePlayerFacingContent(activeEntity?.playerContent, 4), [activeEntity?.playerContent]);
+  const enterPlayerFacingEditMode = () => {
+    if (!playerFacingView || !playerFacingEntity || playerFacingEntity.kind !== "location") {
+      return;
+    }
+
+    const cardIndex = playerFacingView.cardIndex ?? 0;
+    const cards = normalizePlayerFacingCardsForClient(
+      playerFacingEntity.kind,
+      playerFacingEntity.playerCards,
+      playerFacingEntity.playerContent
+    );
+    const card =
+      cards[cardIndex] ??
+      createEmptyPlayerFacingCard(defaultPlayerFacingCardTitle(playerFacingEntity.kind, cardIndex));
+
+    openPlayerFacingEditor(playerFacingEntity, card, cardIndex, Boolean(playerFacingView.isNew));
+  };
+
+  const cancelPlayerFacingEditMode = () => {
+    if (!playerFacingView || !playerFacingEntity || playerFacingEntity.kind !== "location") {
+      closePlayerFacingView();
+      return;
+    }
+
+    if (playerFacingView.isNew) {
+      closePlayerFacingView();
+      return;
+    }
+
+    const cardIndex = playerFacingView.cardIndex ?? 0;
+    const cards = normalizePlayerFacingCardsForClient(
+      playerFacingEntity.kind,
+      playerFacingEntity.playerCards,
+      playerFacingEntity.playerContent
+    );
+    const card = cards[cardIndex];
+
+    if (!card) {
+      closePlayerFacingView();
+      return;
+    }
+
+    openPlayerFacingView(playerFacingEntity, card, { cardIndex, editMode: false, isNew: false });
+  };
+
+  const savePlayerFacingCardFromModal = async (card: PlayerFacingCard) => {
+    if (!activeCampaignId || !playerFacingEntity || playerFacingEntity.kind !== "location") {
+      return;
+    }
+
+    const cardIndex = playerFacingView?.cardIndex ?? normalizePlayerFacingCardsForClient(
+      playerFacingEntity.kind,
+      playerFacingEntity.playerCards,
+      playerFacingEntity.playerContent
+    ).length;
+    const normalizedCard = sanitizeSinglePlayerFacingCard(playerFacingEntity.kind, card, cardIndex);
+
+    if (!normalizedCard) {
+      setBootError("Добавь текст в карточку, а потом уже сохраняй её.");
+      return;
+    }
+
+    try {
+      setPlayerFacingModalSaving(true);
+      setBootError("");
+      const nextForm = entityToForm(playerFacingEntity);
+      const nextCards = [...(nextForm.playerCards ?? [])];
+
+      if (cardIndex >= nextCards.length) {
+        nextCards.push(normalizedCard);
+      } else {
+        nextCards[cardIndex] = normalizedCard;
+      }
+
+      nextForm.playerCards = nextCards;
+      const result = await api.updateEntity(activeCampaignId, playerFacingEntity.id, serializeEntityForm(nextForm));
+      hydrateCampaign(result.campaign, result.entity.id);
+      setPreviewEntityId(result.entity.id);
+
+      const updatedEntity = result.entity.kind === "location" ? result.entity : playerFacingEntity;
+      const updatedCards = normalizePlayerFacingCardsForClient(
+        updatedEntity.kind,
+        updatedEntity.playerCards,
+        updatedEntity.playerContent
+      );
+      const resolvedIndex = Math.min(cardIndex, Math.max(updatedCards.length - 1, 0));
+      openPlayerFacingView(updatedEntity, updatedCards[resolvedIndex], {
+        cardIndex: resolvedIndex,
+        editMode: false,
+        isNew: false
+      });
+    } catch (error) {
+      handleProtectedActionError(error, "Не удалось сохранить карточку для игроков.");
+    } finally {
+      setPlayerFacingModalSaving(false);
+    }
+  };
+
+  const formatPlayerFacingCardFromModal = async (card: PlayerFacingCard) => {
+    if (!activeCampaignId || !playerFacingEntity || playerFacingEntity.kind !== "location") {
+      return undefined;
+    }
+
+    const sourceText = card.content.trim() || extractPlainTextFromPlayerFacingHTML(card.contentHtml);
+    if (!sourceText) {
+      throw new Error("Сначала добавь текст в карточку, а потом уже проси AI оформить его.");
+    }
+
+    try {
+      setPlayerFacingModalFormatting(true);
+      setBootError("");
+      const result: FormatPlayerFacingCardResult = await api.formatPlayerFacingCard(activeCampaignId, {
+        title: card.title.trim(),
+        content: sourceText,
+        contentHtml: card.contentHtml,
+        entityId: playerFacingEntity.id,
+        entityKind: playerFacingEntity.kind
+      });
+      const cardIndex = playerFacingView?.cardIndex ?? 0;
+      return (
+        sanitizeSinglePlayerFacingCard(playerFacingEntity.kind, result.card, cardIndex) ?? {
+          title: card.title.trim() || defaultPlayerFacingCardTitle(playerFacingEntity.kind, cardIndex),
+          content: result.card.content || sourceText,
+          contentHtml: sanitizePlayerFacingHTML(result.card.contentHtml) || undefined
+        }
+      );
+    } catch (error) {
+      handleProtectedActionError(error, "Не удалось оформить карточку игроков через AI.");
+      throw error;
+    } finally {
+      setPlayerFacingModalFormatting(false);
+    }
+  };
+
   const resolveQuestLocation = (quest: QuestEntity | null) => {
     if (!quest?.locationId) {
       return null;
@@ -3521,17 +3775,52 @@ export default function App() {
     requestAnimationFrame(scrollContentToTop);
   };
 
-  const openPlayerFacingView = (entity: KnowledgeEntity) => {
-    if (!entity.playerContent?.trim()) {
+  const openPlayerFacingView = (
+    entity: KnowledgeEntity,
+    card?: PlayerFacingCard,
+    options?: { cardIndex?: number; editMode?: boolean; isNew?: boolean }
+  ) => {
+    const normalizedCards = normalizePlayerFacingCardsForClient(entity.kind, entity.playerCards, entity.playerContent);
+    const selectedCard =
+      card && (options?.editMode || options?.isNew || card.title.trim() || card.content.trim() || card.contentHtml?.trim())
+        ? card
+        : normalizedCards[options?.cardIndex ?? 0] ?? normalizedCards[0];
+    const content =
+      selectedCard?.content?.trim() || (!options?.editMode && !options?.isNew ? entity.playerContent?.trim() || "" : "");
+    const contentHtml = selectedCard?.contentHtml?.trim() || undefined;
+
+    if (!content && !contentHtml && !options?.editMode) {
       setBootError("Для этой сущности пока не заполнена отдельная версия для игроков.");
       return;
     }
 
-    setPlayerFacingEntityId(entity.id);
+    setBootError("");
+    setPlayerFacingView({
+      entityId: entity.id,
+      title: selectedCard?.title?.trim() || entity.title,
+      content,
+      contentHtml,
+      cardIndex: options?.cardIndex,
+      editMode: options?.editMode ?? false,
+      isNew: options?.isNew ?? false
+    });
+  };
+
+  const openPlayerFacingEditor = (entity: KnowledgeEntity, card: PlayerFacingCard, cardIndex: number, isNew = false) => {
+    openPlayerFacingView(entity, card, { cardIndex, editMode: true, isNew });
+  };
+
+  const openNewPlayerFacingEditor = (entity: KnowledgeEntity) => {
+    if (entity.kind !== "location") {
+      return;
+    }
+
+    const nextIndex = normalizePlayerFacingCardsForClient(entity.kind, entity.playerCards, entity.playerContent).length;
+    openPlayerFacingEditor(entity, createEmptyPlayerFacingCard(defaultPlayerFacingCardTitle(entity.kind, nextIndex)), nextIndex, true);
   };
 
   const closePlayerFacingView = () => {
-    setPlayerFacingEntityId("");
+    setPlayerFacingView(null);
   };
 
   const openRelatedEntity = (item: RelatedEntity) => {
@@ -3782,7 +4071,7 @@ export default function App() {
       if (preparedCombatQuestId === entityId) {
         closePreparedCombatModal();
       }
-      if (playerFacingEntityId === entityId) {
+      if (playerFacingView?.entityId === entityId) {
         closePlayerFacingView();
       }
       if (galleryViewer?.ownerId === entityId) {
@@ -4190,6 +4479,160 @@ export default function App() {
     setEntityForm((current) => updater(current));
   };
 
+  const updateEntityPlayerCard = (index: number, patch: Partial<PlayerFacingCard>) => {
+    updateEntityForm((current) => ({
+      ...current,
+      playerCards: (current.playerCards ?? []).map((card, cardIndex) => {
+        if (cardIndex !== index) {
+          return card;
+        }
+
+        const nextCard = { ...card, ...patch };
+        if ("content" in patch && !("contentHtml" in patch)) {
+          nextCard.contentHtml = "";
+        }
+        return nextCard;
+      })
+    }));
+  };
+
+  const addEntityPlayerCard = () => {
+    updateEntityForm((current) => {
+      const nextIndex = (current.playerCards ?? []).length;
+      return {
+        ...current,
+        playerCards: [...(current.playerCards ?? []), createEmptyPlayerFacingCard(defaultPlayerFacingCardTitle("location", nextIndex))]
+      };
+    });
+  };
+
+  const removeEntityPlayerCard = (index: number) => {
+    updateEntityForm((current) => ({
+      ...current,
+      playerCards: (current.playerCards ?? []).filter((_, cardIndex) => cardIndex !== index)
+    }));
+  };
+
+  const applyImportedPlayerFacingCardHtml = (index: number, rawHtml: string) => {
+    const imported = preparePlayerFacingHTMLImport(rawHtml);
+    if (!imported.content && !imported.contentHtml) {
+      throw new Error("HTML-фрагмент пустой или после очистки в нём не осталось безопасного содержимого.");
+    }
+
+    updateEntityForm((current) => ({
+      ...current,
+      playerCards: (current.playerCards ?? []).map((card, cardIndex) => {
+        if (cardIndex !== index) {
+          return card;
+        }
+
+        const currentTitle = card.title.trim();
+        const fallbackTitle = defaultPlayerFacingCardTitle("location", index);
+        const nextTitle = !currentTitle || currentTitle === fallbackTitle ? imported.title || currentTitle || fallbackTitle : card.title;
+
+        return {
+          ...card,
+          title: nextTitle,
+          content: imported.content || card.content,
+          contentHtml: imported.contentHtml
+        };
+      })
+    }));
+  };
+
+  const handleEntityPlayerCardHtmlImport = async (index: number, event: FormEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    input.value = "";
+    if (!file) {
+      return;
+    }
+
+    try {
+      setBootError("");
+      applyImportedPlayerFacingCardHtml(index, await file.text());
+    } catch (error) {
+      setBootError(error instanceof Error ? error.message : "Не удалось импортировать HTML в карточку игроков.");
+    }
+  };
+
+  const openEntityPlayerCardHtmlImport = (index: number) => {
+    playerCardImportInputRefs.current[index]?.click();
+  };
+
+  const readPlayerFacingHtmlFromClipboard = async () => {
+    if (typeof navigator === "undefined" || !navigator.clipboard) {
+      throw new Error("Буфер обмена недоступен в этом браузере.");
+    }
+
+    if ("read" in navigator.clipboard) {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        if (item.types.includes("text/html")) {
+          const blob = await item.getType("text/html");
+          return await blob.text();
+        }
+      }
+    }
+
+    if ("readText" in navigator.clipboard) {
+      return await navigator.clipboard.readText();
+    }
+
+    throw new Error("Не получилось прочитать HTML из буфера обмена.");
+  };
+
+  const pasteEntityPlayerCardHtmlFromClipboard = async (index: number) => {
+    try {
+      setBootError("");
+      applyImportedPlayerFacingCardHtml(index, await readPlayerFacingHtmlFromClipboard());
+    } catch (error) {
+      setBootError(error instanceof Error ? error.message : "Не удалось вставить HTML из буфера обмена.");
+    }
+  };
+
+  const clearEntityPlayerCardHtml = (index: number) => {
+    updateEntityPlayerCard(index, { contentHtml: "" });
+  };
+
+  const autoFormatEntityPlayerCard = async (index: number) => {
+    if (!activeCampaignId) {
+      return;
+    }
+
+    const card = (entityForm.playerCards ?? [])[index];
+    if (!card) {
+      return;
+    }
+
+    const sourceText = card.content.trim() || extractPlainTextFromPlayerFacingHTML(card.contentHtml);
+    if (!sourceText) {
+      setBootError("Сначала добавь текст в карточку, а потом уже проси AI оформить его.");
+      return;
+    }
+
+    try {
+      setBootError("");
+      setPlayerCardFormattingIndex(index);
+      const result: FormatPlayerFacingCardResult = await api.formatPlayerFacingCard(activeCampaignId, {
+        title: card.title,
+        content: sourceText,
+        contentHtml: card.contentHtml,
+        entityId: editingEntityId || undefined,
+        entityKind: entityForm.kind
+      });
+      updateEntityPlayerCard(index, {
+        title: result.card.title || card.title,
+        content: result.card.content,
+        contentHtml: result.card.contentHtml ?? ""
+      });
+    } catch (error) {
+      setBootError(error instanceof Error ? error.message : "Не удалось оформить карточку игроков через AI.");
+    } finally {
+      setPlayerCardFormattingIndex(null);
+    }
+  };
+
   const uploadCampaignImage = async (file: File) => {
     if (!activeCampaignId) {
       throw new Error("Сначала открой кампанию, а потом уже загружай изображения.");
@@ -4554,7 +4997,7 @@ export default function App() {
   };
 
   const requestPlayerFacingViewClose = () => {
-    requestModalClose("Закрыть окно для игроков?", closePlayerFacingView, "Текущий player-facing просмотр закроется.", "Закрыть окно");
+    closePlayerFacingView();
   };
 
   const updatePreparedCombatDraft = (updater: (current: PreparedCombatPlan) => PreparedCombatPlan) => {
@@ -7337,6 +7780,80 @@ export default function App() {
                   </div>
                 </section>
 
+                {activeEntity.kind === "location" ? (
+                  <section className="entity-player-facing-stack">
+                    <div className="quest-story-head entity-player-facing-overview">
+                      <div className="entity-player-facing-copy">
+                        <strong>Игроки видят</strong>
+                        <p className="copy">Создавай сколько угодно отдельных карточек-сцен и handout-описаний для игроков.</p>
+                      </div>
+                      <span className={badge(activeEntityPlayerCards.length ? "success" : "default")}>
+                        {activeEntityPlayerCards.length ? `${activeEntityPlayerCards.length} карточек` : "Черновик нужен"}
+                      </span>
+                    </div>
+
+                    <div className="entity-player-facing-grid">
+                      {activeEntityPlayerCards.map((card, index) => {
+                        const highlights = summarizePlayerFacingContent(card.content, 4);
+                        const previewHtml = sanitizePlayerFacingHTML(card.contentHtml);
+
+                        return (
+                          <article
+                            key={`${activeEntity.id}-player-card-${index}`}
+                            className="card entity-player-facing-panel entity-player-facing-panel-compact"
+                          >
+                            <div className="quest-story-head">
+                              <strong>{card.title}</strong>
+                              <span className={badge("success")}>Player-safe</span>
+                            </div>
+
+                            <div className="entity-player-facing-preview">
+                              {previewHtml ? (
+                                <div
+                                  className="player-facing-rich entity-player-facing-rich-preview"
+                                  dangerouslySetInnerHTML={{ __html: previewHtml }}
+                                />
+                              ) : highlights.length ? (
+                                <ul className="quest-bullet-list">
+                                  {highlights.map((line, lineIndex) => (
+                                    <li key={`${activeEntity.id}-player-card-${index}-line-${lineIndex}`}>{line}</li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="copy">В этой карточке пока нет текста для показа игрокам.</p>
+                              )}
+                            </div>
+
+                            <div className="entity-player-facing-actions">
+                              <button
+                                className="ghost fill"
+                                onClick={() => openPlayerFacingView(activeEntity, card, { cardIndex: index })}
+                                type="button"
+                              >
+                                Открыть
+                              </button>
+                              <button className="ghost" onClick={() => openPlayerFacingEditor(activeEntity, card, index)} type="button">
+                                Редактировать
+                              </button>
+                            </div>
+                          </article>
+                        );
+                      })}
+
+                      <button
+                        className="card entity-player-facing-panel entity-player-facing-panel-compact entity-player-facing-panel-create"
+                        onClick={() => openNewPlayerFacingEditor(activeEntity)}
+                        type="button"
+                      >
+                        <span className="entity-player-facing-create-mark">+</span>
+                        <strong>Создать еще</strong>
+                        <p className="copy">
+                          Отдельная сцена, handout или короткая заметка для игроков. Откроется сразу в режиме редактирования.
+                        </p>
+                      </button>
+                    </div>
+                  </section>
+                ) : (
                 <section className="card entity-player-facing-panel">
                   <div className="quest-story-head">
                     <strong>Игроки видят</strong>
@@ -7362,6 +7879,7 @@ export default function App() {
                     </button>
                   </div>
                 </section>
+                )}
 
                 {composeVisibleQuickFacts(activeEntity).length ? (
                   <CollapsibleSection
@@ -9007,20 +9525,118 @@ export default function App() {
                   value={entityForm.summary}
                 />
               </label>
-              <label className="field field-full">
-                <span>Что зачитывается при встрече</span>
-                <small className="field-hint">
-                  Player-safe версия без мастерских секретов: речь NPC, описание первой встречи, слух, объявление о задании или любой текст,
-                  который удобно показать и зачитать игрокам.
-                </small>
-                <textarea
-                  className="input textarea textarea-lg"
-                  onContextMenu={(event) => handleEntityContentContextMenu("playerContent", event)}
-                  onChange={(event) => setEntityForm((current) => ({ ...current, playerContent: event.target.value }))}
-                  ref={entityPlayerContentRef}
-                  value={entityForm.playerContent ?? ""}
-                />
-              </label>
+              {entityForm.kind === "location" ? (
+                <section className="card npc-section form-subsection field-full player-card-editor-section">
+                  <div className="row muted">
+                    <span>Карточки для игроков</span>
+                    <button className="ghost" onClick={addEntityPlayerCard} type="button">
+                      Добавить карточку
+                    </button>
+                  </div>
+                  <p className="copy">
+                    Каждую карточку можно назвать по-своему и потом отдельно открыть игрокам прямо со страницы локации.
+                  </p>
+
+                  <div className="player-card-editor-list">
+                    {(entityForm.playerCards ?? []).length ? (
+                      (entityForm.playerCards ?? []).map((card, index) => (
+                        <article key={`player-card-editor-${index}`} className="entry-card player-card-editor">
+                          <div className="player-card-editor-header">
+                            <strong>{card.title.trim() || defaultPlayerFacingCardTitle("location", index)}</strong>
+                            <div className="player-card-editor-actions">
+                              <button className="ghost" onClick={() => openEntityPlayerCardHtmlImport(index)} type="button">
+                                Импорт HTML
+                              </button>
+                              <button className="ghost" onClick={() => void pasteEntityPlayerCardHtmlFromClipboard(index)} type="button">
+                                HTML из буфера
+                              </button>
+                              <button
+                                className="ghost"
+                                disabled={playerCardFormattingIndex === index}
+                                onClick={() => void autoFormatEntityPlayerCard(index)}
+                                type="button"
+                              >
+                                {playerCardFormattingIndex === index ? "AI оформляет..." : "AI автоформат"}
+                              </button>
+                              {card.contentHtml?.trim() ? (
+                                <button className="ghost" onClick={() => clearEntityPlayerCardHtml(index)} type="button">
+                                  Сбросить стиль
+                                </button>
+                              ) : null}
+                              <button className="ghost danger-action" onClick={() => removeEntityPlayerCard(index)} type="button">
+                                Удалить
+                              </button>
+                            </div>
+                          </div>
+
+                          <input
+                            accept={acceptedPlayerFacingHtmlUploadTypes}
+                            className="player-card-editor-file-input"
+                            onChange={(event) => void handleEntityPlayerCardHtmlImport(index, event)}
+                            ref={(node) => {
+                              playerCardImportInputRefs.current[index] = node;
+                            }}
+                            type="file"
+                          />
+
+                          <label className="field">
+                            <span>Название карточки</span>
+                            <input
+                              className="input"
+                              onChange={(event) => updateEntityPlayerCard(index, { title: event.target.value })}
+                              placeholder={defaultPlayerFacingCardTitle("location", index)}
+                              value={card.title}
+                            />
+                          </label>
+
+                          <label className="field">
+                            <span>Текст для игроков</span>
+                            <textarea
+                              className="input textarea textarea-lg"
+                              onChange={(event) => updateEntityPlayerCard(index, { content: event.target.value })}
+                              value={card.content}
+                            />
+                            <small className="field-hint">
+                              Можно писать обычный текст, импортировать готовый HTML-фрагмент или попросить AI красиво оформить этот же текст.
+                            </small>
+                          </label>
+
+                          {card.contentHtml?.trim() ? (
+                            <div className="player-card-editor-status">
+                              <span className={badge("success")}>HTML-стиль активен</span>
+                              <span className="copy">При ручной правке текста оформление можно быстро собрать заново кнопкой AI или повторным импортом.</span>
+                            </div>
+                          ) : (
+                            <div className="player-card-editor-status">
+                              <span className={badge("default")}>Plain text</span>
+                              <span className="copy">Сейчас карточка откроется как обычный чистый текст без встроенного HTML-оформления.</span>
+                            </div>
+                          )}
+                        </article>
+                      ))
+                    ) : (
+                      <div className="entry-card player-card-editor-empty">
+                        <p className="copy">Пока карточек нет. Добавь первую, чтобы показывать игрокам разные описания одной и той же локации.</p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              ) : (
+                <label className="field field-full">
+                  <span>Что зачитывается при встрече</span>
+                  <small className="field-hint">
+                    Player-safe версия без мастерских секретов: речь NPC, описание первой встречи, слух, объявление о задании или любой текст,
+                    который удобно показать и зачитать игрокам.
+                  </small>
+                  <textarea
+                    className="input textarea textarea-lg"
+                    onContextMenu={(event) => handleEntityContentContextMenu("playerContent", event)}
+                    onChange={(event) => setEntityForm((current) => ({ ...current, playerContent: event.target.value }))}
+                    ref={entityPlayerContentRef}
+                    value={entityForm.playerContent ?? ""}
+                  />
+                </label>
+              )}
               <label className="field field-full">
                 <span>Информация для мастера</span>
                 <small className="field-hint">
@@ -9573,8 +10189,23 @@ export default function App() {
         </div>
       ) : null}
 
-      {playerFacingEntity ? (
-        <PlayerFacingEntityModal entity={playerFacingEntity} onClose={requestPlayerFacingViewClose} />
+      {playerFacingEntity && playerFacingView ? (
+        <PlayerFacingEntityModal
+          content={playerFacingView.content}
+          contentHtml={playerFacingView.contentHtml}
+          editable={playerFacingEntity.kind === "location" && typeof playerFacingView.cardIndex === "number"}
+          editMode={Boolean(playerFacingView.editMode)}
+          entity={playerFacingEntity}
+          formatting={playerFacingModalFormatting}
+          isNew={Boolean(playerFacingView.isNew)}
+          onAutoFormat={formatPlayerFacingCardFromModal}
+          onCancelEdit={cancelPlayerFacingEditMode}
+          onClose={requestPlayerFacingViewClose}
+          onEnterEdit={enterPlayerFacingEditMode}
+          onSave={savePlayerFacingCardFromModal}
+          saving={playerFacingModalSaving}
+          title={playerFacingView.title}
+        />
       ) : null}
 
       {preparedCombatModalOpen && preparedCombatQuest ? (

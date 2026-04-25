@@ -403,6 +403,31 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 		}
 
 		writeJSON(writer, http.StatusOK, result)
+	case len(segments) == 4 && segments[1] == "ai" && segments[2] == "player-facing" && segments[3] == "format":
+		if request.Method != http.MethodPost {
+			writeError(writer, http.StatusMethodNotAllowed, "method_not_allowed", "Only POST is supported")
+			return
+		}
+
+		campaign, err := srv.store.getCampaign(campaignID)
+		if err != nil {
+			writeError(writer, http.StatusNotFound, "not_found", err.Error())
+			return
+		}
+
+		var input formatPlayerFacingCardInput
+		if err := readJSON(request, &input); err != nil {
+			writeError(writer, http.StatusBadRequest, "bad_request", err.Error())
+			return
+		}
+
+		result, err := srv.generator.FormatPlayerFacingCard(campaign, input)
+		if err != nil {
+			writeError(writer, http.StatusInternalServerError, "format_player_facing_failed", err.Error())
+			return
+		}
+
+		writeJSON(writer, http.StatusOK, result)
 	case len(segments) == 3 && segments[1] == "combat" && segments[2] == "entries":
 		srv.handleCombatEntries(writer, request, campaignID)
 	case len(segments) == 4 && segments[1] == "combat" && segments[2] == "entries":

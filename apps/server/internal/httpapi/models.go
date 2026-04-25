@@ -59,6 +59,12 @@ type galleryImage struct {
 	Caption string `json:"caption,omitempty"`
 }
 
+type playerFacingCard struct {
+	Title       string `json:"title"`
+	Content     string `json:"content"`
+	ContentHTML string `json:"contentHtml,omitempty"`
+}
+
 type abilityScores struct {
 	STR int `json:"str"`
 	DEX int `json:"dex"`
@@ -131,19 +137,20 @@ type npcStatBlock struct {
 }
 
 type knowledgeEntity struct {
-	ID            string          `json:"id"`
-	Kind          string          `json:"kind"`
-	Title         string          `json:"title"`
-	Subtitle      string          `json:"subtitle"`
-	Summary       string          `json:"summary"`
-	Content       string          `json:"content"`
-	PlayerContent string          `json:"playerContent,omitempty"`
-	Tags          []string        `json:"tags"`
-	QuickFacts    []quickFact     `json:"quickFacts"`
-	Related       []relatedEntity `json:"related"`
-	Art           *heroArt        `json:"art,omitempty"`
-	Playlist      []playlistTrack `json:"playlist,omitempty"`
-	Gallery       []galleryImage  `json:"gallery,omitempty"`
+	ID            string             `json:"id"`
+	Kind          string             `json:"kind"`
+	Title         string             `json:"title"`
+	Subtitle      string             `json:"subtitle"`
+	Summary       string             `json:"summary"`
+	Content       string             `json:"content"`
+	PlayerContent string             `json:"playerContent,omitempty"`
+	PlayerCards   []playerFacingCard `json:"playerCards,omitempty"`
+	Tags          []string           `json:"tags"`
+	QuickFacts    []quickFact        `json:"quickFacts"`
+	Related       []relatedEntity    `json:"related"`
+	Art           *heroArt           `json:"art,omitempty"`
+	Playlist      []playlistTrack    `json:"playlist,omitempty"`
+	Gallery       []galleryImage     `json:"gallery,omitempty"`
 
 	Category       string                `json:"category,omitempty"`
 	Region         string                `json:"region,omitempty"`
@@ -329,6 +336,7 @@ type createEntityInput struct {
 	Summary        string                `json:"summary"`
 	Content        string                `json:"content"`
 	PlayerContent  string                `json:"playerContent,omitempty"`
+	PlayerCards    []playerFacingCard    `json:"playerCards,omitempty"`
 	Tags           []string              `json:"tags"`
 	QuickFacts     []quickFact           `json:"quickFacts,omitempty"`
 	Related        []relatedEntity       `json:"related,omitempty"`
@@ -383,6 +391,20 @@ type generateEntityDraftResult struct {
 	Notes        []string            `json:"notes"`
 	Entity       createEntityInput   `json:"entity"`
 	LinkedDrafts []linkedEntityDraft `json:"linkedDrafts,omitempty"`
+}
+
+type formatPlayerFacingCardInput struct {
+	Title       string `json:"title"`
+	Content     string `json:"content"`
+	ContentHTML string `json:"contentHtml,omitempty"`
+	EntityID    string `json:"entityId,omitempty"`
+	EntityKind  string `json:"entityKind,omitempty"`
+}
+
+type formatPlayerFacingCardResult struct {
+	Provider string           `json:"provider"`
+	Notes    []string         `json:"notes"`
+	Card     playerFacingCard `json:"card"`
 }
 
 type linkedEntityDraft struct {

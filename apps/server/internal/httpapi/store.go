@@ -775,6 +775,12 @@ func materializeWorldEvent(input createWorldEventInput, campaign campaignData, e
 }
 
 func materializeEntity(input createEntityInput) knowledgeEntity {
+	playerContent := strings.TrimSpace(input.PlayerContent)
+	playerCards := normalizePlayerFacingCards(input.Kind, input.PlayerCards, playerContent)
+	if input.Kind == "location" && playerContent == "" && len(playerCards) > 0 {
+		playerContent = playerCards[0].Content
+	}
+
 	entity := knowledgeEntity{
 		ID:             newID(input.Kind),
 		Kind:           input.Kind,
@@ -782,7 +788,8 @@ func materializeEntity(input createEntityInput) knowledgeEntity {
 		Subtitle:       input.Subtitle,
 		Summary:        firstNonEmpty(input.Summary, "Описание пока не заполнено."),
 		Content:        firstNonEmpty(input.Content, input.Summary, "Описание пока не заполнено."),
-		PlayerContent:  strings.TrimSpace(input.PlayerContent),
+		PlayerContent:  playerContent,
+		PlayerCards:    playerCards,
 		Tags:           sanitizeTags(input.Tags),
 		QuickFacts:     input.QuickFacts,
 		Related:        input.Related,

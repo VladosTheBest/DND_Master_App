@@ -56,6 +56,12 @@ export interface GalleryImage {
   caption?: string;
 }
 
+export interface PlayerFacingCard {
+  title: string;
+  content: string;
+  contentHtml?: string;
+}
+
 export interface KnowledgeEntityBase {
   id: string;
   kind: EntityKind;
@@ -64,6 +70,7 @@ export interface KnowledgeEntityBase {
   summary: string;
   content: string;
   playerContent?: string;
+  playerCards?: PlayerFacingCard[];
   tags: string[];
   quickFacts: QuickFact[];
   related: RelatedEntity[];
@@ -417,6 +424,7 @@ export interface CreateEntityInput {
   summary: string;
   content: string;
   playerContent?: string;
+  playerCards?: PlayerFacingCard[];
   tags: string[];
   quickFacts?: QuickFact[];
   related?: RelatedEntity[];
@@ -458,6 +466,20 @@ export interface GenerateEntityDraftResult {
   notes: string[];
   entity: CreateEntityInput;
   linkedDrafts?: LinkedDraftEntity[];
+}
+
+export interface FormatPlayerFacingCardInput {
+  title: string;
+  content: string;
+  contentHtml?: string;
+  entityId?: string;
+  entityKind?: EntityKind;
+}
+
+export interface FormatPlayerFacingCardResult {
+  provider: string;
+  notes: string[];
+  card: PlayerFacingCard;
 }
 
 export interface GenerateWorldEventInput {
@@ -622,6 +644,7 @@ export interface ApiClient {
   updateEntity(campaignId: string, entityId: string, input: UpdateEntityInput): Promise<CreateEntityResult>;
   deleteEntity(campaignId: string, entityId: string): Promise<DeleteEntityResult>;
   generateEntityDraft(campaignId: string, input: GenerateEntityDraftInput): Promise<GenerateEntityDraftResult>;
+  formatPlayerFacingCard(campaignId: string, input: FormatPlayerFacingCardInput): Promise<FormatPlayerFacingCardResult>;
   createWorldEvent(campaignId: string, input: WorldEventInput): Promise<WorldEventResult>;
   updateWorldEvent(campaignId: string, eventId: string, input: WorldEventInput): Promise<WorldEventResult>;
   deleteWorldEvent(campaignId: string, eventId: string): Promise<DeleteWorldEventResult>;

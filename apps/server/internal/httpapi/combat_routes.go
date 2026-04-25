@@ -288,10 +288,15 @@ func computeEncounterDraftMetrics(items []encounterDraftItem, partySize int) (in
 }
 
 func experienceForDraftEntity(entity createEntityInput) int {
-	if entity.StatBlock == nil {
-		return 0
+	if entity.StatBlock != nil {
+		if challenge := strings.TrimSpace(entity.StatBlock.Challenge); challenge != "" {
+			return parseChallengeExperience(challenge)
+		}
 	}
-	return parseChallengeExperience(entity.StatBlock.Challenge)
+	if challenge := challengeFromQuickFacts(entity.QuickFacts); challenge != "" {
+		return parseChallengeExperience(challenge)
+	}
+	return parseChallengeExperience(strings.TrimSpace(entity.Danger))
 }
 
 func resolveTargetAdjustedXP(input generateCombatInput) int {

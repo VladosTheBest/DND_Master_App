@@ -12,6 +12,8 @@ import type {
   DeleteWorldEventResult,
   DeleteEntityResult,
   FinishCombatResult,
+  FormatPlayerFacingCardInput,
+  FormatPlayerFacingCardResult,
   GenerateCombatInput,
   GenerateCombatResult,
   GenerateEntityDraftInput,
@@ -201,6 +203,12 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
     return requestJson<GenerateEntityDraftResult>(`${baseUrl}/api/campaigns/${campaignId}/ai/drafts`, {
       method: "POST",
       body: JSON.stringify(input satisfies GenerateEntityDraftInput)
+    });
+  },
+  async formatPlayerFacingCard(campaignId, input) {
+    return requestJson<FormatPlayerFacingCardResult>(`${baseUrl}/api/campaigns/${campaignId}/ai/player-facing/format`, {
+      method: "POST",
+      body: JSON.stringify(input satisfies FormatPlayerFacingCardInput)
     });
   },
   async createWorldEvent(campaignId, input) {

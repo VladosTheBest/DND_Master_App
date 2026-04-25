@@ -63,6 +63,12 @@ type openAIEncounterDraftItem struct {
 	Entity   createEntityInput `json:"entity"`
 }
 
+type openAIPlayerFacingCardPayload struct {
+	Title       string `json:"title"`
+	Content     string `json:"content"`
+	ContentHTML string `json:"contentHtml"`
+}
+
 var encounterNumberSuffixPattern = regexp.MustCompile(`(?i)\s*(?:#\d+|\(\d+\)|\d+)$`)
 
 func newOpenAIGenerator(config generatorConfig) entityGenerator {
@@ -140,6 +146,29 @@ func (generator openAIGenerator) GenerateWorldEvent(campaign campaignData, input
 			"Событие подготовлено как короткая сценка, а не как полноценный квест.",
 		),
 		Event: normalizeWorldEventDraftInput(campaign, input, event),
+	}, nil
+}
+
+func (generator openAIGenerator) FormatPlayerFacingCard(campaign campaignData, input formatPlayerFacingCardInput) (formatPlayerFacingCardResult, error) {
+	if requiresOpenAIKey(generator.config.baseURL) && strings.TrimSpace(generator.config.apiToken) == "" {
+		return formatPlayerFacingCardResult{}, fmt.Errorf("OpenAI API key is not configured. Set SHADOW_EDGE_AI_API_KEY or OPENAI_API_KEY in .env.local or the shell environment")
+	}
+
+	card, err := generator.requestPlayerFacingCardFormat(campaign, input)
+	if err != nil {
+		return formatPlayerFacingCardResult{}, err
+	}
+
+	return formatPlayerFacingCardResult{
+		Provider: generator.config.activeProvider,
+		Notes: append(generator.buildNotes(campaign),
+			"AI сохранил смысл текста, но оформил его как player-facing handout с безопасным HTML-фрагментом.",
+		),
+		Card: normalizeFormattedPlayerFacingCard(playerFacingCard{
+			Title:       card.Title,
+			Content:     card.Content,
+			ContentHTML: card.ContentHTML,
+		}),
 	}, nil
 }
 
@@ -341,6 +370,92 @@ func (generator openAIGenerator) requestWorldEvent(campaign campaignData, input 
 	return event, nil
 }
 
+func (generator openAIGenerator) requestPlayerFacingCardFormat(campaign campaignData, input formatPlayerFacingCardInput) (openAIPlayerFacingCardPayload, error) {
+	requestBody := openAIChatCompletionRequest{
+		Model: generator.config.model,
+		Messages: []openAIChatMessage{
+			{Role: "system", Content: buildOpenAIPlayerFacingFormatSystemPrompt()},
+			{Role: "user", Content: buildOpenAIPlayerFacingFormatUserPrompt(campaign, input)},
+		},
+		ResponseFormat: openAIResponseFormat{
+			Type: "json_schema",
+			JSONSchema: openAIJSONSchemaConfig{
+				Name:   "shadow_edge_player_facing_card_format",
+				Strict: true,
+				Schema: playerFacingCardFormatSchema(),
+			},
+		},
+	}
+
+	payload, err := json.Marshal(requestBody)
+	if err != nil {
+		return openAIPlayerFacingCardPayload{}, fmt.Errorf("marshal OpenAI player-facing request: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+
+	url := strings.TrimRight(generator.config.baseURL, "/") + "/chat/completions"
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
+	if err != nil {
+		return openAIPlayerFacingCardPayload{}, fmt.Errorf("build OpenAI player-facing request: %w", err)
+	}
+
+	request.Header.Set("Content-Type", "application/json")
+	if token := strings.TrimSpace(generator.config.apiToken); token != "" {
+		request.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	response, err := generator.client.Do(request)
+	if err != nil {
+		return openAIPlayerFacingCardPayload{}, fmt.Errorf("request OpenAI player-facing format: %w", err)
+	}
+	defer response.Body.Close()
+
+	body, err := io.ReadAll(io.LimitReader(response.Body, 2<<20))
+	if err != nil {
+		return openAIPlayerFacingCardPayload{}, fmt.Errorf("read OpenAI player-facing response: %w", err)
+	}
+
+	if response.StatusCode >= http.StatusBadRequest {
+		var apiError openAIErrorResponse
+		if err := json.Unmarshal(body, &apiError); err == nil && strings.TrimSpace(apiError.Error.Message) != "" {
+			return openAIPlayerFacingCardPayload{}, fmt.Errorf("OpenAI player-facing request failed (%d): %s", response.StatusCode, apiError.Error.Message)
+		}
+		return openAIPlayerFacingCardPayload{}, fmt.Errorf("OpenAI player-facing request failed (%d)", response.StatusCode)
+	}
+
+	var completion openAIChatCompletionResponse
+	if err := json.Unmarshal(body, &completion); err != nil {
+		return openAIPlayerFacingCardPayload{}, fmt.Errorf("decode OpenAI player-facing response: %w", err)
+	}
+	if len(completion.Choices) == 0 {
+		return openAIPlayerFacingCardPayload{}, fmt.Errorf("OpenAI returned no choices for player-facing formatting")
+	}
+	if refusal := strings.TrimSpace(completion.Choices[0].Message.Refusal); refusal != "" {
+		return openAIPlayerFacingCardPayload{}, fmt.Errorf("OpenAI refused the player-facing formatting request: %s", refusal)
+	}
+
+	content, err := extractChatCompletionContent(completion.Choices[0].Message.Content)
+	if err != nil {
+		return openAIPlayerFacingCardPayload{}, err
+	}
+
+	var card openAIPlayerFacingCardPayload
+	if err := json.Unmarshal([]byte(content), &card); err != nil {
+		return openAIPlayerFacingCardPayload{}, fmt.Errorf("decode player-facing format JSON: %w", err)
+	}
+
+	card.Title = strings.TrimSpace(firstNonEmpty(card.Title, input.Title))
+	card.ContentHTML = sanitizePlayerFacingHTMLFragment(card.ContentHTML)
+	card.Content = strings.TrimSpace(firstNonEmpty(card.Content, extractTextFromPlayerFacingHTML(card.ContentHTML), input.Content))
+	if card.ContentHTML == "" || !strings.Contains(card.ContentHTML, "<") {
+		card.ContentHTML = buildScaffoldPlayerFacingHTML(card.Title, card.Content)
+	}
+
+	return card, nil
+}
+
 func (generator openAIGenerator) requestEncounter(campaign campaignData, input generateCombatInput) (openAIEncounterDraftPayload, error) {
 	requestBody := openAIChatCompletionRequest{
 		Model: generator.config.model,
@@ -516,6 +631,44 @@ Campaign context:
 Return one complete world event object that feels fun, short and ready to run immediately.`, firstNonEmpty(strings.TrimSpace(input.Type), "social"), strings.TrimSpace(input.LocationID), firstNonEmpty(strings.TrimSpace(input.Prompt), "Create a lively, table-ready scene."), marshalAIJSON(input.Current), marshalAIJSON(compactCampaignContext(campaign))))
 }
 
+func buildOpenAIPlayerFacingFormatSystemPrompt() string {
+	return strings.TrimSpace(`You format one player-facing D&D scene card for a Game Master's app.
+
+Rules:
+- Output only JSON matching the schema.
+- Keep the same facts, meaning and sequence of events as the source text. You may reorganize for readability, but do not invent new lore.
+- Prefer Russian when the prompt or campaign uses Russian.
+- content must stay readable as plain text and preserve the same story beats.
+- contentHtml must be a safe HTML fragment only, not a full document.
+- Allowed tags in contentHtml: h1, h2, h3, h4, p, strong, em, u, span, ul, ol, li, blockquote, br.
+- Allowed inline styles in contentHtml: color, background-color, font-size, text-align, font-weight, font-style, text-decoration, text-transform, letter-spacing.
+- Do not use scripts, classes, ids, links, images, tables, iframes, inline event handlers, external resources or CSS blocks.
+- Favor a beautiful handout-like rhythm: clear heading hierarchy, short readable paragraphs, highlighted key phrases, tasteful accent colors and bullet lists where useful.
+- If the source is already structured, preserve that structure and make it cleaner instead of rewriting it from scratch.`)
+}
+
+func buildOpenAIPlayerFacingFormatUserPrompt(campaign campaignData, input formatPlayerFacingCardInput) string {
+	return strings.TrimSpace(fmt.Sprintf(`Format one player-facing card for the GM app.
+
+Card metadata:
+%s
+
+Current plain text:
+%s
+
+Current formatted HTML:
+%s
+
+Campaign context:
+%s
+
+Return the same scene content, but make it more beautiful and easier to read aloud.`, marshalAIJSON(map[string]any{
+		"title":      strings.TrimSpace(input.Title),
+		"entityId":   strings.TrimSpace(input.EntityID),
+		"entityKind": strings.TrimSpace(input.EntityKind),
+	}), firstNonEmpty(strings.TrimSpace(input.Content), "No plain text supplied."), firstNonEmpty(strings.TrimSpace(input.ContentHTML), "No current HTML supplied."), marshalAIJSON(compactCampaignContext(campaign))))
+}
+
 func buildOpenAIEncounterSystemPrompt() string {
 	return strings.TrimSpace(`You generate structured combat encounter rosters for a D&D 5e Game Master's app.
 
@@ -642,6 +795,21 @@ func entityDraftSchema() map[string]any {
 		"urgency":       nullableEnum("Low", "Medium", "High", "Critical"),
 		"issuerId":      nullableString(),
 		"visibility":    nullableEnum("gm_only", "player_safe"),
+	}
+
+	return map[string]any{
+		"type":                 "object",
+		"additionalProperties": false,
+		"required":             requiredKeys(properties),
+		"properties":           properties,
+	}
+}
+
+func playerFacingCardFormatSchema() map[string]any {
+	properties := map[string]any{
+		"title":       map[string]any{"type": "string"},
+		"content":     map[string]any{"type": "string"},
+		"contentHtml": map[string]any{"type": "string"},
 	}
 
 	return map[string]any{
