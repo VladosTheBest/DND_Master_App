@@ -73,6 +73,7 @@ import {
   PreparedCombatCardStrip,
   PlayerFacingCardStrip,
   PlayerFacingEntityModal,
+  PlayerFacingFormattingIndicator,
   collectQuestSectionLines,
   parseQuestTextSections,
   splitQuestNarrative,
@@ -9953,12 +9954,13 @@ export default function App() {
                                 HTML из буфера
                               </button>
                               <button
-                                className="ghost"
+                                className="ghost player-facing-ai-button"
                                 disabled={playerCardFormattingIndex === index}
                                 onClick={() => void autoFormatEntityPlayerCard(index)}
                                 type="button"
                               >
-                                {playerCardFormattingIndex === index ? "AI оформляет..." : "AI автоформат"}
+                                {playerCardFormattingIndex === index ? <span aria-hidden="true" className="player-facing-button-spinner" /> : null}
+                                {playerCardFormattingIndex === index ? "AI оформляет" : "AI автоформат"}
                               </button>
                               {card.contentHtml?.trim() ? (
                                 <button className="ghost" onClick={() => clearEntityPlayerCardHtml(index)} type="button">
@@ -9970,6 +9972,10 @@ export default function App() {
                               </button>
                             </div>
                           </div>
+
+                          {playerCardFormattingIndex === index ? (
+                            <PlayerFacingFormattingIndicator className="player-card-editor-ai-status" compact />
+                          ) : null}
 
                           <input
                             accept={acceptedPlayerFacingHtmlUploadTypes}

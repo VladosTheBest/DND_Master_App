@@ -53,6 +53,75 @@ const summarizePlayerFacingCardPreview = (value?: string, maxItems = 4) => {
   return sectionLines.length ? sectionLines : splitQuestNarrative(value ?? "", maxItems);
 };
 
+const playerFacingFormattingStages = [
+  {
+    label: "Структура",
+    detail: "AI разбирает текст на удобные блоки, заголовки, списки и таблицы."
+  },
+  {
+    label: "Акценты",
+    detail: "Подсвечиваем важные фразы и делаем ритм чтения спокойным и понятным."
+  },
+  {
+    label: "Финальный handout",
+    detail: "Чистим HTML, выравниваем стили и собираем аккуратную карточку для показа игрокам."
+  }
+] as const;
+
+export function PlayerFacingFormattingIndicator({
+  compact = false,
+  className = ""
+}: {
+  compact?: boolean;
+  className?: string;
+}) {
+  const [activeStageIndex, setActiveStageIndex] = useState(0);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setActiveStageIndex((current) => (current + 1) % playerFacingFormattingStages.length);
+    }, 1500);
+
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, []);
+
+  const activeStage = playerFacingFormattingStages[activeStageIndex];
+
+  return (
+    <div
+      aria-live="polite"
+      className={`player-facing-formatting-indicator${compact ? " compact" : ""}${className ? ` ${className}` : ""}`}
+      role="status"
+    >
+      <div aria-hidden="true" className="player-facing-formatting-orb">
+        <span />
+        <span />
+        <span />
+      </div>
+      <div className="player-facing-formatting-copy">
+        <div className="player-facing-formatting-head">
+          <strong>AI форматирует карточку</strong>
+          <span className="player-facing-formatting-stage">{activeStage.label}</span>
+        </div>
+        <p className="copy">{activeStage.detail}</p>
+        <div aria-hidden="true" className="player-facing-formatting-progress" />
+        <div className="player-facing-formatting-step-list">
+          {playerFacingFormattingStages.map((stage, index) => (
+            <span
+              className={`player-facing-formatting-step${index === activeStageIndex ? " active" : ""}`}
+              key={stage.label}
+            >
+              {stage.label}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export type QuestCombatEntrySummary = {
   entity: CombatProfileEntity;
   quantity: number;
@@ -1617,8 +1686,9 @@ export function PlayerFacingEntityModal({
                 </button>
               ) : null}
               {editMode ? (
-                <button className="ghost" disabled={formatting || saving} onClick={() => void handleAutoFormat()} type="button">
-                  {formatting ? "AI форматирует..." : "AI форматирование"}
+                <button className="ghost player-facing-ai-button" disabled={formatting || saving} onClick={() => void handleAutoFormat()} type="button">
+                  {formatting ? <span aria-hidden="true" className="player-facing-button-spinner" /> : null}
+                  {formatting ? "AI форматирует" : "AI форматирование"}
                 </button>
               ) : null}
               {editMode ? (
@@ -1645,13 +1715,21 @@ export function PlayerFacingEntityModal({
                     Редактируй карточку прямо в том виде, в котором будешь её показывать игрокам. Можно вставлять HTML со стилями и потом
                     дооформить через AI.
                   </p>
-                  <div
-                    className="player-facing-rich player-facing-rich-editor"
-                    contentEditable
-                    onInput={handleEditorInput}
-                    ref={editorRef}
-                    suppressContentEditableWarning
-                  />
+                  <div className={`player-facing-editor-shell${formatting ? " is-formatting" : ""}`}>
+                    <div
+                      aria-busy={formatting}
+                      className="player-facing-rich player-facing-rich-editor"
+                      contentEditable={!formatting}
+                      onInput={handleEditorInput}
+                      ref={editorRef}
+                      suppressContentEditableWarning
+                    />
+                    {formatting ? (
+                      <div className="player-facing-editor-overlay">
+                        <PlayerFacingFormattingIndicator />
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               ) : resolvedContentHtml ? (
                 <div
