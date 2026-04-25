@@ -79,7 +79,8 @@ func ensureKnowledgeEntities(entities []knowledgeEntity) []knowledgeEntity {
 		entities[index].Playlist = sanitizePlaylistTracks(entities[index].Playlist)
 		entities[index].Gallery = sanitizeGalleryImages(entities[index].Gallery)
 		entities[index].RewardProfile = ensureRewardProfile(entities[index].RewardProfile)
-		entities[index].PreparedCombat = normalizePreparedCombat(entities[index].PreparedCombat)
+		entities[index].PreparedCombats = normalizePreparedCombats(entities[index].PreparedCombats, entities[index].PreparedCombat)
+		entities[index].PreparedCombat = primaryPreparedCombat(entities[index].PreparedCombats)
 	}
 
 	return entities

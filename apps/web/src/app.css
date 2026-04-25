@@ -2828,6 +2828,45 @@ select.input {
   box-shadow: 0 18px 42px rgba(0,0,0,.22);
 }
 
+.entity-prepared-combat-stack {
+  display: grid;
+  gap: .72rem;
+}
+
+.entity-prepared-combat-panel {
+  border-color: rgba(227, 121, 101, .24);
+  background:
+    radial-gradient(circle at top right, rgba(227,121,101,.16), transparent 34%),
+    linear-gradient(180deg, rgba(95,36,35,.16), rgba(16,20,28,.82));
+}
+
+.entity-prepared-combat-panel-create:hover {
+  border-color: rgba(227, 121, 101, .4);
+}
+
+.entity-prepared-combat-preview {
+  display: grid;
+  gap: .48rem;
+  align-content: start;
+}
+
+.entity-prepared-combat-line,
+.entity-prepared-combat-xp {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.entity-prepared-combat-line {
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+
+.entity-prepared-combat-xp {
+  color: #f0cf9f;
+  font-size: .84rem;
+  letter-spacing: .02em;
+}
+
 .entity-player-facing-create-mark {
   width: 2.4rem;
   aspect-ratio: 1;

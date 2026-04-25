@@ -30,6 +30,7 @@ export interface PreparedCombatItem {
 
 export interface PreparedCombatPlan {
   title?: string;
+  playerIds?: string[];
   items: PreparedCombatItem[];
 }
 
@@ -77,6 +78,8 @@ export interface KnowledgeEntityBase {
   art?: HeroArt;
   playlist?: PlaylistTrack[];
   gallery?: GalleryImage[];
+  preparedCombat?: PreparedCombatPlan;
+  preparedCombats?: PreparedCombatPlan[];
 }
 
 export interface LocationEntity extends KnowledgeEntityBase {
@@ -248,7 +251,6 @@ export interface QuestEntity extends KnowledgeEntityBase {
   issuerId?: string;
   locationId?: string;
   rewardProfile?: RewardProfile;
-  preparedCombat?: PreparedCombatPlan;
 }
 
 export interface LoreEntity extends KnowledgeEntityBase {
@@ -444,6 +446,7 @@ export interface CreateEntityInput {
   urgency?: QuestEntity["urgency"];
   issuerId?: string;
   preparedCombat?: PreparedCombatPlan;
+  preparedCombats?: PreparedCombatPlan[];
   visibility?: LoreEntity["visibility"];
 }
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import type {
   CombatThresholds,
   KnowledgeEntity,
@@ -56,6 +56,15 @@ const summarizePlayerFacingCardPreview = (value?: string, maxItems = 4) => {
 export type QuestCombatEntrySummary = {
   entity: CombatProfileEntity;
   quantity: number;
+};
+
+export type PreparedCombatCardView = {
+  title: string;
+  playersText: string;
+  enemiesText: string;
+  xpText: string;
+  startDisabled?: boolean;
+  startLabel?: string;
 };
 
 export function PlayerFacingCardStrip({
@@ -192,6 +201,147 @@ export function PlayerFacingCardStrip({
           >
             <div className="entity-action-menu-label">
               <small>Карточка игроков</small>
+              <strong>{contextMenuCard.title}</strong>
+            </div>
+            <button
+              className="ghost fill danger-action"
+              onClick={() => {
+                onDeleteCard(contextMenuCard, contextMenu.index);
+                closeContextMenu();
+              }}
+              type="button"
+            >
+              Удалить
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+export function PreparedCombatCardStrip({
+  cards,
+  createDescription,
+  description,
+  emptyDescription,
+  entityId,
+  onCreateCard,
+  onDeleteCard,
+  onOpenCard,
+  onStartCard
+}: {
+  cards: PreparedCombatCardView[];
+  createDescription: string;
+  description: string;
+  emptyDescription: string;
+  entityId: string;
+  onCreateCard: () => void;
+  onDeleteCard?: (card: PreparedCombatCardView, index: number) => void;
+  onOpenCard: (card: PreparedCombatCardView, index: number) => void;
+  onStartCard: (card: PreparedCombatCardView, index: number) => void;
+}) {
+  const [contextMenu, setContextMenu] = useState<{ index: number; x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    setContextMenu((current) => (current && current.index >= cards.length ? null : current));
+  }, [cards.length]);
+
+  const closeContextMenu = () => {
+    setContextMenu(null);
+  };
+
+  const handleCardContextMenu = (event: ReactMouseEvent<HTMLElement>, index: number) => {
+    if (!onDeleteCard) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu({
+      index,
+      x: clamp(event.clientX, 12, window.innerWidth - 260),
+      y: clamp(event.clientY, 12, window.innerHeight - 120)
+    });
+  };
+
+  const contextMenuCard = contextMenu ? cards[contextMenu.index] ?? null : null;
+
+  return (
+    <>
+      <CollapsibleSection
+        action={<span className={badge(cards.length ? "danger" : "default")}>{cards.length ? `${cards.length} карточек` : "Черновик нужен"}</span>}
+        className="entity-prepared-combat-stack entity-player-facing-collapsible"
+        hint={description}
+        summary={
+          <p className="copy entity-player-facing-summary">
+            {cards.length
+              ? `Секция скрыта. Внутри ${cards.length} ${cards.length === 1 ? "карточка боя" : cards.length < 5 ? "карточки боя" : "карточек боя"}.`
+              : "Секция скрыта. Карточек боя пока нет."}
+          </p>
+        }
+        title="Заготовленные бои"
+      >
+        <div className="entity-player-facing-grid">
+          {cards.length ? (
+            cards.map((card, index) => (
+              <article
+                key={`${entityId}-prepared-combat-${index}`}
+                className="card entity-player-facing-panel entity-player-facing-panel-compact entity-prepared-combat-panel"
+                onContextMenu={(event) => handleCardContextMenu(event, index)}
+              >
+                <div className="quest-story-head">
+                  <strong>{card.title}</strong>
+                  <span className={badge("danger")}>Бой</span>
+                </div>
+
+                <div className="entity-prepared-combat-preview">
+                  <p className="entity-prepared-combat-line">{card.playersText}</p>
+                  <p className="entity-prepared-combat-line">{card.enemiesText}</p>
+                  <p className="entity-prepared-combat-xp">{card.xpText}</p>
+                </div>
+
+                <div className="entity-player-facing-actions">
+                  <button className="ghost fill" onClick={() => onOpenCard(card, index)} type="button">
+                    Посмотреть бой
+                  </button>
+                  <button className="primary" disabled={card.startDisabled} onClick={() => onStartCard(card, index)} type="button">
+                    {card.startLabel || "Начать бой"}
+                  </button>
+                </div>
+              </article>
+            ))
+          ) : (
+            <article className="card entity-player-facing-panel entity-player-facing-panel-compact entity-prepared-combat-panel">
+              <div className="quest-story-head">
+                <strong>Карточек боя пока нет</strong>
+                <span className={badge("default")}>0</span>
+              </div>
+              <p className="copy">{emptyDescription}</p>
+            </article>
+          )}
+
+          <button
+            className="card entity-player-facing-panel entity-player-facing-panel-compact entity-player-facing-panel-create entity-prepared-combat-panel-create"
+            onClick={onCreateCard}
+            type="button"
+          >
+            <span className="entity-player-facing-create-mark">+</span>
+            <strong>Создать еще</strong>
+            <p className="copy">{createDescription}</p>
+          </button>
+        </div>
+      </CollapsibleSection>
+      {contextMenu && contextMenuCard && onDeleteCard ? (
+        <div className="entity-action-backdrop" onClick={closeContextMenu} role="presentation">
+          <div
+            className="entity-action-menu"
+            onClick={(event) => event.stopPropagation()}
+            role="menu"
+            style={{ left: contextMenu.x, top: contextMenu.y }}
+          >
+            <div className="entity-action-menu-label">
+              <small>Карточка боя</small>
               <strong>{contextMenuCard.title}</strong>
             </div>
             <button
@@ -692,6 +842,7 @@ export function QuestWorkspace({
   location,
   issuer,
   playerCards,
+  preparedCombatSection,
   linkedEntities,
   relatedQuests,
   playlistActive,
@@ -717,6 +868,7 @@ export function QuestWorkspace({
   location: LocationEntity | null;
   issuer: NpcEntity | null;
   playerCards: PlayerFacingCard[];
+  preparedCombatSection?: ReactNode;
   linkedEntities: QuestLinkedEntity[];
   relatedQuests: QuestEntity[];
   playlistActive: boolean;
@@ -885,6 +1037,8 @@ export function QuestWorkspace({
         onEditCard={onEditPlayerCard}
         onOpenCard={onOpenPlayerCard}
       />
+
+      {preparedCombatSection}
 
       <div className="quest-story-grid">
         <article className="card quest-story-card quest-story-card-hidden">

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -878,36 +879,38 @@ func materializeEntity(input createEntityInput) knowledgeEntity {
 	if playerContent == "" && len(playerCards) > 0 {
 		playerContent = playerCards[0].Content
 	}
+	preparedCombats := normalizePreparedCombats(input.PreparedCombats, input.PreparedCombat)
 
 	entity := knowledgeEntity{
-		ID:             newID(input.Kind),
-		Kind:           input.Kind,
-		Title:          firstNonEmpty(input.Title, fallbackEntityTitle(input.Kind)),
-		Subtitle:       input.Subtitle,
-		Summary:        firstNonEmpty(input.Summary, "Описание пока не заполнено."),
-		Content:        firstNonEmpty(input.Content, input.Summary, "Описание пока не заполнено."),
-		PlayerContent:  playerContent,
-		PlayerCards:    playerCards,
-		Tags:           sanitizeTags(input.Tags),
-		QuickFacts:     input.QuickFacts,
-		Related:        input.Related,
-		Art:            input.Art,
-		Playlist:       sanitizePlaylistTracks(input.Playlist),
-		Gallery:        sanitizeGalleryImages(input.Gallery),
-		Category:       input.Category,
-		Region:         input.Region,
-		Danger:         input.Danger,
-		ParentID:       input.ParentID,
-		Role:           input.Role,
-		Status:         input.Status,
-		Importance:     input.Importance,
-		LocationID:     input.LocationID,
-		StatBlock:      input.StatBlock,
-		RewardProfile:  input.RewardProfile,
-		Urgency:        input.Urgency,
-		IssuerID:       input.IssuerID,
-		PreparedCombat: normalizePreparedCombat(input.PreparedCombat),
-		Visibility:     input.Visibility,
+		ID:              newID(input.Kind),
+		Kind:            input.Kind,
+		Title:           firstNonEmpty(input.Title, fallbackEntityTitle(input.Kind)),
+		Subtitle:        input.Subtitle,
+		Summary:         firstNonEmpty(input.Summary, "Описание пока не заполнено."),
+		Content:         firstNonEmpty(input.Content, input.Summary, "Описание пока не заполнено."),
+		PlayerContent:   playerContent,
+		PlayerCards:     playerCards,
+		Tags:            sanitizeTags(input.Tags),
+		QuickFacts:      input.QuickFacts,
+		Related:         input.Related,
+		Art:             input.Art,
+		Playlist:        sanitizePlaylistTracks(input.Playlist),
+		Gallery:         sanitizeGalleryImages(input.Gallery),
+		Category:        input.Category,
+		Region:          input.Region,
+		Danger:          input.Danger,
+		ParentID:        input.ParentID,
+		Role:            input.Role,
+		Status:          input.Status,
+		Importance:      input.Importance,
+		LocationID:      input.LocationID,
+		StatBlock:       input.StatBlock,
+		RewardProfile:   input.RewardProfile,
+		Urgency:         input.Urgency,
+		IssuerID:        input.IssuerID,
+		PreparedCombat:  primaryPreparedCombat(preparedCombats),
+		PreparedCombats: preparedCombats,
+		Visibility:      input.Visibility,
 	}
 
 	if len(entity.QuickFacts) == 0 {
@@ -920,6 +923,20 @@ func materializeEntity(input createEntityInput) knowledgeEntity {
 func normalizePreparedCombat(plan *preparedCombatPlan) *preparedCombatPlan {
 	if plan == nil {
 		return nil
+	}
+
+	playerSeen := map[string]struct{}{}
+	playerIDs := make([]string, 0, len(plan.PlayerIDs))
+	for _, playerID := range plan.PlayerIDs {
+		trimmed := strings.TrimSpace(playerID)
+		if trimmed == "" {
+			continue
+		}
+		if _, exists := playerSeen[trimmed]; exists {
+			continue
+		}
+		playerSeen[trimmed] = struct{}{}
+		playerIDs = append(playerIDs, trimmed)
 	}
 
 	items := make([]preparedCombatItem, 0, len(plan.Items))
@@ -935,14 +952,55 @@ func normalizePreparedCombat(plan *preparedCombatPlan) *preparedCombatPlan {
 		})
 	}
 
-	if len(items) == 0 && strings.TrimSpace(plan.Title) == "" {
+	if len(playerIDs) == 0 && len(items) == 0 && strings.TrimSpace(plan.Title) == "" {
 		return nil
 	}
 
 	return &preparedCombatPlan{
-		Title: strings.TrimSpace(plan.Title),
-		Items: items,
+		Title:     strings.TrimSpace(plan.Title),
+		PlayerIDs: playerIDs,
+		Items:     items,
 	}
+}
+
+func normalizePreparedCombats(plans []preparedCombatPlan, legacy *preparedCombatPlan) []preparedCombatPlan {
+	result := make([]preparedCombatPlan, 0, len(plans))
+	for _, plan := range plans {
+		normalized := normalizePreparedCombat(&plan)
+		if normalized == nil {
+			continue
+		}
+		if normalized.Title == "" {
+			normalized.Title = defaultPreparedCombatTitle(len(result))
+		}
+		result = append(result, *normalized)
+	}
+
+	if len(result) == 0 {
+		normalizedLegacy := normalizePreparedCombat(legacy)
+		if normalizedLegacy == nil {
+			return []preparedCombatPlan{}
+		}
+		if normalizedLegacy.Title == "" {
+			normalizedLegacy.Title = defaultPreparedCombatTitle(0)
+		}
+		return []preparedCombatPlan{*normalizedLegacy}
+	}
+
+	return result
+}
+
+func primaryPreparedCombat(plans []preparedCombatPlan) *preparedCombatPlan {
+	if len(plans) == 0 {
+		return nil
+	}
+
+	primary := plans[0]
+	return &primary
+}
+
+func defaultPreparedCombatTitle(index int) string {
+	return "Бой " + strconv.Itoa(index+1)
 }
 
 func normalizeCampaignPreparedCombat(plan *campaignPreparedCombat) *campaignPreparedCombat {

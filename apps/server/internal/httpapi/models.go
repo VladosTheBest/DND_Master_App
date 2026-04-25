@@ -32,8 +32,9 @@ type preparedCombatItem struct {
 }
 
 type preparedCombatPlan struct {
-	Title string               `json:"title,omitempty"`
-	Items []preparedCombatItem `json:"items"`
+	Title     string               `json:"title,omitempty"`
+	PlayerIDs []string             `json:"playerIds,omitempty"`
+	Items     []preparedCombatItem `json:"items"`
 }
 
 type campaignPreparedCombat struct {
@@ -152,20 +153,21 @@ type knowledgeEntity struct {
 	Playlist      []playlistTrack    `json:"playlist,omitempty"`
 	Gallery       []galleryImage     `json:"gallery,omitempty"`
 
-	Category       string                `json:"category,omitempty"`
-	Region         string                `json:"region,omitempty"`
-	Danger         string                `json:"danger,omitempty"`
-	ParentID       string                `json:"parentId,omitempty"`
-	Role           string                `json:"role,omitempty"`
-	Status         string                `json:"status,omitempty"`
-	Importance     string                `json:"importance,omitempty"`
-	LocationID     string                `json:"locationId,omitempty"`
-	StatBlock      *npcStatBlock         `json:"statBlock,omitempty"`
-	RewardProfile  *monsterRewardProfile `json:"rewardProfile,omitempty"`
-	Urgency        string                `json:"urgency,omitempty"`
-	IssuerID       string                `json:"issuerId,omitempty"`
-	PreparedCombat *preparedCombatPlan   `json:"preparedCombat,omitempty"`
-	Visibility     string                `json:"visibility,omitempty"`
+	Category        string                `json:"category,omitempty"`
+	Region          string                `json:"region,omitempty"`
+	Danger          string                `json:"danger,omitempty"`
+	ParentID        string                `json:"parentId,omitempty"`
+	Role            string                `json:"role,omitempty"`
+	Status          string                `json:"status,omitempty"`
+	Importance      string                `json:"importance,omitempty"`
+	LocationID      string                `json:"locationId,omitempty"`
+	StatBlock       *npcStatBlock         `json:"statBlock,omitempty"`
+	RewardProfile   *monsterRewardProfile `json:"rewardProfile,omitempty"`
+	Urgency         string                `json:"urgency,omitempty"`
+	IssuerID        string                `json:"issuerId,omitempty"`
+	PreparedCombat  *preparedCombatPlan   `json:"preparedCombat,omitempty"`
+	PreparedCombats []preparedCombatPlan  `json:"preparedCombats,omitempty"`
+	Visibility      string                `json:"visibility,omitempty"`
 }
 
 type worldEventDialogueBranch struct {
@@ -330,33 +332,34 @@ type createWorldEventInput struct {
 }
 
 type createEntityInput struct {
-	Kind           string                `json:"kind"`
-	Title          string                `json:"title"`
-	Subtitle       string                `json:"subtitle"`
-	Summary        string                `json:"summary"`
-	Content        string                `json:"content"`
-	PlayerContent  string                `json:"playerContent,omitempty"`
-	PlayerCards    []playerFacingCard    `json:"playerCards,omitempty"`
-	Tags           []string              `json:"tags"`
-	QuickFacts     []quickFact           `json:"quickFacts,omitempty"`
-	Related        []relatedEntity       `json:"related,omitempty"`
-	Art            *heroArt              `json:"art,omitempty"`
-	Playlist       []playlistTrack       `json:"playlist,omitempty"`
-	Gallery        []galleryImage        `json:"gallery,omitempty"`
-	Category       string                `json:"category,omitempty"`
-	Region         string                `json:"region,omitempty"`
-	Danger         string                `json:"danger,omitempty"`
-	ParentID       string                `json:"parentId,omitempty"`
-	Role           string                `json:"role,omitempty"`
-	Status         string                `json:"status,omitempty"`
-	Importance     string                `json:"importance,omitempty"`
-	LocationID     string                `json:"locationId,omitempty"`
-	StatBlock      *npcStatBlock         `json:"statBlock,omitempty"`
-	RewardProfile  *monsterRewardProfile `json:"rewardProfile,omitempty"`
-	Urgency        string                `json:"urgency,omitempty"`
-	IssuerID       string                `json:"issuerId,omitempty"`
-	PreparedCombat *preparedCombatPlan   `json:"preparedCombat,omitempty"`
-	Visibility     string                `json:"visibility,omitempty"`
+	Kind            string                `json:"kind"`
+	Title           string                `json:"title"`
+	Subtitle        string                `json:"subtitle"`
+	Summary         string                `json:"summary"`
+	Content         string                `json:"content"`
+	PlayerContent   string                `json:"playerContent,omitempty"`
+	PlayerCards     []playerFacingCard    `json:"playerCards,omitempty"`
+	Tags            []string              `json:"tags"`
+	QuickFacts      []quickFact           `json:"quickFacts,omitempty"`
+	Related         []relatedEntity       `json:"related,omitempty"`
+	Art             *heroArt              `json:"art,omitempty"`
+	Playlist        []playlistTrack       `json:"playlist,omitempty"`
+	Gallery         []galleryImage        `json:"gallery,omitempty"`
+	Category        string                `json:"category,omitempty"`
+	Region          string                `json:"region,omitempty"`
+	Danger          string                `json:"danger,omitempty"`
+	ParentID        string                `json:"parentId,omitempty"`
+	Role            string                `json:"role,omitempty"`
+	Status          string                `json:"status,omitempty"`
+	Importance      string                `json:"importance,omitempty"`
+	LocationID      string                `json:"locationId,omitempty"`
+	StatBlock       *npcStatBlock         `json:"statBlock,omitempty"`
+	RewardProfile   *monsterRewardProfile `json:"rewardProfile,omitempty"`
+	Urgency         string                `json:"urgency,omitempty"`
+	IssuerID        string                `json:"issuerId,omitempty"`
+	PreparedCombat  *preparedCombatPlan   `json:"preparedCombat,omitempty"`
+	PreparedCombats []preparedCombatPlan  `json:"preparedCombats,omitempty"`
+	Visibility      string                `json:"visibility,omitempty"`
 }
 
 type createEntityResult struct {

@@ -70,11 +70,13 @@ import {
   NotesWorkspace
 } from "./notes-events";
 import {
+  PreparedCombatCardStrip,
   PlayerFacingCardStrip,
   PlayerFacingEntityModal,
   collectQuestSectionLines,
   parseQuestTextSections,
   splitQuestNarrative,
+  type PreparedCombatCardView,
   type QuestCombatEntrySummary,
   type QuestLinkedEntity,
   QuestPreviewPanel,
@@ -270,6 +272,12 @@ const createEmptyPlayerFacingCard = (title = ""): PlayerFacingCard => ({
   contentHtml: ""
 });
 
+const createEmptyPreparedCombatPlan = (title = ""): PreparedCombatPlan => ({
+  title,
+  playerIds: [],
+  items: []
+});
+
 const emptyEntityForm = (kind: EntityKind = "location"): CreateEntityInput => ({
   kind,
   title: "",
@@ -300,7 +308,8 @@ const emptyEntityForm = (kind: EntityKind = "location"): CreateEntityInput => ({
   statBlock: kind === "player" || kind === "npc" || kind === "monster" ? createEmptyNpcStatBlock() : undefined,
   rewardProfile: kind === "npc" || kind === "monster" || kind === "quest" ? createEmptyMonsterRewardProfile() : undefined,
   urgency: kind === "quest" ? "Medium" : undefined,
-  preparedCombat: kind === "quest" ? { title: "", items: [] } : undefined,
+  preparedCombat: kind === "quest" || kind === "location" ? createEmptyPreparedCombatPlan() : undefined,
+  preparedCombats: kind === "quest" || kind === "location" ? [] : undefined,
   visibility: kind === "lore" ? "gm_only" : undefined
 });
 
@@ -357,6 +366,12 @@ type ActivePlaylistPlayback = {
   tracks: PlaylistTrack[];
   currentIndex: number;
   token: number;
+};
+type PreparedCombatHostEntity = Extract<KnowledgeEntity, { kind: "location" | "quest" }>;
+type EntityCombatSetupState = {
+  entityId: string;
+  planIndex: number;
+  isNew: boolean;
 };
 
 const resolveApiBaseUrl = () => {
@@ -607,9 +622,13 @@ const clonePreparedCombatPlan = (plan?: PreparedCombatPlan): PreparedCombatPlan 
   plan
     ? {
         title: plan.title,
+        playerIds: [...(plan.playerIds ?? [])],
         items: (plan.items ?? []).map((item) => ({ ...item }))
       }
     : undefined;
+
+const clonePreparedCombatPlans = (plans?: PreparedCombatPlan[]): PreparedCombatPlan[] | undefined =>
+  plans ? plans.map((plan) => clonePreparedCombatPlan(plan) ?? createEmptyPreparedCombatPlan()) : undefined;
 
 const createEmptyCampaignPreparedCombat = (): CampaignPreparedCombat => ({
   title: "",
@@ -637,6 +656,11 @@ const clonePlayerFacingCards = (cards?: PlayerFacingCard[]): PlayerFacingCard[] 
 
 const defaultPlayerFacingCardTitle = (_kind: EntityKind, index: number) =>
   index === 0 ? "Игроки видят" : `Карточка ${index + 1}`;
+
+const defaultPreparedCombatTitle = (index: number) => `Бой ${index + 1}`;
+
+const isPreparedCombatHostEntity = (entity: KnowledgeEntity): entity is PreparedCombatHostEntity =>
+  entity.kind === "location" || entity.kind === "quest";
 
 const normalizePlayerFacingCardsForClient = (
   kind: EntityKind,
@@ -674,6 +698,55 @@ const normalizePlayerFacingCardsForClient = (
   return normalized;
 };
 
+const normalizePreparedCombatPlansForClient = (
+  plans?: PreparedCombatPlan[],
+  legacyPlan?: PreparedCombatPlan
+): PreparedCombatPlan[] => {
+  const normalized = (plans ?? [])
+    .map((plan) => ({
+      title: plan.title?.trim() || "",
+      playerIds: Array.from(new Set((plan.playerIds ?? []).map((playerId) => playerId.trim()).filter(Boolean))),
+      items: (plan.items ?? [])
+        .map((item) => ({
+          entityId: item.entityId.trim(),
+          quantity: Number.isFinite(item.quantity) ? Math.max(1, Math.floor(item.quantity)) : 1
+        }))
+        .filter((item) => item.entityId)
+    }))
+    .filter((plan) => plan.title || plan.playerIds.length || plan.items.length)
+    .map((plan, index) => ({
+      title: plan.title || defaultPreparedCombatTitle(index),
+      playerIds: plan.playerIds,
+      items: plan.items
+    }));
+
+  if (!normalized.length && legacyPlan) {
+    const legacy = clonePreparedCombatPlan(legacyPlan);
+    if (legacy) {
+      const title = legacy.title?.trim() || "";
+      const playerIds = Array.from(new Set((legacy.playerIds ?? []).map((playerId) => playerId.trim()).filter(Boolean)));
+      const items = (legacy.items ?? [])
+        .map((item) => ({
+          entityId: item.entityId.trim(),
+          quantity: Number.isFinite(item.quantity) ? Math.max(1, Math.floor(item.quantity)) : 1
+        }))
+        .filter((item) => item.entityId);
+
+      if (title || playerIds.length || items.length) {
+        return [
+          {
+            title: title || defaultPreparedCombatTitle(0),
+            playerIds,
+            items
+          }
+        ];
+      }
+    }
+  }
+
+  return normalized;
+};
+
 const summarizePlayerFacingContent = (value?: string, maxItems = 4) => {
   const sections = parseQuestTextSections(value);
   const primarySection = sections.find((section) => section.body.length);
@@ -697,30 +770,26 @@ const normalizeCombatEntryForClient = (entry: CombatEntry): CombatEntry => ({
   armorClass: entry.armorClass || (entry.entityKind === "player" ? "—" : "10")
 });
 
-const normalizeEntityForClient = <T extends KnowledgeEntity>(entity: T): T => ({
-  ...entity,
-  tags: entity.tags ?? [],
-  quickFacts: entity.quickFacts ?? [],
-  related: entity.related ?? [],
-  playerCards: normalizePlayerFacingCardsForClient(entity.kind, entity.playerCards, entity.playerContent),
-  playlist: entity.playlist ?? [],
-  gallery: entity.gallery ?? [],
-  ...(("rewardProfile" in entity
-    ? {
-        rewardProfile: normalizeRewardProfileForClient(entity.rewardProfile)
-      }
-    : {}) as Partial<T>),
-  ...(("preparedCombat" in entity
-    ? {
-        preparedCombat: entity.preparedCombat
-          ? {
-              title: entity.preparedCombat.title,
-              items: entity.preparedCombat.items ?? []
-            }
-          : undefined
-      }
-    : {}) as Partial<T>)
-});
+const normalizeEntityForClient = <T extends KnowledgeEntity>(entity: T): T => {
+  const preparedCombats = normalizePreparedCombatPlansForClient(entity.preparedCombats, entity.preparedCombat);
+
+  return {
+    ...entity,
+    tags: entity.tags ?? [],
+    quickFacts: entity.quickFacts ?? [],
+    related: entity.related ?? [],
+    playerCards: normalizePlayerFacingCardsForClient(entity.kind, entity.playerCards, entity.playerContent),
+    playlist: entity.playlist ?? [],
+    gallery: entity.gallery ?? [],
+    preparedCombat: preparedCombats[0] ? clonePreparedCombatPlan(preparedCombats[0]) : undefined,
+    preparedCombats,
+    ...(("rewardProfile" in entity
+      ? {
+          rewardProfile: normalizeRewardProfileForClient(entity.rewardProfile)
+        }
+      : {}) as Partial<T>)
+  };
+};
 
 const normalizeWorldEventDialogueBranchForClient = (branch: WorldEventDialogueBranch): WorldEventDialogueBranch => ({
   title: branch.title?.trim() || "Ветка",
@@ -851,40 +920,45 @@ const cloneNpcStatBlock = (statBlock?: NpcStatBlock): NpcStatBlock | undefined =
       }
     : undefined;
 
-const entityToForm = (entity: KnowledgeEntity): CreateEntityInput => ({
-  kind: entity.kind,
-  title: entity.title,
-  subtitle: entity.subtitle,
-  summary: entity.summary,
-  content: entity.content,
-  playerContent: entity.playerContent,
-  playerCards: clonePlayerFacingCards(normalizePlayerFacingCardsForClient(entity.kind, entity.playerCards, entity.playerContent)) ?? [],
-  tags: [...(entity.tags ?? [])],
-  playlist: clonePlaylistTracks(entity.playlist) ?? [],
-  gallery: cloneGalleryImages(entity.gallery) ?? [],
-  related: (entity.related ?? []).map((item) => ({ ...item })),
-  art: entity.art ? { ...entity.art } : undefined,
-  category: "category" in entity ? entity.category : undefined,
-  region: "region" in entity ? entity.region : undefined,
-  danger: "danger" in entity ? entity.danger : undefined,
-  parentId: "parentId" in entity ? entity.parentId : undefined,
-  role: "role" in entity ? entity.role : undefined,
-  status: "status" in entity ? entity.status : undefined,
-  importance: "importance" in entity ? entity.importance : undefined,
-  locationId: "locationId" in entity ? entity.locationId : undefined,
-  statBlock:
-    entity.kind === "player" || entity.kind === "npc" || entity.kind === "monster"
-      ? cloneNpcStatBlock(entity.statBlock) ?? createEmptyNpcStatBlock()
-      : undefined,
-  rewardProfile:
-    entity.kind === "npc" || entity.kind === "monster" || entity.kind === "quest"
-      ? cloneMonsterRewardProfile(normalizeRewardProfileForClient(entity.rewardProfile)) ?? createEmptyMonsterRewardProfile()
-      : undefined,
-  urgency: "urgency" in entity ? entity.urgency : undefined,
-  issuerId: "issuerId" in entity ? entity.issuerId : undefined,
-  preparedCombat: entity.kind === "quest" ? clonePreparedCombatPlan(entity.preparedCombat) ?? { title: "", items: [] } : undefined,
-  visibility: "visibility" in entity ? entity.visibility : undefined
-});
+const entityToForm = (entity: KnowledgeEntity): CreateEntityInput => {
+  const preparedCombats = clonePreparedCombatPlans(normalizePreparedCombatPlansForClient(entity.preparedCombats, entity.preparedCombat)) ?? [];
+
+  return {
+    kind: entity.kind,
+    title: entity.title,
+    subtitle: entity.subtitle,
+    summary: entity.summary,
+    content: entity.content,
+    playerContent: entity.playerContent,
+    playerCards: clonePlayerFacingCards(normalizePlayerFacingCardsForClient(entity.kind, entity.playerCards, entity.playerContent)) ?? [],
+    tags: [...(entity.tags ?? [])],
+    playlist: clonePlaylistTracks(entity.playlist) ?? [],
+    gallery: cloneGalleryImages(entity.gallery) ?? [],
+    related: (entity.related ?? []).map((item) => ({ ...item })),
+    art: entity.art ? { ...entity.art } : undefined,
+    category: "category" in entity ? entity.category : undefined,
+    region: "region" in entity ? entity.region : undefined,
+    danger: "danger" in entity ? entity.danger : undefined,
+    parentId: "parentId" in entity ? entity.parentId : undefined,
+    role: "role" in entity ? entity.role : undefined,
+    status: "status" in entity ? entity.status : undefined,
+    importance: "importance" in entity ? entity.importance : undefined,
+    locationId: "locationId" in entity ? entity.locationId : undefined,
+    statBlock:
+      entity.kind === "player" || entity.kind === "npc" || entity.kind === "monster"
+        ? cloneNpcStatBlock(entity.statBlock) ?? createEmptyNpcStatBlock()
+        : undefined,
+    rewardProfile:
+      entity.kind === "npc" || entity.kind === "monster" || entity.kind === "quest"
+        ? cloneMonsterRewardProfile(normalizeRewardProfileForClient(entity.rewardProfile)) ?? createEmptyMonsterRewardProfile()
+        : undefined,
+    urgency: "urgency" in entity ? entity.urgency : undefined,
+    issuerId: "issuerId" in entity ? entity.issuerId : undefined,
+    preparedCombat: preparedCombats[0] ? clonePreparedCombatPlan(preparedCombats[0]) : undefined,
+    preparedCombats,
+    visibility: "visibility" in entity ? entity.visibility : undefined
+  };
+};
 
 const sanitizeOptionalText = (value?: string) => {
   const trimmed = value?.trim();
@@ -1063,6 +1137,13 @@ const sanitizePreparedCombatPlan = (plan?: PreparedCombatPlan): PreparedCombatPl
   }
 
   const title = sanitizeOptionalText(plan.title);
+  const playerIds = Array.from(
+    new Set(
+      (plan.playerIds ?? [])
+        .map((playerId) => playerId.trim())
+        .filter(Boolean)
+    )
+  );
   const items = plan.items
     .map((item) => ({
       entityId: item.entityId.trim(),
@@ -1070,14 +1151,42 @@ const sanitizePreparedCombatPlan = (plan?: PreparedCombatPlan): PreparedCombatPl
     }))
     .filter((item) => item.entityId);
 
-  if (!title && !items.length) {
+  if (!title && !playerIds.length && !items.length) {
     return undefined;
   }
 
   return {
     title,
+    playerIds,
     items
   };
+};
+
+const sanitizePreparedCombatPlans = (
+  plans: PreparedCombatPlan[] = [],
+  legacyPlan?: PreparedCombatPlan
+): PreparedCombatPlan[] => {
+  const sanitized = plans
+    .map((plan) => sanitizePreparedCombatPlan(plan))
+    .filter((plan): plan is PreparedCombatPlan => Boolean(plan))
+    .map((plan, index) => ({
+      ...plan,
+      title: plan.title || defaultPreparedCombatTitle(index)
+    }));
+
+  if (!sanitized.length) {
+    const legacy = sanitizePreparedCombatPlan(legacyPlan);
+    return legacy
+      ? [
+          {
+            ...legacy,
+            title: legacy.title || defaultPreparedCombatTitle(0)
+          }
+        ]
+      : [];
+  }
+
+  return sanitized;
 };
 
 const sanitizeCampaignPreparedCombat = (plan?: CampaignPreparedCombat | null): CampaignPreparedCombat | null => {
@@ -1151,6 +1260,8 @@ const sanitizeNpcStatBlock = (statBlock?: NpcStatBlock): NpcStatBlock | undefine
 const serializeEntityForm = (form: CreateEntityInput): CreateEntityInput => {
   const playerCards = sanitizePlayerFacingCards(form.kind, form.playerCards ?? [], form.playerContent);
   const playerContent = playerCards.length ? playerCards[0].content : sanitizeOptionalText(form.playerContent);
+  const preparedCombats = sanitizePreparedCombatPlans(form.preparedCombats ?? [], form.preparedCombat);
+  const primaryPreparedCombat = preparedCombats[0];
   const common = {
     kind: form.kind,
     title: form.title.trim(),
@@ -1181,7 +1292,9 @@ const serializeEntityForm = (form: CreateEntityInput): CreateEntityInput => {
         category: form.category as CreateEntityInput["category"],
         region: form.region?.trim() ?? "",
         danger: form.danger as CreateEntityInput["danger"],
-        parentId: sanitizeOptionalText(form.parentId)
+        parentId: sanitizeOptionalText(form.parentId),
+        preparedCombat: primaryPreparedCombat,
+        preparedCombats
       };
     case "player":
       return {
@@ -1212,7 +1325,8 @@ const serializeEntityForm = (form: CreateEntityInput): CreateEntityInput => {
         issuerId: sanitizeOptionalText(form.issuerId),
         locationId: sanitizeOptionalText(form.locationId),
         rewardProfile: sanitizeMonsterRewardProfile(form.rewardProfile),
-        preparedCombat: sanitizePreparedCombatPlan(form.preparedCombat)
+        preparedCombat: primaryPreparedCombat,
+        preparedCombats
       };
     case "lore":
       return {
@@ -1943,6 +2057,7 @@ export default function App() {
   const [combatPlaylistModalOpen, setCombatPlaylistModalOpen] = useState(false);
   const [entityPlaylistModalOpen, setEntityPlaylistModalOpen] = useState(false);
   const [entityGalleryModalOpen, setEntityGalleryModalOpen] = useState(false);
+  const [entityCombatSetupState, setEntityCombatSetupState] = useState<EntityCombatSetupState | null>(null);
   const [playerFacingView, setPlayerFacingView] = useState<PlayerFacingViewState | null>(null);
   const [playerFacingModalSaving, setPlayerFacingModalSaving] = useState(false);
   const [playerFacingModalFormatting, setPlayerFacingModalFormatting] = useState(false);
@@ -2910,6 +3025,10 @@ export default function App() {
     entityPlaylistEntityId && entityMap.has(entityPlaylistEntityId) ? entityMap.get(entityPlaylistEntityId) ?? null : null;
   const entityGalleryTarget =
     entityGalleryEntityId && entityMap.has(entityGalleryEntityId) ? entityMap.get(entityGalleryEntityId) ?? null : null;
+  const entityCombatSetupTarget =
+    entityCombatSetupState?.entityId && entityMap.has(entityCombatSetupState.entityId)
+      ? entityMap.get(entityCombatSetupState.entityId) ?? null
+      : null;
   const entityActionMenuTarget =
     entityActionMenu && entityMap.has(entityActionMenu.entityId) ? entityMap.get(entityActionMenu.entityId) ?? null : null;
   const currentPlaybackTrack = activePlayback ? activePlayback.tracks[activePlayback.currentIndex] ?? null : null;
@@ -2938,22 +3057,29 @@ export default function App() {
 
     return null;
   };
+  const resolvePreparedCombatEntries = (plan?: PreparedCombatPlan | null) =>
+    (plan?.items ?? [])
+      .map((item) => {
+        const entity = entityMap.get(item.entityId);
+        if (!entity || !isCombatProfileEntity(entity)) {
+          return null;
+        }
+        return {
+          entity,
+          quantity: Math.max(1, item.quantity)
+        };
+      })
+      .filter((item): item is { entity: CombatProfileEntity; quantity: number } => Boolean(item));
+  const resolvePreparedCombatPlayers = (plan?: PreparedCombatPlan | null) =>
+    (plan?.playerIds ?? [])
+      .map((playerId) => entityMap.get(playerId))
+      .filter((entity): entity is PlayerEntity => entity?.kind === "player");
+  const resolveEntityPreparedCombats = (entity?: PreparedCombatHostEntity | null) =>
+    normalizePreparedCombatPlansForClient(entity?.preparedCombats, entity?.preparedCombat);
+  const resolvePreparedCombatEntriesForPlans = (plans: PreparedCombatPlan[] = []) =>
+    plans.flatMap((plan) => resolvePreparedCombatEntries(plan));
   const activeQuestPreparedCombatEntries = useMemo(
-    () =>
-      activeEntity?.kind === "quest"
-        ? (activeEntity.preparedCombat?.items ?? [])
-            .map((item) => {
-              const entity = entityMap.get(item.entityId);
-              if (!entity || !isCombatProfileEntity(entity)) {
-                return null;
-              }
-              return {
-                entity,
-                quantity: Math.max(1, item.quantity)
-              };
-            })
-            .filter((item): item is { entity: CombatProfileEntity; quantity: number } => Boolean(item))
-        : [],
+    () => (activeEntity?.kind === "quest" ? resolvePreparedCombatEntriesForPlans(resolveEntityPreparedCombats(activeEntity)) : []),
     [activeEntity, entityMap]
   );
   const configuredCombatPlayers = useMemo(
@@ -3193,6 +3319,86 @@ export default function App() {
     );
   };
 
+  const buildPreparedCombatCardView = (
+    entity: PreparedCombatHostEntity,
+    plan: PreparedCombatPlan,
+    planIndex: number
+  ): PreparedCombatCardView => {
+    const players = resolvePreparedCombatPlayers(plan);
+    const enemies = resolvePreparedCombatEntries(plan);
+    const enemyCount = enemies.reduce((sum, item) => sum + item.quantity, 0);
+    const playerNames = players.map((player) => player.title);
+    const enemyNames = enemies.map(({ entity: combatEntity, quantity }) =>
+      quantity > 1 ? `${combatEntity.title} x${quantity}` : combatEntity.title
+    );
+    const enemyXpTotal = enemies.reduce(
+      (sum, item) => sum + parseChallengeXp(item.entity.statBlock?.challenge ?? "") * item.quantity,
+      0
+    );
+    const summarizeNames = (names: string[]) => {
+      if (!names.length) {
+        return "не выбраны";
+      }
+      if (names.length === 1) {
+        return names[0];
+      }
+      if (names.length === 2) {
+        return `${names[0]}, ${names[1]}`;
+      }
+      return `${names[0]}, ${names[1]} и ещё ${names.length - 2}`;
+    };
+
+    return {
+      title: plan.title?.trim() || defaultPreparedCombatTitle(planIndex),
+      playersText: `Игроки: ${players.length || 0} • ${summarizeNames(playerNames)}`,
+      enemiesText: `Враги: ${enemyCount} • ${summarizeNames(enemyNames)}`,
+      xpText: enemyXpTotal > 0 ? `Суммарно ${enemyXpTotal} XP` : "XP подтянется из CR и состава врагов",
+      startDisabled: Boolean(activeCombat?.entries.length),
+      startLabel: activeCombat?.entries.length ? "Есть активный бой" : "Начать бой"
+    };
+  };
+
+  const requestPreparedCombatCardDeletion = (
+    entity: PreparedCombatHostEntity,
+    card: PreparedCombatCardView,
+    cardIndex: number
+  ) => {
+    if (!activeCampaignId) {
+      return;
+    }
+
+    requestModalClose(
+      `Удалить карточку боя «${card.title}»?`,
+      () => {
+        void (async () => {
+          try {
+            setSaving(true);
+            setBootError("");
+
+            const nextForm = entityToForm(entity);
+            const currentPlans = resolveEntityPreparedCombats(entity);
+            nextForm.preparedCombats = currentPlans.filter((_, index) => index !== cardIndex);
+            nextForm.preparedCombat = nextForm.preparedCombats[0];
+
+            const result = await api.updateEntity(activeCampaignId, entity.id, serializeEntityForm(nextForm));
+            hydrateCampaign(result.campaign, result.entity.id);
+            setPreviewEntityId(result.entity.id);
+
+            if (entityCombatSetupState?.entityId === entity.id) {
+              closeCombatSetupModal();
+            }
+          } catch (error) {
+            handleProtectedActionError(error, "Не удалось удалить карточку заготовленного боя.");
+          } finally {
+            setSaving(false);
+          }
+        })();
+      },
+      "Карточка боя исчезнет из сущности сразу после подтверждения.",
+      "Удалить"
+    );
+  };
+
   const formatPlayerFacingCardFromModal = async (card: PlayerFacingCard) => {
     if (!activeCampaignId || !playerFacingEntity) {
       return undefined;
@@ -3246,20 +3452,7 @@ export default function App() {
     return entity?.kind === "npc" ? entity : null;
   };
   const resolveQuestPreparedCombatEntries = (quest: QuestEntity | null): QuestCombatEntrySummary[] =>
-    quest
-      ? (quest.preparedCombat?.items ?? [])
-          .map((item) => {
-            const entity = entityMap.get(item.entityId);
-            if (!entity || !isCombatProfileEntity(entity)) {
-              return null;
-            }
-            return {
-              entity,
-              quantity: Math.max(1, item.quantity)
-            };
-          })
-          .filter((item): item is QuestCombatEntrySummary => Boolean(item))
-      : [];
+    quest ? resolvePreparedCombatEntriesForPlans(resolveEntityPreparedCombats(quest)) : [];
   const buildQuestLinkedEntities = (quest: QuestEntity | null): QuestLinkedEntity[] => {
     if (!quest) {
       return [];
@@ -4161,6 +4354,7 @@ export default function App() {
     focusCombatModule();
     setBootError("");
     setCampaignPreparedCombatNotice("");
+    setEntityCombatSetupState(null);
     setCampaignPreparedCombatDraft(cloneCampaignPreparedCombat(campaignPreparedCombat));
     setCombatPlayerSearchQuery("");
     setCombatSearchQuery("");
@@ -4169,6 +4363,47 @@ export default function App() {
     setCombatSelectionQuantity(1);
     setCombatSelectionInitiative(0);
     setCombatSetupOpen(true);
+  };
+
+  const openEntityPreparedCombatSetup = (
+    entity: PreparedCombatHostEntity,
+    plan: PreparedCombatPlan | undefined,
+    planIndex: number,
+    isNew = false
+  ) => {
+    focusCombatModule();
+    setBootError("");
+    setCampaignPreparedCombatNotice("");
+    setEntityCombatSetupState({
+      entityId: entity.id,
+      planIndex,
+      isNew
+    });
+    setCampaignPreparedCombatDraft(
+      cloneCampaignPreparedCombat(plan ? { title: plan.title, playerIds: plan.playerIds ?? [], items: plan.items } : null) || {
+        title: defaultPreparedCombatTitle(planIndex),
+        playerIds: [],
+        items: []
+      }
+    );
+    setCombatPlayerSearchQuery("");
+    setCombatSearchQuery("");
+    setCombatSearchChallenge("");
+    setCombatEnemyTypeFilter("all");
+    setCombatSelectionQuantity(1);
+    setCombatSelectionInitiative(0);
+    setCombatSetupOpen(true);
+  };
+
+  const openNewEntityPreparedCombatSetup = (entity: PreparedCombatHostEntity) => {
+    const existingPlans = resolveEntityPreparedCombats(entity);
+    const nextIndex = existingPlans.length;
+    openEntityPreparedCombatSetup(
+      entity,
+      createEmptyPreparedCombatPlan(defaultPreparedCombatTitle(nextIndex)),
+      nextIndex,
+      true
+    );
   };
 
   const openEntityPlaylistModal = (entity: KnowledgeEntity) => {
@@ -4285,6 +4520,7 @@ export default function App() {
 
   const closeCombatSetupModal = () => {
     setCombatSetupOpen(false);
+    setEntityCombatSetupState(null);
     setCampaignPreparedCombatNotice("");
     setCombatPlayerSearchQuery("");
     setCombatEnemyTypeFilter("all");
@@ -5159,7 +5395,7 @@ export default function App() {
     }
   };
 
-  const startPreparedQuestCombat = async (quest: QuestEntity) => {
+  const legacyStartPreparedQuestCombat = async (quest: QuestEntity) => {
     if (!activeCampaignId) {
       return;
     }
@@ -5201,7 +5437,7 @@ export default function App() {
     }
   };
 
-  const handleQuestCombatAction = (quest: QuestEntity) => {
+  const legacyHandleQuestCombatAction = (quest: QuestEntity) => {
     if (activeCombat?.entries.length) {
       openCombatScreen();
       return;
@@ -5213,6 +5449,84 @@ export default function App() {
     }
 
     openPreparedCombatModal(quest);
+  };
+
+  const startEntityPreparedCombat = async (
+    entity: PreparedCombatHostEntity,
+    plan: PreparedCombatPlan | undefined,
+    planIndex: number
+  ) => {
+    if (!activeCampaignId) {
+      return;
+    }
+    if (activeCombat?.entries.length) {
+      setBootError("Сначала заверши текущий активный бой или вернись в него, чтобы не смешивать две сцены.");
+      openCombatScreen();
+      return;
+    }
+
+    const players = resolvePreparedCombatPlayers(plan);
+    const enemies = resolvePreparedCombatEntries(plan);
+
+    if (!players.length || !enemies.length) {
+      setBootError("Для старта нужен хотя бы один игрок и хотя бы один противник. Открою подготовку боя, чтобы можно было быстро добрать состав.");
+      openEntityPreparedCombatSetup(entity, plan, planIndex, false);
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setBootError("");
+      const result = await api.startCombat(activeCampaignId, {
+        title: plan?.title?.trim() || `${entity.title}: бой`,
+        partySize: effectivePartySize,
+        thresholds: effectiveCombatThresholds,
+        items: [
+          ...players.map((player) => ({
+            entityId: player.id,
+            quantity: 1,
+            initiative: 0
+          })),
+          ...enemies.map(({ entity: combatEntity, quantity }) => ({
+            entityId: combatEntity.id,
+            quantity,
+            initiative: 0
+          }))
+        ]
+      });
+      applyCombatPayload(result);
+      openCombatScreen();
+    } catch (error) {
+      setBootError(error instanceof Error ? error.message : "Не удалось запустить заготовленный бой.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const startPreparedQuestCombat = async (quest: QuestEntity) => {
+    const plans = resolveEntityPreparedCombats(quest);
+    await startEntityPreparedCombat(quest, plans[0], 0);
+  };
+
+  const handleQuestCombatAction = (quest: QuestEntity) => {
+    if (activeCombat?.entries.length) {
+      openCombatScreen();
+      return;
+    }
+
+    const plans = resolveEntityPreparedCombats(quest);
+    if (plans.length > 1) {
+      setBootError("У этого квеста несколько карточек боя. Открой квест и выбери нужную сцену прямо из списка карточек.");
+      openQuestFocus(quest.id);
+      return;
+    }
+
+    if (plans[0]) {
+      void startEntityPreparedCombat(quest, plans[0], 0);
+      return;
+    }
+
+    openEntityPreparedCombatSetup(quest, undefined, 0, true);
   };
 
   const handleCampaignSelect = async (campaignId: string) => {
@@ -6132,6 +6446,81 @@ export default function App() {
     }
   };
 
+  const saveEntityPreparedCombatDraft = async () => {
+    if (!activeCampaignId || !entityCombatSetupState || !entityCombatSetupTarget || !isPreparedCombatHostEntity(entityCombatSetupTarget)) {
+      return;
+    }
+
+    const nextPlan = sanitizePreparedCombatPlan({
+      title: campaignPreparedCombatDraft.title,
+      playerIds: campaignPreparedCombatDraft.playerIds,
+      items: campaignPreparedCombatDraft.items
+    });
+    if (!nextPlan) {
+      setBootError("Добавь в карточку хотя бы название, игроков или противников, а потом сохраняй её.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setBootError("");
+      const existingPlans = resolveEntityPreparedCombats(entityCombatSetupTarget);
+      const nextPlans = [...existingPlans];
+      const normalizedPlan = {
+        ...nextPlan,
+        title: nextPlan.title || defaultPreparedCombatTitle(entityCombatSetupState.planIndex)
+      };
+
+      if (entityCombatSetupState.planIndex >= nextPlans.length) {
+        nextPlans.push(normalizedPlan);
+      } else {
+        nextPlans[entityCombatSetupState.planIndex] = normalizedPlan;
+      }
+
+      const nextForm = entityToForm(entityCombatSetupTarget);
+      nextForm.preparedCombats = nextPlans;
+      nextForm.preparedCombat = nextPlans[0];
+
+      const result = await api.updateEntity(activeCampaignId, entityCombatSetupTarget.id, serializeEntityForm(nextForm));
+      hydrateCampaign(result.campaign, result.entity.id);
+      setPreviewEntityId(result.entity.id);
+
+      const updatedEntity = result.entity;
+      const updatedPlans =
+        isPreparedCombatHostEntity(updatedEntity) ? resolveEntityPreparedCombats(updatedEntity) : [];
+      const resolvedIndex = Math.min(entityCombatSetupState.planIndex, Math.max(updatedPlans.length - 1, 0));
+      const savedPlan = updatedPlans[resolvedIndex];
+
+      if (!savedPlan) {
+        closeCombatSetupModal();
+        return;
+      }
+
+      setEntityCombatSetupState({
+        entityId: updatedEntity.id,
+        planIndex: resolvedIndex,
+        isNew: false
+      });
+      setCampaignPreparedCombatDraft({
+        title: savedPlan.title,
+        playerIds: [...(savedPlan.playerIds ?? [])],
+        items: savedPlan.items.map((item) => ({ ...item }))
+      });
+
+      const playerCount = savedPlan.playerIds?.length ?? 0;
+      const enemyCount = savedPlan.items.reduce((sum, item) => sum + Math.max(1, item.quantity), 0);
+      setCampaignPreparedCombatNotice(
+        `Карточка боя сохранена: ${playerCount} ${
+          playerCount === 1 ? "игрок" : playerCount < 5 ? "игрока" : "игроков"
+        } и ${enemyCount} ${enemyCount === 1 ? "противник" : enemyCount < 5 ? "противника" : "противников"}.`
+      );
+    } catch (error) {
+      setBootError(error instanceof Error ? error.message : "Не удалось сохранить карточку боя.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const startConfiguredCombat = async () => {
     if (!activeCampaignId) {
       return;
@@ -6454,21 +6843,49 @@ export default function App() {
     ? "Измени поля, статблок и затем сохрани сущность на backend"
     : "Сгенерируй черновик, отредактируй поля и потом создай сущность в кампании";
   const entitySubmitLabel = isEditingEntity ? "Сохранить изменения" : "Создать";
+  const combatSetupHostEntity =
+    entityCombatSetupTarget && isPreparedCombatHostEntity(entityCombatSetupTarget) ? entityCombatSetupTarget : null;
+
+  const renderPreparedCombatSection = (entity: PreparedCombatHostEntity): ReactNode => {
+    const plans = resolveEntityPreparedCombats(entity);
+    const cards = plans.map((plan, index) => buildPreparedCombatCardView(entity, plan, index));
+
+    return (
+      <PreparedCombatCardStrip
+        cards={cards}
+        createDescription="Сохрани сюда отдельную сцену боя с нужными игроками и противниками, чтобы запускать её одной кнопкой."
+        description={
+          entity.kind === "quest"
+            ? "Несколько готовых сцен для этого квеста: засада, переговоры, финальная схватка или запасной боевой поворот."
+            : "Отдельные заготовленные сцены боя для этой локации: гарнизон, случайная встреча, тревога или финальная оборона."
+        }
+        emptyDescription="Пока карточек боя нет. Создай первую, и она откроется сразу в экране подготовки боя с отдельным сохранением."
+        entityId={entity.id}
+        onCreateCard={() => openNewEntityPreparedCombatSetup(entity)}
+        onDeleteCard={(card, index) => requestPreparedCombatCardDeletion(entity, card, index)}
+        onOpenCard={(_, index) => openEntityPreparedCombatSetup(entity, plans[index], index, false)}
+        onStartCard={(_, index) => {
+          void startEntityPreparedCombat(entity, plans[index], index);
+        }}
+      />
+    );
+  };
+
   const campaignCombatSetupView =
     campaign ? (
       <div className="combat-prep-page">
         <section className="card section-card combat-prep-topbar">
           <div className="combat-prep-topbar-main">
             <button className="ghost" onClick={requestCombatSetupModalClose} type="button">
-              К обзору боя
+              {combatSetupHostEntity ? "К карточкам боя" : "К обзору боя"}
             </button>
             <div className="combat-prep-breadcrumbs">
               <div className="stack compact">
-                <span>Кампания</span>
-                <strong>{campaign.title}</strong>
+                <span>{combatSetupHostEntity ? kindTitle[combatSetupHostEntity.kind] : "Кампания"}</span>
+                <strong>{combatSetupHostEntity ? combatSetupHostEntity.title : campaign.title}</strong>
               </div>
               <div className="stack compact">
-                <span>Боевая сцена</span>
+                <span>{combatSetupHostEntity ? "Карточка боя" : "Боевая сцена"}</span>
                 <strong>{campaignPreparedCombatDraft.title?.trim() || "Активный бой"}</strong>
               </div>
             </div>
@@ -6492,8 +6909,13 @@ export default function App() {
             >
               Свой противник
             </button>
-            <button className="ghost" disabled={saving} onClick={() => void saveCampaignPreparedCombatDraft()} type="button">
-              {saving ? "Сохраняю..." : "Сохранить"}
+            <button
+              className="ghost"
+              disabled={saving}
+              onClick={() => void (combatSetupHostEntity ? saveEntityPreparedCombatDraft() : saveCampaignPreparedCombatDraft())}
+              type="button"
+            >
+              {saving ? "Сохраняю..." : combatSetupHostEntity ? "Сохранить карточку" : "Сохранить"}
             </button>
             <button className="primary" disabled={!canStartPreparedCombatDraft || saving} onClick={() => void startConfiguredCombat()} type="button">
               {saving ? "Запускаю..." : "Начать бой"}
@@ -7748,6 +8170,7 @@ export default function App() {
                 playlistActive={isEntityPlaylistActive(activeEntity.id)}
                 playlistTrackLabel={currentPlaybackTrackLabel}
                 pinned={activeEntityPinned}
+                preparedCombatSection={renderPreparedCombatSection(activeEntity)}
                 preparedCombatEntries={activeQuestPreparedCombatEntries}
                 previousQuest={previousQuest}
                 quest={activeEntity}
@@ -7857,6 +8280,8 @@ export default function App() {
                   onEditCard={(card, index) => openPlayerFacingEditor(activeEntity, card, index)}
                   onOpenCard={(card, index) => openPlayerFacingView(activeEntity, card, { cardIndex: index })}
                 />
+
+                {isPreparedCombatHostEntity(activeEntity) ? renderPreparedCombatSection(activeEntity) : null}
 
                 {composeVisibleQuickFacts(activeEntity).length ? (
                   <CollapsibleSection
