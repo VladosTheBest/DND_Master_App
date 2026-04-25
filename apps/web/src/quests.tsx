@@ -12,6 +12,7 @@ import type {
 } from "@shadow-edge/shared-types";
 import {
   badge,
+  CollapsibleSection,
   createHeroPanelStyle,
   EntityVisual,
   gradients,
@@ -44,10 +45,118 @@ type QuestChecklistItem = {
   done: boolean;
 };
 
+const summarizePlayerFacingCardPreview = (value?: string, maxItems = 4) => {
+  const sections = parseQuestTextSections(value);
+  const primarySection = sections.find((section) => section.body.length);
+  const sectionLines = collectQuestSectionLines(primarySection, maxItems);
+  return sectionLines.length ? sectionLines : splitQuestNarrative(value ?? "", maxItems);
+};
+
 export type QuestCombatEntrySummary = {
   entity: CombatProfileEntity;
   quantity: number;
 };
+
+export function PlayerFacingCardStrip({
+  cards,
+  createDescription,
+  description,
+  emptyDescription,
+  entityId,
+  onCreateCard,
+  onEditCard,
+  onOpenCard
+}: {
+  cards: PlayerFacingCard[];
+  createDescription: string;
+  description: string;
+  emptyDescription: string;
+  entityId: string;
+  onCreateCard: () => void;
+  onEditCard: (card: PlayerFacingCard, index: number) => void;
+  onOpenCard: (card: PlayerFacingCard, index: number) => void;
+}) {
+  return (
+    <CollapsibleSection
+      action={<span className={badge(cards.length ? "success" : "default")}>{cards.length ? `${cards.length} карточек` : "Черновик нужен"}</span>}
+      className="entity-player-facing-stack entity-player-facing-collapsible"
+      hint={description}
+      summary={
+        <p className="copy entity-player-facing-summary">
+          {cards.length
+            ? `Секция скрыта. Внутри ${cards.length} ${cards.length === 1 ? "карточка" : cards.length < 5 ? "карточки" : "карточек"}.`
+            : "Секция скрыта. Карточек пока нет."}
+        </p>
+      }
+      title="Игроки видят"
+    >
+      <div className="entity-player-facing-grid">
+        {cards.length ? (
+          cards.map((card, index) => {
+            const highlights = summarizePlayerFacingCardPreview(card.content, 4);
+            const previewHtml = sanitizePlayerFacingHTML(card.contentHtml);
+
+            return (
+              <article
+                key={`${entityId}-player-card-${index}`}
+                className="card entity-player-facing-panel entity-player-facing-panel-compact"
+              >
+                <div className="quest-story-head">
+                  <strong>{card.title}</strong>
+                  <span className={badge("success")}>Player-safe</span>
+                </div>
+
+                <div className="entity-player-facing-preview">
+                  {previewHtml ? (
+                    <div
+                      className="player-facing-rich entity-player-facing-rich-preview"
+                      dangerouslySetInnerHTML={{ __html: previewHtml }}
+                    />
+                  ) : highlights.length ? (
+                    <ul className="quest-bullet-list">
+                      {highlights.map((line, lineIndex) => (
+                        <li key={`${entityId}-player-card-${index}-line-${lineIndex}`}>{line}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="copy">В этой карточке пока нет текста для показа игрокам.</p>
+                  )}
+                </div>
+
+                <div className="entity-player-facing-actions">
+                  <button className="ghost fill" onClick={() => onOpenCard(card, index)} type="button">
+                    Открыть
+                  </button>
+                  <button className="ghost" onClick={() => onEditCard(card, index)} type="button">
+                    Редактировать
+                  </button>
+                </div>
+              </article>
+            );
+          })
+        ) : (
+          <article className="card entity-player-facing-panel entity-player-facing-panel-compact">
+            <div className="quest-story-head">
+              <strong>Карточек пока нет</strong>
+              <span className={badge("default")}>0</span>
+            </div>
+            <p className="copy">{emptyDescription}</p>
+          </article>
+        )}
+
+        <button
+          className="card entity-player-facing-panel entity-player-facing-panel-compact entity-player-facing-panel-create"
+          onClick={onCreateCard}
+          type="button"
+        >
+          <span className="entity-player-facing-create-mark">+</span>
+          <strong>Создать еще</strong>
+          <p className="copy">{createDescription}</p>
+        </button>
+      </div>
+    </CollapsibleSection>
+  );
+}
 
 export type QuestLinkedEntity = {
   entity: KnowledgeEntity;
@@ -324,8 +433,8 @@ const buildQuestChecklistItems = ({
 }): QuestChecklistItem[] => [
   {
     key: "players",
-    label: quest.playerContent?.trim() ? "Версия для игроков подготовлена" : "Подготовить версию для игроков",
-    done: Boolean(quest.playerContent?.trim())
+    label: quest.playerCards?.length || quest.playerContent?.trim() ? "Версия для игроков подготовлена" : "Подготовить версию для игроков",
+    done: Boolean(quest.playerCards?.length || quest.playerContent?.trim())
   },
   {
     key: "issuer",
@@ -529,33 +638,49 @@ export function QuestWorkspace({
   quest,
   location,
   issuer,
+  playerCards,
   linkedEntities,
   relatedQuests,
+  playlistActive,
+  playlistTrackLabel,
   preparedCombatEntries,
   previousQuest,
   nextQuest,
   pinned,
+  onCreatePlayerCard,
   onEdit,
+  onEditPlayerCard,
   onTogglePin,
   onOpenDirectory,
-  onOpenPlayerView,
+  onOpenPlayerCard,
   onOpenEntity,
+  onOpenPlaylist,
+  onPlayNextPlaylistTrack,
+  onPlayPlaylist,
   onOpenQuest
 }: {
   quest: QuestEntity;
   location: LocationEntity | null;
   issuer: NpcEntity | null;
+  playerCards: PlayerFacingCard[];
   linkedEntities: QuestLinkedEntity[];
   relatedQuests: QuestEntity[];
+  playlistActive: boolean;
+  playlistTrackLabel?: string;
   preparedCombatEntries: QuestCombatEntrySummary[];
   previousQuest: QuestEntity | null;
   nextQuest: QuestEntity | null;
   pinned: boolean;
+  onCreatePlayerCard: () => void;
   onEdit: (id: string) => void;
+  onEditPlayerCard: (card: PlayerFacingCard, index: number) => void;
   onTogglePin: (id: string) => void;
   onOpenDirectory: () => void;
-  onOpenPlayerView: (quest: QuestEntity) => void;
+  onOpenPlayerCard: (card: PlayerFacingCard, index: number) => void;
   onOpenEntity: (id: string) => void;
+  onOpenPlaylist: (quest: QuestEntity) => void;
+  onPlayNextPlaylistTrack: () => void;
+  onPlayPlaylist: () => void;
   onOpenQuest: (id: string) => void;
 }) {
   const playerSections = useMemo(() => parseQuestTextSections(quest.playerContent), [quest.playerContent]);
@@ -563,18 +688,6 @@ export function QuestWorkspace({
   const sceneImage = useMemo(
     () => resolveQuestSceneArtwork(quest, location, issuer, preparedCombatEntries),
     [issuer, location, preparedCombatEntries, quest]
-  );
-  const visibleHighlights = useMemo(
-    () =>
-      dedupeQuestLines(
-        [
-          ...collectQuestSectionLines(findQuestTextSection(playerSections, ["что видят", "видят сразу", "общее впечатление"]), 3),
-          ...collectQuestSectionLines(findQuestTextSection(playerSections, ["можно заметить", "вниматель", "странности"]), 3),
-          ...collectQuestSectionLines(findQuestTextSection(playerSections, ["кто первым", "кто заговорит"]), 2)
-        ],
-        5
-      ),
-    [playerSections]
   );
   const hiddenHighlights = useMemo(() => {
     const prioritized = [
@@ -616,7 +729,7 @@ export function QuestWorkspace({
     [issuer, location, preparedCombatEntries, quest]
   );
   const rewardItems = quest.rewardProfile?.loot ?? [];
-  const playerVisible = Boolean(quest.playerContent?.trim());
+  const playerVisible = Boolean(playerCards.length || quest.playerContent?.trim());
   const preparedCombatCount = preparedCombatEntries.reduce((sum, item) => sum + item.quantity, 0);
   const heroLinkedEntities = linkedEntities.slice(0, 4);
   const sceneLead =
@@ -667,7 +780,7 @@ export function QuestWorkspace({
             <button className="ghost" onClick={() => onEdit(quest.id)} type="button">
               Редактировать
             </button>
-            <button className="ghost" disabled={!playerVisible} onClick={() => onOpenPlayerView(quest)} type="button">
+            <button className="ghost" disabled={!playerCards.length} onClick={() => playerCards[0] && onOpenPlayerCard(playerCards[0], 0)} type="button">
               Показать игрокам
             </button>
             <button className={pinned ? "primary" : "ghost"} onClick={() => onTogglePin(quest.id)} type="button">
@@ -706,28 +819,18 @@ export function QuestWorkspace({
         </div>
       </section>
 
+      <PlayerFacingCardStrip
+        cards={playerCards}
+        createDescription="Новая handout-карточка, сцена или отдельный player-safe фрагмент для этого квеста."
+        description="Отдельные карточки-сцены для игроков: вводная, речь квестодателя, записка, отдельная улика или развилка."
+        emptyDescription="Пока карточек нет. Создай первую, чтобы открывать нужный текст игрокам по одной карточке, без длинной общей простыни."
+        entityId={quest.id}
+        onCreateCard={onCreatePlayerCard}
+        onEditCard={onEditPlayerCard}
+        onOpenCard={onOpenPlayerCard}
+      />
+
       <div className="quest-story-grid">
-        <article className="card quest-story-card quest-story-card-players">
-          <div className="quest-story-head">
-            <strong>Игроки видят</strong>
-            <span className={badge("success")}>{playerVisible ? "Player-safe" : "Черновик нужен"}</span>
-          </div>
-
-          {visibleHighlights.length ? (
-            <ul className="quest-bullet-list">
-              {visibleHighlights.map((line) => (
-                <li key={`${quest.id}-visible-${line}`}>{line}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="copy">Пока нет отдельного player-facing описания. Его можно заполнить через редактор квеста.</p>
-          )}
-
-          <button className="ghost fill" disabled={!playerVisible} onClick={() => onOpenPlayerView(quest)} type="button">
-            Показать игрокам
-          </button>
-        </article>
-
         <article className="card quest-story-card quest-story-card-hidden">
           <div className="quest-story-head">
             <strong>Скрыто от игроков</strong>
@@ -766,6 +869,34 @@ export function QuestWorkspace({
               ))}
             </div>
           ) : null}
+        </article>
+
+        <article className="card quest-story-card quest-story-card-playlist">
+          <div className="quest-story-head">
+            <strong>Плейлист сцены</strong>
+            <span className={badge(playlistActive ? "accent" : quest.playlist?.length ? "success" : "default")}>
+              {playlistActive ? "Играет" : quest.playlist?.length ? `${quest.playlist.length} треков` : "Пусто"}
+            </span>
+          </div>
+
+          <p className="copy quest-story-note">
+            {quest.playlist?.length
+              ? playlistActive && playlistTrackLabel
+                ? `Сейчас играет: ${playlistTrackLabel}. Можно быстро переключить или открыть редактор плейлиста.`
+                : `В квесте подготовлено ${quest.playlist.length} треков. Запусти случайный трек или подправь список отдельно.`
+              : "У этого квеста пока нет своего плейлиста. Его можно открыть и настроить отдельно, не заходя в общий редактор."}
+          </p>
+
+          <div className="quest-story-actions">
+            <button className="ghost fill" onClick={() => onOpenPlaylist(quest)} type="button">
+              Настроить
+            </button>
+            {quest.playlist?.length ? (
+              <button className="ghost" onClick={playlistActive ? onPlayNextPlaylistTrack : onPlayPlaylist} type="button">
+                {playlistActive ? "Следующий трек" : "Случайный трек"}
+              </button>
+            ) : null}
+          </div>
         </article>
       </div>
 
@@ -929,7 +1060,7 @@ export function QuestPreviewPanel({
 
     return nextItems.slice(0, 6);
   }, [issuer, linkedEntities, preparedCombatEntries]);
-  const hasPlayerFacingVersion = Boolean(quest.playerContent?.trim());
+  const hasPlayerFacingVersion = Boolean(quest.playerCards?.length || quest.playerContent?.trim());
   const combatPrimaryLabel = hasActiveCombat ? "Открыть бой" : preparedCombatCount ? "Начать бой" : "Настроить бой";
   const combatPrimaryHint = hasActiveCombat
     ? "Сейчас уже идёт активная сцена"

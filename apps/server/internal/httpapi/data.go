@@ -67,7 +67,7 @@ func ensureKnowledgeEntities(entities []knowledgeEntity) []knowledgeEntity {
 			entities[index].PlayerCards,
 			entities[index].PlayerContent,
 		)
-		if entities[index].Kind == "location" && strings.TrimSpace(entities[index].PlayerContent) == "" && len(entities[index].PlayerCards) > 0 {
+		if strings.TrimSpace(entities[index].PlayerContent) == "" && len(entities[index].PlayerCards) > 0 {
 			entities[index].PlayerContent = entities[index].PlayerCards[0].Content
 		}
 		if entities[index].QuickFacts == nil || len(entities[index].QuickFacts) == 0 {
@@ -104,7 +104,7 @@ func normalizePlayerFacingCards(kind string, cards []playerFacingCard, legacyCon
 		}
 	}
 
-	if len(result) == 0 && kind == "location" {
+	if len(result) == 0 {
 		trimmedLegacy := strings.TrimSpace(legacyContent)
 		if trimmedLegacy != "" {
 			return []playerFacingCard{
@@ -124,7 +124,7 @@ func normalizePlayerFacingCards(kind string, cards []playerFacingCard, legacyCon
 }
 
 func defaultPlayerFacingCardTitle(kind string, index int) string {
-	if kind == "location" && index == 0 {
+	if index == 0 {
 		return "Игроки видят"
 	}
 	return "Карточка " + strconv.Itoa(index+1)

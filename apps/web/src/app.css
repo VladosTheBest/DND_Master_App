@@ -2697,6 +2697,23 @@ select.input {
   border-color: rgba(124,166,255,.24);
 }
 
+.quest-story-card-playlist {
+  background: linear-gradient(180deg, rgba(230,192,125,.12), rgba(20,18,12,.7));
+  border-color: rgba(230,192,125,.24);
+}
+
+.quest-story-note {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.quest-story-actions {
+  display: flex;
+  gap: .55rem;
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
 .entity-player-facing-panel {
   display: grid;
   gap: .72rem;
@@ -2731,20 +2748,29 @@ select.input {
   margin: 0;
 }
 
+.entity-player-facing-collapsible .collapsible-body {
+  display: grid;
+  gap: .85rem;
+}
+
+.entity-player-facing-summary {
+  margin: 0;
+}
+
 .entity-player-facing-grid {
   display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: flex-start;
   gap: .85rem;
-  overflow-x: auto;
-  padding-bottom: .25rem;
-  scroll-snap-type: x proximity;
-  scrollbar-gutter: stable;
 }
 
 .entity-player-facing-panel-compact {
-  flex: 0 0 min(22rem, calc(100vw - 3rem));
+  flex: 1 1 20rem;
+  max-width: 22rem;
   min-height: 17.25rem;
   grid-template-rows: auto minmax(0, 1fr) auto;
-  scroll-snap-align: start;
+  min-width: 0;
 }
 
 .entity-player-facing-preview {
@@ -2752,11 +2778,17 @@ select.input {
   max-height: 10.75rem;
   overflow-y: auto;
   padding-right: .18rem;
+  overflow-wrap: anywhere;
 }
 
 .entity-player-facing-preview .copy,
 .entity-player-facing-preview .quest-bullet-list {
   margin: 0;
+}
+
+.entity-player-facing-panel-compact .quest-story-head strong,
+.entity-player-facing-panel-compact .copy {
+  overflow-wrap: anywhere;
 }
 
 .entity-player-facing-rich-preview {
@@ -2765,6 +2797,7 @@ select.input {
   margin: 0;
   font-size: .92rem;
   line-height: 1.62;
+  overflow-wrap: anywhere;
 }
 
 .entity-player-facing-rich-preview h1 {
@@ -4454,7 +4487,8 @@ select.input {
   }
 
   .entity-player-facing-panel-compact {
-    flex-basis: calc(100vw - 2rem);
+    flex-basis: 100%;
+    max-width: none;
   }
 
   .player-facing-sections,

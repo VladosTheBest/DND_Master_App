@@ -29,6 +29,30 @@ func TestEnsureKnowledgeEntitiesMigratesLegacyLocationPlayerContent(t *testing.T
 	}
 }
 
+func TestEnsureKnowledgeEntitiesMigratesLegacyQuestPlayerContent(t *testing.T) {
+	entities := ensureKnowledgeEntities([]knowledgeEntity{
+		{
+			ID:            "quest-1",
+			Kind:          "quest",
+			Title:         "Тени на тракте",
+			PlayerContent: "Игроки видят следы недавней засады и брошенный фургон.",
+		},
+	})
+
+	if len(entities) != 1 {
+		t.Fatalf("expected one entity, got %d", len(entities))
+	}
+	if len(entities[0].PlayerCards) != 1 {
+		t.Fatalf("expected legacy player content to produce one player card, got %d", len(entities[0].PlayerCards))
+	}
+	if entities[0].PlayerCards[0].Title != "Игроки видят" {
+		t.Fatalf("expected default title %q, got %q", "Игроки видят", entities[0].PlayerCards[0].Title)
+	}
+	if entities[0].PlayerCards[0].Content != entities[0].PlayerContent {
+		t.Fatalf("expected migrated quest card content to match legacy player content")
+	}
+}
+
 func TestMaterializeEntityKeepsLocationPlayerCards(t *testing.T) {
 	entity := materializeEntity(createEntityInput{
 		Kind:    "location",
@@ -49,6 +73,29 @@ func TestMaterializeEntityKeepsLocationPlayerCards(t *testing.T) {
 	}
 	if entity.PlayerContent != "Игроки видят разбитые ворота." {
 		t.Fatalf("expected legacy playerContent fallback to mirror the first card, got %q", entity.PlayerContent)
+	}
+}
+
+func TestMaterializeEntityKeepsQuestPlayerCards(t *testing.T) {
+	entity := materializeEntity(createEntityInput{
+		Kind:    "quest",
+		Title:   "Шёпот у часовни",
+		Summary: "Ночью у старой часовни кто-то зовёт путников.",
+		Content: "GM notes",
+		PlayerCards: []playerFacingCard{
+			{Content: "Игроки слышат далёкий колокол и видят огни у часовни."},
+			{Title: "Записка", Content: "На двери прибита влажная записка с угрозой."},
+		},
+	})
+
+	if len(entity.PlayerCards) != 2 {
+		t.Fatalf("expected 2 player cards, got %d", len(entity.PlayerCards))
+	}
+	if entity.PlayerCards[0].Title != "Игроки видят" {
+		t.Fatalf("expected fallback title %q, got %q", "Игроки видят", entity.PlayerCards[0].Title)
+	}
+	if entity.PlayerContent != "Игроки слышат далёкий колокол и видят огни у часовни." {
+		t.Fatalf("expected quest playerContent fallback to mirror the first card, got %q", entity.PlayerContent)
 	}
 }
 

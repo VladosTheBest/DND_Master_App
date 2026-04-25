@@ -777,7 +777,7 @@ func materializeWorldEvent(input createWorldEventInput, campaign campaignData, e
 func materializeEntity(input createEntityInput) knowledgeEntity {
 	playerContent := strings.TrimSpace(input.PlayerContent)
 	playerCards := normalizePlayerFacingCards(input.Kind, input.PlayerCards, playerContent)
-	if input.Kind == "location" && playerContent == "" && len(playerCards) > 0 {
+	if playerContent == "" && len(playerCards) > 0 {
 		playerContent = playerCards[0].Content
 	}
 

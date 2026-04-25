@@ -70,6 +70,7 @@ import {
   NotesWorkspace
 } from "./notes-events";
 import {
+  PlayerFacingCardStrip,
   PlayerFacingEntityModal,
   collectQuestSectionLines,
   parseQuestTextSections,
@@ -276,7 +277,7 @@ const emptyEntityForm = (kind: EntityKind = "location"): CreateEntityInput => ({
   summary: "",
   content: "",
   playerContent: "",
-  playerCards: kind === "location" ? [] : undefined,
+  playerCards: [],
   tags: [],
   playlist: [],
   gallery: [],
@@ -634,8 +635,8 @@ const cloneGalleryImages = (items?: GalleryImage[]): GalleryImage[] | undefined 
 const clonePlayerFacingCards = (cards?: PlayerFacingCard[]): PlayerFacingCard[] | undefined =>
   cards ? cards.map((card) => ({ ...card })) : undefined;
 
-const defaultPlayerFacingCardTitle = (kind: EntityKind, index: number) =>
-  kind === "location" && index === 0 ? "Игроки видят" : `Карточка ${index + 1}`;
+const defaultPlayerFacingCardTitle = (_kind: EntityKind, index: number) =>
+  index === 0 ? "Игроки видят" : `Карточка ${index + 1}`;
 
 const normalizePlayerFacingCardsForClient = (
   kind: EntityKind,
@@ -660,7 +661,7 @@ const normalizePlayerFacingCardsForClient = (
       contentHtml: card.contentHtml || undefined
     }));
 
-  if (!normalized.length && kind === "location" && legacyContent?.trim()) {
+  if (!normalized.length && legacyContent?.trim()) {
     return [
       {
         title: defaultPlayerFacingCardTitle(kind, 0),
@@ -915,7 +916,7 @@ const sanitizePlayerFacingCards = (kind: EntityKind, cards: PlayerFacingCard[] =
     .map((card, index) => sanitizeSinglePlayerFacingCard(kind, card, index))
     .filter((card): card is PlayerFacingCard => Boolean(card));
 
-  if (!normalized.length && kind === "location" && legacyContent?.trim()) {
+  if (!normalized.length && legacyContent?.trim()) {
     return [
       {
         title: defaultPlayerFacingCardTitle(kind, 0),
@@ -1149,8 +1150,7 @@ const sanitizeNpcStatBlock = (statBlock?: NpcStatBlock): NpcStatBlock | undefine
 
 const serializeEntityForm = (form: CreateEntityInput): CreateEntityInput => {
   const playerCards = sanitizePlayerFacingCards(form.kind, form.playerCards ?? [], form.playerContent);
-  const playerContent =
-    form.kind === "location" && playerCards.length ? playerCards[0].content : sanitizeOptionalText(form.playerContent);
+  const playerContent = playerCards.length ? playerCards[0].content : sanitizeOptionalText(form.playerContent);
   const common = {
     kind: form.kind,
     title: form.title.trim(),
@@ -3057,9 +3057,8 @@ export default function App() {
     () => (activeEntity ? normalizePlayerFacingCardsForClient(activeEntity.kind, activeEntity.playerCards, activeEntity.playerContent) : []),
     [activeEntity]
   );
-  const activeEntityPlayerHighlights = useMemo(() => summarizePlayerFacingContent(activeEntity?.playerContent, 4), [activeEntity?.playerContent]);
   const enterPlayerFacingEditMode = () => {
-    if (!playerFacingView || !playerFacingEntity || playerFacingEntity.kind !== "location") {
+    if (!playerFacingView || !playerFacingEntity) {
       return;
     }
 
@@ -3077,7 +3076,7 @@ export default function App() {
   };
 
   const cancelPlayerFacingEditMode = () => {
-    if (!playerFacingView || !playerFacingEntity || playerFacingEntity.kind !== "location") {
+    if (!playerFacingView || !playerFacingEntity) {
       closePlayerFacingView();
       return;
     }
@@ -3104,7 +3103,7 @@ export default function App() {
   };
 
   const savePlayerFacingCardFromModal = async (card: PlayerFacingCard) => {
-    if (!activeCampaignId || !playerFacingEntity || playerFacingEntity.kind !== "location") {
+    if (!activeCampaignId || !playerFacingEntity) {
       return;
     }
 
@@ -3137,7 +3136,7 @@ export default function App() {
       hydrateCampaign(result.campaign, result.entity.id);
       setPreviewEntityId(result.entity.id);
 
-      const updatedEntity = result.entity.kind === "location" ? result.entity : playerFacingEntity;
+      const updatedEntity = result.entity.kind === playerFacingEntity.kind ? result.entity : playerFacingEntity;
       const updatedCards = normalizePlayerFacingCardsForClient(
         updatedEntity.kind,
         updatedEntity.playerCards,
@@ -3157,7 +3156,7 @@ export default function App() {
   };
 
   const formatPlayerFacingCardFromModal = async (card: PlayerFacingCard) => {
-    if (!activeCampaignId || !playerFacingEntity || playerFacingEntity.kind !== "location") {
+    if (!activeCampaignId || !playerFacingEntity) {
       return undefined;
     }
 
@@ -3811,10 +3810,6 @@ export default function App() {
   };
 
   const openNewPlayerFacingEditor = (entity: KnowledgeEntity) => {
-    if (entity.kind !== "location") {
-      return;
-    }
-
     const nextIndex = normalizePlayerFacingCardsForClient(entity.kind, entity.playerCards, entity.playerContent).length;
     openPlayerFacingEditor(entity, createEmptyPlayerFacingCard(defaultPlayerFacingCardTitle(entity.kind, nextIndex)), nextIndex, true);
   };
@@ -4501,7 +4496,7 @@ export default function App() {
       const nextIndex = (current.playerCards ?? []).length;
       return {
         ...current,
-        playerCards: [...(current.playerCards ?? []), createEmptyPlayerFacingCard(defaultPlayerFacingCardTitle("location", nextIndex))]
+        playerCards: [...(current.playerCards ?? []), createEmptyPlayerFacingCard(defaultPlayerFacingCardTitle(current.kind, nextIndex))]
       };
     });
   };
@@ -4527,7 +4522,7 @@ export default function App() {
         }
 
         const currentTitle = card.title.trim();
-        const fallbackTitle = defaultPlayerFacingCardTitle("location", index);
+        const fallbackTitle = defaultPlayerFacingCardTitle(current.kind, index);
         const nextTitle = !currentTitle || currentTitle === fallbackTitle ? imported.title || currentTitle || fallbackTitle : card.title;
 
         return {
@@ -7682,9 +7677,33 @@ export default function App() {
                 onOpenDirectory={() => openModuleDirectory("quests")}
                 onEdit={openEntityEditor}
                 onOpenEntity={openPreview}
-                onOpenPlayerView={openPlayerFacingView}
+                onCreatePlayerCard={() => {
+                  if (activeEntity.kind === "quest") {
+                    openNewPlayerFacingEditor(activeEntity);
+                  }
+                }}
+                onEditPlayerCard={(card, index) => {
+                  if (activeEntity.kind === "quest") {
+                    openPlayerFacingEditor(activeEntity, card, index);
+                  }
+                }}
+                onOpenPlayerCard={(card, index) => {
+                  if (activeEntity.kind === "quest") {
+                    openPlayerFacingView(activeEntity, card, { cardIndex: index });
+                  }
+                }}
                 onOpenQuest={openQuestFocus}
+                onOpenPlaylist={openEntityPlaylistModal}
                 onTogglePin={togglePin}
+                onPlayPlaylist={() => {
+                  if (activeEntity.kind === "quest") {
+                    playEntityPlaylist(activeEntity);
+                  }
+                }}
+                onPlayNextPlaylistTrack={playNextRandomTrack}
+                playerCards={activeEntityPlayerCards}
+                playlistActive={isEntityPlaylistActive(activeEntity.id)}
+                playlistTrackLabel={currentPlaybackTrackLabel}
                 pinned={activeEntityPinned}
                 preparedCombatEntries={activeQuestPreparedCombatEntries}
                 previousQuest={previousQuest}
@@ -7780,106 +7799,20 @@ export default function App() {
                   </div>
                 </section>
 
-                {activeEntity.kind === "location" ? (
-                  <section className="entity-player-facing-stack">
-                    <div className="quest-story-head entity-player-facing-overview">
-                      <div className="entity-player-facing-copy">
-                        <strong>Игроки видят</strong>
-                        <p className="copy">Создавай сколько угодно отдельных карточек-сцен и handout-описаний для игроков.</p>
-                      </div>
-                      <span className={badge(activeEntityPlayerCards.length ? "success" : "default")}>
-                        {activeEntityPlayerCards.length ? `${activeEntityPlayerCards.length} карточек` : "Черновик нужен"}
-                      </span>
-                    </div>
-
-                    <div className="entity-player-facing-grid">
-                      {activeEntityPlayerCards.map((card, index) => {
-                        const highlights = summarizePlayerFacingContent(card.content, 4);
-                        const previewHtml = sanitizePlayerFacingHTML(card.contentHtml);
-
-                        return (
-                          <article
-                            key={`${activeEntity.id}-player-card-${index}`}
-                            className="card entity-player-facing-panel entity-player-facing-panel-compact"
-                          >
-                            <div className="quest-story-head">
-                              <strong>{card.title}</strong>
-                              <span className={badge("success")}>Player-safe</span>
-                            </div>
-
-                            <div className="entity-player-facing-preview">
-                              {previewHtml ? (
-                                <div
-                                  className="player-facing-rich entity-player-facing-rich-preview"
-                                  dangerouslySetInnerHTML={{ __html: previewHtml }}
-                                />
-                              ) : highlights.length ? (
-                                <ul className="quest-bullet-list">
-                                  {highlights.map((line, lineIndex) => (
-                                    <li key={`${activeEntity.id}-player-card-${index}-line-${lineIndex}`}>{line}</li>
-                                  ))}
-                                </ul>
-                              ) : (
-                                <p className="copy">В этой карточке пока нет текста для показа игрокам.</p>
-                              )}
-                            </div>
-
-                            <div className="entity-player-facing-actions">
-                              <button
-                                className="ghost fill"
-                                onClick={() => openPlayerFacingView(activeEntity, card, { cardIndex: index })}
-                                type="button"
-                              >
-                                Открыть
-                              </button>
-                              <button className="ghost" onClick={() => openPlayerFacingEditor(activeEntity, card, index)} type="button">
-                                Редактировать
-                              </button>
-                            </div>
-                          </article>
-                        );
-                      })}
-
-                      <button
-                        className="card entity-player-facing-panel entity-player-facing-panel-compact entity-player-facing-panel-create"
-                        onClick={() => openNewPlayerFacingEditor(activeEntity)}
-                        type="button"
-                      >
-                        <span className="entity-player-facing-create-mark">+</span>
-                        <strong>Создать еще</strong>
-                        <p className="copy">
-                          Отдельная сцена, handout или короткая заметка для игроков. Откроется сразу в режиме редактирования.
-                        </p>
-                      </button>
-                    </div>
-                  </section>
-                ) : (
-                <section className="card entity-player-facing-panel">
-                  <div className="quest-story-head">
-                    <strong>Игроки видят</strong>
-                    <span className={badge("success")}>{activeEntity.playerContent?.trim() ? "Player-safe" : "Черновик нужен"}</span>
-                  </div>
-
-                  {activeEntityPlayerHighlights.length ? (
-                    <ul className="quest-bullet-list">
-                      {activeEntityPlayerHighlights.map((line, index) => (
-                        <li key={`${activeEntity.id}-player-highlight-${index}`}>{line}</li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="copy">
-                      Пока здесь пусто. Добавь короткое описание встречи, чтобы открыть его отдельной модалкой и спокойно зачитать
-                      игрокам.
-                    </p>
-                  )}
-
-                  <div className="entity-player-facing-actions">
-                    <button className="ghost fill" disabled={!activeEntity.playerContent?.trim()} onClick={() => openPlayerFacingView(activeEntity)} type="button">
-                      Показать
-                    </button>
-                  </div>
-                </section>
-                )}
+                <PlayerFacingCardStrip
+                  cards={activeEntityPlayerCards}
+                  createDescription="Отдельная сцена, handout или короткая заметка для игроков. Откроется сразу в режиме редактирования."
+                  description={
+                    activeEntity.kind === "location"
+                      ? "Создавай сколько угодно отдельных карточек-сцен и handout-описаний для игроков."
+                      : "Храни здесь player-safe описания, речи, handout-карточки и любые отдельные тексты, которые удобно открывать по одной."
+                  }
+                  emptyDescription="Пока карточек нет. Создай первую, и она сразу появится в отдельном удобном просмотре для зачитывания игрокам."
+                  entityId={activeEntity.id}
+                  onCreateCard={() => openNewPlayerFacingEditor(activeEntity)}
+                  onEditCard={(card, index) => openPlayerFacingEditor(activeEntity, card, index)}
+                  onOpenCard={(card, index) => openPlayerFacingView(activeEntity, card, { cardIndex: index })}
+                />
 
                 {composeVisibleQuickFacts(activeEntity).length ? (
                   <CollapsibleSection
@@ -9542,7 +9475,7 @@ export default function App() {
                       (entityForm.playerCards ?? []).map((card, index) => (
                         <article key={`player-card-editor-${index}`} className="entry-card player-card-editor">
                           <div className="player-card-editor-header">
-                            <strong>{card.title.trim() || defaultPlayerFacingCardTitle("location", index)}</strong>
+                            <strong>{card.title.trim() || defaultPlayerFacingCardTitle(entityForm.kind, index)}</strong>
                             <div className="player-card-editor-actions">
                               <button className="ghost" onClick={() => openEntityPlayerCardHtmlImport(index)} type="button">
                                 Импорт HTML
@@ -9584,7 +9517,7 @@ export default function App() {
                             <input
                               className="input"
                               onChange={(event) => updateEntityPlayerCard(index, { title: event.target.value })}
-                              placeholder={defaultPlayerFacingCardTitle("location", index)}
+                              placeholder={defaultPlayerFacingCardTitle(entityForm.kind, index)}
                               value={card.title}
                             />
                           </label>
@@ -10193,7 +10126,7 @@ export default function App() {
         <PlayerFacingEntityModal
           content={playerFacingView.content}
           contentHtml={playerFacingView.contentHtml}
-          editable={playerFacingEntity.kind === "location" && typeof playerFacingView.cardIndex === "number"}
+          editable={typeof playerFacingView.cardIndex === "number"}
           editMode={Boolean(playerFacingView.editMode)}
           entity={playerFacingEntity}
           formatting={playerFacingModalFormatting}
