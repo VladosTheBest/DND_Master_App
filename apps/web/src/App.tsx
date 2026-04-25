@@ -3155,6 +3155,44 @@ export default function App() {
     }
   };
 
+  const requestPlayerFacingCardDeletion = (entity: KnowledgeEntity, card: PlayerFacingCard, cardIndex: number) => {
+    if (!activeCampaignId) {
+      return;
+    }
+
+    requestModalClose(
+      `Удалить карточку «${card.title}»?`,
+      () => {
+        void (async () => {
+          try {
+            setSaving(true);
+            setBootError("");
+
+            const nextForm = entityToForm(entity);
+            nextForm.playerCards = normalizePlayerFacingCardsForClient(entity.kind, entity.playerCards, entity.playerContent).filter(
+              (_, index) => index !== cardIndex
+            );
+            nextForm.playerContent = nextForm.playerCards[0]?.content ?? "";
+
+            const result = await api.updateEntity(activeCampaignId, entity.id, serializeEntityForm(nextForm));
+            hydrateCampaign(result.campaign, result.entity.id);
+            setPreviewEntityId(result.entity.id);
+
+            if (playerFacingView?.entityId === entity.id && playerFacingView.cardIndex === cardIndex) {
+              closePlayerFacingView();
+            }
+          } catch (error) {
+            handleProtectedActionError(error, "Не удалось удалить карточку для игроков.");
+          } finally {
+            setSaving(false);
+          }
+        })();
+      },
+      "Карточка исчезнет из сущности сразу после подтверждения.",
+      "Удалить"
+    );
+  };
+
   const formatPlayerFacingCardFromModal = async (card: PlayerFacingCard) => {
     if (!activeCampaignId || !playerFacingEntity) {
       return undefined;
@@ -7682,6 +7720,11 @@ export default function App() {
                     openNewPlayerFacingEditor(activeEntity);
                   }
                 }}
+                onDeletePlayerCard={(card, index) => {
+                  if (activeEntity.kind === "quest") {
+                    requestPlayerFacingCardDeletion(activeEntity, card, index);
+                  }
+                }}
                 onEditPlayerCard={(card, index) => {
                   if (activeEntity.kind === "quest") {
                     openPlayerFacingEditor(activeEntity, card, index);
@@ -7810,6 +7853,7 @@ export default function App() {
                   emptyDescription="Пока карточек нет. Создай первую, и она сразу появится в отдельном удобном просмотре для зачитывания игрокам."
                   entityId={activeEntity.id}
                   onCreateCard={() => openNewPlayerFacingEditor(activeEntity)}
+                  onDeleteCard={(card, index) => requestPlayerFacingCardDeletion(activeEntity, card, index)}
                   onEditCard={(card, index) => openPlayerFacingEditor(activeEntity, card, index)}
                   onOpenCard={(card, index) => openPlayerFacingView(activeEntity, card, { cardIndex: index })}
                 />

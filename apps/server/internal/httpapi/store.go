@@ -35,22 +35,11 @@ func (store *campaignStore) load() error {
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
-	if _, err := os.Stat(store.path); errors.Is(err, os.ErrNotExist) {
-		store.data = starterState()
-		return store.saveLocked()
-	} else if err != nil {
-		return err
-	}
-
-	raw, err := os.ReadFile(store.path)
+	state, repairedFromBackup, err := store.loadBestAvailableState()
 	if err != nil {
 		return err
 	}
-	raw = bytes.TrimPrefix(raw, []byte{0xEF, 0xBB, 0xBF})
-
-	if err := json.Unmarshal(raw, &store.data); err != nil {
-		return err
-	}
+	store.data = state
 
 	repairedEncoding := repairStorageEncoding(&store.data)
 
@@ -63,7 +52,7 @@ func (store *campaignStore) load() error {
 		store.data.Campaigns[index] = ensureCampaignShape(store.data.Campaigns[index])
 	}
 
-	if repairedEncoding {
+	if repairedFromBackup || repairedEncoding {
 		return store.saveLocked()
 	}
 
@@ -82,7 +71,116 @@ func (store *campaignStore) saveLocked() error {
 		return err
 	}
 
-	return os.WriteFile(store.path, body, 0o644)
+	if err := writeFileAtomically(store.path, body, 0o644); err != nil {
+		return err
+	}
+	if err := writeFileAtomically(store.backupPath(), body, 0o644); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (store *campaignStore) backupPath() string {
+	return store.path + ".bak"
+}
+
+func (store *campaignStore) loadBestAvailableState() (storageState, bool, error) {
+	primary, primaryErr := readStorageState(store.path)
+	if primaryErr == nil {
+		return primary, false, nil
+	}
+
+	backup, backupErr := readStorageState(store.backupPath())
+	if backupErr == nil {
+		return backup, true, nil
+	}
+
+	if errors.Is(primaryErr, os.ErrNotExist) && errors.Is(backupErr, os.ErrNotExist) {
+		return starterState(), true, nil
+	}
+
+	if !errors.Is(primaryErr, os.ErrNotExist) {
+		return storageState{}, false, primaryErr
+	}
+
+	return storageState{}, false, backupErr
+}
+
+func readStorageState(path string) (storageState, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return storageState{}, err
+	}
+	raw = bytes.TrimPrefix(raw, []byte{0xEF, 0xBB, 0xBF})
+	if len(bytes.TrimSpace(raw)) == 0 {
+		return storageState{}, fmt.Errorf("storage file %q is empty", path)
+	}
+
+	var state storageState
+	if err := json.Unmarshal(raw, &state); err != nil {
+		return storageState{}, fmt.Errorf("parse storage file %q: %w", path, err)
+	}
+
+	return state, nil
+}
+
+func writeFileAtomically(path string, body []byte, mode os.FileMode) error {
+	dir := filepath.Dir(path)
+	file, err := os.CreateTemp(dir, filepath.Base(path)+".tmp-*")
+	if err != nil {
+		return err
+	}
+
+	tempPath := file.Name()
+	cleanupTemp := true
+	defer func() {
+		if cleanupTemp {
+			_ = os.Remove(tempPath)
+		}
+	}()
+
+	if _, err := file.Write(body); err != nil {
+		_ = file.Close()
+		return err
+	}
+	if err := file.Chmod(mode); err != nil {
+		_ = file.Close()
+		return err
+	}
+	if err := file.Sync(); err != nil {
+		_ = file.Close()
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
+	}
+	if err := replaceFile(tempPath, path); err != nil {
+		return err
+	}
+	cleanupTemp = false
+
+	syncDirectoryBestEffort(dir)
+	return nil
+}
+
+func replaceFile(sourcePath string, targetPath string) error {
+	if err := os.Rename(sourcePath, targetPath); err == nil {
+		return nil
+	} else if removeErr := os.Remove(targetPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+		return err
+	}
+
+	return os.Rename(sourcePath, targetPath)
+}
+
+func syncDirectoryBestEffort(path string) {
+	file, err := os.Open(path)
+	if err != nil {
+		return
+	}
+	defer file.Close()
+	_ = file.Sync()
 }
 
 func (store *campaignStore) listCampaigns() []campaignSummary {

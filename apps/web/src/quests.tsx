@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 import type {
   CombatThresholds,
   KnowledgeEntity,
@@ -12,6 +12,7 @@ import type {
 } from "@shadow-edge/shared-types";
 import {
   badge,
+  clamp,
   CollapsibleSection,
   createHeroPanelStyle,
   EntityVisual,
@@ -64,6 +65,7 @@ export function PlayerFacingCardStrip({
   emptyDescription,
   entityId,
   onCreateCard,
+  onDeleteCard,
   onEditCard,
   onOpenCard
 }: {
@@ -73,11 +75,35 @@ export function PlayerFacingCardStrip({
   emptyDescription: string;
   entityId: string;
   onCreateCard: () => void;
+  onDeleteCard: (card: PlayerFacingCard, index: number) => void;
   onEditCard: (card: PlayerFacingCard, index: number) => void;
   onOpenCard: (card: PlayerFacingCard, index: number) => void;
 }) {
+  const [contextMenu, setContextMenu] = useState<{ index: number; x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    setContextMenu((current) => (current && current.index >= cards.length ? null : current));
+  }, [cards.length]);
+
+  const closeContextMenu = () => {
+    setContextMenu(null);
+  };
+
+  const handleCardContextMenu = (event: ReactMouseEvent<HTMLElement>, index: number) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setContextMenu({
+      index,
+      x: clamp(event.clientX, 12, window.innerWidth - 260),
+      y: clamp(event.clientY, 12, window.innerHeight - 120)
+    });
+  };
+
+  const contextMenuCard = contextMenu ? cards[contextMenu.index] ?? null : null;
+
   return (
-    <CollapsibleSection
+    <>
+      <CollapsibleSection
       action={<span className={badge(cards.length ? "success" : "default")}>{cards.length ? `${cards.length} карточек` : "Черновик нужен"}</span>}
       className="entity-player-facing-stack entity-player-facing-collapsible"
       hint={description}
@@ -100,6 +126,7 @@ export function PlayerFacingCardStrip({
               <article
                 key={`${entityId}-player-card-${index}`}
                 className="card entity-player-facing-panel entity-player-facing-panel-compact"
+                onContextMenu={(event) => handleCardContextMenu(event, index)}
               >
                 <div className="quest-story-head">
                   <strong>{card.title}</strong>
@@ -154,7 +181,33 @@ export function PlayerFacingCardStrip({
           <p className="copy">{createDescription}</p>
         </button>
       </div>
-    </CollapsibleSection>
+      </CollapsibleSection>
+      {contextMenu && contextMenuCard ? (
+        <div className="entity-action-backdrop" onClick={closeContextMenu} role="presentation">
+          <div
+            className="entity-action-menu"
+            onClick={(event) => event.stopPropagation()}
+            role="menu"
+            style={{ left: contextMenu.x, top: contextMenu.y }}
+          >
+            <div className="entity-action-menu-label">
+              <small>Карточка игроков</small>
+              <strong>{contextMenuCard.title}</strong>
+            </div>
+            <button
+              className="ghost fill danger-action"
+              onClick={() => {
+                onDeleteCard(contextMenuCard, contextMenu.index);
+                closeContextMenu();
+              }}
+              type="button"
+            >
+              Удалить
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 
@@ -648,6 +701,7 @@ export function QuestWorkspace({
   nextQuest,
   pinned,
   onCreatePlayerCard,
+  onDeletePlayerCard,
   onEdit,
   onEditPlayerCard,
   onTogglePin,
@@ -672,6 +726,7 @@ export function QuestWorkspace({
   nextQuest: QuestEntity | null;
   pinned: boolean;
   onCreatePlayerCard: () => void;
+  onDeletePlayerCard: (card: PlayerFacingCard, index: number) => void;
   onEdit: (id: string) => void;
   onEditPlayerCard: (card: PlayerFacingCard, index: number) => void;
   onTogglePin: (id: string) => void;
@@ -826,6 +881,7 @@ export function QuestWorkspace({
         emptyDescription="Пока карточек нет. Создай первую, чтобы открывать нужный текст игрокам по одной карточке, без длинной общей простыни."
         entityId={quest.id}
         onCreateCard={onCreatePlayerCard}
+        onDeleteCard={onDeletePlayerCard}
         onEditCard={onEditPlayerCard}
         onOpenCard={onOpenPlayerCard}
       />
