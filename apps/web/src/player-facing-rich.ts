@@ -18,7 +18,13 @@ const allowedTagMap = new Map<string, string>([
   ["ol", "ol"],
   ["li", "li"],
   ["blockquote", "blockquote"],
-  ["br", "br"]
+  ["br", "br"],
+  ["table", "table"],
+  ["thead", "thead"],
+  ["tbody", "tbody"],
+  ["tr", "tr"],
+  ["th", "th"],
+  ["td", "td"]
 ]);
 
 const blockedTagNames = new Set([
@@ -261,6 +267,16 @@ const nodeToPlayerFacingText = (node: Node): string => {
             .map((line) => `> ${collapseWhitespace(line)}`)
             .join("\n")}\n\n`
         : "";
+    case "table":
+      return childText ? `${childText}\n` : "";
+    case "thead":
+    case "tbody":
+      return childText;
+    case "tr":
+      return childText ? `${childText}\n` : "";
+    case "th":
+    case "td":
+      return normalizedChildText ? `${normalizedChildText} | ` : "";
     case "ul":
     case "ol":
       return childText ? `${childText}\n` : "";
@@ -290,8 +306,19 @@ export const extractPlainTextFromPlayerFacingHTML = (value?: string) => {
 
   return rawText
     .split("\n")
-    .map((line) => (line.startsWith("## ") || line.startsWith("- ") || line.startsWith("> ") ? line.trimEnd() : collapseWhitespace(line)))
+    .map((line) => {
+      const normalizedLine =
+        line.startsWith("## ") || line.startsWith("- ") || line.startsWith("> ")
+          ? line.trimEnd()
+          : collapseWhitespace(line);
+
+      return normalizedLine
+        .replace(/\s*\|\s*/g, " | ")
+        .replace(/^\|\s*|\s*\|$/g, "")
+        .trim();
+    })
     .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 };
 

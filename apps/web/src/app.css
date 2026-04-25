@@ -4441,6 +4441,7 @@ select.input {
 .player-facing-rich h3,
 .player-facing-rich h4,
 .player-facing-rich p,
+.player-facing-rich table,
 .player-facing-rich ul,
 .player-facing-rich ol,
 .player-facing-rich blockquote {
@@ -4493,6 +4494,58 @@ select.input {
   color: #fff2d6;
 }
 
+.player-facing-rich table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  border: 1px solid rgba(241, 192, 125, .16);
+  border-radius: 16px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.035), rgba(255,255,255,.015)),
+    rgba(10, 12, 16, .62);
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+  font-size: .97rem;
+  line-height: 1.6;
+}
+
+.player-facing-rich thead {
+  background: rgba(241, 192, 125, .08);
+}
+
+.player-facing-rich th,
+.player-facing-rich td {
+  padding: .78rem .85rem;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.player-facing-rich th {
+  color: #f6dfb8;
+  font-weight: 700;
+  letter-spacing: .03em;
+}
+
+.player-facing-rich td {
+  color: rgba(247, 241, 230, .9);
+}
+
+.player-facing-rich th + th,
+.player-facing-rich td + td {
+  border-left: 1px solid rgba(241, 192, 125, .1);
+}
+
+.player-facing-rich tbody tr + tr td {
+  border-top: 1px solid rgba(241, 192, 125, .08);
+}
+
+.player-facing-rich tbody tr:nth-child(even) td {
+  background: rgba(255, 255, 255, .02);
+}
+
 .player-facing-rich blockquote {
   padding: .8rem .95rem;
   border-left: 3px solid rgba(241, 192, 125, .55);
@@ -4523,6 +4576,15 @@ select.input {
   .player-facing-rich-editor {
     min-height: calc(100vh - 22rem);
     padding: 1rem;
+  }
+
+  .player-facing-rich table {
+    font-size: .92rem;
+  }
+
+  .player-facing-rich th,
+  .player-facing-rich td {
+    padding: .68rem .72rem;
   }
 
   .entity-player-facing-panel-compact {

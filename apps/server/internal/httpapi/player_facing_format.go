@@ -17,10 +17,18 @@ var (
 	playerFacingListItemOpenPattern   = regexp.MustCompile(`(?is)<\s*li\b[^>]*>`)
 	playerFacingListItemEndPattern    = regexp.MustCompile(`(?is)</\s*li\s*>`)
 	playerFacingHeadingTagPattern     = regexp.MustCompile(`(?is)<\s*h[1-4]\b[^>]*>(.*?)</\s*h[1-4]\s*>`)
+	playerFacingTableClosePattern     = regexp.MustCompile(`(?is)</\s*table\s*>`)
+	playerFacingTableSectionPattern   = regexp.MustCompile(`(?is)</\s*(thead|tbody)\s*>`)
+	playerFacingTableRowClosePattern  = regexp.MustCompile(`(?is)</\s*tr\s*>`)
+	playerFacingTableCellClosePattern = regexp.MustCompile(`(?is)</\s*(th|td)\s*>`)
 	playerFacingColorPattern          = regexp.MustCompile(`(?i)^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%]+\)|[a-z]+)$`)
 	playerFacingFontSizePattern       = regexp.MustCompile(`(?i)^\d+(?:\.\d+)?(px|rem|em|%)$`)
 	playerFacingLetterSpacingPattern  = regexp.MustCompile(`(?i)^-?\d+(?:\.\d+)?(px|rem|em)$`)
 	playerFacingTextDecorationPattern = regexp.MustCompile(`(?i)^(none|underline|line-through|overline)(\s+(underline|line-through|overline))*$`)
+	playerFacingPipeSpacingPattern    = regexp.MustCompile(`\s*\|\s*`)
+	playerFacingLowerUpperPattern     = regexp.MustCompile(`([a-zа-яё])([A-ZА-ЯЁ])`)
+	playerFacingDigitLetterPattern    = regexp.MustCompile(`(\d)([A-Za-zА-Яа-яЁё])`)
+	playerFacingSkillCheckLinePattern = regexp.MustCompile(`(?i)^(Акробатика|Анализ|Атлетика|Выживание|Выступление|Запугивание|История|Ловкость рук|Магия|Медицина|Обман|Природа|Проницательность|Расследование|Религия|Скрытность|Убеждение|Уход за животными|Восприятие)\s+Сл\s*\d+$`)
 )
 
 var allowedPlayerFacingHTMLTags = map[string]string{
@@ -44,6 +52,12 @@ var allowedPlayerFacingHTMLTags = map[string]string{
 	"li":         "li",
 	"blockquote": "blockquote",
 	"br":         "br",
+	"table":      "table",
+	"thead":      "thead",
+	"tbody":      "tbody",
+	"tr":         "tr",
+	"th":         "th",
+	"td":         "td",
 }
 
 var dangerousPlayerFacingTags = []string{
@@ -131,6 +145,10 @@ func extractTextFromPlayerFacingHTML(value string) string {
 	working = playerFacingListClosePattern.ReplaceAllString(working, "\n")
 	working = playerFacingListItemOpenPattern.ReplaceAllString(working, "\n- ")
 	working = playerFacingListItemEndPattern.ReplaceAllString(working, "")
+	working = playerFacingTableCellClosePattern.ReplaceAllString(working, " | ")
+	working = playerFacingTableRowClosePattern.ReplaceAllString(working, "\n")
+	working = playerFacingTableSectionPattern.ReplaceAllString(working, "\n")
+	working = playerFacingTableClosePattern.ReplaceAllString(working, "\n")
 	working = playerFacingHTMLTagStripPattern.ReplaceAllString(working, "")
 	working = html.UnescapeString(working)
 	working = strings.ReplaceAll(working, "\u00a0", " ")
@@ -140,6 +158,8 @@ func extractTextFromPlayerFacingHTML(value string) string {
 	normalized := make([]string, 0, len(lines))
 	for _, line := range lines {
 		cleanLine := playerFacingWhitespacePattern.ReplaceAllString(strings.TrimSpace(line), " ")
+		cleanLine = playerFacingPipeSpacingPattern.ReplaceAllString(cleanLine, " | ")
+		cleanLine = strings.TrimSpace(strings.Trim(cleanLine, "|"))
 		if cleanLine == "" {
 			if len(normalized) > 0 && normalized[len(normalized)-1] != "" {
 				normalized = append(normalized, "")
@@ -156,6 +176,13 @@ func buildScaffoldPlayerFacingHTML(title string, content string) string {
 	text := strings.TrimSpace(firstNonEmpty(content, title))
 	if text == "" {
 		return ""
+	}
+
+	if tableHTML := buildDelimitedPlayerFacingTableHTML(text); tableHTML != "" {
+		return tableHTML
+	}
+	if tableHTML := buildCompactSkillCheckTableHTML(text); tableHTML != "" {
+		return tableHTML
 	}
 
 	lines := strings.Split(strings.ReplaceAll(text, "\r", ""), "\n")
@@ -206,6 +233,142 @@ func buildScaffoldPlayerFacingHTML(title string, content string) string {
 	if inList {
 		builder.WriteString("</ul>")
 	}
+
+	return sanitizePlayerFacingHTMLFragment(builder.String())
+}
+
+func buildDelimitedPlayerFacingTableHTML(text string) string {
+	lines := strings.Split(strings.ReplaceAll(text, "\r", ""), "\n")
+	delimiter := ""
+	rows := make([][]string, 0, len(lines))
+
+	for _, rawLine := range lines {
+		line := strings.TrimSpace(rawLine)
+		if line == "" {
+			continue
+		}
+
+		if delimiter == "" {
+			switch {
+			case strings.Contains(line, "\t"):
+				delimiter = "\t"
+			case strings.Contains(line, "|"):
+				delimiter = "|"
+			case strings.Count(line, ";") >= 2:
+				delimiter = ";"
+			default:
+				return ""
+			}
+		}
+
+		cells := strings.Split(line, delimiter)
+		row := make([]string, 0, len(cells))
+		for _, cell := range cells {
+			value := strings.TrimSpace(strings.Trim(cell, "|"))
+			if value == "" {
+				continue
+			}
+			row = append(row, value)
+		}
+
+		if len(row) < 2 {
+			return ""
+		}
+		if len(rows) > 0 && len(row) != len(rows[0]) {
+			return ""
+		}
+		rows = append(rows, row)
+	}
+
+	if len(rows) < 2 {
+		return ""
+	}
+
+	return buildPlayerFacingTableHTML(rows[0], rows[1:])
+}
+
+func buildCompactSkillCheckTableHTML(text string) string {
+	normalized := strings.ReplaceAll(text, "\r", "")
+	normalized = playerFacingLowerUpperPattern.ReplaceAllString(normalized, "$1\n$2")
+	normalized = playerFacingDigitLetterPattern.ReplaceAllString(normalized, "$1\n$2")
+	lines := strings.Split(normalized, "\n")
+	cleanLines := make([]string, 0, len(lines))
+	for _, line := range lines {
+		cleaned := playerFacingWhitespacePattern.ReplaceAllString(strings.TrimSpace(line), " ")
+		if cleaned == "" {
+			continue
+		}
+		cleanLines = append(cleanLines, cleaned)
+	}
+
+	if len(cleanLines) < 6 {
+		return ""
+	}
+
+	headers := []string{"Находка", "Проверка", "Значение"}
+	startIndex := 0
+	if len(cleanLines) >= 3 &&
+		equalPlayerFacingHeader(cleanLines[0], headers[0]) &&
+		equalPlayerFacingHeader(cleanLines[1], headers[1]) &&
+		equalPlayerFacingHeader(cleanLines[2], headers[2]) {
+		startIndex = 3
+	}
+
+	if (len(cleanLines)-startIndex)%3 != 0 {
+		return ""
+	}
+
+	rows := make([][]string, 0, (len(cleanLines)-startIndex)/3)
+	for index := startIndex; index+2 < len(cleanLines); index += 3 {
+		finding := cleanLines[index]
+		check := cleanLines[index+1]
+		value := cleanLines[index+2]
+		if finding == "" || value == "" || !playerFacingSkillCheckLinePattern.MatchString(check) {
+			return ""
+		}
+		rows = append(rows, []string{finding, check, value})
+	}
+
+	if len(rows) == 0 {
+		return ""
+	}
+
+	return buildPlayerFacingTableHTML(headers, rows)
+}
+
+func equalPlayerFacingHeader(value string, expected string) bool {
+	return strings.EqualFold(
+		playerFacingWhitespacePattern.ReplaceAllString(strings.TrimSpace(value), ""),
+		playerFacingWhitespacePattern.ReplaceAllString(strings.TrimSpace(expected), ""),
+	)
+}
+
+func buildPlayerFacingTableHTML(headers []string, rows [][]string) string {
+	if len(headers) < 2 || len(rows) == 0 {
+		return ""
+	}
+
+	var builder strings.Builder
+	builder.WriteString("<table><thead><tr>")
+	for _, header := range headers {
+		builder.WriteString("<th>")
+		builder.WriteString(escapePlayerFacingHTMLText(header))
+		builder.WriteString("</th>")
+	}
+	builder.WriteString("</tr></thead><tbody>")
+	for _, row := range rows {
+		if len(row) != len(headers) {
+			continue
+		}
+		builder.WriteString("<tr>")
+		for _, cell := range row {
+			builder.WriteString("<td>")
+			builder.WriteString(escapePlayerFacingHTMLText(cell))
+			builder.WriteString("</td>")
+		}
+		builder.WriteString("</tr>")
+	}
+	builder.WriteString("</tbody></table>")
 
 	return sanitizePlayerFacingHTMLFragment(builder.String())
 }

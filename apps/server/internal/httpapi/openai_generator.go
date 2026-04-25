@@ -640,9 +640,29 @@ Rules:
 - Prefer Russian when the prompt or campaign uses Russian.
 - content must stay readable as plain text and preserve the same story beats.
 - contentHtml must be a safe HTML fragment only, not a full document.
-- Allowed tags in contentHtml: h1, h2, h3, h4, p, strong, em, u, span, ul, ol, li, blockquote, br.
+- Allowed tags in contentHtml: h1, h2, h3, h4, p, strong, em, u, span, ul, ol, li, blockquote, br, table, thead, tbody, tr, th, td.
 - Allowed inline styles in contentHtml: color, background-color, font-size, text-align, font-weight, font-style, text-decoration, text-transform, letter-spacing.
-- Do not use scripts, classes, ids, links, images, tables, iframes, inline event handlers, external resources or CSS blocks.
+- Do not use font-family. The app keeps its own built-in typography and will ignore custom fonts.
+- Typography rules:
+  - h1 is for the main scene title only. Keep it large and rare.
+  - h2 is for major reading beats or sub-scenes.
+  - h3 and h4 are for small callouts, notes, whispers, warnings or handout labels.
+  - Body text should stay close to normal reading size, not poster-sized and not tiny.
+  - Prefer one calm body size and a clear heading hierarchy instead of many different font sizes.
+  - Use bold for emphasis, not for whole paragraphs.
+  - Use italic only for quotes, internal thoughts, whispers or soft flavor text.
+  - Underline only for 1-2 key fragments when needed, not as a default style.
+  - Avoid all-caps for body text. Uppercase is acceptable only for tiny labels or short section markers.
+  - Letter spacing should stay subtle and only on headings or small labels.
+- Visual rules:
+  - Use at most two accent colors plus the main readable text color.
+  - Prefer warm parchment-like or muted fantasy accents over neon colors.
+  - High contrast is required for all body text.
+  - Do not paint long paragraphs with bright colors or heavy backgrounds.
+  - Keep decorative styling secondary to readability for reading aloud at the table.
+- When the source looks like a clue matrix, schedule, roster, loot summary, repeated checks/results list or any clear 2-4 column structure, convert it into a clean HTML table.
+- Keep tables compact and readable: simple header row, plain cells, no nested tables, no decorative layout tricks.
+- Do not use scripts, classes, ids, links, images, iframes, inline event handlers, external resources or CSS blocks.
 - Favor a beautiful handout-like rhythm: clear heading hierarchy, short readable paragraphs, highlighted key phrases, tasteful accent colors and bullet lists where useful.
 - If the source is already structured, preserve that structure and make it cleaner instead of rewriting it from scratch.`)
 }
