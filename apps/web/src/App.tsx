@@ -1659,6 +1659,11 @@ function CombatWorkbench({
   const enemyCount = activeCombat.entries.filter((entry) => entry.side === "enemy").length;
   const livingEnemyCount = activeCombat.entries.filter((entry) => entry.side === "enemy" && !isCombatEntryOut(entry)).length;
   const defeatedCount = activeCombat.entries.filter((entry) => isCombatEntryOut(entry)).length;
+  const revealEnemyRewards = enemyCount > 0 && livingEnemyCount === 0;
+  const resolvedEnemyExperienceTotal = activeCombat.entries.reduce(
+    (sum, entry) => sum + (entry.side === "enemy" && isCombatEntryOut(entry) ? entry.experience : 0),
+    0
+  );
   const currentTurnIndex = currentTurnEntry ? orderedEntries.findIndex((entry) => entry.id === currentTurnEntry.id) : -1;
   const turnProgressPercent = orderedEntries.length ? ((Math.max(currentTurnIndex, 0) + 1) / orderedEntries.length) * 100 : 0;
   const selectedCombatPlayer =
@@ -1671,8 +1676,8 @@ function CombatWorkbench({
     return entity ? hasVisibleArt(entity.art) : false;
   });
   const actualExperiencePerPlayer = activeCombat.partySize
-    ? Math.round(activeCombat.actualBaseXp / Math.max(activeCombat.partySize, 1))
-    : activeCombat.actualBaseXp;
+    ? Math.floor(resolvedEnemyExperienceTotal / Math.max(activeCombat.partySize, 1))
+    : resolvedEnemyExperienceTotal;
   const sceneTags = Array.from(
     new Set(
       [
@@ -1686,7 +1691,7 @@ function CombatWorkbench({
   const masterNotes = [
     currentTurnEntry ? `Сейчас темп сцены держит ${currentTurnEntry.title}.` : "",
     selectedEntryResolved?.summary ? truncateInlineText(selectedEntryResolved.summary, 148) : "",
-    activeCombat.difficulty ? `Сложность: ${combatDifficultyLabel[activeCombat.difficulty]} • ${activeCombat.actualAdjustedXp} adjusted XP.` : "",
+    activeCombat.difficulty ? `Сложность: ${combatDifficultyLabel[activeCombat.difficulty]}.` : "",
     livingEnemyCount ? `На ногах осталось ${livingEnemyCount} противников.` : "Все противники уже выведены из сцены."
   ]
     .filter(Boolean)
@@ -1862,6 +1867,7 @@ function CombatWorkbench({
                 entry={entry}
                 linkedEntity={entityMap.get(entry.entityId) ?? null}
                 onSelect={() => onSelectEntry(entry.id)}
+                revealEnemyMeta={revealEnemyRewards}
                 selected={selectedEntryResolved?.id === entry.id}
               />
             ))}
@@ -1883,6 +1889,7 @@ function CombatWorkbench({
               onChangeInitiative={onChangeInitiative}
               onNextTurn={onNextTurn}
               onSetCurrentTurn={onSetTurn}
+              revealEnemyMeta={revealEnemyRewards}
             />
           ) : (
             <section className="card combat-focus-card">
@@ -1904,11 +1911,19 @@ function CombatWorkbench({
               </div>
               <div className="combat-side-detail-row">
                 <span>Сложность</span>
-                <strong>{activeCombat.difficulty ? `${combatDifficultyLabel[activeCombat.difficulty]} (${activeCombat.actualAdjustedXp} XP)` : `${activeCombat.actualAdjustedXp} XP`}</strong>
+                <strong>
+                  {revealEnemyRewards
+                    ? activeCombat.difficulty
+                      ? `${combatDifficultyLabel[activeCombat.difficulty]} (${activeCombat.actualAdjustedXp} XP)`
+                      : `${activeCombat.actualAdjustedXp} XP`
+                    : activeCombat.difficulty
+                      ? combatDifficultyLabel[activeCombat.difficulty]
+                      : "Откроется после финала"}
+                </strong>
               </div>
               <div className="combat-side-detail-row">
                 <span>Опыт за победу</span>
-                <strong>{actualExperiencePerPlayer} XP / игрока</strong>
+                <strong>{revealEnemyRewards ? `${actualExperiencePerPlayer} XP / игрока` : "Откроется после победы"}</strong>
               </div>
               <div className="combat-side-detail-row">
                 <span>Раунд</span>
@@ -4351,12 +4366,12 @@ export default function App() {
     setCombatPlaylistModalOpen(true);
   };
 
-  const openCombatSetupModal = () => {
+  const openCombatSetupModal = (preparedCombatOverride?: CampaignPreparedCombat | null) => {
     focusCombatModule();
     setBootError("");
     setCampaignPreparedCombatNotice("");
     setEntityCombatSetupState(null);
-    setCampaignPreparedCombatDraft(cloneCampaignPreparedCombat(campaignPreparedCombat));
+    setCampaignPreparedCombatDraft(cloneCampaignPreparedCombat(preparedCombatOverride ?? campaignPreparedCombat));
     setCombatPlayerSearchQuery("");
     setCombatSearchQuery("");
     setCombatSearchChallenge("");
@@ -6777,7 +6792,7 @@ export default function App() {
       return;
     }
 
-    if (!window.confirm("Завершить бой, очистить активную сцену и посчитать опыт по убитым целям?")) {
+    if (!window.confirm("Завершить бой, очистить активную сцену и посчитать опыт за всех врагов, которые уже выведены или имеют 0 HP?")) {
       return;
     }
 
@@ -6786,8 +6801,7 @@ export default function App() {
       const result = await api.finishCombat(activeCampaignId);
       setCombatReport(result);
       hydrateCampaign(result.campaign);
-      setActiveModule("combat");
-      setActiveTab("Encounter");
+      openCombatSetupModal(result.campaign.preparedCombat ?? null);
     } catch (error) {
       setBootError(error instanceof Error ? error.message : "Не удалось завершить бой.");
     } finally {
@@ -7507,7 +7521,7 @@ export default function App() {
                 <button className="ghost" disabled={saving} onClick={() => void syncCombatPortraits()} type="button">
                   Подтянуть фотки
                 </button>
-                <button className="ghost" onClick={openCombatSetupModal} type="button">
+                <button className="ghost" onClick={() => openCombatSetupModal()} type="button">
                   Добавить врага
                 </button>
                 <button className="ghost" disabled={authBusy} onClick={() => void logout()} type="button">
@@ -7682,7 +7696,7 @@ export default function App() {
                     <section className="card section-card combat-report">
                       <div className="row muted">
                         <span>Итог последнего боя</span>
-                        <span>Опыт считается только по убитым целям</span>
+                        <span>Опыт считается по врагам, которые к финалу уже имеют 0 HP</span>
                       </div>
                       <div className="combat-report-grid">
                         <article className="card mini fact-box">
@@ -7849,10 +7863,10 @@ export default function App() {
                           </label>
                           <p className="copy combat-inline-note">{combatPartySummary}</p>
                           <div className="actions">
-                            <button className="ghost" onClick={openCombatSetupModal} type="button">
+                            <button className="ghost" onClick={() => openCombatSetupModal()} type="button">
                               Настроить бой
                             </button>
-                            <button className="primary" disabled={!canStartConfiguredCombat} onClick={openCombatSetupModal} type="button">
+                            <button className="primary" disabled={!canStartConfiguredCombat} onClick={() => openCombatSetupModal()} type="button">
                               К старту боя
                             </button>
                           </div>

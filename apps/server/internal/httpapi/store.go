@@ -693,7 +693,7 @@ func (store *campaignStore) finishCombat(campaignID string) (finishCombatResult,
 		}
 
 		for _, entry := range campaign.ActiveCombat.Entries {
-			if !entry.Defeated || combatEntrySide(entry) != "enemy" {
+			if combatEntrySide(entry) != "enemy" || (!entry.Defeated && entry.CurrentHitPoints > 0) {
 				continue
 			}
 			report.DefeatedEntries = append(report.DefeatedEntries, entry)

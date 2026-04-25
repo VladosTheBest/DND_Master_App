@@ -103,6 +103,7 @@ type publicInitiativeEntry struct {
 	ArmorClass    string `json:"armorClass"`
 	Initiative    int    `json:"initiative"`
 	Challenge     string `json:"challenge,omitempty"`
+	Experience    int    `json:"experience,omitempty"`
 	Condition     string `json:"condition,omitempty"`
 	ConditionTone string `json:"conditionTone,omitempty"`
 	Defeated      bool   `json:"defeated"`
@@ -993,12 +994,20 @@ var (
         return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
       };
 
+      const formatChallengeLabel = (value) => {
+        const text = String(value || "").trim();
+        if (!text) {
+          return "";
+        }
+        return /^cr\b/i.test(text) ? text : "CR " + text;
+      };
+
       const roleLabel = (entry) => {
         if (entry.side === "player") {
           return UI.player;
         }
         if (entry.challenge) {
-          return "CR " + String(entry.challenge);
+          return formatChallengeLabel(entry.challenge);
         }
         if (entry.role) {
           return String(entry.role);
@@ -1008,7 +1017,9 @@ var (
 
       const victoryMetaLabel = (entry) => {
         if (entry.challenge) {
-          return "CR " + String(entry.challenge);
+          const challengeLabel = formatChallengeLabel(entry.challenge);
+          const experience = Number(entry.experience || 0) || 0;
+          return experience > 0 ? challengeLabel + " (" + String(experience) + " XP)" : challengeLabel;
         }
         if (entry.role) {
           return String(entry.role);
@@ -1517,7 +1528,7 @@ func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 			for _, entry := range snapshot.Result.Entries {
 				fmt.Fprintf(
 					&builder,
-					"%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%d|%s|%s|%s|%t|%t|",
+					"%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%d|%s|%d|%s|%s|%t|%t|",
 					entry.ID,
 					entry.EntityID,
 					entry.EntityKind,
@@ -1530,6 +1541,7 @@ func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 					entry.ArmorClass,
 					entry.Initiative,
 					entry.Challenge,
+					entry.Experience,
 					entry.Condition,
 					entry.ConditionTone,
 					entry.Defeated,
@@ -1559,7 +1571,7 @@ func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 	for _, entry := range combat.Entries {
 		fmt.Fprintf(
 			&builder,
-			"%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%d|%s|%s|%s|%t|%t|",
+			"%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%d|%s|%d|%s|%s|%t|%t|",
 			entry.ID,
 			entry.EntityID,
 			entry.EntityKind,
@@ -1572,6 +1584,7 @@ func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 			entry.ArmorClass,
 			entry.Initiative,
 			entry.Challenge,
+			entry.Experience,
 			entry.Condition,
 			entry.ConditionTone,
 			entry.Defeated,
@@ -2070,7 +2083,7 @@ func buildPublicInitiativeSnapshot(campaign campaignData) publicInitiativeSnapsh
 				TotalExperience:     campaign.LastCombatSummary.TotalExperience,
 				ExperiencePerPlayer: campaign.LastCombatSummary.ExperiencePerPlayer,
 				Round:               campaign.LastCombatSummary.Round,
-				Entries:             buildPublicInitiativeEntries(campaign, campaign.LastCombatSummary.Entries, ""),
+				Entries:             buildPublicInitiativeEntries(campaign, campaign.LastCombatSummary.Entries, "", true),
 				PlayerRewards:       buildPublicInitiativeRewards(campaign.LastCombatSummary.PlayerRewards),
 				FinishedAt:          campaign.LastCombatSummary.FinishedAt,
 			}
@@ -2098,7 +2111,7 @@ func buildPublicInitiativeSnapshot(campaign campaignData) publicInitiativeSnapsh
 			TotalExperience:     publicCombatVictoryTotalExperience(campaign.ActiveCombat),
 			ExperiencePerPlayer: publicCombatVictoryExperiencePerPlayer(campaign.ActiveCombat),
 			Round:               campaign.ActiveCombat.Round,
-			Entries:             buildPublicInitiativeEntries(campaign, campaign.ActiveCombat.Entries, campaign.ActiveCombat.CurrentTurnEntryID),
+			Entries:             buildPublicInitiativeEntries(campaign, campaign.ActiveCombat.Entries, campaign.ActiveCombat.CurrentTurnEntryID, true),
 			PlayerRewards:       buildPublicInitiativeRewards(playerRewards),
 		}
 		return snapshot
@@ -2111,13 +2124,13 @@ func buildPublicInitiativeSnapshot(campaign campaignData) publicInitiativeSnapsh
 		PartySize:          campaign.ActiveCombat.PartySize,
 		Difficulty:         campaign.ActiveCombat.Difficulty,
 		CurrentTurnEntryID: campaign.ActiveCombat.CurrentTurnEntryID,
-		Entries:            buildPublicInitiativeEntries(campaign, campaign.ActiveCombat.Entries, campaign.ActiveCombat.CurrentTurnEntryID),
+		Entries:            buildPublicInitiativeEntries(campaign, campaign.ActiveCombat.Entries, campaign.ActiveCombat.CurrentTurnEntryID, false),
 	}
 
 	return snapshot
 }
 
-func buildPublicInitiativeEntries(campaign campaignData, source []combatEntry, currentTurnEntryID string) []publicInitiativeEntry {
+func buildPublicInitiativeEntries(campaign campaignData, source []combatEntry, currentTurnEntryID string, revealResolutionMeta bool) []publicInitiativeEntry {
 	ordered := orderedInitiativeEntriesForPublic(source)
 	entries := make([]publicInitiativeEntry, 0, len(ordered))
 	for _, entry := range ordered {
@@ -2140,7 +2153,8 @@ func buildPublicInitiativeEntries(campaign campaignData, source []combatEntry, c
 			ImageAlt:      imageAlt,
 			ArmorClass:    armorClass,
 			Initiative:    entry.Initiative,
-			Challenge:     entry.Challenge,
+			Challenge:     revealPublicInitiativeChallenge(entry, revealResolutionMeta),
+			Experience:    revealPublicInitiativeExperience(entry, revealResolutionMeta),
 			Condition:     conditionLabel,
 			ConditionTone: conditionTone,
 			Defeated:      entry.Defeated || entry.CurrentHitPoints <= 0,
@@ -2148,6 +2162,20 @@ func buildPublicInitiativeEntries(campaign campaignData, source []combatEntry, c
 		})
 	}
 	return entries
+}
+
+func revealPublicInitiativeChallenge(entry combatEntry, revealResolutionMeta bool) string {
+	if combatEntrySide(entry) != "enemy" || revealResolutionMeta {
+		return entry.Challenge
+	}
+	return ""
+}
+
+func revealPublicInitiativeExperience(entry combatEntry, revealResolutionMeta bool) int {
+	if combatEntrySide(entry) != "enemy" || revealResolutionMeta {
+		return entry.Experience
+	}
+	return 0
 }
 
 func buildPublicInitiativeRewards(source []combatRewardShare) []publicInitiativeReward {

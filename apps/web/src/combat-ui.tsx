@@ -118,8 +118,31 @@ export const combatVictoryLoserLabel = (entry: CombatEntry) => {
   return "Противник";
 };
 
-const combatEntryRoleLabel = (entry: CombatEntry) =>
-  entry.side === "player" ? "Игрок" : entry.challenge || entry.role || "Противник";
+const normalizeCombatFactLabel = (value: string) => value.toLowerCase().replace(/\s+/g, "").replace(/[\\/|]+/g, "");
+
+const isCombatMetaFactLabel = (label: string) => {
+  switch (normalizeCombatFactLabel(label)) {
+    case "cr":
+    case "crxp":
+    case "crопасность":
+    case "опасность":
+    case "опасностьcr":
+    case "challenge":
+    case "challengerating":
+      return true;
+    default:
+      return false;
+  }
+};
+
+const shouldRevealCombatEntryMeta = (entry: CombatEntry, revealEnemyMeta = false) => entry.side === "player" || revealEnemyMeta;
+
+const combatEntryRoleLabel = (entry: CombatEntry, revealEnemyMeta = false) =>
+  entry.side === "player"
+    ? "Игрок"
+    : shouldRevealCombatEntryMeta(entry, revealEnemyMeta)
+      ? entry.challenge || entry.role || "Противник"
+      : entry.role || "Противник";
 
 const parseCombatStatRows = (value?: string) =>
   (value ?? "")
@@ -586,6 +609,7 @@ export function CombatEntryCard({
   entry,
   linkedEntity,
   currentTurnEntryId,
+  revealEnemyMeta = false,
   busy,
   onChangeHitPoints,
   onChangeInitiative,
@@ -595,6 +619,7 @@ export function CombatEntryCard({
   entry: CombatEntry;
   linkedEntity: KnowledgeEntity | null;
   currentTurnEntryId?: string;
+  revealEnemyMeta?: boolean;
   busy: boolean;
   onChangeHitPoints: (entry: CombatEntry, nextHp: number) => void;
   onChangeInitiative: (entry: CombatEntry, nextInitiative: number) => void;
@@ -619,6 +644,7 @@ export function CombatEntryCard({
       });
   const savingThrowRows = parseCombatStatRows(entry.statBlock?.savingThrows);
   const skillRows = parseCombatStatRows(entry.statBlock?.skills);
+  const revealEntryMeta = shouldRevealCombatEntryMeta(entry, revealEnemyMeta);
   const detailRows = [
     { label: "Размер", value: entry.statBlock?.size || "—" },
     { label: "Тип", value: entry.statBlock?.creatureType || kindLabel },
@@ -629,10 +655,12 @@ export function CombatEntryCard({
     { label: "Сопротивления", value: entry.statBlock?.resistances || "—" },
     { label: "Иммунитеты", value: entry.statBlock?.immunities || "—" }
   ].filter((row) => row.value && row.value !== "—");
-  const quickFactsRows = (linkedEntity?.quickFacts ?? []).map((fact) => ({
-    label: fact.label,
-    value: fact.value
-  }));
+  const quickFactsRows = (linkedEntity?.quickFacts ?? [])
+    .filter((fact) => revealEntryMeta || !isCombatMetaFactLabel(fact.label))
+    .map((fact) => ({
+      label: fact.label,
+      value: fact.value
+    }));
   const visibleTraits = entry.statBlock?.traits ?? [];
   const visibleActions = entry.statBlock?.actions ?? [];
   const visibleBonusActions = entry.statBlock?.bonusActions ?? [];
@@ -698,8 +726,8 @@ export function CombatEntryCard({
           <div className="row combat-focus-topline">
             <div className="actions">
               <span className={badge(entry.defeated ? "danger" : tone)}>{kindLabel}</span>
-              {entry.challenge ? <span className={badge()}>{entry.challenge}</span> : null}
-              {entry.experience > 0 ? <span className={badge("accent")}>{entry.experience} XP</span> : null}
+              {revealEntryMeta && entry.challenge ? <span className={badge()}>{entry.challenge}</span> : null}
+              {revealEntryMeta && entry.experience > 0 ? <span className={badge("accent")}>{entry.experience} XP</span> : null}
               <span className={badge(combatEntryConditionTone(entry))}>{combatEntryConditionLabel(entry)}</span>
             </div>
             {isCurrentTurn ? <span className={badge("accent")}>Текущий ход</span> : null}
@@ -708,8 +736,8 @@ export function CombatEntryCard({
           <div className="stack compact">
             <h3>{entry.title}</h3>
             <p className="combat-focus-subtitle">
-              {entry.role || combatEntryRoleLabel(entry)}
-              {entry.statBlock?.challenge ? ` • ${entry.statBlock.challenge}` : ""}
+              {entry.role || combatEntryRoleLabel(entry, revealEnemyMeta)}
+              {revealEntryMeta && entry.statBlock?.challenge ? ` • ${entry.statBlock.challenge}` : ""}
             </p>
             <p className="copy">{entry.summary}</p>
           </div>
@@ -987,12 +1015,14 @@ export function CombatEntryCard({
 export function CombatEntryTile({
   entry,
   linkedEntity,
+  revealEnemyMeta = false,
   selected,
   currentTurn,
   onSelect
 }: {
   entry: CombatEntry;
   linkedEntity: KnowledgeEntity | null;
+  revealEnemyMeta?: boolean;
   selected: boolean;
   currentTurn: boolean;
   onSelect: () => void;
@@ -1021,7 +1051,7 @@ export function CombatEntryTile({
           {currentTurn ? <span className={`${badge("accent")} combat-roster-turn-badge`}>Ход</span> : null}
         </div>
         <small className="combat-roster-secondary">
-          <span>{combatEntryRoleLabel(entry)}</span>
+          <span>{combatEntryRoleLabel(entry, revealEnemyMeta)}</span>
           <span>КД {entry.armorClass}</span>
         </small>
         <small>{entry.maxHitPoints > 0 ? `${entry.currentHitPoints}/${entry.maxHitPoints} HP` : "HP не отслеживается"}</small>
