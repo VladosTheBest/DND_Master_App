@@ -25,6 +25,7 @@ import {
   rewardSectionLabel,
   rewardSummaryText
 } from "./app-shared";
+import victoryBloodOverlayUrl from "./assets/victory-blood-overlay.png";
 
 type CombatProfileEntity = PlayerEntity | NpcEntity | MonsterEntity;
 type CombatFocusTab = "overview" | "stats" | "abilities" | "combat" | "rewards";
@@ -63,6 +64,8 @@ const combatEntryHealthPercent = (entry: CombatEntry) =>
   entry.maxHitPoints > 0 ? clamp((entry.currentHitPoints / entry.maxHitPoints) * 100, 0, 100) : 0;
 
 export const isCombatEntryOut = (entry: CombatEntry) => entry.defeated || entry.currentHitPoints <= 0;
+export const isCombatEntryBloodied = (entry: CombatEntry) =>
+  entry.side === "enemy" && entry.maxHitPoints > 0 && entry.currentHitPoints * 2 < entry.maxHitPoints;
 
 const combatEntryConditionLabel = (entry: CombatEntry) => {
   if (isCombatEntryOut(entry)) {
@@ -101,16 +104,8 @@ const combatEntryConditionTone = (entry: CombatEntry): QuickFactTone => {
 };
 
 export const combatVictoryLoserLabel = (entry: CombatEntry) => {
-  if (entry.challenge) {
-    const challengeLabel = entry.challenge.trim();
-    const prefixedChallenge = challengeLabel.toLowerCase().startsWith("cr") ? challengeLabel : `CR ${challengeLabel}`;
-    const includesExperience = /\bxp\b/i.test(challengeLabel);
-
-    if (!includesExperience && entry.experience > 0) {
-      return `${prefixedChallenge} (${entry.experience} XP)`;
-    }
-
-    return prefixedChallenge;
+  if (isCombatEntryOut(entry) && entry.experience > 0) {
+    return `${entry.experience} XP`;
   }
   if (entry.role) {
     return entry.role;
@@ -135,7 +130,10 @@ const isCombatMetaFactLabel = (label: string) => {
   }
 };
 
-const shouldRevealCombatEntryMeta = (entry: CombatEntry, revealEnemyMeta = false) => entry.side === "player" || revealEnemyMeta;
+const shouldRevealCombatEntryExperience = (entry: CombatEntry, revealEnemyMeta = false) =>
+  entry.side === "enemy" && revealEnemyMeta && isCombatEntryOut(entry) && entry.experience > 0;
+
+const shouldRevealCombatEntryMeta = shouldRevealCombatEntryExperience;
 
 const combatEntryRoleLabel = (entry: CombatEntry, revealEnemyMeta = false) =>
   entry.side === "player"
@@ -143,6 +141,15 @@ const combatEntryRoleLabel = (entry: CombatEntry, revealEnemyMeta = false) =>
     : shouldRevealCombatEntryMeta(entry, revealEnemyMeta)
       ? entry.challenge || entry.role || "Противник"
       : entry.role || "Противник";
+
+const combatEntryDisplayMeta = (entry: CombatEntry, revealEnemyMeta = false) =>
+  entry.side === "player"
+    ? "РРіСЂРѕРє"
+    : shouldRevealCombatEntryExperience(entry, revealEnemyMeta)
+      ? `${entry.experience} XP`
+      : entry.role || "РџСЂРѕС‚РёРІРЅРёРє";
+
+void combatEntryRoleLabel;
 
 const parseCombatStatRows = (value?: string) =>
   (value ?? "")
@@ -644,7 +651,8 @@ export function CombatEntryCard({
       });
   const savingThrowRows = parseCombatStatRows(entry.statBlock?.savingThrows);
   const skillRows = parseCombatStatRows(entry.statBlock?.skills);
-  const revealEntryMeta = shouldRevealCombatEntryMeta(entry, revealEnemyMeta);
+  const revealEntryExperience = shouldRevealCombatEntryExperience(entry, revealEnemyMeta);
+  const revealEntryMeta = false;
   const detailRows = [
     { label: "Размер", value: entry.statBlock?.size || "—" },
     { label: "Тип", value: entry.statBlock?.creatureType || kindLabel },
@@ -656,7 +664,7 @@ export function CombatEntryCard({
     { label: "Иммунитеты", value: entry.statBlock?.immunities || "—" }
   ].filter((row) => row.value && row.value !== "—");
   const quickFactsRows = (linkedEntity?.quickFacts ?? [])
-    .filter((fact) => revealEntryMeta || !isCombatMetaFactLabel(fact.label))
+    .filter((fact) => !isCombatMetaFactLabel(fact.label))
     .map((fact) => ({
       label: fact.label,
       value: fact.value
@@ -716,18 +724,20 @@ export function CombatEntryCard({
     );
 
   return (
-    <article className={`card combat-focus-card ${entry.defeated ? "defeated" : ""}`}>
+    <article className={`card combat-focus-card ${isCombatEntryOut(entry) ? "defeated" : ""}`}>
       <header className="combat-focus-hero">
-        <div className="combat-focus-portrait-shell">
+        <div className={`combat-focus-portrait-shell ${isCombatEntryBloodied(entry) ? "combat-bloodied-shell" : ""}`}>
           <img alt={linkedEntity?.art?.alt ?? entry.title} className="combat-focus-portrait" loading="lazy" src={portraitSource} />
+          {isCombatEntryBloodied(entry) ? (
+            <img alt="" aria-hidden="true" className="combat-blood-overlay" loading="lazy" src={victoryBloodOverlayUrl} />
+          ) : null}
         </div>
 
         <div className="combat-focus-hero-copy">
           <div className="row combat-focus-topline">
             <div className="actions">
-              <span className={badge(entry.defeated ? "danger" : tone)}>{kindLabel}</span>
-              {revealEntryMeta && entry.challenge ? <span className={badge()}>{entry.challenge}</span> : null}
-              {revealEntryMeta && entry.experience > 0 ? <span className={badge("accent")}>{entry.experience} XP</span> : null}
+              <span className={badge(isCombatEntryOut(entry) ? "danger" : tone)}>{kindLabel}</span>
+              {revealEntryExperience ? <span className={badge("accent")}>{entry.experience} XP</span> : null}
               <span className={badge(combatEntryConditionTone(entry))}>{combatEntryConditionLabel(entry)}</span>
             </div>
             {isCurrentTurn ? <span className={badge("accent")}>Текущий ход</span> : null}
@@ -736,7 +746,7 @@ export function CombatEntryCard({
           <div className="stack compact">
             <h3>{entry.title}</h3>
             <p className="combat-focus-subtitle">
-              {entry.role || combatEntryRoleLabel(entry, revealEnemyMeta)}
+              {combatEntryDisplayMeta(entry, revealEnemyMeta)}
               {revealEntryMeta && entry.statBlock?.challenge ? ` • ${entry.statBlock.challenge}` : ""}
             </p>
             <p className="copy">{entry.summary}</p>
@@ -1037,13 +1047,16 @@ export function CombatEntryTile({
   return (
     <button
       aria-pressed={selected}
-      className={`combat-roster-tile ${selected ? "selected" : ""} ${currentTurn ? "current" : ""} ${entry.defeated ? "defeated" : ""}`}
+      className={`combat-roster-tile ${selected ? "selected" : ""} ${currentTurn ? "current" : ""} ${isCombatEntryOut(entry) ? "defeated" : ""}`}
       onClick={onSelect}
       type="button"
     >
       <span className={`combat-roster-initiative ${entry.side === "player" ? "player" : "enemy"}`}>{combatEntryInitiative(entry)}</span>
-      <div className="combat-roster-portrait-shell">
+      <div className={`combat-roster-portrait-shell ${isCombatEntryBloodied(entry) ? "combat-bloodied-shell" : ""}`}>
         <img alt={linkedEntity?.art?.alt ?? entry.title} className="combat-roster-portrait" loading="lazy" src={portraitSource} />
+        {isCombatEntryBloodied(entry) ? (
+          <img alt="" aria-hidden="true" className="combat-blood-overlay" loading="lazy" src={victoryBloodOverlayUrl} />
+        ) : null}
       </div>
       <div className="combat-roster-copy">
         <div className="combat-roster-topline">
@@ -1051,7 +1064,7 @@ export function CombatEntryTile({
           {currentTurn ? <span className={`${badge("accent")} combat-roster-turn-badge`}>Ход</span> : null}
         </div>
         <small className="combat-roster-secondary">
-          <span>{combatEntryRoleLabel(entry, revealEnemyMeta)}</span>
+          <span>{combatEntryDisplayMeta(entry, revealEnemyMeta)}</span>
           <span>КД {entry.armorClass}</span>
         </small>
         <small>{entry.maxHitPoints > 0 ? `${entry.currentHitPoints}/${entry.maxHitPoints} HP` : "HP не отслеживается"}</small>

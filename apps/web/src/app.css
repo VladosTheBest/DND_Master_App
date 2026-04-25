@@ -2774,14 +2774,38 @@ select.input {
   min-height: 17.25rem;
   grid-template-rows: auto minmax(0, 1fr) auto;
   min-width: 0;
+  cursor: pointer;
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+
+.entity-player-facing-panel-compact:hover {
+  transform: translateY(-2px);
+  border-color: rgba(126,214,161,.34);
+  box-shadow: 0 24px 52px rgba(0,0,0,.24);
+}
+
+.entity-player-facing-panel-compact:focus-visible {
+  outline: 2px solid rgba(126,214,161,.55);
+  outline-offset: 2px;
 }
 
 .entity-player-facing-preview {
   min-height: 0;
   max-height: 10.75rem;
-  overflow-y: auto;
-  padding-right: .18rem;
+  overflow: hidden;
+  position: relative;
   overflow-wrap: anywhere;
+}
+
+.entity-player-facing-preview::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2.9rem;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(13,23,24,0), rgba(13,23,24,.94));
 }
 
 .entity-player-facing-preview .copy,
@@ -2829,6 +2853,10 @@ select.input {
   transform: translateY(-2px);
   border-color: rgba(241, 192, 125, .36);
   box-shadow: 0 18px 42px rgba(0,0,0,.22);
+}
+
+.entity-player-facing-open-button {
+  display: none;
 }
 
 .entity-prepared-combat-stack {
@@ -5265,6 +5293,7 @@ select.input {
   background: rgba(177, 84, 95, .16);
 }
 .combat-roster-portrait-shell {
+  position: relative;
   width: 3.35rem;
   height: 3.35rem;
   border-radius: .95rem;
@@ -5373,6 +5402,7 @@ select.input {
   min-width: 0;
 }
 .combat-focus-portrait-shell {
+  position: relative;
   width: 6.3rem;
   height: 6.3rem;
   border-radius: 1.1rem;
@@ -5871,6 +5901,7 @@ select.input {
   animation: initiativeChevron 1.75s ease-in-out infinite;
 }
 .initiative-card-image-shell {
+  position: relative;
   width: 100%;
   aspect-ratio: 4 / 5;
   border-radius: .95rem;
@@ -5885,6 +5916,16 @@ select.input {
   height: 100%;
   object-fit: cover;
   display: block;
+}
+.combat-blood-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  opacity: .86;
 }
 .initiative-card-copy {
   display: grid;

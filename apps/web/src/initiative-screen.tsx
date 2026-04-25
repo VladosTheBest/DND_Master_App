@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import type { ActiveCombat, KnowledgeEntity, LastCombatSummary } from "@shadow-edge/shared-types";
 import victoryBloodOverlayUrl from "./assets/victory-blood-overlay.png";
 import { createPortraitSource } from "./app-shared";
-import { combatEntryInitiative, combatVictoryLoserLabel, isCombatEntryOut, sortCombatEntriesByInitiative } from "./combat-ui";
+import { combatEntryInitiative, combatVictoryLoserLabel, isCombatEntryBloodied, isCombatEntryOut, sortCombatEntriesByInitiative } from "./combat-ui";
 
 export function InitiativeTrackerScreen({
   activeCombat,
@@ -105,7 +105,7 @@ export function InitiativeTrackerScreen({
                 return (
                   <button
                     key={`initiative-card-${entry.id}`}
-                    className={`initiative-display-card ${isCurrent ? "current" : ""} ${entry.defeated ? "defeated" : ""}`}
+                    className={`initiative-display-card ${isCurrent ? "current" : ""} ${isCombatEntryOut(entry) ? "defeated" : ""}`}
                     onClick={() => onSelectTurn(entry.id)}
                     ref={(node) => {
                       cardRefs.current[entry.id] = node;
@@ -117,6 +117,9 @@ export function InitiativeTrackerScreen({
                       {isCurrent ? <span aria-hidden="true" className="initiative-current-chevron" /> : null}
                       <div className="initiative-card-image-shell">
                         <img alt={entry.title} className="initiative-card-image" loading="lazy" src={visualSource} />
+                        {isCombatEntryBloodied(entry) ? (
+                          <img alt="" aria-hidden="true" className="combat-blood-overlay" loading="lazy" src={victoryBloodOverlayUrl} />
+                        ) : null}
                       </div>
                       <div className="initiative-card-copy">
                         <strong>{entry.title}</strong>
@@ -134,7 +137,7 @@ export function InitiativeTrackerScreen({
             {orderedEntries.map((entry, index) => (
               <span
                 key={`initiative-dot-${entry.id}`}
-                className={`initiative-progress-dot ${currentTurnEntry?.id === entry.id ? "current" : ""} ${entry.defeated ? "defeated" : ""}`}
+                className={`initiative-progress-dot ${currentTurnEntry?.id === entry.id ? "current" : ""} ${isCombatEntryOut(entry) ? "defeated" : ""}`}
                 style={{ animationDelay: `${index * 90}ms` }}
               />
             ))}
@@ -240,4 +243,3 @@ export function InitiativeTrackerScreen({
     </div>
   );
 }
-

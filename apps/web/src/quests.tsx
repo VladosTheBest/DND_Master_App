@@ -199,12 +199,22 @@ export function PlayerFacingCardStrip({
           cards.map((card, index) => {
             const highlights = summarizePlayerFacingCardPreview(card.content, 4);
             const previewHtml = sanitizePlayerFacingHTML(card.contentHtml);
+            const openCard = () => onOpenCard(card, index);
 
             return (
               <article
                 key={`${entityId}-player-card-${index}`}
                 className="card entity-player-facing-panel entity-player-facing-panel-compact"
+                onClick={openCard}
                 onContextMenu={(event) => handleCardContextMenu(event, index)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    openCard();
+                  }
+                }}
+                role="button"
+                tabIndex={0}
               >
                 <div className="quest-story-head">
                   <strong>{card.title}</strong>
@@ -229,10 +239,10 @@ export function PlayerFacingCardStrip({
                 </div>
 
                 <div className="entity-player-facing-actions">
-                  <button className="ghost fill" onClick={() => onOpenCard(card, index)} type="button">
+                  <button className="ghost fill entity-player-facing-open-button" onClick={() => onOpenCard(card, index)} type="button">
                     Открыть
                   </button>
-                  <button className="ghost" onClick={() => onEditCard(card, index)} type="button">
+                  <button className="ghost" onClick={(event) => { event.stopPropagation(); onEditCard(card, index); }} type="button">
                     Редактировать
                   </button>
                 </div>

@@ -91,6 +91,18 @@ func TestBuildPublicInitiativeSnapshotHidesEnemyMetaUntilVictory(t *testing.T) {
 	if activeEnemy.Experience != 0 {
 		t.Fatalf("expected active public tracker to hide experience, got %d", activeEnemy.Experience)
 	}
+	if activeEnemy.Bloodied {
+		t.Fatalf("expected full-health enemy to not be marked bloodied")
+	}
+
+	revealedPreview := buildPublicInitiativeEntries(campaign, campaign.ActiveCombat.Entries, "", true)
+	revealedEnemyPreview := findPublicInitiativeEntryByID(revealedPreview, "enemy-1")
+	if revealedEnemyPreview == nil {
+		t.Fatal("expected preview entries to contain the enemy entry")
+	}
+	if revealedEnemyPreview.Experience != 0 {
+		t.Fatalf("expected living enemy to hide experience even in revealed preview, got %d", revealedEnemyPreview.Experience)
+	}
 
 	campaign.ActiveCombat.Entries[1].CurrentHitPoints = 0
 	campaign.ActiveCombat.Entries[1].Defeated = true
@@ -103,11 +115,14 @@ func TestBuildPublicInitiativeSnapshotHidesEnemyMetaUntilVictory(t *testing.T) {
 	if victoryEnemy == nil {
 		t.Fatal("expected victory snapshot to contain the enemy entry")
 	}
-	if victoryEnemy.Challenge != "CR 3" {
-		t.Fatalf("expected victory snapshot to reveal challenge, got %q", victoryEnemy.Challenge)
+	if victoryEnemy.Challenge != "" {
+		t.Fatalf("expected victory snapshot to keep challenge hidden, got %q", victoryEnemy.Challenge)
 	}
 	if victoryEnemy.Experience != 700 {
 		t.Fatalf("expected victory snapshot to reveal experience, got %d", victoryEnemy.Experience)
+	}
+	if !victoryEnemy.Bloodied {
+		t.Fatalf("expected defeated enemy to be marked bloodied for overlay")
 	}
 }
 

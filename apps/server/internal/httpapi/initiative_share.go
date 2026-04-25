@@ -104,6 +104,7 @@ type publicInitiativeEntry struct {
 	Initiative    int    `json:"initiative"`
 	Challenge     string `json:"challenge,omitempty"`
 	Experience    int    `json:"experience,omitempty"`
+	Bloodied      bool   `json:"bloodied,omitempty"`
 	Condition     string `json:"condition,omitempty"`
 	ConditionTone string `json:"conditionTone,omitempty"`
 	Defeated      bool   `json:"defeated"`
@@ -353,6 +354,7 @@ var (
         animation: initiativeChevron 1.75s ease-in-out infinite;
       }
       .card-image-shell {
+        position: relative;
         width: 100%;
         aspect-ratio: 4 / 5;
         border-radius: 0.95rem;
@@ -636,6 +638,16 @@ var (
         pointer-events: none;
         mix-blend-mode: screen;
         opacity: 0.88;
+      }
+      .card-blood-overlay-live {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        pointer-events: none;
+        mix-blend-mode: screen;
+        opacity: 0.86;
       }
       .victory-panel .card-copy {
         gap: 0.42rem;
@@ -994,20 +1006,13 @@ var (
         return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
       };
 
-      const formatChallengeLabel = (value) => {
-        const text = String(value || "").trim();
-        if (!text) {
-          return "";
-        }
-        return /^cr\b/i.test(text) ? text : "CR " + text;
-      };
-
       const roleLabel = (entry) => {
         if (entry.side === "player") {
           return UI.player;
         }
-        if (entry.challenge) {
-          return formatChallengeLabel(entry.challenge);
+        const experience = Number(entry.experience || 0) || 0;
+        if (experience > 0) {
+          return String(experience) + " XP";
         }
         if (entry.role) {
           return String(entry.role);
@@ -1016,16 +1021,17 @@ var (
       };
 
       const victoryMetaLabel = (entry) => {
-        if (entry.challenge) {
-          const challengeLabel = formatChallengeLabel(entry.challenge);
-          const experience = Number(entry.experience || 0) || 0;
-          return experience > 0 ? challengeLabel + " (" + String(experience) + " XP)" : challengeLabel;
+        const experience = Number(entry.experience || 0) || 0;
+        if (experience > 0) {
+          return String(experience) + " XP";
         }
         if (entry.role) {
           return String(entry.role);
         }
         return UI.enemy;
       };
+
+      const shouldShowLiveBloodOverlay = (entry) => Boolean(entry && entry.bloodied);
 
       const setPublishedStatus = (updatedAt) => {
         statusNode.textContent = UI.updated + formatUpdatedAt(updatedAt);
@@ -1236,6 +1242,11 @@ var (
               '" class="card-image" loading="lazy" src="' +
               escapeHtml(entry.imageUrl || "") +
               '">' +
+              (shouldShowLiveBloodOverlay(entry)
+                ? '<img alt="" aria-hidden="true" class="card-blood-overlay-live" loading="lazy" src="' +
+                  escapeHtml(victoryBloodOverlay) +
+                  '">'
+                : "") +
               "</div>" +
               '<div class="card-copy">' +
               "<strong>" +
@@ -1528,7 +1539,7 @@ func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 			for _, entry := range snapshot.Result.Entries {
 				fmt.Fprintf(
 					&builder,
-					"%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%d|%s|%d|%s|%s|%t|%t|",
+					"%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%d|%s|%d|%t|%s|%s|%t|%t|",
 					entry.ID,
 					entry.EntityID,
 					entry.EntityKind,
@@ -1542,6 +1553,7 @@ func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 					entry.Initiative,
 					entry.Challenge,
 					entry.Experience,
+					entry.Bloodied,
 					entry.Condition,
 					entry.ConditionTone,
 					entry.Defeated,
@@ -1571,7 +1583,7 @@ func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 	for _, entry := range combat.Entries {
 		fmt.Fprintf(
 			&builder,
-			"%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%d|%s|%d|%s|%s|%t|%t|",
+			"%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%d|%s|%d|%t|%s|%s|%t|%t|",
 			entry.ID,
 			entry.EntityID,
 			entry.EntityKind,
@@ -1585,6 +1597,7 @@ func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 			entry.Initiative,
 			entry.Challenge,
 			entry.Experience,
+			entry.Bloodied,
 			entry.Condition,
 			entry.ConditionTone,
 			entry.Defeated,
@@ -2155,6 +2168,7 @@ func buildPublicInitiativeEntries(campaign campaignData, source []combatEntry, c
 			Initiative:    entry.Initiative,
 			Challenge:     revealPublicInitiativeChallenge(entry, revealResolutionMeta),
 			Experience:    revealPublicInitiativeExperience(entry, revealResolutionMeta),
+			Bloodied:      publicInitiativeEntryIsBloodied(entry),
 			Condition:     conditionLabel,
 			ConditionTone: conditionTone,
 			Defeated:      entry.Defeated || entry.CurrentHitPoints <= 0,
@@ -2164,18 +2178,19 @@ func buildPublicInitiativeEntries(campaign campaignData, source []combatEntry, c
 	return entries
 }
 
-func revealPublicInitiativeChallenge(entry combatEntry, revealResolutionMeta bool) string {
-	if combatEntrySide(entry) != "enemy" || revealResolutionMeta {
-		return entry.Challenge
-	}
+func revealPublicInitiativeChallenge(_ combatEntry, _ bool) string {
 	return ""
 }
 
 func revealPublicInitiativeExperience(entry combatEntry, revealResolutionMeta bool) int {
-	if combatEntrySide(entry) != "enemy" || revealResolutionMeta {
+	if combatEntrySide(entry) == "enemy" && revealResolutionMeta && (entry.Defeated || entry.CurrentHitPoints <= 0) {
 		return entry.Experience
 	}
 	return 0
+}
+
+func publicInitiativeEntryIsBloodied(entry combatEntry) bool {
+	return combatEntrySide(entry) == "enemy" && entry.MaxHitPoints > 0 && entry.CurrentHitPoints*2 < entry.MaxHitPoints
 }
 
 func buildPublicInitiativeRewards(source []combatRewardShare) []publicInitiativeReward {
