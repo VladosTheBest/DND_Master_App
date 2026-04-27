@@ -7158,6 +7158,7 @@ export default function App() {
   const previewPinned = previewEntity ? pinnedIds.includes(previewEntity.id) : false;
   const activeEntityPinned = activeEntity ? pinnedIds.includes(activeEntity.id) : false;
   const isCombatScreen = activeModule === "combat";
+  const isCombatPrepScreen = isCombatScreen && combatSetupOpen && !activeCombat?.entries.length;
   const isItemsRail = activeRailAlias === "items";
   const latestCombatSummary =
     campaign?.lastCombatSummary ??
@@ -7232,470 +7233,395 @@ export default function App() {
     );
   };
 
+  const combatDifficultyToneClass = draftEncounterDifficulty ? `difficulty-${draftEncounterDifficulty}` : "difficulty-empty";
+  const combatDangerText = draftEncounterDifficulty ? combatDifficultyLabel[draftEncounterDifficulty] : "Не рассчитана";
+  const combatDangerThresholdText = draftEncounterDifficulty ? `${draftEncounterDifficultyThreshold} XP` : "—";
+  const combatAdjustedMultiplierText =
+    draftEncounterMultiplier % 1 === 0 ? `${draftEncounterMultiplier}` : draftEncounterMultiplier.toFixed(1);
+  const combatMasterRecommendation =
+    draftEncounterDifficulty === "deadly"
+      ? "Очень высокий риск гибели персонажей. Подходит для кульминации или сцены, где у партии есть план, укрытия или союзники."
+      : draftEncounterDifficulty === "hard"
+        ? "Опасная сцена. Дай игрокам возможность подготовиться, занять позицию или понять угрозу до начала боя."
+        : draftEncounterDifficulty === "medium"
+          ? "Хорошая рабочая сложность для обычной сцены. Бой должен чувствоваться опасным, но честным."
+          : draftEncounterDifficulty === "easy"
+            ? "Лёгкая встреча. Подходит для разогрева, проверки ресурсов или быстрых последствий выбора."
+            : "Добавь игроков, уровень партии и противников, чтобы получить оценку опасности.";
+
   const campaignCombatSetupView =
     campaign ? (
-      <div className="combat-prep-page">
-        <section className="card section-card combat-prep-topbar">
-          <div className="combat-prep-topbar-main">
-            <button className="ghost" onClick={requestCombatSetupModalClose} type="button">
-              {combatSetupHostEntity ? "К карточкам боя" : "К обзору боя"}
-            </button>
-            <div className="combat-prep-breadcrumbs">
-              <div className="stack compact">
-                <span>{combatSetupHostEntity ? kindTitle[combatSetupHostEntity.kind] : "Кампания"}</span>
-                <strong>{combatSetupHostEntity ? combatSetupHostEntity.title : campaign.title}</strong>
-              </div>
-              <div className="stack compact">
-                <span>{combatSetupHostEntity ? "Карточка боя" : "Боевая сцена"}</span>
-                <strong>{campaignPreparedCombatDraft.title?.trim() || "Активный бой"}</strong>
-              </div>
+      <div className="combat-prep-page combat-prep-reference">
+        <section className="combat-prep-reference-header">
+          <button className="combat-prep-back" onClick={requestCombatSetupModalClose} type="button">
+            <span aria-hidden="true">←</span>
+            <span>{combatSetupHostEntity ? "К карточкам боя" : "Назад к кампании"}</span>
+          </button>
+
+          <div className="combat-prep-context-row">
+            <div className="combat-prep-context-mark" aria-hidden="true">✦</div>
+            <div className="combat-prep-context-block">
+              <span>Кампания</span>
+              <strong>{campaign.title}</strong>
+            </div>
+            <span className="combat-prep-context-separator">›</span>
+            <div className="combat-prep-context-block">
+              <span>Сцена</span>
+              <strong>{campaignPreparedCombatDraft.title?.trim() || "Грань Тени: бой"}</strong>
             </div>
           </div>
-          <div className="combat-prep-topbar-actions">
-            <button
-              className="ghost"
-              onClick={() => {
-                requestCombatSetupSwapToEntity("player");
-              }}
-              type="button"
-            >
-              Новый игрок
+
+          <div className="combat-prep-title-block">
+            <span className="combat-prep-title-line" />
+            <h1>Подготовка боя</h1>
+            <span className="combat-prep-title-line" />
+          </div>
+
+          <div className="combat-prep-reference-actions">
+            <button className="ghost combat-prep-action" onClick={clearPreparedCombatDraft} type="button">
+              Очистить
             </button>
             <button
-              className="ghost"
-              onClick={() => {
-                requestCombatSetupSwapToEntity("monster");
-              }}
-              type="button"
-            >
-              Свой противник
-            </button>
-            <button
-              className="ghost"
+              className="ghost combat-prep-action"
               disabled={saving}
               onClick={() => void (combatSetupHostEntity ? saveEntityPreparedCombatDraft() : saveCampaignPreparedCombatDraft())}
               type="button"
             >
-              {saving ? "Сохраняю..." : combatSetupHostEntity ? "Сохранить карточку" : "Сохранить"}
+              {saving ? "Сохраняю..." : "Сохранить"}
             </button>
-            <button className="primary" disabled={!canStartPreparedCombatDraft || saving} onClick={() => void startConfiguredCombat()} type="button">
-              {saving ? "Запускаю..." : "Начать бой"}
+            <button
+              className="primary combat-prep-start-button"
+              disabled={!canStartPreparedCombatDraft || saving}
+              onClick={() => void startConfiguredCombat()}
+              type="button"
+            >
+              <span aria-hidden="true">⚔</span>
+              <span>{saving ? "Запускаю..." : "Начать бой"}</span>
             </button>
           </div>
         </section>
 
         {bootError ? (
-          <div className="card mini form-error" role="status">
+          <div className="card mini form-error combat-prep-status-message" role="status">
             <strong>Проблема при выполнении действия</strong>
             <p>{bootError}</p>
           </div>
         ) : null}
 
         {campaignPreparedCombatNotice ? (
-          <div className="card mini form-success" role="status">
+          <div className="card mini form-success combat-prep-status-message" role="status">
             <strong>Сохранено</strong>
             <p>{campaignPreparedCombatNotice}</p>
           </div>
         ) : null}
 
-        
-        <section
-          className="card section-card"
-          style={{
-            display: "grid",
-            gap: "16px",
-            padding: "16px",
-            gridTemplateColumns: "280px minmax(360px, 1fr) 320px",
-            alignItems: "start"
-          }}
-        >
-          <div
-            style={{
-              display: "grid",
-              gap: "12px",
-              alignSelf: "stretch"
-            }}
-          >
-            <article className="card mini" style={{ padding: "14px", display: "grid", gap: "10px" }}>
-              <div className="row muted">
-                <span>Уровень партии</span>
+        <section className={`combat-prep-danger-board ${combatDifficultyToneClass}`}>
+          <article className="combat-prep-danger-metric">
+            <span className="combat-prep-metric-icon" aria-hidden="true">☄</span>
+            <div>
+              <small>Уровень группы</small>
+              <strong>{enteredPartyLevel ? `${enteredPartyLevel} уровень` : "—"}</strong>
+            </div>
+          </article>
+
+          <article className="combat-prep-danger-metric">
+            <span className="combat-prep-metric-icon" aria-hidden="true">♟</span>
+            <div>
+              <small>Размер группы</small>
+              <strong>{`${effectivePartySize} ${formatPartyCountLabel(effectivePartySize)}`}</strong>
+              <span>{`${draftPreparedCombatPlayers.length} игрока${effectivePartySize > draftPreparedCombatPlayers.length ? " + союзники" : ""}`}</span>
+            </div>
+          </article>
+
+          <article className="combat-prep-danger-metric">
+            <div>
+              <small>Общий XP противников</small>
+              <strong>{`${draftEncounterBaseXp} XP`}</strong>
+            </div>
+          </article>
+
+          <article className="combat-prep-danger-metric adjusted">
+            <div>
+              <small>{`Скорр. XP (×${combatAdjustedMultiplierText})`}</small>
+              <strong>{`${draftEncounterAdjustedXp} XP`}</strong>
+            </div>
+          </article>
+
+          <article className="combat-prep-danger-core">
+            <div className="combat-prep-skull-orb" aria-hidden="true">☠</div>
+            <div>
+              <small>Текущая опасность</small>
+              <strong>{combatDangerText}</strong>
+              <span>{`${combatDangerThresholdText} • Скорр. XP: ${draftEncounterAdjustedXp} XP`}</span>
+            </div>
+          </article>
+
+          <div className="combat-prep-threshold-grid-ref">
+            <article className={draftEncounterDifficulty === "easy" ? "active" : ""}>
+              <small>Легко</small>
+              <strong>{effectiveCombatThresholds.easy}</strong>
+            </article>
+            <article className={draftEncounterDifficulty === "medium" ? "active" : ""}>
+              <small>Средне</small>
+              <strong>{effectiveCombatThresholds.medium}</strong>
+            </article>
+            <article className={draftEncounterDifficulty === "hard" ? "active" : ""}>
+              <small>Сложно</small>
+              <strong>{effectiveCombatThresholds.hard}</strong>
+            </article>
+            <article className={draftEncounterDifficulty === "deadly" ? "active deadly" : ""}>
+              <small>Смертельно</small>
+              <strong>{effectiveCombatThresholds.deadly}</strong>
+            </article>
+          </div>
+
+          <article className="combat-prep-master-tip">
+            <small>Рекомендация мастеру</small>
+            <p>{combatMasterRecommendation}</p>
+          </article>
+        </section>
+
+        <div className="combat-prep-reference-grid">
+          <section className="combat-prep-reference-panel party-panel">
+            <div className="combat-prep-panel-head">
+              <div>
+                <h2>Состав группы</h2>
                 <span>{`${draftPreparedCombatPlayers.length} / ${combatPlayerCatalogItems.length}`}</span>
               </div>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "40px minmax(0, 1fr) 40px",
-                  gap: "8px",
-                  alignItems: "end"
-                }}
-              >
-                <button className="combat-prep-step-button" onClick={() => stepCombatPartyLevel(-1)} type="button">
-                  -
-                </button>
-                <label className="field combat-prep-level-field" style={{ margin: 0 }}>
-                  <span>Общий уровень</span>
-                  <input
-                    className="input combat-prep-level-input"
-                    inputMode="numeric"
-                    onChange={(event) => updateCombatPartyLevelText(event.target.value)}
-                    placeholder="3"
-                    value={combatPartyLevelsText}
-                  />
-                </label>
-                <button className="combat-prep-step-button" onClick={() => stepCombatPartyLevel(1)} type="button">
-                  +
-                </button>
-              </div>
-              <p className="copy combat-inline-note" style={{ margin: 0 }}>
-                {enteredPartyLevel
-                  ? `Уровень ${enteredPartyLevel} будет применён ко всем выбранным игрокам.`
-                  : "Укажи один уровень партии, и он применится ко всем игрокам в бою."}
-              </p>
-            </article>
+              <button className="combat-prep-small-icon" type="button" aria-label="Настройки состава">⚙</button>
+            </div>
 
-            <section className="card section-card combat-prep-column" style={{ minHeight: 0 }}>
-              <div className="row muted">
-                <span>Добавить игроков</span>
-                <span>{combatPlayerCatalogItems.length}</span>
+            <div className="combat-prep-party-tabs">
+              <button className="active" type="button">Игроки</button>
+              <button type="button">Союзники</button>
+            </div>
+
+            <div className="combat-prep-subhead">
+              <strong>{`Игроки (${draftPreparedCombatPlayers.length})`}</strong>
+              <button
+                className="combat-prep-purple-button"
+                onClick={() => requestCombatSetupSwapToEntity("player")}
+                type="button"
+              >
+                + Добавить игрока
+              </button>
+            </div>
+
+            <label className="combat-prep-search-field">
+              <span>⌕</span>
+              <input
+                onChange={(event) => setCombatPlayerSearchQuery(event.target.value)}
+                placeholder="Поиск игрока..."
+                value={combatPlayerSearchQuery}
+              />
+            </label>
+
+            <div className="combat-prep-party-list">
+              {combatPlayerCatalogItems.length ? (
+                combatPlayerCatalogItems.map((player) => {
+                  const selected = campaignPreparedCombatDraft.playerIds.includes(player.id);
+                  return (
+                    <article key={`combat-prep-player-${player.id}`} className={`combat-prep-party-card ${selected ? "selected" : ""}`}>
+                      <img alt={player.title} loading="lazy" src={createPortraitSource(player)} />
+                      <div>
+                        <strong>{player.title}</strong>
+                        <span>{player.role || player.subtitle || "Персонаж партии"}</span>
+                      </div>
+                      <button
+                        className={`combat-prep-check ${selected ? "active" : ""}`}
+                        onClick={() => toggleCampaignPreparedCombatPlayer(player.id)}
+                        type="button"
+                        aria-label={selected ? "Убрать игрока" : "Добавить игрока"}
+                      >
+                        {selected ? "✓" : "+"}
+                      </button>
+                    </article>
+                  );
+                })
+              ) : (
+                <p className="copy">Игроки не найдены.</p>
+              )}
+            </div>
+
+            <div className="combat-prep-subhead allies-head">
+              <strong>Союзники (0)</strong>
+              <button
+                className="combat-prep-purple-button"
+                onClick={() => requestCombatSetupSwapToEntity("player")}
+                type="button"
+              >
+                + Добавить союзника
+              </button>
+            </div>
+            <div className="combat-prep-empty-ally">
+              <span aria-hidden="true">♡</span>
+              <p>Союзники используют тот же уровень партии. Создай союзника как персонажа, а затем добавь его в бой.</p>
+            </div>
+          </section>
+
+          <section className="combat-prep-reference-panel field-panel">
+            <div className="combat-prep-panel-head field-head">
+              <div>
+                <h2>Бой на поле</h2>
+                <span>Готов к инициативе</span>
               </div>
-              <label className="field field-full">
-                <input
-                  className="input"
-                  onChange={(event) => setCombatPlayerSearchQuery(event.target.value)}
-                  placeholder="Поиск по игрокам..."
-                  value={combatPlayerSearchQuery}
-                />
-              </label>
-              <div className="combat-prep-scroll-list" style={{ maxHeight: "44vh" }}>
-                {combatPlayerCatalogItems.length ? (
-                  combatPlayerCatalogItems.map((player) => {
-                    const selected = campaignPreparedCombatDraft.playerIds.includes(player.id);
+              <div className="combat-prep-count-tabs">
+                <span>{`Персонажи ${draftPreparedCombatPlayers.length}`}</span>
+                <span>{`Противники ${campaignPreparedCombatDraftEnemyCount}`}</span>
+                <span>{`Всего ${draftPreparedCombatPlayers.length + campaignPreparedCombatDraftEnemyCount}`}</span>
+              </div>
+            </div>
+
+            <div className="combat-prep-field-section players">
+              <div className="combat-prep-field-title">
+                <strong>♟ Игроки</strong>
+                <span>Инициатива</span>
+                <span>Заметки</span>
+              </div>
+              <div className="combat-prep-field-list">
+                {draftPreparedCombatPlayers.length ? (
+                  draftPreparedCombatPlayers.map((player) => (
+                    <article key={`combat-prep-selected-player-${player.id}`} className="combat-prep-field-row player-row">
+                      <span className="combat-prep-drag-handle">⋮⋮</span>
+                      <img alt={player.title} loading="lazy" src={createPortraitSource(player)} />
+                      <div className="combat-prep-field-copy">
+                        <strong>{player.title}</strong>
+                        <span>{player.role || player.subtitle || "Игрок"}</span>
+                      </div>
+                      <input
+                        className="combat-prep-initiative-input"
+                        inputMode="numeric"
+                        onChange={(event) => setPreparedCombatPlayerInitiative(player.id, Number.parseInt(event.target.value, 10) || 0)}
+                        type="number"
+                        value={preparedCombatPlayerInitiatives[player.id] ?? 0}
+                      />
+                      <button className="combat-prep-note-button" type="button" aria-label="Заметка">▱</button>
+                      <button className="combat-prep-remove-ref" onClick={() => toggleCampaignPreparedCombatPlayer(player.id)} type="button" aria-label="Убрать">
+                        ×
+                      </button>
+                    </article>
+                  ))
+                ) : (
+                  <p className="copy">Добавь игроков слева.</p>
+                )}
+              </div>
+            </div>
+
+            <div className="combat-prep-field-section allies">
+              <div className="combat-prep-field-title">
+                <strong>♧ Союзники</strong>
+                <span>Инициатива</span>
+                <span>Заметки</span>
+              </div>
+              <div className="combat-prep-empty-drop">Добавь союзника слева, если он участвует в бою.</div>
+            </div>
+
+            <div className="combat-prep-field-section enemies">
+              <div className="combat-prep-field-title">
+                <strong>☠ Противники</strong>
+                <span>Кол-во</span>
+                <span>Инициатива</span>
+                <span>XP</span>
+              </div>
+              <div className="combat-prep-field-list enemy-list">
+                {draftPreparedCombatEnemies.length ? (
+                  draftPreparedCombatEnemies.map(({ entity, quantity }) => {
+                    const enemyXp = parseChallengeXp(entity.statBlock?.challenge ?? "") * quantity;
                     return (
-                      <article key={`combat-prep-player-${player.id}`} className="combat-prep-catalog-row">
-                        <img alt={player.title} className="combat-prep-avatar" loading="lazy" src={createPortraitSource(player)} />
-                        <div className="combat-prep-row-copy">
-                          <strong>{player.title}</strong>
-                          <small>{player.subtitle || player.role || player.summary || "Персонаж партии"}</small>
+                      <article key={`combat-prep-selected-enemy-${entity.id}`} className="combat-prep-field-row enemy-row">
+                        <span className="combat-prep-drag-handle">⋮⋮</span>
+                        <img alt={entity.title} loading="lazy" src={createPortraitSource(entity)} />
+                        <div className="combat-prep-field-copy">
+                          <strong>{entity.title}</strong>
+                          <span>{entity.statBlock?.creatureType || kindTitle[entity.kind]} • {getEntityChallenge(entity) || "CR не указан"}</span>
                         </div>
-                        <button
-                          className={`combat-prep-icon-button ${selected ? "active" : ""}`}
-                          onClick={() => toggleCampaignPreparedCombatPlayer(player.id)}
-                          type="button"
-                        >
-                          {selected ? "✓" : "+"}
+                        <div className="combat-prep-quantity-control">
+                          <button
+                            onClick={() => updateCampaignPreparedCombatDraftItem(entity.id, { quantity: Math.max(1, quantity - 1) })}
+                            type="button"
+                          >
+                            −
+                          </button>
+                          <input
+                            inputMode="numeric"
+                            onChange={(event) =>
+                              updateCampaignPreparedCombatDraftItem(entity.id, {
+                                quantity: Math.max(1, Number.parseInt(event.target.value, 10) || 1)
+                              })
+                            }
+                            type="number"
+                            value={quantity}
+                          />
+                          <button
+                            onClick={() => updateCampaignPreparedCombatDraftItem(entity.id, { quantity: quantity + 1 })}
+                            type="button"
+                          >
+                            +
+                          </button>
+                        </div>
+                        <input
+                          className="combat-prep-initiative-input"
+                          inputMode="numeric"
+                          onChange={(event) => setPreparedCombatEnemyInitiative(entity.id, Number.parseInt(event.target.value, 10) || 0)}
+                          type="number"
+                          value={preparedCombatEnemyInitiatives[entity.id] ?? 0}
+                        />
+                        <strong className="combat-prep-enemy-xp">{enemyXp} XP</strong>
+                        <button className="combat-prep-remove-ref" onClick={() => removeCampaignPreparedCombatDraftItem(entity.id)} type="button" aria-label="Убрать">
+                          ×
                         </button>
                       </article>
                     );
                   })
                 ) : (
-                  <p className="copy">По текущему поиску игроков не нашлось.</p>
+                  <p className="copy">Добавь противников справа.</p>
                 )}
               </div>
-              <button
-                className="ghost fill"
-                onClick={() => {
-                  requestCombatSetupSwapToEntity("player");
-                }}
-                type="button"
-              >
-                Создать нового игрока
-              </button>
-            </section>
-          </div>
-
-          <div style={{ display: "grid", gap: "16px", minWidth: 0 }}>
-            <section
-              className={`card section-card combat-prep-difficulty-panel ${
-                draftEncounterDifficulty ? `difficulty-${draftEncounterDifficulty}` : "difficulty-empty"
-              }`}
-              style={{ padding: "16px" }}
-            >
-              <div className="row muted">
-                <span>Текущая сложность боя</span>
-                <button className="ghost" onClick={() => setCombatDifficultyDetailsOpen((current) => !current)} type="button">
-                  {combatDifficultyDetailsOpen ? "Скрыть расчёт" : "Показать расчёт"}
-                </button>
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gap: "14px",
-                  gridTemplateColumns: "180px minmax(220px, 1fr) repeat(4, minmax(96px, 1fr))",
-                  alignItems: "stretch"
-                }}
-              >
-                <article className="combat-prep-difficulty-stat">
-                  <small>XP противников</small>
-                  <strong>{`${draftEncounterBaseXp} XP`}</strong>
-                  <span>{draftEncounterMonsterCount ? `${draftEncounterMonsterCount} ${formatEnemyCountLabel(draftEncounterMonsterCount)}` : "Добавь врагов"}</span>
-                </article>
-
-                <article className="combat-prep-difficulty-meter-card" style={{ minWidth: 0 }}>
-                  <small>Сложность</small>
-                  <strong>{draftEncounterDifficulty ? combatDifficultyLabel[draftEncounterDifficulty] : "Не рассчитана"}</strong>
-                  <span>{draftEncounterDifficulty ? `(${combatDifficultyShortLabel[draftEncounterDifficulty]})` : "Укажи уровень партии и состав врагов"}</span>
-                  <div className="combat-prep-difficulty-meter">
-                    <span style={{ width: `${draftEncounterProgressPercent}%` }} />
-                  </div>
-                  <div className="combat-prep-difficulty-meter-note">
-                    <span>{`Adjusted XP • x${draftEncounterMultiplier % 1 === 0 ? draftEncounterMultiplier : draftEncounterMultiplier.toFixed(1)}`}</span>
-                    <strong>{`${draftEncounterAdjustedXp} XP`}</strong>
-                  </div>
-                </article>
-
-                {combatDifficultyThresholdRows.map((row) => (
-                  <article
-                    key={`difficulty-threshold-${row.id}`}
-                    className={`combat-prep-threshold-card ${draftEncounterDifficulty === row.id ? "active" : ""}`}
-                  >
-                    <small>{row.label}</small>
-                    <strong>{`${row.threshold} XP`}</strong>
-                  </article>
-                ))}
-              </div>
-
-              {combatDifficultyDetailsOpen ? (
-                <div className="combat-prep-difficulty-details" style={{ marginTop: "12px" }}>
-                  <article className="combat-prep-formula-card">
-                    <small>Игроков</small>
-                    <strong>{effectivePartySize}</strong>
-                  </article>
-                  <span className="combat-prep-formula-operator">•</span>
-                  <article className="combat-prep-formula-card">
-                    <small>Уровень</small>
-                    <strong>{enteredPartyLevel ?? "—"}</strong>
-                  </article>
-                  <span className="combat-prep-formula-operator">•</span>
-                  <article className="combat-prep-formula-card">
-                    <small>Базовый XP</small>
-                    <strong>{draftEncounterBaseXp}</strong>
-                  </article>
-                  <span className="combat-prep-formula-operator">•</span>
-                  <article className="combat-prep-formula-card">
-                    <small>Множитель</small>
-                    <strong>{`x${draftEncounterMultiplier % 1 === 0 ? draftEncounterMultiplier : draftEncounterMultiplier.toFixed(1)}`}</strong>
-                  </article>
-                  <span className="combat-prep-formula-operator">=</span>
-                  <article className="combat-prep-formula-card accent">
-                    <small>Adjusted XP</small>
-                    <strong>{draftEncounterAdjustedXp}</strong>
-                  </article>
-                </div>
-              ) : null}
-            </section>
-
-            <div
-              className="combat-prep-layout"
-              style={{
-                display: "grid",
-                gridTemplateColumns: "minmax(0, 1fr)",
-                gap: "16px"
-              }}
-            >
-              <section className="card section-card combat-prep-center" style={{ minHeight: 0 }}>
-                <div className="combat-prep-selected-block">
-                  <div className="row muted">
-                    <span>{`Игроки в бою (${draftPreparedCombatPlayers.length})`}</span>
-                    <span>{enteredPartyLevel ? `Все ${enteredPartyLevel} уровня` : "Уровень не указан"}</span>
-                  </div>
-                  <div className="combat-prep-selected-list" style={{ maxHeight: "28vh" }}>
-                    {draftPreparedCombatPlayers.length ? (
-                      draftPreparedCombatPlayers.map((player) => (
-                        <article key={`combat-prep-selected-player-${player.id}`} className="combat-prep-selected-row">
-                          <img alt={player.title} className="combat-prep-avatar" loading="lazy" src={createPortraitSource(player)} />
-                          <div className="combat-prep-row-copy">
-                            <strong>{player.title}</strong>
-                            <small>{player.subtitle || player.role || "Игрок партии"}</small>
-                            {enteredPartyLevel ? <small>{`Уровень ${enteredPartyLevel}`}</small> : null}
-                          </div>
-                          <div className="combat-prep-entry-controls">
-                            <label className="combat-prep-metric">
-                              <span>Инициатива</span>
-                              <input
-                                className="input"
-                                inputMode="numeric"
-                                onChange={(event) => setPreparedCombatPlayerInitiative(player.id, Number.parseInt(event.target.value, 10) || 0)}
-                                type="number"
-                                value={preparedCombatPlayerInitiatives[player.id] ?? 0}
-                              />
-                            </label>
-                            <button className="combat-prep-remove" onClick={() => toggleCampaignPreparedCombatPlayer(player.id)} type="button">
-                              ✕
-                            </button>
-                          </div>
-                        </article>
-                      ))
-                    ) : (
-                      <p className="copy">Добавь хотя бы одного игрока слева.</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="combat-prep-selected-block enemy-block">
-                  <div className="row muted">
-                    <span>{`Противники (${campaignPreparedCombatDraftEnemyCount})`}</span>
-                    <span>{draftEncounterBaseXp > 0 ? `${draftEncounterBaseXp} XP` : "XP появится из CR"}</span>
-                  </div>
-                  <div className="combat-prep-selected-list" style={{ maxHeight: "28vh" }}>
-                    {draftPreparedCombatEnemies.length ? (
-                      draftPreparedCombatEnemies.map(({ entity, quantity }) => (
-                        <article key={`combat-prep-selected-enemy-${entity.id}`} className="combat-prep-selected-row enemy">
-                          <img alt={entity.title} className="combat-prep-avatar" loading="lazy" src={createPortraitSource(entity)} />
-                          <div className="combat-prep-row-copy">
-                            <strong>{entity.title}</strong>
-                            <small>
-                              {entity.statBlock?.creatureType || kindTitle[entity.kind]} • {getEntityChallenge(entity) || "CR не указан"}
-                            </small>
-                            <small>{`${parseChallengeXp(entity.statBlock?.challenge ?? "") * quantity} XP`}</small>
-                          </div>
-                          <div className="combat-prep-entry-controls">
-                            <label className="combat-prep-metric">
-                              <span>Кол-во</span>
-                              <input
-                                className="input"
-                                min={1}
-                                onChange={(event) =>
-                                  updateCampaignPreparedCombatDraftItem(entity.id, {
-                                    quantity: Math.max(1, Number.parseInt(event.target.value, 10) || 1)
-                                  })
-                                }
-                                type="number"
-                                value={quantity}
-                              />
-                            </label>
-                            <label className="combat-prep-metric">
-                              <span>Инициатива</span>
-                              <input
-                                className="input"
-                                inputMode="numeric"
-                                onChange={(event) => setPreparedCombatEnemyInitiative(entity.id, Number.parseInt(event.target.value, 10) || 0)}
-                                type="number"
-                                value={preparedCombatEnemyInitiatives[entity.id] ?? 0}
-                              />
-                            </label>
-                            <button className="combat-prep-remove" onClick={() => removeCampaignPreparedCombatDraftItem(entity.id)} type="button">
-                              ✕
-                            </button>
-                          </div>
-                        </article>
-                      ))
-                    ) : (
-                      <p className="copy">Добавь противников справа, и они сразу появятся здесь.</p>
-                    )}
-                  </div>
-                </div>
-              </section>
-
-              <section
-                className="card section-card combat-prep-summary"
-                style={{ padding: "16px", display: "grid", gap: "12px" }}
-              >
-                <div
-                  style={{
-                    display: "grid",
-                    gap: "12px",
-                    gridTemplateColumns: "minmax(220px, 1.2fr) repeat(4, minmax(110px, 1fr)) auto",
-                    alignItems: "end"
-                  }}
-                >
-                  <label className="field" style={{ margin: 0 }}>
-                    <span>Название сцены</span>
-                    <input
-                      className="input"
-                      onChange={(event) =>
-                        updateCampaignPreparedCombatDraft((current) => ({
-                          ...current,
-                          title: event.target.value
-                        }))
-                      }
-                      placeholder="Например: Засада на тракте"
-                      value={campaignPreparedCombatDraft.title ?? ""}
-                    />
-                  </label>
-
-                  <article className="combat-prep-summary-card players">
-                    <small>Игроки</small>
-                    <strong>{draftPreparedCombatPlayers.length}</strong>
-                    <span>{effectivePartySize} в расчёте</span>
-                  </article>
-                  <article className="combat-prep-summary-card enemies">
-                    <small>Враги</small>
-                    <strong>{campaignPreparedCombatDraftEnemyCount}</strong>
-                    <span>{draftEncounterBaseXp > 0 ? `${draftEncounterBaseXp} XP` : "XP из CR"}</span>
-                  </article>
-                  <article className="combat-prep-summary-card difficulty">
-                    <small>Adjusted XP</small>
-                    <strong>{draftEncounterAdjustedXp}</strong>
-                    <span>{`x${draftEncounterMultiplier % 1 === 0 ? draftEncounterMultiplier : draftEncounterMultiplier.toFixed(1)}`}</span>
-                  </article>
-                  <article className="combat-prep-summary-card danger">
-                    <small>Сложность</small>
-                    <strong>{draftEncounterDifficulty ? combatDifficultyLabel[draftEncounterDifficulty] : "—"}</strong>
-                    <span>{draftEncounterDifficulty ? `${draftEncounterDifficultyThreshold} XP` : "Нет расчёта"}</span>
-                  </article>
-
-                  <div className="combat-prep-summary-actions" style={{ marginTop: 0 }}>
-                    <button className="primary" disabled={!canStartPreparedCombatDraft || saving} onClick={() => void startConfiguredCombat()} type="button">
-                      <span className="combat-prep-button-icon">
-                        <CombatPrepIcon name="swords" />
-                      </span>
-                      <span>{saving ? "Запускаю..." : "Начать бой"}</span>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="combat-prep-thresholds">
-                  <span>{`Easy ${effectiveCombatThresholds.easy}`}</span>
-                  <span>{`Medium ${effectiveCombatThresholds.medium}`}</span>
-                  <span>{`Hard ${effectiveCombatThresholds.hard}`}</span>
-                  <span>{`Deadly ${effectiveCombatThresholds.deadly}`}</span>
-                </div>
-              </section>
+              <button className="combat-prep-drop-zone" type="button">↙ Перетащи монстров сюда или добавь из списка справа</button>
             </div>
-          </div>
+          </section>
 
-          <div
-            style={{
-              display: "grid",
-              gap: "12px",
-              alignSelf: "stretch"
-            }}
-          >
-            <section className="card section-card combat-prep-column" style={{ minHeight: 0 }}>
-              <div className="row muted">
-                <span>Добавить противников</span>
-                <span>{filteredCombatCatalogItems.length}</span>
+          <section className="combat-prep-reference-panel bestiary-panel">
+            <div className="combat-prep-panel-head">
+              <div>
+                <h2>Бестиарий</h2>
+                <span>{`${filteredCombatCatalogItems.length} найдено`}</span>
               </div>
-              <div className="stack compact">
-                <label className="field field-full">
-                  <input
-                    className="input"
-                    onChange={(event) => setCombatSearchQuery(event.target.value)}
-                    placeholder="Поиск по противникам..."
-                    value={combatSearchQuery}
-                  />
-                </label>
-                <div className="combat-prep-filter-row">
-                  {combatEnemyTypeOptions.map((option) => (
-                    <button
-                      key={`combat-type-${option.value}`}
-                      className={`combat-prep-filter-chip ${combatEnemyTypeFilter === option.value ? "active" : ""}`}
-                      onClick={() => setCombatEnemyTypeFilter(option.value)}
-                      type="button"
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="combat-prep-scroll-list" style={{ maxHeight: "62vh" }}>
-                {filteredCombatCatalogItems.length ? (
-                  filteredCombatCatalogItems.map((item) => (
-                    <article key={`combat-prep-enemy-${item.key}`} className="combat-prep-catalog-row enemy">
+            </div>
+
+            <div className="combat-prep-bestiary-search-row">
+              <label className="combat-prep-search-field">
+                <span>⌕</span>
+                <input
+                  onChange={(event) => setCombatSearchQuery(event.target.value)}
+                  placeholder="Поиск монстров..."
+                  value={combatSearchQuery}
+                />
+              </label>
+              <button className="combat-prep-filter-button" type="button" aria-label="Фильтр">⌯</button>
+            </div>
+
+            <div className="combat-prep-filter-grid-ref">
+              {combatEnemyTypeOptions.map((option) => (
+                <button
+                  key={`combat-type-${option.value}`}
+                  className={`combat-prep-filter-chip-ref ${combatEnemyTypeFilter === option.value ? "active" : ""}`}
+                  onClick={() => setCombatEnemyTypeFilter(option.value)}
+                  type="button"
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="combat-prep-bestiary-list">
+              {filteredCombatCatalogItems.length ? (
+                filteredCombatCatalogItems.map((item) => {
+                  const itemXp = parseChallengeXp(item.challenge ?? "");
+                  return (
+                    <article key={`combat-prep-enemy-${item.key}`} className="combat-prep-bestiary-row">
                       <img
                         alt={item.title}
-                        className="combat-prep-avatar"
                         loading="lazy"
                         src={
                           item.source === "entity" && item.entity
@@ -7713,35 +7639,45 @@ export default function App() {
                           </small>
                         </div>
                       </button>
+                      <span className="combat-prep-catalog-xp">{itemXp ? `${itemXp} XP` : "XP —"}</span>
                       <button
-                        className={`combat-prep-icon-button ${combatSelectionId === item.key ? "active" : ""}`}
+                        className={`combat-prep-add-enemy ${combatSelectionId === item.key ? "active" : ""}`}
                         onClick={() => {
                           setCombatSelectionId(item.key);
                           void addCampaignPreparedCombatDraftItem(item);
                         }}
                         type="button"
+                        aria-label="Добавить противника"
                       >
                         +
                       </button>
                     </article>
-                  ))
-                ) : (
-                  <p className="copy">По текущему фильтру противники не найдены.</p>
-                )}
-              </div>
-              <button
-                className="ghost fill"
-                onClick={() => {
-                  requestCombatSetupSwapToEntity("monster");
-                }}
-                type="button"
-              >
-                Создать своего противника
-              </button>
-            </section>
+                  );
+                })
+              ) : (
+                <p className="copy">По текущему фильтру противники не найдены.</p>
+              )}
+            </div>
+          </section>
+        </div>
+
+        <footer className="combat-prep-reference-footer">
+          <div>
+            <span>Правила:</span>
+            <strong>D&D 5e</strong>
           </div>
-        </section>      </div>
+          <div>
+            <span>Множитель сложности:</span>
+            <strong>{`×${combatAdjustedMultiplierText} (${draftEncounterMonsterCount} ${formatEnemyCountLabel(draftEncounterMonsterCount)})`}</strong>
+          </div>
+          <div>
+            <span>Статус:</span>
+            <strong>Черновик</strong>
+          </div>
+        </footer>
+      </div>
     ) : null;
+
   if (authState === "checking") {
     return (
       <div className="boot">
@@ -7882,7 +7818,7 @@ export default function App() {
 
   return (
     <>
-      <div className={`shell ${isCombatScreen ? "combat-layout" : ""} ${isItemsRail ? "items-shell" : ""}`.trim()} style={shellStyle}>
+      <div className={`shell ${isCombatScreen ? "combat-layout" : ""} ${isCombatPrepScreen ? "combat-prep-shell" : ""} ${isItemsRail ? "items-shell" : ""}`.trim()} style={shellStyle}>
         {!isCombatScreen ? (
           <>
             <aside className="panel rail">
@@ -8199,7 +8135,7 @@ export default function App() {
                 </section>
               </div>
             ) : activeModule === "combat" ? (
-              <div className="stack wide">
+              <div className={`stack wide ${combatSetupOpen && !activeCombat?.entries.length ? "combat-prep-only" : ""}`}> 
                 {latestCombatSummary ? (
                     <section className="card section-card combat-report">
                       <div className="row muted">
