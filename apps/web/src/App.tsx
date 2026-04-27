@@ -198,6 +198,61 @@ const combatDifficultyLabel: Record<CombatDifficulty, string> = {
   custom: "Своя сложность"
 };
 
+const combatDifficultyShortLabel: Record<Exclude<CombatDifficulty, "custom">, string> = {
+  easy: "Easy",
+  medium: "Medium",
+  hard: "Hard",
+  deadly: "Deadly"
+};
+
+type EncounterDifficultyId = Exclude<CombatDifficulty, "custom">;
+
+const challengeExperienceTable: Record<string, number> = {
+  "0": 10,
+  "1/8": 25,
+  "1/4": 50,
+  "1/2": 100,
+  "1": 200,
+  "2": 450,
+  "3": 700,
+  "4": 1100,
+  "5": 1800,
+  "6": 2300,
+  "7": 2900,
+  "8": 3900,
+  "9": 5000,
+  "10": 5900,
+  "11": 7200,
+  "12": 8400,
+  "13": 10000,
+  "14": 11500,
+  "15": 13000,
+  "16": 15000,
+  "17": 18000,
+  "18": 20000,
+  "19": 22000,
+  "20": 25000,
+  "21": 33000,
+  "22": 41000,
+  "23": 50000,
+  "24": 62000,
+  "25": 75000,
+  "26": 90000,
+  "27": 105000,
+  "28": 120000,
+  "29": 135000,
+  "30": 155000
+};
+
+const encounterTiers = [
+  { min: 1, max: 1, multiplier: 1 },
+  { min: 2, max: 2, multiplier: 1.5 },
+  { min: 3, max: 6, multiplier: 2 },
+  { min: 7, max: 10, multiplier: 2.5 },
+  { min: 11, max: 14, multiplier: 3 },
+  { min: 15, max: Number.POSITIVE_INFINITY, multiplier: 4 }
+] as const;
+
 const challengeFilterOptions = [
   "0",
   "1/8",
@@ -275,6 +330,7 @@ const createEmptyPlayerFacingCard = (title = ""): PlayerFacingCard => ({
 
 const createEmptyPreparedCombatPlan = (title = ""): PreparedCombatPlan => ({
   title,
+  partyLevel: undefined,
   playerIds: [],
   items: []
 });
@@ -426,14 +482,179 @@ const resolveCombatSearchItemType = (item: CombatSearchItem) => {
 const resolveCombatSearchItemTypeLabel = (item: CombatSearchItem) =>
   item.bestiary?.creatureTypeLabel ||
   formatCombatSetupTypeLabel(item.entity?.statBlock?.creatureType || resolveCombatSearchItemType(item));
-const parseChallengeXp = (challenge: string) => {
-  const match = challenge.match(/([\d\s]+)\s*XP/i);
-  if (!match) {
-    return 0;
+const parseChallengeToken = (challenge: string) => {
+  let token = challenge.trim().toLowerCase();
+  if (!token) {
+    return "";
   }
-  const digits = match[1].replace(/[^\d]/g, "");
-  return digits ? Number.parseInt(digits, 10) : 0;
+
+  for (const prefix of ["cr", "challenge", "challenge rating", "опасность"]) {
+    if (token.startsWith(prefix)) {
+      token = token.slice(prefix.length).trim();
+      break;
+    }
+  }
+
+  const beforeParenthesis = token.split("(")[0]?.trim() ?? token;
+  const firstChunk = beforeParenthesis.split(/\s+/u)[0]?.trim() ?? beforeParenthesis;
+  return firstChunk.replace(/^[:.-]+|[:.-]+$/g, "").trim();
 };
+
+const parseChallengeXp = (challenge: string) => {
+  const token = parseChallengeToken(challenge);
+  if (token && challengeExperienceTable[token] !== undefined) {
+    return challengeExperienceTable[token];
+  }
+
+  const explicitXp = challenge.match(/([\d\s]+)\s*XP/i);
+  if (explicitXp) {
+    const digits = explicitXp[1].replace(/[^\d]/g, "");
+    if (digits) {
+      return Number.parseInt(digits, 10);
+    }
+  }
+
+  const fallbackToken = challenge
+    .trim()
+    .split(/[ (\u00a0]/u)[0]
+    ?.replace(/^cr/i, "")
+    .trim();
+
+  return fallbackToken ? challengeExperienceTable[fallbackToken] ?? 0 : 0;
+};
+
+const encounterMultiplier = (monsterCount: number, partySize: number) => {
+  if (monsterCount <= 0) {
+    return 1;
+  }
+
+  let index = encounterTiers.length - 1;
+  for (const [tierIndex, tier] of encounterTiers.entries()) {
+    if (monsterCount >= tier.min && monsterCount <= tier.max) {
+      index = tierIndex;
+      break;
+    }
+  }
+
+  if (partySize < 3) {
+    if (index === encounterTiers.length - 1) {
+      return 5;
+    }
+    index += 1;
+  } else if (partySize >= 6) {
+    if (index === 0) {
+      return 0.5;
+    }
+    index -= 1;
+  }
+
+  return encounterTiers[index]?.multiplier ?? 1;
+};
+
+const deriveEncounterDifficulty = (adjustedXp: number, thresholds: CombatThresholds): EncounterDifficultyId | "" => {
+  if (adjustedXp <= 0) {
+    return "";
+  }
+  if (thresholds.deadly > 0 && adjustedXp >= thresholds.deadly) {
+    return "deadly";
+  }
+  if (thresholds.hard > 0 && adjustedXp >= thresholds.hard) {
+    return "hard";
+  }
+  if (thresholds.medium > 0 && adjustedXp >= thresholds.medium) {
+    return "medium";
+  }
+  return "easy";
+};
+
+const targetThresholdValue = (thresholds: CombatThresholds, difficulty: EncounterDifficultyId) => {
+  switch (difficulty) {
+    case "easy":
+      return thresholds.easy;
+    case "medium":
+      return thresholds.medium;
+    case "hard":
+      return thresholds.hard;
+    case "deadly":
+      return thresholds.deadly;
+    default:
+      return thresholds.medium;
+  }
+};
+
+const formatPartyCountLabel = (count: number) => (count === 1 ? "игрок" : count < 5 ? "игрока" : "игроков");
+const formatEnemyCountLabel = (count: number) => (count === 1 ? "противник" : count < 5 ? "противника" : "противников");
+
+type CombatPrepIconName = "players" | "enemy" | "initiative" | "round" | "conditions" | "notes" | "swords";
+
+function CombatPrepIcon({ name }: { name: CombatPrepIconName }) {
+  const common = {
+    fill: "none",
+    stroke: "currentColor",
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    strokeWidth: 1.7
+  };
+
+  switch (name) {
+    case "players":
+      return (
+        <svg aria-hidden="true" className="combat-prep-icon-svg" viewBox="0 0 20 20">
+          <circle {...common} cx="7" cy="7" r="2.3" />
+          <circle {...common} cx="13.2" cy="8.1" r="1.8" />
+          <path {...common} d="M3.8 15c.9-2.1 2.5-3.2 4.9-3.2 2.1 0 3.8 1.1 4.7 3.2" />
+          <path {...common} d="M11.8 14.8c.4-1.2 1.3-1.9 2.6-1.9 1.1 0 1.9.4 2.5 1.3" />
+        </svg>
+      );
+    case "enemy":
+      return (
+        <svg aria-hidden="true" className="combat-prep-icon-svg" viewBox="0 0 20 20">
+          <path {...common} d="M6.2 6.5 4.7 4.8M13.8 6.5l1.5-1.7M5.4 12c0-3.1 2-5.3 4.6-5.3s4.6 2.2 4.6 5.3" />
+          <path {...common} d="M6.1 14c1 .8 2.3 1.2 3.9 1.2s2.9-.4 3.9-1.2" />
+          <circle cx="8" cy="10.1" fill="currentColor" r=".9" />
+          <circle cx="12" cy="10.1" fill="currentColor" r=".9" />
+        </svg>
+      );
+    case "initiative":
+      return (
+        <svg aria-hidden="true" className="combat-prep-icon-svg" viewBox="0 0 20 20">
+          <circle {...common} cx="10" cy="10" r="6.6" />
+          <path {...common} d="M10 6.3v4.1l2.8 1.8" />
+        </svg>
+      );
+    case "round":
+      return (
+        <svg aria-hidden="true" className="combat-prep-icon-svg" viewBox="0 0 20 20">
+          <path {...common} d="M15.4 7.3A6.2 6.2 0 1 0 16 10" />
+          <path {...common} d="M12.6 4.5h3.5V8" />
+        </svg>
+      );
+    case "conditions":
+      return (
+        <svg aria-hidden="true" className="combat-prep-icon-svg" viewBox="0 0 20 20">
+          <path {...common} d="M10 3.4 15.8 6.8v6.4L10 16.6l-5.8-3.4V6.8L10 3.4Z" />
+          <path {...common} d="M7.2 10.1 9 11.9l3.8-3.8" />
+        </svg>
+      );
+    case "notes":
+      return (
+        <svg aria-hidden="true" className="combat-prep-icon-svg" viewBox="0 0 20 20">
+          <path {...common} d="M6 3.6h6l3 3v9a1.8 1.8 0 0 1-1.8 1.8H6.8A1.8 1.8 0 0 1 5 15.6V5.4A1.8 1.8 0 0 1 6.8 3.6Z" />
+          <path {...common} d="M12 3.6v3h3" />
+          <path {...common} d="M7.5 9.9h5M7.5 12.6h4.2" />
+        </svg>
+      );
+    case "swords":
+      return (
+        <svg aria-hidden="true" className="combat-prep-icon-svg" viewBox="0 0 20 20">
+          <path {...common} d="M6.4 4.8 10 8.4l-4.4 4.4-1.8.6.6-1.8L8.8 7.2" />
+          <path {...common} d="m13.6 4.8-3.6 3.6 4.4 4.4 1.8.6-.6-1.8-4.4-4.4" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
 
 const createEmptyStatEntry = (): StatBlockEntry => ({
   name: "",
@@ -581,12 +802,26 @@ const partyThresholdTable: Record<number, CombatThresholds> = {
 
 const clampPartyLevel = (value: number) => clamp(value, 1, 20);
 
-const derivePartyLevels = (raw: string) => {
+const parseStoredPartyLevel = (raw: string) => {
+  const parsed = Number.parseInt(raw.trim(), 10);
+  return Number.isFinite(parsed) ? clampPartyLevel(parsed) : undefined;
+};
+
+const derivePartyLevels = (raw: string, partySize: number) => {
   const parsed = raw
-    .split(/[\s,;]+/)
+    .split(/[\s,;]+/u)
     .map((part) => Number.parseInt(part.trim(), 10))
     .filter((value) => Number.isFinite(value))
     .map((value) => clampPartyLevel(value));
+
+  if (!parsed.length) {
+    return [];
+  }
+
+  if (parsed.length === 1) {
+    return Array.from({ length: Math.max(1, partySize) }, () => parsed[0]);
+  }
+
   return parsed;
 };
 
@@ -623,6 +858,7 @@ const clonePreparedCombatPlan = (plan?: PreparedCombatPlan): PreparedCombatPlan 
   plan
     ? {
         title: plan.title,
+        partyLevel: sanitizePartyLevel(plan.partyLevel),
         playerIds: [...(plan.playerIds ?? [])],
         items: (plan.items ?? []).map((item) => ({ ...item }))
       }
@@ -633,6 +869,7 @@ const clonePreparedCombatPlans = (plans?: PreparedCombatPlan[]): PreparedCombatP
 
 const createEmptyCampaignPreparedCombat = (): CampaignPreparedCombat => ({
   title: "",
+  partyLevel: undefined,
   playerIds: [],
   items: []
 });
@@ -641,6 +878,7 @@ const cloneCampaignPreparedCombat = (plan?: CampaignPreparedCombat | null): Camp
   plan
     ? {
         title: plan.title,
+        partyLevel: sanitizePartyLevel(plan.partyLevel),
         playerIds: [...(plan.playerIds ?? [])],
         items: (plan.items ?? []).map((item) => ({ ...item }))
       }
@@ -966,6 +1204,18 @@ const sanitizeOptionalText = (value?: string) => {
   return trimmed ? trimmed : undefined;
 };
 
+const sanitizePartyLevel = (value?: number | null) => {
+  if (!Number.isFinite(value)) {
+    return undefined;
+  }
+  return clampPartyLevel(Math.floor(value as number));
+};
+
+const formatPartyLevelText = (value?: number | null) => {
+  const normalized = sanitizePartyLevel(value);
+  return normalized ? String(normalized) : "";
+};
+
 const sanitizeSinglePlayerFacingCard = (kind: EntityKind, card: PlayerFacingCard, index: number): PlayerFacingCard | null => {
   const title = card.title.trim();
   const contentHtml = sanitizePlayerFacingHTML(card.contentHtml);
@@ -1138,6 +1388,7 @@ const sanitizePreparedCombatPlan = (plan?: PreparedCombatPlan): PreparedCombatPl
   }
 
   const title = sanitizeOptionalText(plan.title);
+  const partyLevel = sanitizePartyLevel(plan.partyLevel);
   const playerIds = Array.from(
     new Set(
       (plan.playerIds ?? [])
@@ -1158,6 +1409,7 @@ const sanitizePreparedCombatPlan = (plan?: PreparedCombatPlan): PreparedCombatPl
 
   return {
     title,
+    partyLevel,
     playerIds,
     items
   };
@@ -1196,6 +1448,7 @@ const sanitizeCampaignPreparedCombat = (plan?: CampaignPreparedCombat | null): C
   }
 
   const title = sanitizeOptionalText(plan.title);
+  const partyLevel = sanitizePartyLevel(plan.partyLevel);
   const playerIds = Array.from(
     new Set(
       (plan.playerIds ?? [])
@@ -1216,6 +1469,7 @@ const sanitizeCampaignPreparedCombat = (plan?: CampaignPreparedCombat | null): C
 
   return {
     title,
+    partyLevel,
     playerIds,
     items
   };
@@ -2153,6 +2407,9 @@ export default function App() {
   const [combatCustomAdjustedXp, setCombatCustomAdjustedXp] = useState(0);
   const [selectedCombatEntryKey, setSelectedCombatEntryKey] = useState("");
   const [combatSetupOpen, setCombatSetupOpen] = useState(false);
+  const [combatPlayerManagerOpen, setCombatPlayerManagerOpen] = useState(true);
+  const [combatEnemyCatalogOpen, setCombatEnemyCatalogOpen] = useState(true);
+  const [combatDifficultyDetailsOpen, setCombatDifficultyDetailsOpen] = useState(true);
   const [campaignPreparedCombatDraft, setCampaignPreparedCombatDraft] = useState<CampaignPreparedCombat>(createEmptyCampaignPreparedCombat);
   const [campaignPreparedCombatNotice, setCampaignPreparedCombatNotice] = useState("");
   const [preparedCombatPlayerInitiatives, setPreparedCombatPlayerInitiatives] = useState<Record<string, number>>({});
@@ -2239,6 +2496,9 @@ export default function App() {
     setCombatThresholds(normalized.activeCombat?.thresholds ?? createDefaultCombatThresholds());
     setCombatCustomAdjustedXp(normalized.activeCombat?.targetAdjustedXp ?? 0);
     setCampaignPreparedCombatDraft(cloneCampaignPreparedCombat(normalized.preparedCombat));
+    if (!combatSetupOpen) {
+      setCombatPartyLevelsText(formatPartyLevelText(normalized.preparedCombat?.partyLevel));
+    }
     setCombatPlayerEntityId((current) =>
       current && normalized.players.some((player) => player.id === current) ? current : normalized.players[0]?.id ?? ""
     );
@@ -4367,17 +4627,22 @@ export default function App() {
   };
 
   const openCombatSetupModal = (preparedCombatOverride?: CampaignPreparedCombat | null) => {
+    const nextDraft = cloneCampaignPreparedCombat(preparedCombatOverride ?? campaignPreparedCombat);
     focusCombatModule();
     setBootError("");
     setCampaignPreparedCombatNotice("");
     setEntityCombatSetupState(null);
-    setCampaignPreparedCombatDraft(cloneCampaignPreparedCombat(preparedCombatOverride ?? campaignPreparedCombat));
+    setCampaignPreparedCombatDraft(nextDraft);
+    setCombatPartyLevelsText(formatPartyLevelText(nextDraft.partyLevel));
     setCombatPlayerSearchQuery("");
     setCombatSearchQuery("");
     setCombatSearchChallenge("");
     setCombatEnemyTypeFilter("all");
     setCombatSelectionQuantity(1);
     setCombatSelectionInitiative(0);
+    setCombatPlayerManagerOpen(nextDraft.playerIds.length === 0);
+    setCombatEnemyCatalogOpen(nextDraft.items.length === 0);
+    setCombatDifficultyDetailsOpen(true);
     setCombatSetupOpen(true);
   };
 
@@ -4387,6 +4652,22 @@ export default function App() {
     planIndex: number,
     isNew = false
   ) => {
+    const nextDraft =
+      cloneCampaignPreparedCombat(
+        plan
+          ? {
+              title: plan.title,
+              partyLevel: plan.partyLevel,
+              playerIds: plan.playerIds ?? [],
+              items: plan.items
+            }
+          : null
+      ) || {
+        title: defaultPreparedCombatTitle(planIndex),
+        partyLevel: undefined,
+        playerIds: [],
+        items: []
+      };
     focusCombatModule();
     setBootError("");
     setCampaignPreparedCombatNotice("");
@@ -4395,19 +4676,17 @@ export default function App() {
       planIndex,
       isNew
     });
-    setCampaignPreparedCombatDraft(
-      cloneCampaignPreparedCombat(plan ? { title: plan.title, playerIds: plan.playerIds ?? [], items: plan.items } : null) || {
-        title: defaultPreparedCombatTitle(planIndex),
-        playerIds: [],
-        items: []
-      }
-    );
+    setCampaignPreparedCombatDraft(nextDraft);
+    setCombatPartyLevelsText(formatPartyLevelText(nextDraft.partyLevel));
     setCombatPlayerSearchQuery("");
     setCombatSearchQuery("");
     setCombatSearchChallenge("");
     setCombatEnemyTypeFilter("all");
     setCombatSelectionQuantity(1);
     setCombatSelectionInitiative(0);
+    setCombatPlayerManagerOpen(nextDraft.playerIds.length === 0);
+    setCombatEnemyCatalogOpen(nextDraft.items.length === 0);
+    setCombatDifficultyDetailsOpen(true);
     setCombatSetupOpen(true);
   };
 
@@ -6133,25 +6412,56 @@ export default function App() {
 
   const activeCombat = campaign?.activeCombat ?? null;
   const campaignPreparedCombatPlayerCount = campaignPreparedCombat?.playerIds.length ?? 0;
-  const effectivePartyLevels = useMemo(() => derivePartyLevels(combatPartyLevelsText), [combatPartyLevelsText]);
-  const hasExplicitPartyLevels = effectivePartyLevels.length > 0;
-  const effectivePartySize = hasExplicitPartyLevels
-    ? effectivePartyLevels.length
-    : campaignPreparedCombatPlayerCount > 0
-      ? campaignPreparedCombatPlayerCount
-      : combatPartySize;
+  const combatThresholdPartySize =
+    combatSetupOpen && !activeCombat?.entries.length
+      ? draftPreparedCombatPlayers.length > 0
+        ? draftPreparedCombatPlayers.length
+        : campaignPreparedCombatPlayerCount > 0
+          ? campaignPreparedCombatPlayerCount
+          : combatPartySize
+      : campaignPreparedCombatPlayerCount > 0
+        ? campaignPreparedCombatPlayerCount
+        : combatPartySize;
+  const enteredPartyLevel = useMemo(() => parseStoredPartyLevel(combatPartyLevelsText), [combatPartyLevelsText]);
+  const hasMultipleEnteredPartyLevels = useMemo(
+    () => combatPartyLevelsText.split(/[\s,;]+/u).filter(Boolean).length > 1,
+    [combatPartyLevelsText]
+  );
+  const effectivePartyLevels = useMemo(
+    () => derivePartyLevels(combatPartyLevelsText, combatThresholdPartySize),
+    [combatPartyLevelsText, combatThresholdPartySize]
+  );
+  const hasExplicitPartyLevels = Boolean(enteredPartyLevel) && effectivePartyLevels.length > 0;
+  const effectivePartySize = hasExplicitPartyLevels ? effectivePartyLevels.length : combatThresholdPartySize;
   const effectiveCombatThresholds = useMemo(
     () => (hasExplicitPartyLevels ? computeEncounterThresholds(effectivePartyLevels, combatThresholds) : combatThresholds),
     [combatThresholds, effectivePartyLevels]
   );
   const combatThresholdSummary = `${effectiveCombatThresholds.easy} / ${effectiveCombatThresholds.medium} / ${effectiveCombatThresholds.hard} / ${effectiveCombatThresholds.deadly}`;
   const combatPartySummary = hasExplicitPartyLevels
-    ? `Сейчас считается партия из ${effectivePartySize} ${
-        effectivePartySize === 1 ? "игрока" : "игроков"
-      }: ${effectivePartyLevels.join(", ")} уровни.`
-    : `Уровни партии не указаны, поэтому бой будет использовать текущие пороги сложности ${combatThresholdSummary} для ${effectivePartySize} ${
-        effectivePartySize === 1 ? "игрока" : "игроков"
-      }.`;
+    ? hasMultipleEnteredPartyLevels
+      ? `Сейчас считается партия из ${effectivePartySize} ${formatPartyCountLabel(effectivePartySize)}: ${effectivePartyLevels.join(", ")} уровни.`
+      : `Уровень ${enteredPartyLevel} применяется ко всем ${effectivePartySize} ${formatPartyCountLabel(effectivePartySize)} в сцене.`
+    : `Уровень партии не указан, поэтому бой будет использовать текущие пороги сложности ${combatThresholdSummary} для ${effectivePartySize} ${formatPartyCountLabel(effectivePartySize)}.`;
+  const draftEncounterMonsterCount = campaignPreparedCombatDraftEnemyCount;
+  const draftEncounterBaseXp = draftEnemyExperienceTotal;
+  const draftEncounterMultiplier =
+    draftEncounterMonsterCount > 0 ? encounterMultiplier(draftEncounterMonsterCount, Math.max(effectivePartySize, 1)) : 1;
+  const draftEncounterAdjustedXp =
+    draftEncounterBaseXp > 0 ? Math.round(draftEncounterBaseXp * draftEncounterMultiplier) : 0;
+  const draftEncounterDifficulty = deriveEncounterDifficulty(draftEncounterAdjustedXp, effectiveCombatThresholds);
+  const draftEncounterDifficultyThreshold = draftEncounterDifficulty
+    ? targetThresholdValue(effectiveCombatThresholds, draftEncounterDifficulty)
+    : effectiveCombatThresholds.medium;
+  const draftEncounterProgressMax = Math.max(effectiveCombatThresholds.deadly, draftEncounterAdjustedXp, 1);
+  const draftEncounterProgressPercent =
+    draftEncounterAdjustedXp > 0 ? clamp((draftEncounterAdjustedXp / draftEncounterProgressMax) * 100, 0, 100) : 0;
+  const combatDifficultyThresholdRows: Array<{ id: EncounterDifficultyId; label: string; threshold: number }> = [
+    { id: "easy", label: "Р›С‘РіРєРёР№", threshold: effectiveCombatThresholds.easy },
+    { id: "medium", label: "РЎСЂРµРґРЅРёР№", threshold: effectiveCombatThresholds.medium },
+    { id: "hard", label: "РЎР»РѕР¶РЅС‹Р№", threshold: effectiveCombatThresholds.hard },
+    { id: "deadly", label: "РћС‡РµРЅСЊ СЃР»РѕР¶РЅС‹Р№", threshold: effectiveCombatThresholds.deadly }
+  ];
   const selectedCombatSearchItem = combatSearchItems.find((item) => item.key === combatSelectionId) ?? null;
   const selectedCombatSearchProfile =
     selectedCombatSearchItem?.source === "entity"
@@ -6420,6 +6730,36 @@ export default function App() {
     }));
   };
 
+  const updateCombatPartyLevelText = (value: string) => {
+    setCombatPartyLevelsText(value.replace(/[^\d,;\s]/g, "").slice(0, 24));
+  };
+
+  const stepCombatPartyLevel = (delta: number) => {
+    const nextLevel = clampPartyLevel((parseStoredPartyLevel(combatPartyLevelsText) ?? 1) + delta);
+    setCombatPartyLevelsText(String(nextLevel));
+  };
+
+  const clearPreparedCombatDraft = () => {
+    if (!window.confirm("Очистить текущую сцену боя: игроков, противников, инициативу и общий уровень партии?")) {
+      return;
+    }
+
+    setBootError("");
+    setCampaignPreparedCombatNotice("");
+    setPreparedCombatPlayerInitiatives({});
+    setPreparedCombatEnemyInitiatives({});
+    setCombatPartyLevelsText("");
+    setCombatPlayerManagerOpen(true);
+    setCombatEnemyCatalogOpen(true);
+    setCampaignPreparedCombatDraft((current) => ({
+      ...current,
+      title: current.title?.trim() ? current.title : combatSetupHostEntity ? defaultPreparedCombatTitle(entityCombatSetupState?.planIndex ?? 0) : current.title,
+      partyLevel: undefined,
+      playerIds: [],
+      items: []
+    }));
+  };
+
   const saveCampaignPreparedCombatDraft = async () => {
     if (!activeCampaignId) {
       return;
@@ -6430,6 +6770,7 @@ export default function App() {
       setBootError("");
       const normalizedDraft = sanitizeCampaignPreparedCombat({
         ...campaignPreparedCombatDraft,
+        partyLevel: parseStoredPartyLevel(combatPartyLevelsText),
         playerIds: campaignPreparedCombatDraft.playerIds.filter((playerId) => entityMap.get(playerId)?.kind === "player"),
         items: campaignPreparedCombatDraft.items.filter((item) => {
           const entity = entityMap.get(item.entityId);
@@ -6444,12 +6785,14 @@ export default function App() {
       const prepared = updated.preparedCombat;
       if (!prepared) {
         setCampaignPreparedCombatDraft(createEmptyCampaignPreparedCombat());
+        setCombatPartyLevelsText("");
         setCampaignPreparedCombatNotice("Заготовка боя очищена.");
         return;
       }
 
       const totalEnemies = prepared.items.reduce((sum, item) => sum + Math.max(1, item.quantity), 0);
       setCampaignPreparedCombatDraft(cloneCampaignPreparedCombat(prepared));
+      setCombatPartyLevelsText(formatPartyLevelText(prepared.partyLevel));
       setCampaignPreparedCombatNotice(
         `Состав сохранён: ${prepared.playerIds.length} ${
           prepared.playerIds.length === 1 ? "игрок" : prepared.playerIds.length < 5 ? "игрока" : "игроков"
@@ -6469,6 +6812,7 @@ export default function App() {
 
     const nextPlan = sanitizePreparedCombatPlan({
       title: campaignPreparedCombatDraft.title,
+      partyLevel: parseStoredPartyLevel(combatPartyLevelsText),
       playerIds: campaignPreparedCombatDraft.playerIds,
       items: campaignPreparedCombatDraft.items
     });
@@ -6519,9 +6863,11 @@ export default function App() {
       });
       setCampaignPreparedCombatDraft({
         title: savedPlan.title,
+        partyLevel: sanitizePartyLevel(savedPlan.partyLevel),
         playerIds: [...(savedPlan.playerIds ?? [])],
         items: savedPlan.items.map((item) => ({ ...item }))
       });
+      setCombatPartyLevelsText(formatPartyLevelText(savedPlan.partyLevel));
 
       const playerCount = savedPlan.playerIds?.length ?? 0;
       const enemyCount = savedPlan.items.reduce((sum, item) => sum + Math.max(1, item.quantity), 0);
@@ -6620,7 +6966,7 @@ export default function App() {
       return;
     }
     if (!hasExplicitPartyLevels) {
-      setBootError("Укажи уровни партии через запятую, чтобы генерация попала в нужную сложность.");
+      setBootError("Укажи общий уровень партии, чтобы генерация попала в нужную сложность.");
       return;
     }
 
@@ -6952,287 +7298,449 @@ export default function App() {
           </div>
         ) : null}
 
-        <div className="combat-prep-layout">
-          <section className="card section-card combat-prep-column">
-            <div className="row muted">
-              <span>Добавить игроков</span>
-              <span>{combatPlayerCatalogItems.length}</span>
-            </div>
-            <label className="field field-full">
-              <input
-                className="input"
-                onChange={(event) => setCombatPlayerSearchQuery(event.target.value)}
-                placeholder="Поиск по игрокам..."
-                value={combatPlayerSearchQuery}
-              />
-            </label>
-            <div className="combat-prep-scroll-list">
-              {combatPlayerCatalogItems.length ? (
-                combatPlayerCatalogItems.map((player) => {
-                  const selected = campaignPreparedCombatDraft.playerIds.includes(player.id);
-                  return (
-                    <article key={`combat-prep-player-${player.id}`} className="combat-prep-catalog-row">
-                      <img alt={player.title} className="combat-prep-avatar" loading="lazy" src={createPortraitSource(player)} />
-                      <div className="combat-prep-row-copy">
-                        <strong>{player.title}</strong>
-                        <small>{player.subtitle || player.role || player.summary || "Персонаж партии"}</small>
-                      </div>
-                      <button
-                        className={`combat-prep-icon-button ${selected ? "active" : ""}`}
-                        onClick={() => toggleCampaignPreparedCombatPlayer(player.id)}
-                        type="button"
-                      >
-                        {selected ? "✓" : "+"}
-                      </button>
-                    </article>
-                  );
-                })
-              ) : (
-                <p className="copy">По текущему поиску игроков не нашлось.</p>
-              )}
-            </div>
-            <button
-              className="ghost fill"
-              onClick={() => {
-                requestCombatSetupSwapToEntity("player");
-              }}
-              type="button"
-            >
-              Создать нового игрока
-            </button>
-          </section>
-
-          <section className="card section-card combat-prep-center">
-            <div className="combat-prep-selected-block">
+        
+        <section
+          className="card section-card"
+          style={{
+            display: "grid",
+            gap: "16px",
+            padding: "16px",
+            gridTemplateColumns: "280px minmax(360px, 1fr) 320px",
+            alignItems: "start"
+          }}
+        >
+          <div
+            style={{
+              display: "grid",
+              gap: "12px",
+              alignSelf: "stretch"
+            }}
+          >
+            <article className="card mini" style={{ padding: "14px", display: "grid", gap: "10px" }}>
               <div className="row muted">
-                <span>{`Выбранные игроки (${draftPreparedCombatPlayers.length})`}</span>
-                <span>Войдут в бой с портретами</span>
+                <span>Уровень партии</span>
+                <span>{`${draftPreparedCombatPlayers.length} / ${combatPlayerCatalogItems.length}`}</span>
               </div>
-              <div className="combat-prep-selected-list">
-                {draftPreparedCombatPlayers.length ? (
-                  draftPreparedCombatPlayers.map((player) => (
-                    <article key={`combat-prep-selected-player-${player.id}`} className="combat-prep-selected-row">
-                      <img alt={player.title} className="combat-prep-avatar" loading="lazy" src={createPortraitSource(player)} />
-                      <div className="combat-prep-row-copy">
-                        <strong>{player.title}</strong>
-                        <small>{player.subtitle || player.role || "Игрок партии"}</small>
-                      </div>
-                      <div className="combat-prep-entry-controls">
-                        <label className="combat-prep-metric">
-                          <span>Инициатива</span>
-                          <input
-                            className="input"
-                            inputMode="numeric"
-                            onChange={(event) => setPreparedCombatPlayerInitiative(player.id, Number.parseInt(event.target.value, 10) || 0)}
-                            type="number"
-                            value={preparedCombatPlayerInitiatives[player.id] ?? 0}
-                          />
-                        </label>
-                        <button className="combat-prep-remove" onClick={() => toggleCampaignPreparedCombatPlayer(player.id)} type="button">
-                          Г—
-                        </button>
-                      </div>
-                    </article>
-                  ))
-                ) : (
-                  <p className="copy">Добавь хотя бы одного игрока слева.</p>
-                )}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "40px minmax(0, 1fr) 40px",
+                  gap: "8px",
+                  alignItems: "end"
+                }}
+              >
+                <button className="combat-prep-step-button" onClick={() => stepCombatPartyLevel(-1)} type="button">
+                  -
+                </button>
+                <label className="field combat-prep-level-field" style={{ margin: 0 }}>
+                  <span>Общий уровень</span>
+                  <input
+                    className="input combat-prep-level-input"
+                    inputMode="numeric"
+                    onChange={(event) => updateCombatPartyLevelText(event.target.value)}
+                    placeholder="3"
+                    value={combatPartyLevelsText}
+                  />
+                </label>
+                <button className="combat-prep-step-button" onClick={() => stepCombatPartyLevel(1)} type="button">
+                  +
+                </button>
               </div>
-            </div>
+              <p className="copy combat-inline-note" style={{ margin: 0 }}>
+                {enteredPartyLevel
+                  ? `Уровень ${enteredPartyLevel} будет применён ко всем выбранным игрокам.`
+                  : "Укажи один уровень партии, и он применится ко всем игрокам в бою."}
+              </p>
+            </article>
 
-            <div className="combat-prep-selected-block enemy-block">
+            <section className="card section-card combat-prep-column" style={{ minHeight: 0 }}>
               <div className="row muted">
-                <span>{`Выбранные противники (${campaignPreparedCombatDraftEnemyCount})`}</span>
-                <span>{draftEnemyExperienceTotal > 0 ? `${draftEnemyExperienceTotal} XP` : "XP появится из CR"}</span>
+                <span>Добавить игроков</span>
+                <span>{combatPlayerCatalogItems.length}</span>
               </div>
-              <div className="combat-prep-selected-list">
-                {draftPreparedCombatEnemies.length ? (
-                  draftPreparedCombatEnemies.map(({ entity, quantity }) => (
-                    <article key={`combat-prep-selected-enemy-${entity.id}`} className="combat-prep-selected-row enemy">
-                      <img alt={entity.title} className="combat-prep-avatar" loading="lazy" src={createPortraitSource(entity)} />
-                      <div className="combat-prep-row-copy">
-                        <strong>{entity.title}</strong>
-                        <small>
-                          {entity.statBlock?.creatureType || kindTitle[entity.kind]} • {getEntityChallenge(entity) || "CR не указан"}
-                        </small>
-                      </div>
-                      <div className="combat-prep-entry-controls">
-                        <label className="combat-prep-metric">
-                          <span>Кол-во</span>
-                          <input
-                            className="input"
-                            min={1}
-                            onChange={(event) =>
-                              updateCampaignPreparedCombatDraftItem(entity.id, {
-                                quantity: Math.max(1, Number.parseInt(event.target.value, 10) || 1)
-                              })
-                            }
-                            type="number"
-                            value={quantity}
-                          />
-                        </label>
-                        <label className="combat-prep-metric">
-                          <span>Инициатива</span>
-                          <input
-                            className="input"
-                            inputMode="numeric"
-                            onChange={(event) => setPreparedCombatEnemyInitiative(entity.id, Number.parseInt(event.target.value, 10) || 0)}
-                            type="number"
-                            value={preparedCombatEnemyInitiatives[entity.id] ?? 0}
-                          />
-                        </label>
-                        <button className="combat-prep-remove" onClick={() => removeCampaignPreparedCombatDraftItem(entity.id)} type="button">
-                          Г—
-                        </button>
-                      </div>
-                    </article>
-                  ))
-                ) : (
-                  <p className="copy">Добавь противников справа, и они сразу появятся здесь.</p>
-                )}
-              </div>
-            </div>
-          </section>
-
-          <section className="card section-card combat-prep-column">
-            <div className="row muted">
-              <span>Добавить противников</span>
-              <span>{filteredCombatCatalogItems.length}</span>
-            </div>
-            <div className="stack compact">
               <label className="field field-full">
                 <input
                   className="input"
-                  onChange={(event) => setCombatSearchQuery(event.target.value)}
-                  placeholder="Поиск по противникам..."
-                  value={combatSearchQuery}
+                  onChange={(event) => setCombatPlayerSearchQuery(event.target.value)}
+                  placeholder="Поиск по игрокам..."
+                  value={combatPlayerSearchQuery}
                 />
               </label>
-              <div className="combat-prep-filter-row">
-                {combatEnemyTypeOptions.map((option) => (
-                  <button
-                    key={`combat-type-${option.value}`}
-                    className={`combat-prep-filter-chip ${combatEnemyTypeFilter === option.value ? "active" : ""}`}
-                    onClick={() => setCombatEnemyTypeFilter(option.value)}
-                    type="button"
+              <div className="combat-prep-scroll-list" style={{ maxHeight: "44vh" }}>
+                {combatPlayerCatalogItems.length ? (
+                  combatPlayerCatalogItems.map((player) => {
+                    const selected = campaignPreparedCombatDraft.playerIds.includes(player.id);
+                    return (
+                      <article key={`combat-prep-player-${player.id}`} className="combat-prep-catalog-row">
+                        <img alt={player.title} className="combat-prep-avatar" loading="lazy" src={createPortraitSource(player)} />
+                        <div className="combat-prep-row-copy">
+                          <strong>{player.title}</strong>
+                          <small>{player.subtitle || player.role || player.summary || "Персонаж партии"}</small>
+                        </div>
+                        <button
+                          className={`combat-prep-icon-button ${selected ? "active" : ""}`}
+                          onClick={() => toggleCampaignPreparedCombatPlayer(player.id)}
+                          type="button"
+                        >
+                          {selected ? "✓" : "+"}
+                        </button>
+                      </article>
+                    );
+                  })
+                ) : (
+                  <p className="copy">По текущему поиску игроков не нашлось.</p>
+                )}
+              </div>
+              <button
+                className="ghost fill"
+                onClick={() => {
+                  requestCombatSetupSwapToEntity("player");
+                }}
+                type="button"
+              >
+                Создать нового игрока
+              </button>
+            </section>
+          </div>
+
+          <div style={{ display: "grid", gap: "16px", minWidth: 0 }}>
+            <section
+              className={`card section-card combat-prep-difficulty-panel ${
+                draftEncounterDifficulty ? `difficulty-${draftEncounterDifficulty}` : "difficulty-empty"
+              }`}
+              style={{ padding: "16px" }}
+            >
+              <div className="row muted">
+                <span>Текущая сложность боя</span>
+                <button className="ghost" onClick={() => setCombatDifficultyDetailsOpen((current) => !current)} type="button">
+                  {combatDifficultyDetailsOpen ? "Скрыть расчёт" : "Показать расчёт"}
+                </button>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gap: "14px",
+                  gridTemplateColumns: "180px minmax(220px, 1fr) repeat(4, minmax(96px, 1fr))",
+                  alignItems: "stretch"
+                }}
+              >
+                <article className="combat-prep-difficulty-stat">
+                  <small>XP противников</small>
+                  <strong>{`${draftEncounterBaseXp} XP`}</strong>
+                  <span>{draftEncounterMonsterCount ? `${draftEncounterMonsterCount} ${formatEnemyCountLabel(draftEncounterMonsterCount)}` : "Добавь врагов"}</span>
+                </article>
+
+                <article className="combat-prep-difficulty-meter-card" style={{ minWidth: 0 }}>
+                  <small>Сложность</small>
+                  <strong>{draftEncounterDifficulty ? combatDifficultyLabel[draftEncounterDifficulty] : "Не рассчитана"}</strong>
+                  <span>{draftEncounterDifficulty ? `(${combatDifficultyShortLabel[draftEncounterDifficulty]})` : "Укажи уровень партии и состав врагов"}</span>
+                  <div className="combat-prep-difficulty-meter">
+                    <span style={{ width: `${draftEncounterProgressPercent}%` }} />
+                  </div>
+                  <div className="combat-prep-difficulty-meter-note">
+                    <span>{`Adjusted XP • x${draftEncounterMultiplier % 1 === 0 ? draftEncounterMultiplier : draftEncounterMultiplier.toFixed(1)}`}</span>
+                    <strong>{`${draftEncounterAdjustedXp} XP`}</strong>
+                  </div>
+                </article>
+
+                {combatDifficultyThresholdRows.map((row) => (
+                  <article
+                    key={`difficulty-threshold-${row.id}`}
+                    className={`combat-prep-threshold-card ${draftEncounterDifficulty === row.id ? "active" : ""}`}
                   >
-                    {option.label}
-                  </button>
+                    <small>{row.label}</small>
+                    <strong>{`${row.threshold} XP`}</strong>
+                  </article>
                 ))}
               </div>
-            </div>
-            <div className="combat-prep-scroll-list">
-              {filteredCombatCatalogItems.length ? (
-                filteredCombatCatalogItems.map((item) => (
-                  <article key={`combat-prep-enemy-${item.key}`} className="combat-prep-catalog-row enemy">
-                    <img
-                      alt={item.title}
-                      className="combat-prep-avatar"
-                      loading="lazy"
-                      src={
-                        item.source === "entity" && item.entity
-                          ? createPortraitSource(item.entity)
-                          : item.bestiary
-                            ? createBestiaryPortraitSource(item.bestiary)
-                            : createPortraitSource({ kind: item.kind, title: item.title })
+
+              {combatDifficultyDetailsOpen ? (
+                <div className="combat-prep-difficulty-details" style={{ marginTop: "12px" }}>
+                  <article className="combat-prep-formula-card">
+                    <small>Игроков</small>
+                    <strong>{effectivePartySize}</strong>
+                  </article>
+                  <span className="combat-prep-formula-operator">•</span>
+                  <article className="combat-prep-formula-card">
+                    <small>Уровень</small>
+                    <strong>{enteredPartyLevel ?? "—"}</strong>
+                  </article>
+                  <span className="combat-prep-formula-operator">•</span>
+                  <article className="combat-prep-formula-card">
+                    <small>Базовый XP</small>
+                    <strong>{draftEncounterBaseXp}</strong>
+                  </article>
+                  <span className="combat-prep-formula-operator">•</span>
+                  <article className="combat-prep-formula-card">
+                    <small>Множитель</small>
+                    <strong>{`x${draftEncounterMultiplier % 1 === 0 ? draftEncounterMultiplier : draftEncounterMultiplier.toFixed(1)}`}</strong>
+                  </article>
+                  <span className="combat-prep-formula-operator">=</span>
+                  <article className="combat-prep-formula-card accent">
+                    <small>Adjusted XP</small>
+                    <strong>{draftEncounterAdjustedXp}</strong>
+                  </article>
+                </div>
+              ) : null}
+            </section>
+
+            <div
+              className="combat-prep-layout"
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(0, 1fr)",
+                gap: "16px"
+              }}
+            >
+              <section className="card section-card combat-prep-center" style={{ minHeight: 0 }}>
+                <div className="combat-prep-selected-block">
+                  <div className="row muted">
+                    <span>{`Игроки в бою (${draftPreparedCombatPlayers.length})`}</span>
+                    <span>{enteredPartyLevel ? `Все ${enteredPartyLevel} уровня` : "Уровень не указан"}</span>
+                  </div>
+                  <div className="combat-prep-selected-list" style={{ maxHeight: "28vh" }}>
+                    {draftPreparedCombatPlayers.length ? (
+                      draftPreparedCombatPlayers.map((player) => (
+                        <article key={`combat-prep-selected-player-${player.id}`} className="combat-prep-selected-row">
+                          <img alt={player.title} className="combat-prep-avatar" loading="lazy" src={createPortraitSource(player)} />
+                          <div className="combat-prep-row-copy">
+                            <strong>{player.title}</strong>
+                            <small>{player.subtitle || player.role || "Игрок партии"}</small>
+                            {enteredPartyLevel ? <small>{`Уровень ${enteredPartyLevel}`}</small> : null}
+                          </div>
+                          <div className="combat-prep-entry-controls">
+                            <label className="combat-prep-metric">
+                              <span>Инициатива</span>
+                              <input
+                                className="input"
+                                inputMode="numeric"
+                                onChange={(event) => setPreparedCombatPlayerInitiative(player.id, Number.parseInt(event.target.value, 10) || 0)}
+                                type="number"
+                                value={preparedCombatPlayerInitiatives[player.id] ?? 0}
+                              />
+                            </label>
+                            <button className="combat-prep-remove" onClick={() => toggleCampaignPreparedCombatPlayer(player.id)} type="button">
+                              ✕
+                            </button>
+                          </div>
+                        </article>
+                      ))
+                    ) : (
+                      <p className="copy">Добавь хотя бы одного игрока слева.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="combat-prep-selected-block enemy-block">
+                  <div className="row muted">
+                    <span>{`Противники (${campaignPreparedCombatDraftEnemyCount})`}</span>
+                    <span>{draftEncounterBaseXp > 0 ? `${draftEncounterBaseXp} XP` : "XP появится из CR"}</span>
+                  </div>
+                  <div className="combat-prep-selected-list" style={{ maxHeight: "28vh" }}>
+                    {draftPreparedCombatEnemies.length ? (
+                      draftPreparedCombatEnemies.map(({ entity, quantity }) => (
+                        <article key={`combat-prep-selected-enemy-${entity.id}`} className="combat-prep-selected-row enemy">
+                          <img alt={entity.title} className="combat-prep-avatar" loading="lazy" src={createPortraitSource(entity)} />
+                          <div className="combat-prep-row-copy">
+                            <strong>{entity.title}</strong>
+                            <small>
+                              {entity.statBlock?.creatureType || kindTitle[entity.kind]} • {getEntityChallenge(entity) || "CR не указан"}
+                            </small>
+                            <small>{`${parseChallengeXp(entity.statBlock?.challenge ?? "") * quantity} XP`}</small>
+                          </div>
+                          <div className="combat-prep-entry-controls">
+                            <label className="combat-prep-metric">
+                              <span>Кол-во</span>
+                              <input
+                                className="input"
+                                min={1}
+                                onChange={(event) =>
+                                  updateCampaignPreparedCombatDraftItem(entity.id, {
+                                    quantity: Math.max(1, Number.parseInt(event.target.value, 10) || 1)
+                                  })
+                                }
+                                type="number"
+                                value={quantity}
+                              />
+                            </label>
+                            <label className="combat-prep-metric">
+                              <span>Инициатива</span>
+                              <input
+                                className="input"
+                                inputMode="numeric"
+                                onChange={(event) => setPreparedCombatEnemyInitiative(entity.id, Number.parseInt(event.target.value, 10) || 0)}
+                                type="number"
+                                value={preparedCombatEnemyInitiatives[entity.id] ?? 0}
+                              />
+                            </label>
+                            <button className="combat-prep-remove" onClick={() => removeCampaignPreparedCombatDraftItem(entity.id)} type="button">
+                              ✕
+                            </button>
+                          </div>
+                        </article>
+                      ))
+                    ) : (
+                      <p className="copy">Добавь противников справа, и они сразу появятся здесь.</p>
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              <section
+                className="card section-card combat-prep-summary"
+                style={{ padding: "16px", display: "grid", gap: "12px" }}
+              >
+                <div
+                  style={{
+                    display: "grid",
+                    gap: "12px",
+                    gridTemplateColumns: "minmax(220px, 1.2fr) repeat(4, minmax(110px, 1fr)) auto",
+                    alignItems: "end"
+                  }}
+                >
+                  <label className="field" style={{ margin: 0 }}>
+                    <span>Название сцены</span>
+                    <input
+                      className="input"
+                      onChange={(event) =>
+                        updateCampaignPreparedCombatDraft((current) => ({
+                          ...current,
+                          title: event.target.value
+                        }))
                       }
+                      placeholder="Например: Засада на тракте"
+                      value={campaignPreparedCombatDraft.title ?? ""}
                     />
-                    <button className="combat-prep-row-main" onClick={() => setCombatSelectionId(item.key)} type="button">
-                      <div className="combat-prep-row-copy">
-                        <strong>{item.title}</strong>
-                        <small>
-                          {resolveCombatSearchItemTypeLabel(item)} • {item.challenge ? `CR ${extractChallengeToken(item.challenge)}` : "CR не указан"}
-                        </small>
-                      </div>
+                  </label>
+
+                  <article className="combat-prep-summary-card players">
+                    <small>Игроки</small>
+                    <strong>{draftPreparedCombatPlayers.length}</strong>
+                    <span>{effectivePartySize} в расчёте</span>
+                  </article>
+                  <article className="combat-prep-summary-card enemies">
+                    <small>Враги</small>
+                    <strong>{campaignPreparedCombatDraftEnemyCount}</strong>
+                    <span>{draftEncounterBaseXp > 0 ? `${draftEncounterBaseXp} XP` : "XP из CR"}</span>
+                  </article>
+                  <article className="combat-prep-summary-card difficulty">
+                    <small>Adjusted XP</small>
+                    <strong>{draftEncounterAdjustedXp}</strong>
+                    <span>{`x${draftEncounterMultiplier % 1 === 0 ? draftEncounterMultiplier : draftEncounterMultiplier.toFixed(1)}`}</span>
+                  </article>
+                  <article className="combat-prep-summary-card danger">
+                    <small>Сложность</small>
+                    <strong>{draftEncounterDifficulty ? combatDifficultyLabel[draftEncounterDifficulty] : "—"}</strong>
+                    <span>{draftEncounterDifficulty ? `${draftEncounterDifficultyThreshold} XP` : "Нет расчёта"}</span>
+                  </article>
+
+                  <div className="combat-prep-summary-actions" style={{ marginTop: 0 }}>
+                    <button className="primary" disabled={!canStartPreparedCombatDraft || saving} onClick={() => void startConfiguredCombat()} type="button">
+                      <span className="combat-prep-button-icon">
+                        <CombatPrepIcon name="swords" />
+                      </span>
+                      <span>{saving ? "Запускаю..." : "Начать бой"}</span>
                     </button>
+                  </div>
+                </div>
+
+                <div className="combat-prep-thresholds">
+                  <span>{`Easy ${effectiveCombatThresholds.easy}`}</span>
+                  <span>{`Medium ${effectiveCombatThresholds.medium}`}</span>
+                  <span>{`Hard ${effectiveCombatThresholds.hard}`}</span>
+                  <span>{`Deadly ${effectiveCombatThresholds.deadly}`}</span>
+                </div>
+              </section>
+            </div>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gap: "12px",
+              alignSelf: "stretch"
+            }}
+          >
+            <section className="card section-card combat-prep-column" style={{ minHeight: 0 }}>
+              <div className="row muted">
+                <span>Добавить противников</span>
+                <span>{filteredCombatCatalogItems.length}</span>
+              </div>
+              <div className="stack compact">
+                <label className="field field-full">
+                  <input
+                    className="input"
+                    onChange={(event) => setCombatSearchQuery(event.target.value)}
+                    placeholder="Поиск по противникам..."
+                    value={combatSearchQuery}
+                  />
+                </label>
+                <div className="combat-prep-filter-row">
+                  {combatEnemyTypeOptions.map((option) => (
                     <button
-                      className={`combat-prep-icon-button ${combatSelectionId === item.key ? "active" : ""}`}
-                      onClick={() => {
-                        setCombatSelectionId(item.key);
-                        void addCampaignPreparedCombatDraftItem(item);
-                      }}
+                      key={`combat-type-${option.value}`}
+                      className={`combat-prep-filter-chip ${combatEnemyTypeFilter === option.value ? "active" : ""}`}
+                      onClick={() => setCombatEnemyTypeFilter(option.value)}
                       type="button"
                     >
-                      +
+                      {option.label}
                     </button>
-                  </article>
-                ))
-              ) : (
-                <p className="copy">По текущему фильтру противники не найдены.</p>
-              )}
-            </div>
-            <button
-              className="ghost fill"
-              onClick={() => {
-                requestCombatSetupSwapToEntity("monster");
-              }}
-              type="button"
-            >
-              Создать своего противника
-            </button>
-          </section>
-        </div>
-
-        <div className="combat-prep-footer">
-          <section className="card section-card combat-prep-settings">
-            <div className="row muted">
-              <span>Настройки боя</span>
-              <span>{hasExplicitPartyLevels ? "Пороги считаются по уровням" : "Используются текущие пороги сложности"}</span>
-            </div>
-            <div className="combat-prep-settings-grid">
-              <label className="field">
-                <span>Название сцены</span>
-                <input
-                  className="input"
-                  onChange={(event) =>
-                    updateCampaignPreparedCombatDraft((current) => ({
-                      ...current,
-                      title: event.target.value
-                    }))
-                  }
-                  placeholder="Например: Засада на тракте"
-                  value={campaignPreparedCombatDraft.title ?? ""}
-                />
-              </label>
-              <label className="field">
-                <span>Уровни партии</span>
-                <input
-                  className="input"
-                  onChange={(event) => setCombatPartyLevelsText(event.target.value)}
-                  placeholder="Например: 5, 5, 5, 5"
-                  value={combatPartyLevelsText}
-                />
-              </label>
-            </div>
-            <p className="copy combat-inline-note">{combatPartySummary}</p>
-          </section>
-
-          <section className="card section-card combat-prep-summary">
-            <div className="row muted">
-              <span>Общий итог</span>
-              <span>{canStartPreparedCombatDraft ? "Сцена готова к старту" : "Нужно выбрать игроков и врагов"}</span>
-            </div>
-            <div className="combat-prep-summary-grid">
-              <article className="combat-prep-summary-card players">
-                <small>Игроки</small>
-                <strong>{draftPreparedCombatPlayers.length}</strong>
-                <span>{effectivePartySize} в расчёте порогов</span>
-              </article>
-              <article className="combat-prep-summary-card enemies">
-                <small>Противники</small>
-                <strong>{campaignPreparedCombatDraftEnemyCount}</strong>
-                <span>{draftEnemyExperienceTotal > 0 ? `${draftEnemyExperienceTotal} XP` : "XP возьмётся из CR"}</span>
-              </article>
-            </div>
-            <div className="combat-prep-thresholds">
-              <span>{`Easy ${effectiveCombatThresholds.easy}`}</span>
-              <span>{`Medium ${effectiveCombatThresholds.medium}`}</span>
-              <span>{`Hard ${effectiveCombatThresholds.hard}`}</span>
-              <span>{`Deadly ${effectiveCombatThresholds.deadly}`}</span>
-            </div>
-          </section>
-        </div>
-      </div>
+                  ))}
+                </div>
+              </div>
+              <div className="combat-prep-scroll-list" style={{ maxHeight: "62vh" }}>
+                {filteredCombatCatalogItems.length ? (
+                  filteredCombatCatalogItems.map((item) => (
+                    <article key={`combat-prep-enemy-${item.key}`} className="combat-prep-catalog-row enemy">
+                      <img
+                        alt={item.title}
+                        className="combat-prep-avatar"
+                        loading="lazy"
+                        src={
+                          item.source === "entity" && item.entity
+                            ? createPortraitSource(item.entity)
+                            : item.bestiary
+                              ? createBestiaryPortraitSource(item.bestiary)
+                              : createPortraitSource({ kind: item.kind, title: item.title })
+                        }
+                      />
+                      <button className="combat-prep-row-main" onClick={() => setCombatSelectionId(item.key)} type="button">
+                        <div className="combat-prep-row-copy">
+                          <strong>{item.title}</strong>
+                          <small>
+                            {resolveCombatSearchItemTypeLabel(item)} • {item.challenge ? `CR ${extractChallengeToken(item.challenge)}` : "CR не указан"}
+                          </small>
+                        </div>
+                      </button>
+                      <button
+                        className={`combat-prep-icon-button ${combatSelectionId === item.key ? "active" : ""}`}
+                        onClick={() => {
+                          setCombatSelectionId(item.key);
+                          void addCampaignPreparedCombatDraftItem(item);
+                        }}
+                        type="button"
+                      >
+                        +
+                      </button>
+                    </article>
+                  ))
+                ) : (
+                  <p className="copy">По текущему фильтру противники не найдены.</p>
+                )}
+              </div>
+              <button
+                className="ghost fill"
+                onClick={() => {
+                  requestCombatSetupSwapToEntity("monster");
+                }}
+                type="button"
+              >
+                Создать своего противника
+              </button>
+            </section>
+          </div>
+        </section>      </div>
     ) : null;
   if (authState === "checking") {
     return (
@@ -7852,12 +8360,12 @@ export default function App() {
                             </div>
                           ) : null}
                           <label className="field field-full">
-                            <span>Уровни партии через запятую</span>
+                            <span>Уровень партии</span>
                             <small className="field-hint">Нужны только для расчёта сложности. На сам запуск боя они не влияют.</small>
                             <input
                               className="input"
-                              onChange={(event) => setCombatPartyLevelsText(event.target.value)}
-                              placeholder="Например: 5, 5, 5, 5"
+                              onChange={(event) => updateCombatPartyLevelText(event.target.value)}
+                              placeholder="Например: 3"
                               value={combatPartyLevelsText}
                             />
                           </label>
@@ -8425,15 +8933,15 @@ export default function App() {
                           </div>
                         ) : null}
                         <label className="field field-full">
-                          <span>Уровни партии через запятую</span>
+                          <span>Уровень партии</span>
                           <small className="field-hint">
-                            Это общее значение для запуска боя. Например: `4,4,4,4` или `5,5,4,4,4`. Если оставить поле пустым,
+                            Одно число применяется ко всем игрокам в сцене. Например: `3` для всей партии. Если оставить поле пустым,
                             сцена всё равно стартует, но будет использовать текущие пороги сложности.
                           </small>
                           <input
                             className="input"
-                            onChange={(event) => setCombatPartyLevelsText(event.target.value)}
-                            placeholder="4,4,4,4"
+                            onChange={(event) => updateCombatPartyLevelText(event.target.value)}
+                            placeholder="3"
                             value={combatPartyLevelsText}
                           />
                         </label>
@@ -8771,7 +9279,7 @@ export default function App() {
               issuer={previewQuestIssuer}
               linkedEntities={previewQuestLinkedEntities}
               location={previewQuestLocation}
-              onCombatPartyLevelsChange={setCombatPartyLevelsText}
+              onCombatPartyLevelsChange={updateCombatPartyLevelText}
               onEdit={openEntityEditor}
               onOpenEntity={openPreview}
               onOpenGallery={openEntityGalleryModal}
@@ -9177,11 +9685,11 @@ export default function App() {
 
               <div className="form-grid">
                 <label className="field field-full">
-                  <span>Уровни персонажей через запятую</span>
+                  <span>Уровень партии</span>
                   <input
                     className="input"
-                    onChange={(event) => setCombatPartyLevelsText(event.target.value)}
-                    placeholder="Например: 5, 5, 5, 5"
+                    onChange={(event) => updateCombatPartyLevelText(event.target.value)}
+                    placeholder="Например: 3"
                     value={combatPartyLevelsText}
                   />
                 </label>
@@ -9387,7 +9895,7 @@ export default function App() {
                   ? `Для расчёта сейчас используется ${effectivePartySize} ${
                       effectivePartySize === 1 ? "игрок" : effectivePartySize < 5 ? "игрока" : "игроков"
                     }: ${effectivePartyLevels.join(", ")} уровни.`
-                  : "Сначала укажи уровни партии через запятую, затем генерируй encounter."}
+                  : "Сначала укажи общий уровень партии, затем генерируй encounter."}
               </p>
 
               <div className="combat-threshold-grid">

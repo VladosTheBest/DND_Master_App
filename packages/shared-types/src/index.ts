@@ -30,12 +30,14 @@ export interface PreparedCombatItem {
 
 export interface PreparedCombatPlan {
   title?: string;
+  partyLevel?: number;
   playerIds?: string[];
   items: PreparedCombatItem[];
 }
 
 export interface CampaignPreparedCombat {
   title?: string;
+  partyLevel?: number;
   playerIds: string[];
   items: PreparedCombatItem[];
 }

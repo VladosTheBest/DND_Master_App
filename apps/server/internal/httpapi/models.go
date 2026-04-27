@@ -32,15 +32,17 @@ type preparedCombatItem struct {
 }
 
 type preparedCombatPlan struct {
-	Title     string               `json:"title,omitempty"`
-	PlayerIDs []string             `json:"playerIds,omitempty"`
-	Items     []preparedCombatItem `json:"items"`
+	Title      string               `json:"title,omitempty"`
+	PartyLevel int                  `json:"partyLevel,omitempty"`
+	PlayerIDs  []string             `json:"playerIds,omitempty"`
+	Items      []preparedCombatItem `json:"items"`
 }
 
 type campaignPreparedCombat struct {
-	Title     string               `json:"title,omitempty"`
-	PlayerIDs []string             `json:"playerIds"`
-	Items     []preparedCombatItem `json:"items"`
+	Title      string               `json:"title,omitempty"`
+	PartyLevel int                  `json:"partyLevel,omitempty"`
+	PlayerIDs  []string             `json:"playerIds"`
+	Items      []preparedCombatItem `json:"items"`
 }
 
 type heroArt struct {
