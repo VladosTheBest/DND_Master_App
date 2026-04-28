@@ -228,6 +228,16 @@ export function CombatTrackerPage({
           <div className="combat-summary-progress">
             <span style={{ width: `${turnProgressPercent}%` }} />
           </div>
+          <div className="combat-summary-actions">
+            <button
+              className="primary combat-turn-advance-button"
+              disabled={combatStateBusy || !orderedEntries.length}
+              onClick={onNextTurn}
+              type="button"
+            >
+              {combatStateBusy ? "РџРµСЂРµРєР»СЋС‡Р°СЋ..." : "РЎР»РµРґСѓСЋС‰РёР№ С…РѕРґ"}
+            </button>
+          </div>
         </section>
 
         <section className="card combat-summary-card">

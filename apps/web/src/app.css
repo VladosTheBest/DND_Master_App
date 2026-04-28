@@ -1072,13 +1072,19 @@
 }
 
 .quest-preview-entity {
-  grid-template-columns: auto minmax(0, 1fr);
-  align-items: start;
+  grid-template-columns: 4rem minmax(0, 1fr);
+  align-items: center;
   gap: .58rem;
   text-align: left;
-  min-height: 7.6rem;
-  max-height: 7.6rem;
+  min-height: 6.1rem;
+  max-height: 6.1rem;
   overflow: hidden;
+}
+
+.quest-preview-entity > .entity-thumb-frame,
+.quest-preview-entity > .sigil {
+  width: 4rem;
+  min-width: 4rem;
 }
 
 .quest-preview-entity-copy,
@@ -1100,8 +1106,8 @@
   justify-content: space-between;
   gap: .58rem;
   text-align: left;
-  min-height: 5.7rem;
-  max-height: 5.7rem;
+  min-height: 5.1rem;
+  max-height: 5.1rem;
   overflow: hidden;
 }
 
@@ -1118,7 +1124,7 @@
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
 }
 
 .quest-preview-list-badge {
@@ -2410,6 +2416,10 @@
   display: flex;
   flex-wrap: wrap;
   gap: .55rem;
+}
+.combat-turn-advance-button {
+  width: 100%;
+  justify-content: center;
 }
 .combat-summary-action-grid {
   display: grid;

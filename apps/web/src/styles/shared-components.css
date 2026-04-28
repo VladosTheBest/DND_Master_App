@@ -321,26 +321,59 @@
 .mention:hover { color: #a8c5ff; }
 .relation-card {
   display: grid;
-  gap: .4rem;
-  min-height: 13rem;
-  max-height: 13rem;
+  gap: .32rem;
+  min-height: 8.8rem;
+  max-height: 8.8rem;
   overflow: hidden;
 }
 .relation-card-with-visual {
+  align-items: start;
   align-content: start;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-columns: 5rem minmax(0, 1fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  column-gap: .72rem;
+  row-gap: .28rem;
+}
+.relation-card-with-visual > .entity-thumb-frame,
+.relation-card-with-visual > .sigil {
+  grid-column: 1;
+  grid-row: 1 / span 3;
+  width: 5rem;
+  min-width: 5rem;
+  aspect-ratio: 4 / 5;
+  align-self: stretch;
+}
+.relation-card-with-visual > .entity-thumb-relation {
+  width: 5rem;
+  min-width: 5rem;
+  aspect-ratio: 4 / 5;
+}
+.relation-card-with-visual > .badge {
+  grid-column: 2;
+  grid-row: 1;
+}
+.relation-card-with-visual > strong {
+  grid-column: 2;
+  grid-row: 2;
+}
+.relation-card-with-visual > p {
+  grid-column: 2;
+  grid-row: 3;
+  margin: 0;
 }
 .relation-card strong {
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+  line-height: 1.22;
 }
 .relation-card p {
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: 3;
+  line-height: 1.42;
 }
 
 .preview-stat-card, .npc-core-card, .ability-card {
