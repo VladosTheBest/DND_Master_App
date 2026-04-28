@@ -235,7 +235,7 @@ export function CombatTrackerPage({
               onClick={onNextTurn}
               type="button"
             >
-              {combatStateBusy ? "РџРµСЂРµРєР»СЋС‡Р°СЋ..." : "РЎР»РµРґСѓСЋС‰РёР№ С…РѕРґ"}
+              {combatStateBusy ? "Переключаю..." : "Следующий ход"}
             </button>
           </div>
         </section>

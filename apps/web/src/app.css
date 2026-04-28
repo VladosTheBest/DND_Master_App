@@ -2346,9 +2346,24 @@
 }
 .combat-player-form {
   display: grid;
-  grid-template-columns: minmax(220px, 1.2fr) minmax(120px, .55fr) minmax(160px, .75fr);
+  grid-template-columns: minmax(0, 1fr) 5.5rem;
   gap: .58rem;
   align-items: end;
+  min-width: 0;
+}
+.combat-player-form > .field,
+.combat-player-form .combat-start-initiative-field {
+  min-width: 0;
+}
+.combat-player-form .input,
+.combat-player-form select {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+.combat-player-panel .copy {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .combat-player-selector-grid {
   display: grid;
