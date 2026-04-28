@@ -3,24 +3,19 @@ import {
   CollapsibleSection,
   NEW_LORE_NOTE_ID,
   NEW_WORLD_EVENT_ID,
-  abilityLabels,
   badge,
   clamp,
   createBestiaryPortraitSource,
-  createHeroPanelStyle,
   createPortraitSource,
-  EntityVisual,
+  createHeroPanelStyle,
   formatModifier,
   gradients,
   hasVisibleArt,
   isRewardableEntity,
   kindTitle,
-  loreNoteExcerpt,
   matchesEntityDirectorySearch,
   playlistTrackHost,
   playlistTrackTitle,
-  resolveLoreNoteTitle,
-  rewardSectionLabel,
   rewardSummaryText,
   sigil,
   toneClass,
@@ -39,6 +34,17 @@ import {
   DndGenerationProgress,
   LoginScreen
 } from "./auth-ui";
+import { api } from "./app/api";
+import { AppContentRouter } from "./app/AppContentRouter";
+import { CampaignCreateModal } from "./app/CampaignCreateModal";
+import { CloseConfirmDialog } from "./app/CloseConfirmDialog";
+import { AppHeader } from "./app/AppHeader";
+import { AppPreviewContent } from "./app/AppPreviewContent";
+import { AppPreviewPanel } from "./app/AppPreviewPanel";
+import { AppSidebar } from "./app/AppSidebar";
+import { EntityDirectoryScreen } from "./app/EntityDirectoryScreen";
+import { useCampaignCreationController } from "./app/hooks/useCampaignCreationController";
+import { useModalController } from "./app/hooks/useModalController";
 import { FloatingPlaylistPlayer } from "./floating-player";
 import { InitiativeTrackerScreen } from "./initiative-screen";
 import {
@@ -53,45 +59,29 @@ import {
   isCombatEntryOut,
   RewardSection,
   sortCombatEntriesByInitiative,
-  StatEntryEditorSection,
   type CombatRosterFilter
 } from "./combat-ui";
-import { ItemsWorkspace } from "./items";
 import {
-  GalleryEditorSection,
-  GalleryLightbox,
   GallerySection,
-  type GalleryViewerState,
   PlaylistEditorSection,
+  type GalleryViewerState,
   PlaylistSection
 } from "./media";
 import {
-  EventsWorkspace,
-  NotesWorkspace
-} from "./notes-events";
-import {
-  PreparedCombatCardStrip,
   PlayerFacingCardStrip,
-  PlayerFacingEntityModal,
-  PlayerFacingFormattingIndicator,
   collectQuestSectionLines,
   parseQuestTextSections,
   splitQuestNarrative,
-  type PreparedCombatCardView,
   type QuestCombatEntrySummary,
   type QuestLinkedEntity,
   QuestPreviewPanel,
   resolveQuestSceneArtwork,
-  questStatusTone,
-  QuestWorkspace
+  questStatusTone
 } from "./quests";
 import {
-  createWikiLinkMarkup,
-  resolveRichSelectionFromContainer,
   RichParagraphs
 } from "./rich-text";
 import {
-  RailIcon,
   type RailIconName
 } from "./rail-icon";
 import {
@@ -99,20 +89,115 @@ import {
   pickRandomTrackIndex,
   resolvePlaylistSource
 } from "./playback";
+import { CombatPage } from "./features/combat/CombatPage";
+import { CombatPrepPage } from "./features/combat/CombatPrepPage";
+import "./features/combat/combat.css";
+import { BestiaryPageContainer } from "./features/bestiary/BestiaryPageContainer";
+import { BestiaryPreviewPanel } from "./features/bestiary/BestiaryPreviewPanel";
+import { useBestiaryController } from "./features/bestiary/useBestiaryController";
+import { isBestiaryBrowseTab } from "./features/bestiary/bestiary.utils";
+import { useCombatDifficulty } from "./features/combat/hooks/useCombatDifficulty";
+import { useCombatDraftController } from "./features/combat/hooks/useCombatDraftController";
+import { useCombatEnemySearch } from "./features/combat/hooks/useCombatEnemySearch";
 import {
-  extractPlainTextFromPlayerFacingHTML,
-  preparePlayerFacingHTMLImport,
-  sanitizePlayerFacingHTML
-} from "./player-facing-rich";
-import { createApiClient } from "@shadow-edge/api-client";
+  challengeFilterOptions,
+  clampPartyLevel,
+  cloneCampaignPreparedCombat,
+  clonePreparedCombatPlan,
+  combatDifficultyLabel,
+  computeEncounterThresholds,
+  countPreparedCombatItems,
+  createEmptyCampaignPreparedCombat,
+  createDefaultCombatThresholds,
+  defaultPreparedCombatTitle,
+  deriveEncounterDifficulty,
+  derivePartyLevels,
+  encounterMultiplier,
+  extractChallengeToken,
+  formatAllyCountLabel,
+  formatCombatSetupTypeLabel,
+  formatEnemyCountLabel,
+  formatParticipantCountLabel,
+  formatPartyCountLabel,
+  formatPartyLevelText,
+  formatPartyLevelsText,
+  getEntityChallenge,
+  isPreparedCombatHostEntity,
+  normalizeCombatSetupTypeKey,
+  normalizePreparedCombatPlansForClient,
+  parseChallengeXp,
+  parseStoredPartyLevel,
+  resolveCombatSearchItemType,
+  resolveCombatSearchItemTypeLabel,
+  resolveEntityPreparedCombats,
+  sanitizeCampaignPreparedCombat,
+  sanitizePartyLevel,
+  sanitizePreparedCombatPlan,
+  sanitizePreparedCombatPlans,
+  targetThresholdValue
+} from "./features/combat/combat.utils";
+import { EntityEditorModal } from "./features/entities/EntityEditorModal";
+import { EntityDetailsPage } from "./features/entities/EntityDetailsPage";
+import "./features/entities/entities.css";
+import { EntityActionMenu } from "./features/entity-actions/EntityActionMenu";
+import { EntityDeleteDialog } from "./features/entity-actions/EntityDeleteDialog";
+import { EntityGalleryModal } from "./features/entities/EntityGalleryModal";
+import { EntityGalleryViewer } from "./features/entities/EntityGalleryViewer";
+import { EntityPlaylistModal } from "./features/entities/EntityPlaylistModal";
+import { useEntityActionsController } from "./features/entity-actions/useEntityActionsController";
+import { EntityLinkContextMenu } from "./features/entity-links/EntityLinkContextMenu";
+import { EntityLinkPickerModal } from "./features/entity-links/EntityLinkPickerModal";
+import { useEntityLinkController } from "./features/entity-links/useEntityLinkController";
+import type { PreparedCombatHostEntity } from "./features/combat/combat.types";
+import type {
+  CombatProfileEntity,
+  EntityModalMode,
+  StatEntrySectionKey
+} from "./features/entities/entity.types";
+import {
+  acceptedImageUploadTypes,
+  acceptedPlayerFacingHtmlUploadTypes,
+  cloneGalleryImages,
+  clonePlaylistTracks,
+  createEmptyGalleryImage,
+  createEmptyMonsterLootEntry,
+  createEmptyMonsterRewardProfile,
+  createEmptyNpcStatBlock,
+  createEmptyPlaylistTrack,
+  createEmptyPreparedCombatPlan,
+  createEmptySpellSlot,
+  createEmptySpellcasting,
+  createEmptyStatEntry,
+  composeVisibleQuickFacts,
+  emptyEntityForm,
+  filterEntities,
+  isCombatProfileEntity,
+  imageTitleFromFileName
+} from "./features/entities/entity.utils";
+import { useEntityEditorController } from "./features/entities/useEntityEditorController";
+import { useEntityMediaController } from "./features/entities/useEntityMediaController";
+import { RandomEventModal } from "./features/events/RandomEventModal";
+import { useRandomEventController } from "./features/events/useRandomEventController";
+import { GlobalSearchModal } from "./features/global-search/GlobalSearchModal";
+import { useGlobalSearchController } from "./features/global-search/useGlobalSearchController";
+import { PlayerFacingController } from "./features/player-facing/PlayerFacingController";
+import {
+  createEmptyPlayerFacingCard,
+  defaultPlayerFacingCardTitle,
+  normalizePlayerFacingCardsForClient,
+  sanitizePlayerFacingCards,
+  sanitizeSinglePlayerFacingCard,
+  usePlayerFacingCards
+} from "./features/player-facing/usePlayerFacingCards";
+import { PreparedCombatList } from "./features/prepared-combat/PreparedCombatList";
+import { PreparedCombatModal } from "./features/prepared-combat/PreparedCombatModal";
+import { usePreparedCombatController } from "./features/prepared-combat/usePreparedCombatController";
+import { resolvePreparedCombatAllies, resolvePreparedCombatEntriesForPlans } from "./features/prepared-combat/preparedCombat.utils";
 import type {
   ActiveCombat,
   AbilityKey,
   AbilityScores,
   AuthSessionResult,
-  BestiaryBrowseResult,
-  BestiaryMonsterDetail,
-  BestiaryMonsterSummary,
   CampaignData,
   CampaignPreparedCombat,
   CampaignSummary,
@@ -120,14 +205,11 @@ import type {
   CombatEntry,
   CombatResult,
   CombatThresholds,
-  CreateCampaignInput,
   CreateEntityInput,
   CreateEntityResult,
   EntityKind,
   FinishCombatResult,
-  FormatPlayerFacingCardResult,
   GalleryImage,
-  GenerateEntityDraftResult,
   GenerateCombatResult,
   HeroArt,
   KnowledgeEntity,
@@ -147,7 +229,6 @@ import type {
   QuestEntity,
   QuickFactTone,
   RelatedEntity,
-  SearchResult,
   SpellSlotSummary,
   SpellcastingBlock,
   StatBlockEntry,
@@ -165,7 +246,6 @@ import {
   useState,
   type CSSProperties,
   type FormEvent,
-  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode
 } from "react";
@@ -178,7 +258,8 @@ const tabs: Record<ModuleId, string[]> = {
   npcs: ["All", "Critical", "Allies", "Threats"],
   monsters: ["Catalog", "Imported", "Named NPC", "Classic"],
   quests: ["All", "Active", "Paused", "Completed"],
-  lore: ["All", "GM Only", "Player Safe", "Threat Files"]
+  lore: ["All", "GM Only", "Player Safe", "Threat Files"],
+  rules: ["SRD 5.2.1"]
 };
 
 const moduleByKind: Record<EntityKind, ModuleId> = {
@@ -190,117 +271,9 @@ const moduleByKind: Record<EntityKind, ModuleId> = {
   lore: "lore"
 };
 
-const combatDifficultyLabel: Record<CombatDifficulty, string> = {
-  easy: "Легко",
-  medium: "Средне",
-  hard: "Сложно",
-  deadly: "Смертоносно",
-  custom: "Своя сложность"
-};
-
-const combatDifficultyShortLabel: Record<Exclude<CombatDifficulty, "custom">, string> = {
-  easy: "Easy",
-  medium: "Medium",
-  hard: "Hard",
-  deadly: "Deadly"
-};
-
-type EncounterDifficultyId = Exclude<CombatDifficulty, "custom">;
-
-const challengeExperienceTable: Record<string, number> = {
-  "0": 10,
-  "1/8": 25,
-  "1/4": 50,
-  "1/2": 100,
-  "1": 200,
-  "2": 450,
-  "3": 700,
-  "4": 1100,
-  "5": 1800,
-  "6": 2300,
-  "7": 2900,
-  "8": 3900,
-  "9": 5000,
-  "10": 5900,
-  "11": 7200,
-  "12": 8400,
-  "13": 10000,
-  "14": 11500,
-  "15": 13000,
-  "16": 15000,
-  "17": 18000,
-  "18": 20000,
-  "19": 22000,
-  "20": 25000,
-  "21": 33000,
-  "22": 41000,
-  "23": 50000,
-  "24": 62000,
-  "25": 75000,
-  "26": 90000,
-  "27": 105000,
-  "28": 120000,
-  "29": 135000,
-  "30": 155000
-};
-
-const encounterTiers = [
-  { min: 1, max: 1, multiplier: 1 },
-  { min: 2, max: 2, multiplier: 1.5 },
-  { min: 3, max: 6, multiplier: 2 },
-  { min: 7, max: 10, multiplier: 2.5 },
-  { min: 11, max: 14, multiplier: 3 },
-  { min: 15, max: Number.POSITIVE_INFINITY, multiplier: 4 }
-] as const;
-
-const challengeFilterOptions = [
-  "0",
-  "1/8",
-  "1/4",
-  "1/2",
-  "1",
-  "2",
-  "3",
-  "4",
-  "5",
-  "6",
-  "7",
-  "8",
-  "9",
-  "10",
-  "11",
-  "12",
-  "13",
-  "14",
-  "15",
-  "16",
-  "17",
-  "18",
-  "19",
-  "20",
-  "21",
-  "22",
-  "23",
-  "24",
-  "25",
-  "26",
-  "27",
-  "28",
-  "29",
-  "30"
-] as const;
-
-const entityGenerationSteps = ["Собираю контекст кампании", "Зову оракула", "Вписываю черновик в форму"];
+const entityGenerationSteps = ["Р РЋР С•Р В±Р С‘РЎР‚Р В°РЎР‹ Р С”Р С•Р Р…РЎвЂљР ВµР С”РЎРѓРЎвЂљ Р С”Р В°Р СР С—Р В°Р Р…Р С‘Р С‘", "Р вЂ”Р С•Р Р†РЎС“ Р С•РЎР‚Р В°Р С”РЎС“Р В»Р В°", "Р вЂ™Р С—Р С‘РЎРѓРЎвЂ№Р Р†Р В°РЎР‹ РЎвЂЎР ВµРЎР‚Р Р…Р С•Р Р†Р С‘Р С” Р Р† РЎвЂћР С•РЎР‚Р СРЎС“"];
 const combatGenerationSteps = ["Считаю силу партии", "Подбираю противников", "Собираю бой для стола"];
-const randomEventGenerationSteps = ["Читаю контекст локации", "Плету маленькую сцену", "Собираю реплики и лут"];
-
-const emptyCampaignForm = (): CreateCampaignInput => ({
-  title: "",
-  system: "D&D 5e",
-  settingName: "",
-  inWorldDate: "",
-  summary: ""
-});
+const randomEventGenerationSteps = ["Р В§Р С‘РЎвЂљР В°РЎР‹ Р С”Р С•Р Р…РЎвЂљР ВµР С”РЎРѓРЎвЂљ Р В»Р С•Р С”Р В°РЎвЂ Р С‘Р С‘", "Р СџР В»Р ВµРЎвЂљРЎС“ Р СР В°Р В»Р ВµР Р…РЎРЉР С”РЎС“РЎР‹ РЎРѓРЎвЂ Р ВµР Р…РЎС“", "Р РЋР С•Р В±Р С‘РЎР‚Р В°РЎР‹ РЎР‚Р ВµР С—Р В»Р С‘Р С”Р С‘ Р С‘ Р В»РЎС“РЎвЂљ"];
 
 const emptyWorldEventInput = (): WorldEventInput => ({
   title: "",
@@ -322,62 +295,11 @@ const emptyWorldEventInput = (): WorldEventInput => ({
   origin: "manual"
 });
 
-const createEmptyPlayerFacingCard = (title = ""): PlayerFacingCard => ({
-  title,
-  content: "",
-  contentHtml: ""
-});
-
-const createEmptyPreparedCombatPlan = (title = ""): PreparedCombatPlan => ({
-  title,
-  partyLevel: undefined,
-  playerIds: [],
-  items: []
-});
-
-const emptyEntityForm = (kind: EntityKind = "location"): CreateEntityInput => ({
-  kind,
-  title: "",
-  subtitle: "",
-  summary: "",
-  content: "",
-  playerContent: "",
-  playerCards: [],
-  tags: [],
-  playlist: [],
-  gallery: [],
-  category: kind === "location" ? "City" : kind === "lore" ? "History" : undefined,
-  region: kind === "location" ? "" : undefined,
-  danger: kind === "location" ? "Tense" : undefined,
-  role: kind === "player" || kind === "npc" || kind === "monster" ? "" : undefined,
-  status:
-    kind === "player"
-      ? "Active"
-      : kind === "npc"
-      ? "Unknown"
-      : kind === "monster"
-        ? "Hostile"
-        : kind === "quest"
-          ? "active"
-          : undefined,
-  importance:
-    kind === "npc" ? "Major" : kind === "monster" ? "Standard" : undefined,
-  statBlock: kind === "player" || kind === "npc" || kind === "monster" ? createEmptyNpcStatBlock() : undefined,
-  rewardProfile: kind === "npc" || kind === "monster" || kind === "quest" ? createEmptyMonsterRewardProfile() : undefined,
-  urgency: kind === "quest" ? "Medium" : undefined,
-  preparedCombat: kind === "quest" || kind === "location" ? createEmptyPreparedCombatPlan() : undefined,
-  preparedCombats: kind === "quest" || kind === "location" ? [] : undefined,
-  visibility: kind === "lore" ? "gm_only" : undefined
-});
 
 type ResizeKey = "rail" | "list" | "preview";
-type EntityModalMode = "create" | "edit";
-type StatEntrySectionKey = "traits" | "actions" | "bonusActions" | "reactions";
-type CombatProfileEntity = PlayerEntity | NpcEntity | MonsterEntity;
 type RailAlias = "items" | "events" | "notes";
-type RailNavKey = "dashboard" | "locations" | "players" | "npcs" | "monsters" | "quests" | RailAlias;
-type EntityTextField = "content" | "playerContent";
-type LinkableTextField = EntityTextField | "noteContent";
+type RailNavKey = "dashboard" | "locations" | "players" | "npcs" | "monsters" | "quests" | "rules" | RailAlias;
+
 type PlayerFacingViewState = {
   entityId: string;
   title?: string;
@@ -388,33 +310,6 @@ type PlayerFacingViewState = {
   isNew?: boolean;
 };
 type LoreNoteEntity = Extract<KnowledgeEntity, { kind: "lore" }>;
-type EntityLinkSelection = {
-  mode: "editor" | "entity" | "noteEditor";
-  field: LinkableTextField;
-  start: number;
-  end: number;
-  text: string;
-  x: number;
-  y: number;
-  entityId?: string;
-};
-type EntityActionMenuState = {
-  entityId: string;
-  x: number;
-  y: number;
-};
-type CombatSearchItem = {
-  key: string;
-  source: "entity" | "bestiary";
-  id: string;
-  kind: "npc" | "monster";
-  title: string;
-  subtitle: string;
-  summary: string;
-  challenge: string;
-  entity?: CombatProfileEntity;
-  bestiary?: BestiaryMonsterSummary;
-};
 type PlaylistOwnerScope = "entity" | "combat";
 type ActivePlaylistPlayback = {
   scope: PlaylistOwnerScope;
@@ -424,167 +319,11 @@ type ActivePlaylistPlayback = {
   currentIndex: number;
   token: number;
 };
-type PreparedCombatHostEntity = Extract<KnowledgeEntity, { kind: "location" | "quest" }>;
 type EntityCombatSetupState = {
   entityId: string;
   planIndex: number;
   isNew: boolean;
 };
-
-const resolveApiBaseUrl = () => {
-  const configured = import.meta.env.VITE_API_BASE_URL;
-  if (configured) {
-    return configured;
-  }
-
-  return "";
-};
-
-const api = createApiClient(resolveApiBaseUrl());
-
-const isBestiaryBrowseTab = (moduleId: ModuleId, tab: string) => moduleId === "monsters" && tab !== "Imported";
-const combatSelectionEntityKey = (id: string) => `entity:${id}`;
-const combatSelectionBestiaryKey = (id: string) => `bestiary:${id}`;
-const isCombatSelectionEntityKey = (value: string) => value.startsWith("entity:");
-const isCombatSelectionBestiaryKey = (value: string) => value.startsWith("bestiary:");
-const unwrapCombatSelectionKey = (value: string) => {
-  const separator = value.indexOf(":");
-  return separator >= 0 ? value.slice(separator + 1) : value;
-};
-const combatSetupTypeLabelMap: Record<string, string> = {
-  all: "Все",
-  monster: "Монстры",
-  humanoid: "Гуманоиды",
-  undead: "Нежить",
-  beast: "Звери",
-  elemental: "Стихии",
-  fiend: "Изверги",
-  dragon: "Драконы",
-  monstrosity: "Чудовища"
-};
-const normalizeCombatSetupTypeKey = (value: string) => value.trim().toLowerCase();
-const formatCombatSetupTypeLabel = (value: string) => {
-  const normalized = normalizeCombatSetupTypeKey(value);
-  if (!normalized) {
-    return combatSetupTypeLabelMap.monster;
-  }
-  return combatSetupTypeLabelMap[normalized] ?? value.charAt(0).toUpperCase() + value.slice(1);
-};
-const resolveCombatSearchItemType = (item: CombatSearchItem) => {
-  if (item.bestiary?.creatureType) {
-    return normalizeCombatSetupTypeKey(item.bestiary.creatureType);
-  }
-  if (item.entity?.statBlock?.creatureType) {
-    return normalizeCombatSetupTypeKey(item.entity.statBlock.creatureType);
-  }
-  return item.kind === "npc" ? "humanoid" : "monster";
-};
-const resolveCombatSearchItemTypeLabel = (item: CombatSearchItem) =>
-  item.bestiary?.creatureTypeLabel ||
-  formatCombatSetupTypeLabel(item.entity?.statBlock?.creatureType || resolveCombatSearchItemType(item));
-const parseChallengeToken = (challenge: string) => {
-  let token = challenge.trim().toLowerCase();
-  if (!token) {
-    return "";
-  }
-
-  for (const prefix of ["cr", "challenge", "challenge rating", "опасность"]) {
-    if (token.startsWith(prefix)) {
-      token = token.slice(prefix.length).trim();
-      break;
-    }
-  }
-
-  const beforeParenthesis = token.split("(")[0]?.trim() ?? token;
-  const firstChunk = beforeParenthesis.split(/\s+/u)[0]?.trim() ?? beforeParenthesis;
-  return firstChunk.replace(/^[:.-]+|[:.-]+$/g, "").trim();
-};
-
-const parseChallengeXp = (challenge: string) => {
-  const token = parseChallengeToken(challenge);
-  if (token && challengeExperienceTable[token] !== undefined) {
-    return challengeExperienceTable[token];
-  }
-
-  const explicitXp = challenge.match(/([\d\s]+)\s*XP/i);
-  if (explicitXp) {
-    const digits = explicitXp[1].replace(/[^\d]/g, "");
-    if (digits) {
-      return Number.parseInt(digits, 10);
-    }
-  }
-
-  const fallbackToken = challenge
-    .trim()
-    .split(/[ (\u00a0]/u)[0]
-    ?.replace(/^cr/i, "")
-    .trim();
-
-  return fallbackToken ? challengeExperienceTable[fallbackToken] ?? 0 : 0;
-};
-
-const encounterMultiplier = (monsterCount: number, partySize: number) => {
-  if (monsterCount <= 0) {
-    return 1;
-  }
-
-  let index = encounterTiers.length - 1;
-  for (const [tierIndex, tier] of encounterTiers.entries()) {
-    if (monsterCount >= tier.min && monsterCount <= tier.max) {
-      index = tierIndex;
-      break;
-    }
-  }
-
-  if (partySize < 3) {
-    if (index === encounterTiers.length - 1) {
-      return 5;
-    }
-    index += 1;
-  } else if (partySize >= 6) {
-    if (index === 0) {
-      return 0.5;
-    }
-    index -= 1;
-  }
-
-  return encounterTiers[index]?.multiplier ?? 1;
-};
-
-const deriveEncounterDifficulty = (adjustedXp: number, thresholds: CombatThresholds): EncounterDifficultyId | "" => {
-  if (adjustedXp <= 0) {
-    return "";
-  }
-  if (thresholds.deadly > 0 && adjustedXp >= thresholds.deadly) {
-    return "deadly";
-  }
-  if (thresholds.hard > 0 && adjustedXp >= thresholds.hard) {
-    return "hard";
-  }
-  if (thresholds.medium > 0 && adjustedXp >= thresholds.medium) {
-    return "medium";
-  }
-  return "easy";
-};
-
-const targetThresholdValue = (thresholds: CombatThresholds, difficulty: EncounterDifficultyId) => {
-  switch (difficulty) {
-    case "easy":
-      return thresholds.easy;
-    case "medium":
-      return thresholds.medium;
-    case "hard":
-      return thresholds.hard;
-    case "deadly":
-      return thresholds.deadly;
-    default:
-      return thresholds.medium;
-  }
-};
-
-const formatPartyCountLabel = (count: number) => (count === 1 ? "игрок" : count < 5 ? "игрока" : "игроков");
-const formatEnemyCountLabel = (count: number) => (count === 1 ? "противник" : count < 5 ? "противника" : "противников");
-
 type CombatPrepIconName = "players" | "enemy" | "initiative" | "round" | "conditions" | "notes" | "swords";
 
 function CombatPrepIcon({ name }: { name: CombatPrepIconName }) {
@@ -656,193 +395,12 @@ function CombatPrepIcon({ name }: { name: CombatPrepIconName }) {
   }
 }
 
-const createEmptyStatEntry = (): StatBlockEntry => ({
-  name: "",
-  subtitle: "",
-  toHit: "",
-  damage: "",
-  saveDc: "",
-  description: ""
-});
-
-const createEmptySpellSlot = (): SpellSlotSummary => ({
-  level: "1st",
-  slots: "2"
-});
-
-const createEmptyPlaylistTrack = (): PlaylistTrack => ({
-  title: "",
-  url: ""
-});
-
-const createEmptyGalleryImage = (): GalleryImage => ({
-  title: "",
-  url: "",
-  caption: ""
-});
-
-const acceptedImageUploadTypes = "image/png,image/jpeg,image/webp,image/gif";
-const acceptedPlayerFacingHtmlUploadTypes = ".html,.htm,text/html";
-
-const imageTitleFromFileName = (fileName: string) => {
-  const trimmed = fileName.trim();
-  if (!trimmed) {
-    return "";
-  }
-
-  const extensionStart = trimmed.lastIndexOf(".");
-  return extensionStart > 0 ? trimmed.slice(0, extensionStart) : trimmed;
-};
-
-const createEmptySpellcasting = (): SpellcastingBlock => ({
-  title: "Spellcasting",
-  ability: "INT",
-  saveDc: "13",
-  attackBonus: "+5",
-  slots: [],
-  spells: [],
-  description: ""
-});
-
-const createDefaultAbilityScores = (): AbilityScores => ({
-  str: 10,
-  dex: 10,
-  con: 10,
-  int: 10,
-  wis: 10,
-  cha: 10
-});
-
-const createEmptyMonsterLootEntry = (): MonsterLootEntry => ({
-  name: "",
-  category: "Лут",
-  quantity: "",
-  check: "",
-  dc: "",
-  details: ""
-});
-
-const createEmptyMonsterRewardProfile = (): MonsterRewardProfile => ({
-  summary: "",
-  loot: [createEmptyMonsterLootEntry()]
-});
 
 const createEmptyWorldEventDialogueBranch = (): WorldEventDialogueBranch => ({
   title: "",
   lines: [""],
   outcome: ""
 });
-
-const createEmptyNpcStatBlock = (): NpcStatBlock => ({
-  size: "Medium",
-  creatureType: "humanoid",
-  alignment: "neutral",
-  armorClass: "",
-  hitPoints: "",
-  speed: "30 ft.",
-  proficiencyBonus: "+2",
-  challenge: "",
-  senses: "",
-  languages: "",
-  savingThrows: "",
-  skills: "",
-  resistances: "",
-  immunities: "",
-  conditionImmunities: "",
-  abilityScores: createDefaultAbilityScores(),
-  traits: [createEmptyStatEntry()],
-  actions: [createEmptyStatEntry()],
-  bonusActions: [],
-  reactions: [],
-  spellcasting: null
-});
-
-const createDefaultCombatThresholds = (): CombatThresholds => ({
-  easy: 100,
-  medium: 200,
-  hard: 300,
-  deadly: 400
-});
-
-const extractChallengeToken = (value?: string) => {
-  const trimmed = value?.trim() ?? "";
-  if (!trimmed) {
-    return "";
-  }
-
-  const match = trimmed.match(/^([0-9]+(?:\/[0-9]+)?)/);
-  return match?.[1] ?? trimmed;
-};
-
-const getEntityChallenge = (entity: Pick<CombatProfileEntity, "statBlock">) =>
-  extractChallengeToken(entity.statBlock?.challenge);
-
-const partyThresholdTable: Record<number, CombatThresholds> = {
-  1: { easy: 25, medium: 50, hard: 75, deadly: 100 },
-  2: { easy: 50, medium: 100, hard: 150, deadly: 200 },
-  3: { easy: 75, medium: 150, hard: 225, deadly: 400 },
-  4: { easy: 125, medium: 250, hard: 375, deadly: 500 },
-  5: { easy: 250, medium: 500, hard: 750, deadly: 1100 },
-  6: { easy: 300, medium: 600, hard: 900, deadly: 1400 },
-  7: { easy: 350, medium: 750, hard: 1100, deadly: 1700 },
-  8: { easy: 450, medium: 900, hard: 1400, deadly: 2100 },
-  9: { easy: 550, medium: 1100, hard: 1600, deadly: 2400 },
-  10: { easy: 600, medium: 1200, hard: 1900, deadly: 2800 },
-  11: { easy: 800, medium: 1600, hard: 2400, deadly: 3600 },
-  12: { easy: 1000, medium: 2000, hard: 3000, deadly: 4500 },
-  13: { easy: 1100, medium: 2200, hard: 3400, deadly: 5100 },
-  14: { easy: 1250, medium: 2500, hard: 3800, deadly: 5700 },
-  15: { easy: 1400, medium: 2800, hard: 4300, deadly: 6400 },
-  16: { easy: 1600, medium: 3200, hard: 4800, deadly: 7200 },
-  17: { easy: 2000, medium: 3900, hard: 5900, deadly: 8800 },
-  18: { easy: 2100, medium: 4200, hard: 6300, deadly: 9500 },
-  19: { easy: 2400, medium: 4900, hard: 7300, deadly: 10900 },
-  20: { easy: 2800, medium: 5700, hard: 8500, deadly: 12700 }
-};
-
-const clampPartyLevel = (value: number) => clamp(value, 1, 20);
-
-const parseStoredPartyLevel = (raw: string) => {
-  const parsed = Number.parseInt(raw.trim(), 10);
-  return Number.isFinite(parsed) ? clampPartyLevel(parsed) : undefined;
-};
-
-const derivePartyLevels = (raw: string, partySize: number) => {
-  const parsed = raw
-    .split(/[\s,;]+/u)
-    .map((part) => Number.parseInt(part.trim(), 10))
-    .filter((value) => Number.isFinite(value))
-    .map((value) => clampPartyLevel(value));
-
-  if (!parsed.length) {
-    return [];
-  }
-
-  if (parsed.length === 1) {
-    return Array.from({ length: Math.max(1, partySize) }, () => parsed[0]);
-  }
-
-  return parsed;
-};
-
-const computeEncounterThresholds = (levels: number[], fallback: CombatThresholds): CombatThresholds => {
-  if (!levels.length) {
-    return fallback;
-  }
-
-  return levels.reduce<CombatThresholds>(
-    (totals, level) => {
-      const perCharacter = partyThresholdTable[clampPartyLevel(level)] ?? fallback;
-      return {
-        easy: totals.easy + perCharacter.easy,
-        medium: totals.medium + perCharacter.medium,
-        hard: totals.hard + perCharacter.hard,
-        deadly: totals.deadly + perCharacter.deadly
-      };
-    },
-    { easy: 0, medium: 0, hard: 0, deadly: 0 }
-  );
-};
 
 const cloneStatEntries = (entries: StatBlockEntry[] = []) => entries.map((entry) => ({ ...entry }));
 
@@ -854,137 +412,9 @@ const cloneMonsterRewardProfile = (profile?: MonsterRewardProfile): MonsterRewar
       }
     : undefined;
 
-const clonePreparedCombatPlan = (plan?: PreparedCombatPlan): PreparedCombatPlan | undefined =>
-  plan
-    ? {
-        title: plan.title,
-        partyLevel: sanitizePartyLevel(plan.partyLevel),
-        playerIds: [...(plan.playerIds ?? [])],
-        items: (plan.items ?? []).map((item) => ({ ...item }))
-      }
-    : undefined;
-
-const clonePreparedCombatPlans = (plans?: PreparedCombatPlan[]): PreparedCombatPlan[] | undefined =>
-  plans ? plans.map((plan) => clonePreparedCombatPlan(plan) ?? createEmptyPreparedCombatPlan()) : undefined;
-
-const createEmptyCampaignPreparedCombat = (): CampaignPreparedCombat => ({
-  title: "",
-  partyLevel: undefined,
-  playerIds: [],
-  items: []
-});
-
-const cloneCampaignPreparedCombat = (plan?: CampaignPreparedCombat | null): CampaignPreparedCombat =>
-  plan
-    ? {
-        title: plan.title,
-        partyLevel: sanitizePartyLevel(plan.partyLevel),
-        playerIds: [...(plan.playerIds ?? [])],
-        items: (plan.items ?? []).map((item) => ({ ...item }))
-      }
-    : createEmptyCampaignPreparedCombat();
-
-const clonePlaylistTracks = (tracks?: PlaylistTrack[]): PlaylistTrack[] | undefined =>
-  tracks ? tracks.map((track) => ({ ...track })) : undefined;
-
-const cloneGalleryImages = (items?: GalleryImage[]): GalleryImage[] | undefined =>
-  items ? items.map((item) => ({ ...item })) : undefined;
 
 const clonePlayerFacingCards = (cards?: PlayerFacingCard[]): PlayerFacingCard[] | undefined =>
   cards ? cards.map((card) => ({ ...card })) : undefined;
-
-const defaultPlayerFacingCardTitle = (_kind: EntityKind, index: number) =>
-  index === 0 ? "Игроки видят" : `Карточка ${index + 1}`;
-
-const defaultPreparedCombatTitle = (index: number) => `Бой ${index + 1}`;
-
-const isPreparedCombatHostEntity = (entity: KnowledgeEntity): entity is PreparedCombatHostEntity =>
-  entity.kind === "location" || entity.kind === "quest";
-
-const normalizePlayerFacingCardsForClient = (
-  kind: EntityKind,
-  cards?: PlayerFacingCard[],
-  legacyContent?: string
-): PlayerFacingCard[] => {
-  const normalized = (cards ?? [])
-    .map((card) => ({
-      title: card.title.trim(),
-      content: card.content.trim(),
-      contentHtml: sanitizePlayerFacingHTML(card.contentHtml)
-    }))
-    .map((card) => ({
-      ...card,
-      content: card.content || extractPlainTextFromPlayerFacingHTML(card.contentHtml)
-    }))
-    .filter((card) => card.title || card.content || card.contentHtml)
-    .filter((card) => card.content)
-    .map((card, index) => ({
-      title: card.title || defaultPlayerFacingCardTitle(kind, index),
-      content: card.content,
-      contentHtml: card.contentHtml || undefined
-    }));
-
-  if (!normalized.length && legacyContent?.trim()) {
-    return [
-      {
-        title: defaultPlayerFacingCardTitle(kind, 0),
-        content: legacyContent.trim(),
-        contentHtml: ""
-      }
-    ];
-  }
-
-  return normalized;
-};
-
-const normalizePreparedCombatPlansForClient = (
-  plans?: PreparedCombatPlan[],
-  legacyPlan?: PreparedCombatPlan
-): PreparedCombatPlan[] => {
-  const normalized = (plans ?? [])
-    .map((plan) => ({
-      title: plan.title?.trim() || "",
-      playerIds: Array.from(new Set((plan.playerIds ?? []).map((playerId) => playerId.trim()).filter(Boolean))),
-      items: (plan.items ?? [])
-        .map((item) => ({
-          entityId: item.entityId.trim(),
-          quantity: Number.isFinite(item.quantity) ? Math.max(1, Math.floor(item.quantity)) : 1
-        }))
-        .filter((item) => item.entityId)
-    }))
-    .filter((plan) => plan.title || plan.playerIds.length || plan.items.length)
-    .map((plan, index) => ({
-      title: plan.title || defaultPreparedCombatTitle(index),
-      playerIds: plan.playerIds,
-      items: plan.items
-    }));
-
-  if (!normalized.length && legacyPlan) {
-    const legacy = clonePreparedCombatPlan(legacyPlan);
-    if (legacy) {
-      const title = legacy.title?.trim() || "";
-      const playerIds = Array.from(new Set((legacy.playerIds ?? []).map((playerId) => playerId.trim()).filter(Boolean)));
-      const items = (legacy.items ?? [])
-        .map((item) => ({
-          entityId: item.entityId.trim(),
-          quantity: Number.isFinite(item.quantity) ? Math.max(1, Math.floor(item.quantity)) : 1
-        }))
-        .filter((item) => item.entityId);
-
-      if (title || playerIds.length || items.length) {
-        return [
-          {
-            title: title || defaultPreparedCombatTitle(0),
-            playerIds,
-            items
-          }
-        ];
-      }
-    }
-  }
-
-  return normalized;
-};
 
 const summarizePlayerFacingContent = (value?: string, maxItems = 4) => {
   const sections = parseQuestTextSections(value);
@@ -1006,7 +436,7 @@ const normalizeCombatEntryForClient = (entry: CombatEntry): CombatEntry => ({
   entityKind: entry.entityKind ?? "monster",
   side: entry.side ?? (entry.entityKind === "player" ? "player" : "enemy"),
   initiative: Number.isFinite(entry.initiative) ? entry.initiative : 0,
-  armorClass: entry.armorClass || (entry.entityKind === "player" ? "—" : "10")
+  armorClass: entry.armorClass || (entry.entityKind === "player" ? "РІР‚вЂќ" : "10")
 });
 
 const normalizeEntityForClient = <T extends KnowledgeEntity>(entity: T): T => {
@@ -1014,6 +444,11 @@ const normalizeEntityForClient = <T extends KnowledgeEntity>(entity: T): T => {
 
   return {
     ...entity,
+    ...(("level" in entity
+      ? {
+          level: sanitizePartyLevel(entity.level)
+        }
+      : {}) as Partial<T>),
     tags: entity.tags ?? [],
     quickFacts: entity.quickFacts ?? [],
     related: entity.related ?? [],
@@ -1160,7 +595,9 @@ const cloneNpcStatBlock = (statBlock?: NpcStatBlock): NpcStatBlock | undefined =
     : undefined;
 
 const entityToForm = (entity: KnowledgeEntity): CreateEntityInput => {
-  const preparedCombats = clonePreparedCombatPlans(normalizePreparedCombatPlansForClient(entity.preparedCombats, entity.preparedCombat)) ?? [];
+  const preparedCombats = normalizePreparedCombatPlansForClient(entity.preparedCombats, entity.preparedCombat).map(
+    (plan) => clonePreparedCombatPlan(plan) ?? createEmptyPreparedCombatPlan()
+  );
 
   return {
     kind: entity.kind,
@@ -1181,6 +618,7 @@ const entityToForm = (entity: KnowledgeEntity): CreateEntityInput => {
     parentId: "parentId" in entity ? entity.parentId : undefined,
     role: "role" in entity ? entity.role : undefined,
     status: "status" in entity ? entity.status : undefined,
+    level: "level" in entity ? sanitizePartyLevel(entity.level) : undefined,
     importance: "importance" in entity ? entity.importance : undefined,
     locationId: "locationId" in entity ? entity.locationId : undefined,
     statBlock:
@@ -1202,56 +640,6 @@ const entityToForm = (entity: KnowledgeEntity): CreateEntityInput => {
 const sanitizeOptionalText = (value?: string) => {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
-};
-
-const sanitizePartyLevel = (value?: number | null) => {
-  if (!Number.isFinite(value)) {
-    return undefined;
-  }
-  return clampPartyLevel(Math.floor(value as number));
-};
-
-const formatPartyLevelText = (value?: number | null) => {
-  const normalized = sanitizePartyLevel(value);
-  return normalized ? String(normalized) : "";
-};
-
-const sanitizeSinglePlayerFacingCard = (kind: EntityKind, card: PlayerFacingCard, index: number): PlayerFacingCard | null => {
-  const title = card.title.trim();
-  const contentHtml = sanitizePlayerFacingHTML(card.contentHtml);
-  const content = card.content.trim() || extractPlainTextFromPlayerFacingHTML(contentHtml);
-
-  if (!title && !content && !contentHtml) {
-    return null;
-  }
-
-  if (!content) {
-    return null;
-  }
-
-  return {
-    title: title || defaultPlayerFacingCardTitle(kind, index),
-    content,
-    contentHtml: contentHtml || undefined
-  };
-};
-
-const sanitizePlayerFacingCards = (kind: EntityKind, cards: PlayerFacingCard[] = [], legacyContent?: string) => {
-  const normalized = cards
-    .map((card, index) => sanitizeSinglePlayerFacingCard(kind, card, index))
-    .filter((card): card is PlayerFacingCard => Boolean(card));
-
-  if (!normalized.length && legacyContent?.trim()) {
-    return [
-      {
-        title: defaultPlayerFacingCardTitle(kind, 0),
-        content: legacyContent.trim(),
-        contentHtml: undefined
-      }
-    ];
-  }
-
-  return normalized;
 };
 
 const sanitizeTags = (tags: string[]) => {
@@ -1288,7 +676,7 @@ const sanitizeGalleryImages = (items: GalleryImage[] = []) =>
     }))
     .filter((item) => item.url)
     .map((item, index) => ({
-      title: item.title || `Изображение ${index + 1}`,
+      title: item.title || `Р ВР В·Р С•Р В±РЎР‚Р В°Р В¶Р ВµР Р…Р С‘Р Вµ ${index + 1}`,
       url: item.url,
       caption: item.caption
     }));
@@ -1364,10 +752,10 @@ const sanitizeMonsterRewardProfile = (profile?: MonsterRewardProfile): MonsterRe
     }))
     .filter((entry) => entry.name || entry.category || entry.quantity || entry.check || entry.dc || entry.details)
     .map((entry) => ({
-      name: entry.name || "Безымянная добыча",
-      category: entry.category || "Лут",
+      name: entry.name || "Р вЂР ВµР В·РЎвЂ№Р СРЎРЏР Р…Р Р…Р В°РЎРЏ Р Т‘Р С•Р В±РЎвЂ№РЎвЂЎР В°",
+      category: entry.category || "Р вЂєРЎС“РЎвЂљ",
       quantity: entry.quantity || "1",
-      check: entry.check || "Без проверки",
+      check: entry.check || "Р вЂР ВµР В· Р С—РЎР‚Р С•Р Р†Р ВµРЎР‚Р С”Р С‘",
       dc: entry.dc,
       details: entry.details
     }));
@@ -1379,99 +767,6 @@ const sanitizeMonsterRewardProfile = (profile?: MonsterRewardProfile): MonsterRe
   return {
     summary,
     loot
-  };
-};
-
-const sanitizePreparedCombatPlan = (plan?: PreparedCombatPlan): PreparedCombatPlan | undefined => {
-  if (!plan) {
-    return undefined;
-  }
-
-  const title = sanitizeOptionalText(plan.title);
-  const partyLevel = sanitizePartyLevel(plan.partyLevel);
-  const playerIds = Array.from(
-    new Set(
-      (plan.playerIds ?? [])
-        .map((playerId) => playerId.trim())
-        .filter(Boolean)
-    )
-  );
-  const items = plan.items
-    .map((item) => ({
-      entityId: item.entityId.trim(),
-      quantity: Number.isFinite(item.quantity) ? Math.max(1, Math.floor(item.quantity)) : 1
-    }))
-    .filter((item) => item.entityId);
-
-  if (!title && !playerIds.length && !items.length) {
-    return undefined;
-  }
-
-  return {
-    title,
-    partyLevel,
-    playerIds,
-    items
-  };
-};
-
-const sanitizePreparedCombatPlans = (
-  plans: PreparedCombatPlan[] = [],
-  legacyPlan?: PreparedCombatPlan
-): PreparedCombatPlan[] => {
-  const sanitized = plans
-    .map((plan) => sanitizePreparedCombatPlan(plan))
-    .filter((plan): plan is PreparedCombatPlan => Boolean(plan))
-    .map((plan, index) => ({
-      ...plan,
-      title: plan.title || defaultPreparedCombatTitle(index)
-    }));
-
-  if (!sanitized.length) {
-    const legacy = sanitizePreparedCombatPlan(legacyPlan);
-    return legacy
-      ? [
-          {
-            ...legacy,
-            title: legacy.title || defaultPreparedCombatTitle(0)
-          }
-        ]
-      : [];
-  }
-
-  return sanitized;
-};
-
-const sanitizeCampaignPreparedCombat = (plan?: CampaignPreparedCombat | null): CampaignPreparedCombat | null => {
-  if (!plan) {
-    return null;
-  }
-
-  const title = sanitizeOptionalText(plan.title);
-  const partyLevel = sanitizePartyLevel(plan.partyLevel);
-  const playerIds = Array.from(
-    new Set(
-      (plan.playerIds ?? [])
-        .map((playerId) => playerId.trim())
-        .filter(Boolean)
-    )
-  );
-  const items = (plan.items ?? [])
-    .map((item) => ({
-      entityId: item.entityId.trim(),
-      quantity: Number.isFinite(item.quantity) ? Math.max(1, Math.floor(item.quantity)) : 1
-    }))
-    .filter((item) => item.entityId);
-
-  if (!title && !playerIds.length && !items.length) {
-    return null;
-  }
-
-  return {
-    title,
-    partyLevel,
-    playerIds,
-    items
   };
 };
 
@@ -1557,6 +852,7 @@ const serializeEntityForm = (form: CreateEntityInput): CreateEntityInput => {
         kind: "player",
         role: form.role?.trim() ?? "",
         status: form.status as CreateEntityInput["status"],
+        level: sanitizePartyLevel(form.level),
         statBlock: sanitizeNpcStatBlock(form.statBlock ?? createEmptyNpcStatBlock())
       };
     case "npc":
@@ -1595,27 +891,8 @@ const serializeEntityForm = (form: CreateEntityInput): CreateEntityInput => {
   }
 };
 
-const moduleEntities = (campaign: CampaignData, moduleId: ModuleId) => {
-  if (moduleId === "locations") return campaign.locations;
-  if (moduleId === "players") return campaign.players;
-  if (moduleId === "npcs") return campaign.npcs;
-  if (moduleId === "monsters") return campaign.monsters;
-  if (moduleId === "quests") return campaign.quests;
-  if (moduleId === "lore") return campaign.lore;
-  return [];
-};
-
-const toResult = (entity: KnowledgeEntity): SearchResult => ({
-  id: entity.id,
-  kind: entity.kind,
-  title: entity.title,
-  subtitle: entity.subtitle,
-  summary: entity.summary,
-  tags: entity.tags
-});
-
 const getModuleTitle = (campaign: CampaignData, moduleId: ModuleId) =>
-  campaign.modules.find((module) => module.id === moduleId)?.label ?? moduleId;
+  moduleId === "rules" ? "Правила" : campaign.modules.find((module) => module.id === moduleId)?.label ?? moduleId;
 
 const railAliasTitle: Record<RailAlias, string> = {
   items: "Предметы",
@@ -1645,66 +922,6 @@ const preserveRailAliasForModule = (current: RailAlias | null, moduleId: ModuleI
 
 const railSectionTitle = (campaign: CampaignData, moduleId: ModuleId, alias: RailAlias | null) =>
   alias ? railAliasTitle[alias] : moduleId === "lore" ? railAliasTitle.notes : getModuleTitle(campaign, moduleId);
-
-const isCombatProfileEntity = (entity: KnowledgeEntity | null): entity is CombatProfileEntity =>
-  Boolean(entity && (entity.kind === "player" || entity.kind === "npc" || entity.kind === "monster"));
-
-const composeVisibleQuickFacts = (entity: KnowledgeEntity) => {
-  const facts = [...(entity.quickFacts ?? [])];
-  if (
-    (entity.kind === "npc" || entity.kind === "quest") &&
-    entity.playerContent?.trim() &&
-    !facts.some((fact) => fact.label.toLowerCase().includes("игрок"))
-  ) {
-    facts.push({
-      label: "Игрокам",
-      value: "Есть отдельная версия",
-      tone: "success"
-    });
-  }
-  if (isRewardableEntity(entity) && entity.rewardProfile) {
-    if (
-      entity.rewardProfile.summary.trim() &&
-      !facts.some((fact) => fact.label.toLowerCase().includes("наград"))
-    ) {
-      facts.push({
-        label: entity.kind === "quest" ? "Награда" : "Награда/лут",
-        value: truncateInlineText(entity.rewardProfile.summary.trim()),
-        tone: "success"
-      });
-    }
-    if (
-      entity.rewardProfile.loot.length &&
-      !facts.some((fact) => fact.label.toLowerCase().includes("лут"))
-    ) {
-      facts.push({
-        label: "Лут",
-        value: `${entity.rewardProfile.loot.length} позиций`,
-        tone: "warning"
-      });
-    }
-  }
-  if (
-    entity.kind === "quest" &&
-    entity.preparedCombat?.items?.length &&
-    !facts.some((fact) => fact.label.toLowerCase().includes("бой"))
-  ) {
-    const count = entity.preparedCombat.items.reduce((sum, item) => sum + Math.max(1, item.quantity), 0);
-    facts.push({
-      label: "Бой",
-      value: `${count} противников`,
-      tone: "danger"
-    });
-  }
-  if (entity.gallery?.length && !facts.some((fact) => fact.label.toLowerCase().includes("галер"))) {
-    facts.push({
-      label: "Галерея",
-      value: `${entity.gallery.length} изображений`,
-      tone: "accent"
-    });
-  }
-  return facts;
-};
 
 const formatDateTime = (value: string) => {
   const date = new Date(value);
@@ -1743,86 +960,10 @@ const copyTextToClipboard = async (value: string) => {
   const copied = document.execCommand("copy");
   document.body.removeChild(textarea);
   if (!copied) {
-    throw new Error("Браузер не дал скопировать ссылку.");
+    throw new Error("Р вЂРЎР‚Р В°РЎС“Р В·Р ВµРЎР‚ Р Р…Р Вµ Р Т‘Р В°Р В» РЎРѓР С”Р С•Р С—Р С‘РЎР‚Р С•Р Р†Р В°РЎвЂљРЎРЉ РЎРѓРЎРѓРЎвЂ№Р В»Р С”РЎС“.");
   }
 };
 
-
-const filterEntities = (
-  campaign: CampaignData | null,
-  activeModule: ModuleId,
-  activeTab: string,
-  options?: { monsterSearch?: string; monsterChallenge?: string }
-) => {
-  if (!campaign || activeModule === "dashboard") {
-    return [];
-  }
-
-  if (activeModule === "monsters" && activeTab !== "Imported") {
-    return [];
-  }
-
-  return moduleEntities(campaign, activeModule).filter((entity) => {
-    if (activeTab === "All") return true;
-
-    if (entity.kind === "location") {
-      return (
-        (activeTab === "Cities" && entity.category === "City") ||
-        (activeTab === "Regions" && entity.category === "Region") ||
-        (activeTab === "Dungeons" && entity.category === "Dungeon") ||
-        (activeTab === "POI" && entity.category === "POI")
-      );
-    }
-
-    if (entity.kind === "player") {
-      return activeTab === "All" || activeTab === entity.status;
-    }
-
-    if (entity.kind === "npc") {
-      return (
-        (activeTab === "Critical" && entity.importance === "Critical") ||
-        (activeTab === "Allies" && entity.status === "Ally") ||
-        (activeTab === "Threats" && entity.status === "Threat")
-      );
-    }
-
-    if (entity.kind === "monster") {
-      const matchesSearch =
-        activeTab !== "Imported" ||
-        !options?.monsterSearch?.trim() ||
-        [entity.title, entity.subtitle, entity.summary]
-          .join(" ")
-          .toLowerCase()
-          .includes(options.monsterSearch.trim().toLowerCase());
-      const matchesChallenge =
-        activeTab !== "Imported" ||
-        !options?.monsterChallenge ||
-        getEntityChallenge(entity) === options.monsterChallenge;
-
-      return (
-        ((activeTab === "Imported") && matchesSearch && matchesChallenge) ||
-        (activeTab === "Hostile" && entity.status === "Hostile") ||
-        (activeTab === "Elite" && entity.importance === "Elite") ||
-        (activeTab === "Bosses" && entity.importance === "Boss") ||
-        (activeTab === "Beasts" && entity.statBlock?.creatureType.toLowerCase().includes("beast"))
-      );
-    }
-
-    if (entity.kind === "quest") {
-      return activeTab.toLowerCase() === entity.status;
-    }
-
-    if (entity.kind === "lore") {
-      return (
-        (activeTab === "GM Only" && entity.visibility === "gm_only") ||
-        (activeTab === "Player Safe" && entity.visibility === "player_safe") ||
-        (activeTab === "Threat Files" && entity.category === "Threat")
-      );
-    }
-
-    return true;
-  });
-};
 
 function CombatWorkbench({
   campaign,
@@ -1943,7 +1084,7 @@ function CombatWorkbench({
     )
   ).slice(0, 4);
   const masterNotes = [
-    currentTurnEntry ? `Сейчас темп сцены держит ${currentTurnEntry.title}.` : "",
+    currentTurnEntry ? `Р РЋР ВµР в„–РЎвЂЎР В°РЎРѓ РЎвЂљР ВµР СР С— РЎРѓРЎвЂ Р ВµР Р…РЎвЂ№ Р Т‘Р ВµРЎР‚Р В¶Р С‘РЎвЂљ ${currentTurnEntry.title}.` : "",
     selectedEntryResolved?.summary ? truncateInlineText(selectedEntryResolved.summary, 148) : "",
     activeCombat.difficulty ? `Сложность: ${combatDifficultyLabel[activeCombat.difficulty]}.` : "",
     livingEnemyCount ? `На ногах осталось ${livingEnemyCount} противников.` : "Все противники уже выведены из сцены."
@@ -2012,7 +1153,7 @@ function CombatWorkbench({
           ) : null}
           {bootError ? (
             <div className="card mini form-error" role="status">
-              <strong>Проблема в бою</strong>
+              <strong>Р СџРЎР‚Р С•Р В±Р В»Р ВµР СР В° Р Р† Р В±Р С•РЎР‹</strong>
               <p>{bootError}</p>
             </div>
           ) : null}
@@ -2034,15 +1175,15 @@ function CombatWorkbench({
         <section className="card combat-summary-card">
           <div className="row muted">
             <span>Плейлист треков</span>
-            <span>{isCombatPlaylistActive ? "Играет" : "Готов"}</span>
+            <span>{isCombatPlaylistActive ? "Р ВР С–РЎР‚Р В°Р ВµРЎвЂљ" : "Р вЂњР С•РЎвЂљР С•Р Р†"}</span>
           </div>
-          <strong>{currentPlaybackTrackLabel || "Бой — Напряжение"}</strong>
+          <strong>{currentPlaybackTrackLabel || "Р вЂР С•Р в„– РІР‚вЂќ Р СњР В°Р С—РЎР‚РЎРЏР В¶Р ВµР Р…Р С‘Р Вµ"}</strong>
           <div className="combat-summary-actions">
             <button className="ghost" disabled={!(campaign.combatPlaylist ?? []).length} onClick={onPlayCombatPlaylist} type="button">
               {isCombatPlaylistActive ? "Следующий трек" : "Запустить"}
             </button>
             <button className="ghost" disabled={!(campaign.combatPlaylist ?? []).length} onClick={onPlayNextRandomTrack} type="button">
-              Рандом
+              Р В Р В°Р Р…Р Т‘Р С•Р С
             </button>
             <button className="ghost" onClick={onOpenCombatPlaylistModal} type="button">
               Плейлист
@@ -2053,7 +1194,7 @@ function CombatWorkbench({
         <section className="card combat-summary-card">
           <div className="row muted">
             <span>Условия сцены</span>
-            <span>{sceneTags.length} метки</span>
+            <span>{sceneTags.length} Р СР ВµРЎвЂљР С”Р С‘</span>
           </div>
           <div className="combat-tag-list">
             {sceneTags.map((tag) => (
@@ -2066,7 +1207,7 @@ function CombatWorkbench({
 
         <section className="card combat-summary-card">
           <div className="row muted">
-            <span>Быстрые действия</span>
+            <span>Р вЂРЎвЂ№РЎРѓРЎвЂљРЎР‚РЎвЂ№Р Вµ Р Т‘Р ВµР в„–РЎРѓРЎвЂљР Р†Р С‘РЎРЏ</span>
             <span>{initiativeShareBusy ? "Готовлю ссылку" : "На стол"}</span>
           </div>
           <div className="combat-summary-action-grid">
@@ -2184,7 +1325,7 @@ function CombatWorkbench({
                 <strong>{Math.max(1, activeCombat.round || 1)}</strong>
               </div>
               <div className="combat-side-detail-row">
-                <span>Время боя</span>
+                <span>Р вЂ™РЎР‚Р ВµР СРЎРЏ Р В±Р С•РЎРЏ</span>
                 <strong>{combatDurationLabel}</strong>
               </div>
             </div>
@@ -2209,11 +1350,11 @@ function CombatWorkbench({
           <section className="card mini combat-side-card combat-player-panel">
             <div className="row muted">
               <strong>Добавить участника</strong>
-              <span>Из вкладки Игроки</span>
+              <span>Р ВР В· Р Р†Р С”Р В»Р В°Р Т‘Р С”Р С‘ Р ВР С–РЎР‚Р С•Р С”Р С‘</span>
             </div>
             <div className="combat-player-form">
               <label className="field">
-                <span>Игрок</span>
+                <span>Р ВР С–РЎР‚Р С•Р С”</span>
                 <select
                   className="input"
                   onChange={(event) => onCombatPlayerEntityIdChange(event.target.value)}
@@ -2243,8 +1384,8 @@ function CombatWorkbench({
             {selectedCombatPlayer ? (
               <p className="copy">
                 {selectedCombatPlayerAlreadyInFight
-                  ? `${selectedCombatPlayer.title} уже участвует в текущем бою.`
-                  : selectedCombatPlayer.summary || `${selectedCombatPlayer.title} можно сразу добавить в инициативу.`}
+                  ? `${selectedCombatPlayer.title} РЎС“Р В¶Р Вµ РЎС“РЎвЂЎР В°РЎРѓРЎвЂљР Р†РЎС“Р ВµРЎвЂљ Р Р† РЎвЂљР ВµР С”РЎС“РЎвЂ°Р ВµР С Р В±Р С•РЎР‹.`
+                  : selectedCombatPlayer.summary || `${selectedCombatPlayer.title} Р СР С•Р В¶Р Р…Р С• РЎРѓРЎР‚Р В°Р В·РЎС“ Р Т‘Р С•Р В±Р В°Р Р†Р С‘РЎвЂљРЎРЉ Р Р† Р С‘Р Р…Р С‘РЎвЂ Р С‘Р В°РЎвЂљР С‘Р Р†РЎС“.`}
               </p>
             ) : null}
             <button
@@ -2259,7 +1400,7 @@ function CombatWorkbench({
 
           <section className="card mini combat-side-card">
             <div className="row muted">
-              <strong>Заметки для мастера</strong>
+              <strong>Р вЂ”Р В°Р СР ВµРЎвЂљР С”Р С‘ Р Т‘Р В»РЎРЏ Р СР В°РЎРѓРЎвЂљР ВµРЎР‚Р В°</strong>
               <span>{defeatedCount} выведено</span>
             </div>
             <div className="combat-side-notes">
@@ -2271,7 +1412,7 @@ function CombatWorkbench({
 
           <section className="card mini combat-side-card">
             <div className="row muted">
-              <strong>Чек-лист мастера</strong>
+              <strong>Р В§Р ВµР С”-Р В»Р С‘РЎРѓРЎвЂљ Р СР В°РЎРѓРЎвЂљР ВµРЎР‚Р В°</strong>
               <span>{checklistItems.filter((item) => checklistOverrides[item.id] ?? item.done).length}/{checklistItems.length}</span>
             </div>
             <div className="combat-side-checklist">
@@ -2320,66 +1461,18 @@ export default function App() {
   const [activeEntityId, setActiveEntityId] = useState("");
   const [previewEntityId, setPreviewEntityId] = useState("");
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
-  const [paletteOpen, setPaletteOpen] = useState(false);
-  const [campaignModalOpen, setCampaignModalOpen] = useState(false);
-  const [entityModalOpen, setEntityModalOpen] = useState(false);
-  const [randomEventModalOpen, setRandomEventModalOpen] = useState(false);
   const [combatPlaylistModalOpen, setCombatPlaylistModalOpen] = useState(false);
-  const [entityPlaylistModalOpen, setEntityPlaylistModalOpen] = useState(false);
-  const [entityGalleryModalOpen, setEntityGalleryModalOpen] = useState(false);
   const [entityCombatSetupState, setEntityCombatSetupState] = useState<EntityCombatSetupState | null>(null);
-  const [playerFacingView, setPlayerFacingView] = useState<PlayerFacingViewState | null>(null);
-  const [playerFacingModalSaving, setPlayerFacingModalSaving] = useState(false);
-  const [playerFacingModalFormatting, setPlayerFacingModalFormatting] = useState(false);
-  const [entityModalMode, setEntityModalMode] = useState<EntityModalMode>("create");
-  const [editingEntityId, setEditingEntityId] = useState("");
-  const [entityModalSourceNpcId, setEntityModalSourceNpcId] = useState("");
-  const [generatedQuestIssuerDraft, setGeneratedQuestIssuerDraft] = useState<CreateEntityInput | null>(null);
-  const [generatedQuestIssuerNote, setGeneratedQuestIssuerNote] = useState("");
   const [preparedCombatModalOpen, setPreparedCombatModalOpen] = useState(false);
-  const [preparedCombatQuestId, setPreparedCombatQuestId] = useState("");
-  const [preparedCombatDraft, setPreparedCombatDraft] = useState<PreparedCombatPlan>({ title: "", items: [] });
-  const [preparedCombatNotice, setPreparedCombatNotice] = useState("");
-  const [preparedCombatSearchQuery, setPreparedCombatSearchQuery] = useState("");
-  const [preparedCombatChallenge, setPreparedCombatChallenge] = useState("");
-  const [preparedCombatSelectionId, setPreparedCombatSelectionId] = useState("");
-  const [preparedCombatQuantity, setPreparedCombatQuantity] = useState(1);
-  const [preparedCombatBestiary, setPreparedCombatBestiary] = useState<BestiaryBrowseResult | null>(null);
-  const [preparedCombatBestiaryLoading, setPreparedCombatBestiaryLoading] = useState(false);
   const [combatPlaylistDraft, setCombatPlaylistDraft] = useState<PlaylistTrack[]>([]);
-  const [entityPlaylistEntityId, setEntityPlaylistEntityId] = useState("");
-  const [entityPlaylistDraft, setEntityPlaylistDraft] = useState<PlaylistTrack[]>([]);
-  const [entityGalleryEntityId, setEntityGalleryEntityId] = useState("");
-  const [entityGalleryDraft, setEntityGalleryDraft] = useState<GalleryImage[]>([]);
   const [galleryViewer, setGalleryViewer] = useState<GalleryViewerState | null>(null);
   const [activePlayback, setActivePlayback] = useState<ActivePlaylistPlayback | null>(null);
-  const [entityLinkSelection, setEntityLinkSelection] = useState<EntityLinkSelection | null>(null);
-  const [entityLinkMenuOpen, setEntityLinkMenuOpen] = useState(false);
-  const [entityActionMenu, setEntityActionMenu] = useState<EntityActionMenuState | null>(null);
-  const [entityLinkModalOpen, setEntityLinkModalOpen] = useState(false);
-  const [entityLinkQuery, setEntityLinkQuery] = useState("");
-  const [entityLinkTargetId, setEntityLinkTargetId] = useState("");
-  const [noteEditorEntityId, setNoteEditorEntityId] = useState("");
-  const [noteEditorTitle, setNoteEditorTitle] = useState("");
-  const [noteEditorContent, setNoteEditorContent] = useState("");
-  const [noteEditorDirty, setNoteEditorDirty] = useState(false);
-  const [noteEditorNotice, setNoteEditorNotice] = useState("");
-  const [eventEditorId, setEventEditorId] = useState("");
-  const [eventEditorDraft, setEventEditorDraft] = useState<WorldEventInput>(emptyWorldEventInput);
-  const [eventEditorDirty, setEventEditorDirty] = useState(false);
-  const [eventEditorNotice, setEventEditorNotice] = useState("");
-  const [campaignForm, setCampaignForm] = useState<CreateCampaignInput>(emptyCampaignForm);
-  const [entityForm, setEntityForm] = useState<CreateEntityInput>(emptyEntityForm);
-  const [entityArtUploading, setEntityArtUploading] = useState(false);
-  const [galleryUploadKey, setGalleryUploadKey] = useState("");
-  const [draftPrompt, setDraftPrompt] = useState("");
-  const [draftNotes, setDraftNotes] = useState<string[]>([]);
-  const [playerCardFormattingIndex, setPlayerCardFormattingIndex] = useState<number | null>(null);
-  const [randomEventLocationId, setRandomEventLocationId] = useState("");
-  const [randomEventType, setRandomEventType] = useState<WorldEventType>("social");
-  const [randomEventPrompt, setRandomEventPrompt] = useState("");
-  const [randomEventNotes, setRandomEventNotes] = useState<string[]>([]);
-  const [randomEventGenerating, setRandomEventGenerating] = useState(false);
+  const [selectedWorldEventId, setSelectedWorldEventId] = useState("");
+  const [rulesNavigationState, setRulesNavigationState] = useState({
+    query: "",
+    requestId: 0,
+    ruleId: ""
+  });
   const [bootError, setBootError] = useState("");
   const [booting, setBooting] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -2391,16 +1484,8 @@ export default function App() {
   const [combatPartySize, setCombatPartySize] = useState(4);
   const [combatPartyLevelsText, setCombatPartyLevelsText] = useState("");
   const [combatThresholds, setCombatThresholds] = useState<CombatThresholds>(createDefaultCombatThresholds);
-  const [combatSelectionId, setCombatSelectionId] = useState("");
-  const [combatSelectionQuantity, setCombatSelectionQuantity] = useState(1);
-  const [combatSelectionInitiative, setCombatSelectionInitiative] = useState(0);
   const [combatPlayerSearchQuery, setCombatPlayerSearchQuery] = useState("");
-  const [combatSearchQuery, setCombatSearchQuery] = useState("");
-  const [combatSearchChallenge, setCombatSearchChallenge] = useState("");
-  const [combatEnemyTypeFilter, setCombatEnemyTypeFilter] = useState("all");
-  const [combatBestiary, setCombatBestiary] = useState<BestiaryBrowseResult | null>(null);
-  const [combatBestiaryLoading, setCombatBestiaryLoading] = useState(false);
-  const [combatSelectedBestiaryMonster, setCombatSelectedBestiaryMonster] = useState<BestiaryMonsterDetail | null>(null);
+  const [combatAllySearchQuery, setCombatAllySearchQuery] = useState("");
   const [combatPrompt, setCombatPrompt] = useState("");
   const [combatMonsterCount, setCombatMonsterCount] = useState(1);
   const [combatDifficulty, setCombatDifficulty] = useState<CombatDifficulty>("medium");
@@ -2410,70 +1495,276 @@ export default function App() {
   const [combatPlayerManagerOpen, setCombatPlayerManagerOpen] = useState(true);
   const [combatEnemyCatalogOpen, setCombatEnemyCatalogOpen] = useState(true);
   const [combatDifficultyDetailsOpen, setCombatDifficultyDetailsOpen] = useState(true);
-  const [campaignPreparedCombatDraft, setCampaignPreparedCombatDraft] = useState<CampaignPreparedCombat>(createEmptyCampaignPreparedCombat);
-  const [campaignPreparedCombatNotice, setCampaignPreparedCombatNotice] = useState("");
-  const [preparedCombatPlayerInitiatives, setPreparedCombatPlayerInitiatives] = useState<Record<string, number>>({});
-  const [preparedCombatEnemyInitiatives, setPreparedCombatEnemyInitiatives] = useState<Record<string, number>>({});
   const [combatPlayerEntityId, setCombatPlayerEntityId] = useState("");
   const [combatPlayerInitiative, setCombatPlayerInitiative] = useState(0);
   const [combatPortraitNotice, setCombatPortraitNotice] = useState("");
   const [combatReport, setCombatReport] = useState<FinishCombatResult | null>(null);
-  const [closeConfirmState, setCloseConfirmState] = useState<{
-    title: string;
-    description: string;
-    confirmLabel: string;
-  } | null>(null);
   const [moduleEntitySearch, setModuleEntitySearch] = useState("");
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [bestiary, setBestiary] = useState<BestiaryBrowseResult | null>(null);
-  const [bestiarySearch, setBestiarySearch] = useState("");
-  const [bestiaryChallenge, setBestiaryChallenge] = useState("");
-  const [bestiaryType, setBestiaryType] = useState("");
-  const [selectedBestiaryId, setSelectedBestiaryId] = useState("");
-  const [selectedBestiaryMonster, setSelectedBestiaryMonster] = useState<BestiaryMonsterDetail | null>(null);
-  const [bestiaryLoading, setBestiaryLoading] = useState(false);
-  const [bestiaryDetailLoading, setBestiaryDetailLoading] = useState(false);
-  const [importingBestiary, setImportingBestiary] = useState(false);
-  const [importedMonsterSearch, setImportedMonsterSearch] = useState("");
-  const [importedMonsterChallenge, setImportedMonsterChallenge] = useState("");
   const [railWidth, setRailWidth] = useState(220);
   const [listWidth, setListWidth] = useState(284);
   const [previewWidth, setPreviewWidth] = useState(330);
-  const pendingModalCloseRef = useRef<(() => void) | null>(null);
-  const deferredQuery = useDeferredValue(query);
-  const deferredBestiarySearch = useDeferredValue(bestiarySearch);
   const deferredCombatPlayerSearchQuery = useDeferredValue(combatPlayerSearchQuery);
-  const deferredCombatSearchQuery = useDeferredValue(combatSearchQuery);
-  const deferredPreparedCombatSearchQuery = useDeferredValue(preparedCombatSearchQuery);
+  const deferredCombatAllySearchQuery = useDeferredValue(combatAllySearchQuery);
   const contentRef = useRef<HTMLElement | null>(null);
-  const entityContentRef = useRef<HTMLTextAreaElement | null>(null);
-  const entityPlayerContentRef = useRef<HTMLTextAreaElement | null>(null);
-  const playerCardImportInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
-  const noteEditorContentRef = useRef<HTMLTextAreaElement | null>(null);
   const resizeRef = useRef<{ key: ResizeKey; startX: number; startWidth: number } | null>(null);
   const lastAppViewRef = useRef<{ module: ModuleId; tab: string }>({ module: "dashboard", tab: "Snapshot" });
   const combatPatchQueueRef = useRef(new Map<string, Promise<void>>());
+  const allEntities = useMemo(
+    () => (campaign ? [...campaign.locations, ...campaign.players, ...campaign.npcs, ...campaign.monsters, ...campaign.quests, ...campaign.lore] : []),
+    [campaign]
+  );
+  const entityMap = useMemo(() => new Map(allEntities.map((entity) => [entity.id, entity])), [allEntities]);
+  const defaultCreateKind: EntityKind =
+      activeModule === "locations"
+      ? "location"
+      : activeModule === "players"
+        ? "player"
+      : activeModule === "npcs"
+        ? "npc"
+        : activeModule === "monsters" || activeModule === "combat"
+          ? "monster"
+        : activeModule === "quests"
+          ? "quest"
+        : activeModule === "lore"
+          ? "lore"
+          : "location";
 
-  useEffect(() => {
-    if (!entityActionMenu) {
+  const entityEditor = useEntityEditorController({
+    activeCampaignId,
+    applyCreatedEntity: (result) => applyCreatedEntity(result),
+    defaultCreateKind,
+    entityMap,
+    entityToForm,
+    onEntityDeleted: (result) => {
+      setPinnedIds((current) => current.filter((id) => id !== result.entityId));
+      hydrateCampaign(result.campaign);
+      setActiveModule(moduleByKind[result.kind]);
+    },
+    persistEntityPayload: (args) => persistEntityPayload(args),
+    resetEntityLinkState: () => entityLinkController.resetEntityLinkState(),
+    serializeEntityForm,
+    setBootError,
+    setSaving,
+    uploadCampaignImage: (file) => uploadCampaignImage(file)
+  });
+
+  const entityMedia = useEntityMediaController({
+    activeCampaignId,
+    entityMap,
+    entityToForm,
+    galleryUploadKey: entityEditor.galleryUploadKey,
+    hydrateCampaign,
+    sanitizeGalleryImages,
+    sanitizePlaylistTracks,
+    serializeEntityForm,
+    setBootError,
+    setGalleryUploadKey: entityEditor.setGalleryUploadKey,
+    setSaving,
+    uploadCampaignImage: (file) => uploadCampaignImage(file)
+  });
+
+  const campaignCreation = useCampaignCreationController({
+    onCampaignCreated: (nextCampaign) => hydrateCampaign(nextCampaign),
+    setBootError,
+    setCampaigns,
+    setSaving
+  });
+
+  const globalSearchController = useGlobalSearchController({
+    activeCampaignId,
+    campaign,
+    entityMap,
+    pinnedIds
+  });
+
+  const entityLinkController = useEntityLinkController({
+    activeCampaignId,
+    allEntities,
+    editingEntityId: entityEditor.editingEntityId,
+    entityContentRef: entityEditor.entityContentRef,
+    entityForm: entityEditor.entityForm,
+    entityMap,
+    entityPlayerContentRef: entityEditor.entityPlayerContentRef,
+    entityToForm,
+    onApplyCreatedEntity: (result) => applyCreatedEntity(result),
+    onCloseEntityActionMenu: () => entityActionsController.closeEntityActionMenu(),
+    onSerializeEntityForm: serializeEntityForm,
+    onSetBootError: setBootError,
+    onSetEntityForm: entityEditor.setEntityForm,
+    onSetPreviewEntityId: setPreviewEntityId,
+    onSetSaving: setSaving
+  });
+
+  const modalController = useModalController({
+    closeCombatPlaylistModal: () => closeCombatPlaylistModal(),
+    closeCombatSetupModal: () => closeCombatSetupModal(),
+    closeEntityGalleryModal: () => entityMedia.closeEntityGalleryModal(),
+    closeEntityLinkModal: () => entityLinkController.closeEntityLinkModal(),
+    closeEntityModal: () => entityEditor.closeEntityModal(),
+    closeEntityPlaylistModal: () => entityMedia.closeEntityPlaylistModal(),
+    closeGalleryViewer: () => closeGalleryViewer(),
+    closePlayerFacingView: () => playerFacing.closePlayerFacingView(),
+    closePreparedCombatModal: () => closePreparedCombatModal(),
+    closeRandomEventModal: () => closeRandomEventModal(),
+    openEntityModal: (kind) => entityEditor.openEntityModal(kind),
+    setCampaignModalOpen: (value) => campaignCreation.setCampaignModalOpen(value),
+    setPaletteOpen: (value) => globalSearchController.setPaletteOpen(value)
+  });
+
+  const playerFacing = usePlayerFacingCards({
+    activeCampaignId,
+    entityMap,
+    entityToForm,
+    hydrateCampaign: (nextCampaign, focusEntityId) => hydrateCampaign(nextCampaign, focusEntityId),
+    requestModalClose: modalController.requestModalClose,
+    serializeEntityForm,
+    setBootError,
+    setSaving,
+    setPreviewEntityId
+  });
+
+  async function handleBestiaryImportSuccess(monsterId: string) {
+    if (!activeCampaignId) {
       return;
     }
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        closeEntityActionMenu();
-      }
-    };
+    const result = await api.importBestiaryMonster(activeCampaignId, monsterId);
+    applyCreatedEntity(result);
+    setPreviewEntityId(result.entity.id);
+  }
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [entityActionMenu]);
+  const bestiaryController = useBestiaryController({
+    activeCampaignId,
+    activeModule,
+    activeTab,
+    campaignMonsters: campaign?.monsters ?? [],
+    onImportSuccess: handleBestiaryImportSuccess,
+    setBootError
+  });
 
-  const hydrateCampaign = (data: CampaignData, preferredEntityId?: string) => {
+  const {
+    cancelModalCloseRequest,
+    closeConfirmState,
+    confirmModalCloseRequest,
+    requestCampaignModalClose,
+    requestCombatPlaylistModalClose,
+    requestCombatSetupModalClose,
+    requestCombatSetupSwapToEntity,
+    requestEntityGalleryModalClose,
+    requestEntityLinkModalClose,
+    requestEntityModalClose,
+    requestEntityPlaylistModalClose,
+    requestGalleryViewerClose,
+    requestModalClose,
+    requestPaletteClose,
+    requestPlayerFacingViewClose,
+    requestPreparedCombatModalClose,
+    requestRandomEventModalClose
+  } = modalController;
+
+  const {
+    addEntityGalleryItem,
+    addEntityPlayerCard,
+    addEntityPlaylistTrack,
+    addMonsterLootEntry,
+    addNpcStatEntry,
+    addSpellSlot,
+    autoFormatEntityPlayerCard,
+    clearEntityPlayerCardHtml,
+    closeEntityModal,
+    deleteEntity,
+    draftNotes,
+    draftPrompt,
+    editingEntityId,
+    entityArtUploading,
+    entityContentRef,
+    entityForm,
+    entityFormImageUploading,
+    entityModalDescription,
+    entityModalMode,
+    entityModalOpen,
+    entityModalSourceNpcId,
+    entityModalTitle,
+    entityPlayerContentRef,
+    entitySubmitLabel,
+    galleryUploadKey,
+    generateDraft,
+    generatedQuestIssuerDraft,
+    generatedQuestIssuerNote,
+    handleEntityPlayerCardHtmlImport,
+    isEditingEntity,
+    openEntityEditor,
+    openEntityModal,
+    openEntityPlayerCardHtmlImport,
+    openNpcQuestModal,
+    pasteEntityPlayerCardHtmlFromClipboard,
+    playerCardFormattingIndex,
+    playerCardImportInputRefs,
+    removeEntityGalleryItem,
+    removeEntityPlayerCard,
+    removeEntityPlaylistTrack,
+    removeMonsterLootEntry,
+    removeNpcStatEntry,
+    removeSpellSlot,
+    setDraftPrompt,
+    setEntityForm,
+    setGalleryUploadKey,
+    setGeneratedQuestIssuerDraft,
+    setGeneratedQuestIssuerNote,
+    setSpellcastingEnabled,
+    submitEntity,
+    updateEntityForm,
+    updateEntityGalleryItem,
+    updateEntityPlayerCard,
+    updateEntityPlaylistTrack,
+    updateEntityRewardProfile,
+    updateMonsterLootEntry,
+    updateNpcAbilityScore,
+    updateNpcSpellcasting,
+    updateNpcStatBlock,
+    updateNpcStatEntry,
+    updateSpellSlot,
+    uploadEntityArtFile,
+    uploadEntityGalleryFile
+  } = entityEditor;
+
+  const {
+    addEntityGalleryDraftItem,
+    addEntityPlaylistDraftTrack,
+    closeEntityGalleryModal,
+    closeEntityPlaylistModal,
+    entityGalleryDraft,
+    entityGalleryModalOpen,
+    entityGalleryModalUploading,
+    entityGalleryTarget,
+    entityPlaylistDraft,
+    entityPlaylistModalOpen,
+    entityPlaylistTarget,
+    openEntityGalleryModal,
+    openEntityPlaylistModal,
+    removeEntityGalleryDraftItem,
+    removeEntityPlaylistDraftTrack,
+    saveEntityGallery,
+    saveEntityPlaylist,
+    updateEntityGalleryDraftItem,
+    updateEntityPlaylistDraftTrack,
+    uploadEntityGalleryDraftFile
+  } = entityMedia;
+
+  const {
+    closePlayerFacingView,
+    openNewPlayerFacingEditor,
+    openPlayerFacingEditor,
+    openPlayerFacingView,
+    playerFacingView,
+    requestPlayerFacingCardDeletion,
+  } = playerFacing;
+
+  function hydrateCampaign(data: CampaignData, preferredEntityId?: string) {
     const normalized = normalizeCampaignForClient(data);
     const allEntities = [...normalized.locations, ...normalized.players, ...normalized.npcs, ...normalized.monsters, ...normalized.quests, ...normalized.lore];
-    const preparedPartySize = normalized.preparedCombat?.playerIds?.length ?? 0;
+    const preparedPartySize =
+      (normalized.preparedCombat?.playerIds?.length ?? 0) + countPreparedCombatItems(normalized.preparedCombat?.allies ?? []);
     const preferredId =
       preferredEntityId && allEntities.some((entity) => entity.id === preferredEntityId) ? preferredEntityId : undefined;
     const currentActiveId = activeEntityId && allEntities.some((entity) => entity.id === activeEntityId) ? activeEntityId : "";
@@ -2495,40 +1786,18 @@ export default function App() {
     setCombatPartySize(normalized.activeCombat?.partySize ?? (preparedPartySize > 0 ? preparedPartySize : 4));
     setCombatThresholds(normalized.activeCombat?.thresholds ?? createDefaultCombatThresholds());
     setCombatCustomAdjustedXp(normalized.activeCombat?.targetAdjustedXp ?? 0);
-    setCampaignPreparedCombatDraft(cloneCampaignPreparedCombat(normalized.preparedCombat));
+    replaceCampaignPreparedCombatDraft(cloneCampaignPreparedCombat(normalized.preparedCombat));
     if (!combatSetupOpen) {
-      setCombatPartyLevelsText(formatPartyLevelText(normalized.preparedCombat?.partyLevel));
+      setCombatPartyLevelsText("");
     }
     setCombatPlayerEntityId((current) =>
       current && normalized.players.some((player) => player.id === current) ? current : normalized.players[0]?.id ?? ""
     );
-    setCombatSelectionId((current) => {
-      const fallbackCombatEntityId = normalized.monsters[0]?.id ?? normalized.npcs[0]?.id ?? "";
-
-      if (isCombatSelectionBestiaryKey(current)) {
-        return current;
-      }
-
-      if (isCombatSelectionEntityKey(current)) {
-        const currentEntityId = unwrapCombatSelectionKey(current);
-        return allEntities.some((entity) => entity.id === currentEntityId)
-          ? current
-          : fallbackCombatEntityId
-            ? combatSelectionEntityKey(fallbackCombatEntityId)
-            : "";
-      }
-
-      return current && allEntities.some((entity) => entity.id === current)
-        ? combatSelectionEntityKey(current)
-        : fallbackCombatEntityId
-          ? combatSelectionEntityKey(fallbackCombatEntityId)
-          : "";
-    });
     setSelectedCombatEntryKey(
       currentCombatEntryKey ||
         (normalized.activeCombat?.entries[0] ? combatEntrySelectionKey(normalized.activeCombat.entries[0], 0) : "")
     );
-  };
+  }
 
   const loadCampaign = async (campaignId: string) => {
     const data = await api.getCampaign(campaignId);
@@ -2542,12 +1811,9 @@ export default function App() {
     setActiveCampaignId("");
     setActiveEntityId("");
     setPreviewEntityId("");
-    setEventEditorId("");
-    setEventEditorDraft(emptyWorldEventInput());
-    setEventEditorDirty(false);
-    setEventEditorNotice("");
+    setSelectedWorldEventId("");
     setPinnedIds([]);
-    setResults([]);
+    resetPalette();
     setBootError("");
   };
 
@@ -2556,7 +1822,7 @@ export default function App() {
 
   const handleProtectedActionError = (error: unknown, fallbackMessage: string) => {
     if (isUnauthorizedError(error)) {
-      setAuthError("Сессия истекла или вход не подтверждён. Войди снова.");
+      setAuthError("Р РЋР ВµРЎРѓРЎРѓР С‘РЎРЏ Р С‘РЎРѓРЎвЂљР ВµР С”Р В»Р В° Р С‘Р В»Р С‘ Р Р†РЎвЂ¦Р С•Р Т‘ Р Р…Р Вµ Р С—Р С•Р Т‘РЎвЂљР Р†Р ВµРЎР‚Р В¶Р Т‘РЎвЂР Р…. Р вЂ™Р С•Р в„–Р Т‘Р С‘ РЎРѓР Р…Р С•Р Р†Р В°.");
       setAuthState("unauthenticated");
       setAuthUsername("");
       setLoginPassword("");
@@ -2781,108 +2047,6 @@ export default function App() {
     return () => window.clearInterval(timer);
   }, [activeCampaignId, appRoute]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const shouldLoadBestiary = activeModule === "monsters";
-    if (!shouldLoadBestiary) {
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const loadBestiary = async () => {
-      try {
-        setBestiaryLoading(true);
-        const result = await api.browseBestiary({
-          q: deferredBestiarySearch.trim(),
-          challenge: bestiaryChallenge,
-          type: bestiaryType,
-          namedNpc: activeTab === "Named NPC",
-          classic: activeTab === "Classic"
-        });
-        if (cancelled) return;
-        setBestiary(result);
-        setSelectedBestiaryId((current) => (result.items.some((item) => item.id === current) ? current : ""));
-      } catch (error) {
-        if (cancelled) return;
-        setBootError(error instanceof Error ? error.message : "Не удалось загрузить каталог dnd.su.");
-        setBestiary(null);
-      } finally {
-        if (!cancelled) {
-          setBestiaryLoading(false);
-        }
-      }
-    };
-
-    void loadBestiary();
-    return () => {
-      cancelled = true;
-    };
-  }, [activeModule, activeTab, bestiaryChallenge, bestiaryType, deferredBestiarySearch]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!selectedBestiaryId || activeModule !== "monsters" || activeTab === "Imported") {
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const loadBestiaryMonster = async () => {
-      try {
-        setBestiaryDetailLoading(true);
-        const result = await api.getBestiaryMonster(selectedBestiaryId);
-        if (cancelled) return;
-        setSelectedBestiaryMonster(result);
-      } catch (error) {
-        if (cancelled) return;
-        setBootError(error instanceof Error ? error.message : "Не удалось открыть монстра из dnd.su.");
-        setSelectedBestiaryMonster(null);
-      } finally {
-        if (!cancelled) {
-          setBestiaryDetailLoading(false);
-        }
-      }
-    };
-
-    void loadBestiaryMonster();
-    return () => {
-      cancelled = true;
-    };
-  }, [activeModule, activeTab, selectedBestiaryId]);
-
-  useEffect(() => {
-    if (activeModule !== "monsters" || bestiary?.status.state !== "syncing") {
-      return;
-    }
-
-    const timer = window.setInterval(() => {
-      api
-        .browseBestiary({
-          q: deferredBestiarySearch.trim(),
-          challenge: bestiaryChallenge,
-          type: bestiaryType,
-          namedNpc: activeTab === "Named NPC",
-          classic: activeTab === "Classic"
-        })
-        .then((result) => {
-          setBestiary(result);
-          setSelectedBestiaryId((current) => (result.items.some((item) => item.id === current) ? current : ""));
-        })
-        .catch(() => undefined);
-    }, 5000);
-
-    return () => window.clearInterval(timer);
-  }, [activeModule, activeTab, bestiary?.status.state, bestiaryChallenge, bestiaryType, deferredBestiarySearch]);
-
-  const allEntities = useMemo(
-    () => (campaign ? [...campaign.locations, ...campaign.players, ...campaign.npcs, ...campaign.monsters, ...campaign.quests, ...campaign.lore] : []),
-    [campaign]
-  );
-
-  const entityMap = useMemo(() => new Map(allEntities.map((entity) => [entity.id, entity])), [allEntities]);
   const campaignPreparedCombat = campaign?.preparedCombat ?? null;
   const entityByTitle = useMemo(() => new Map(allEntities.map((entity) => [entity.title, entity])), [allEntities]);
   const entityByTitleKey = useMemo(
@@ -2894,183 +2058,26 @@ export default function App() {
       ),
     [allEntities]
   );
-  const linkableEntities = useMemo(
-    () =>
-      allEntities.filter((entity) =>
-        entity.id !== editingEntityId &&
-        entity.id !== entityLinkSelection?.entityId &&
-        [entity.title, entity.subtitle, entity.summary, entity.tags.join(" ")]
-          .join(" ")
-          .toLowerCase()
-          .includes(entityLinkQuery.trim().toLowerCase())
-      ),
-    [allEntities, editingEntityId, entityLinkQuery, entityLinkSelection?.entityId]
-  );
   const scopedEntities = useMemo(
-    () =>
-      filterEntities(campaign, activeModule, activeTab, {
-        monsterSearch: importedMonsterSearch,
-        monsterChallenge: importedMonsterChallenge
-      }),
-    [activeModule, activeTab, campaign, importedMonsterChallenge, importedMonsterSearch]
+    () => filterEntities(campaign, activeModule, activeTab),
+    [activeModule, activeTab, campaign]
   );
   const moduleDirectoryEntities = useMemo(
-    () =>
-      scopedEntities.filter((entity) =>
-        activeModule === "monsters" && activeTab === "Imported" ? true : matchesEntityDirectorySearch(entity, moduleEntitySearch)
-      ),
-    [activeModule, activeTab, moduleEntitySearch, scopedEntities]
+    () => scopedEntities.filter((entity) => matchesEntityDirectorySearch(entity, moduleEntitySearch)),
+    [moduleEntitySearch, scopedEntities]
   );
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!combatSetupOpen) {
-      setCombatBestiary(null);
-      setCombatBestiaryLoading(false);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    if (!deferredCombatSearchQuery.trim() && !combatSearchChallenge) {
-      setCombatBestiary(null);
-      setCombatBestiaryLoading(false);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const loadCombatBestiary = async () => {
-      try {
-        setCombatBestiaryLoading(true);
-        const result = await api.browseBestiary({
-          q: deferredCombatSearchQuery.trim(),
-          challenge: combatSearchChallenge
-        });
-        if (cancelled) return;
-        setCombatBestiary(result);
-      } catch (error) {
-        if (cancelled) return;
-        setBootError(error instanceof Error ? error.message : "Не удалось загрузить монстров из dnd.su для боя.");
-        setCombatBestiary(null);
-      } finally {
-        if (!cancelled) {
-          setCombatBestiaryLoading(false);
-        }
-      }
-    };
-
-    void loadCombatBestiary();
-    return () => {
-      cancelled = true;
-    };
-  }, [combatSearchChallenge, combatSetupOpen, deferredCombatSearchQuery]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!combatSetupOpen || !isCombatSelectionBestiaryKey(combatSelectionId)) {
-      setCombatSelectedBestiaryMonster(null);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const loadCombatSelectedBestiary = async () => {
-      try {
-        const result = await api.getBestiaryMonster(unwrapCombatSelectionKey(combatSelectionId));
-        if (cancelled) return;
-        setCombatSelectedBestiaryMonster(result);
-      } catch (error) {
-        if (cancelled) return;
-        setBootError(error instanceof Error ? error.message : "Не удалось открыть карточку монстра из dnd.su.");
-        setCombatSelectedBestiaryMonster(null);
-      }
-    };
-
-    void loadCombatSelectedBestiary();
-    return () => {
-      cancelled = true;
-    };
-  }, [combatSelectionId, combatSetupOpen]);
+  const visibleModuleEntities =
+    activeModule === "monsters" && activeTab === "Imported" ? bestiaryController.filteredImportedMonsters : scopedEntities;
 
   useEffect(() => {
     if (!campaign || activeModule === "dashboard" || activeModule === "combat" || isBestiaryBrowseTab(activeModule, activeTab)) {
       return;
     }
 
-    if (activeEntityId && !scopedEntities.some((entity) => entity.id === activeEntityId)) {
+    if (activeEntityId && !visibleModuleEntities.some((entity) => entity.id === activeEntityId)) {
       setActiveEntityId("");
     }
-  }, [activeEntityId, activeModule, activeTab, campaign, scopedEntities]);
-
-  useEffect(() => {
-    if (activeModule !== "lore" || activeRailAlias === "items") {
-      return;
-    }
-
-    if (!activeEntityId) {
-      if (noteEditorEntityId === NEW_LORE_NOTE_ID) {
-        return;
-      }
-
-      if (campaign?.lore[0]) {
-        setActiveEntityId(campaign.lore[0].id);
-        setPreviewEntityId((current) => current || campaign.lore[0]?.id || "");
-      } else {
-        setNoteEditorEntityId(NEW_LORE_NOTE_ID);
-        setNoteEditorTitle("");
-        setNoteEditorContent("");
-        setNoteEditorDirty(false);
-      }
-      return;
-    }
-
-    const nextNote = entityMap.get(activeEntityId);
-    if (nextNote?.kind !== "lore") {
-      return;
-    }
-
-    setNoteEditorEntityId(nextNote.id);
-    setNoteEditorTitle(nextNote.title);
-    setNoteEditorContent(nextNote.content);
-    setNoteEditorDirty(false);
-  }, [activeModule, activeEntityId, activeRailAlias, campaign?.lore, entityMap, noteEditorEntityId]);
-
-  useEffect(() => {
-    if (activeRailAlias !== "events") {
-      return;
-    }
-
-    if (!eventEditorId) {
-      if (campaign?.events[0]) {
-        setEventEditorId(campaign.events[0].id);
-        setEventEditorDraft(worldEventToForm(campaign.events[0]));
-        setEventEditorDirty(false);
-      } else {
-        setEventEditorId(NEW_WORLD_EVENT_ID);
-        setEventEditorDraft(emptyWorldEventInput());
-        setEventEditorDirty(false);
-      }
-      return;
-    }
-
-    if (eventEditorId === NEW_WORLD_EVENT_ID) {
-      return;
-    }
-
-    const nextEvent = campaign?.events.find((event) => event.id === eventEditorId) ?? null;
-    if (!nextEvent) {
-      setEventEditorId(campaign?.events[0]?.id ?? NEW_WORLD_EVENT_ID);
-      setEventEditorDraft(campaign?.events[0] ? worldEventToForm(campaign.events[0]) : emptyWorldEventInput());
-      setEventEditorDirty(false);
-      return;
-    }
-
-    setEventEditorDraft(worldEventToForm(nextEvent));
-    setEventEditorDirty(false);
-  }, [activeRailAlias, campaign?.events, eventEditorId]);
+  }, [activeEntityId, activeModule, activeTab, campaign, visibleModuleEntities]);
 
   useEffect(() => {
     if (activeModule !== "combat") {
@@ -3104,29 +2111,6 @@ export default function App() {
   }, [campaign, selectedCombatEntryKey]);
 
   useEffect(() => {
-    if (!campaign || !activeCampaignId) {
-      return;
-    }
-
-    if (!deferredQuery.trim()) {
-      const fallback = [
-        ...pinnedIds
-          .map((id) => entityMap.get(id))
-          .filter((entity): entity is KnowledgeEntity => Boolean(entity))
-          .map(toResult),
-        ...campaign.quests.slice(0, 3).map(toResult),
-        ...campaign.locations.slice(0, 3).map(toResult),
-        ...campaign.npcs.slice(0, 2).map(toResult),
-        ...campaign.monsters.slice(0, 2).map(toResult)
-      ];
-      setResults(fallback.slice(0, 10));
-      return;
-    }
-
-    api.search(activeCampaignId, deferredQuery).then(setResults).catch(() => setResults([]));
-  }, [activeCampaignId, campaign, deferredQuery, entityMap, pinnedIds]);
-
-  useEffect(() => {
     if (!activePlayback) {
       return;
     }
@@ -3154,7 +2138,7 @@ export default function App() {
         current
           ? {
               ...current,
-              ownerTitle: `${campaign.title} • Боевой плейлист`,
+              ownerTitle: `${campaign.title} РІР‚Сћ Р вЂР С•Р ВµР Р†Р С•Р в„– Р С—Р В»Р ВµР в„–Р В»Р С‘РЎРѓРЎвЂљ`,
               tracks,
               currentIndex: nextIndex >= 0 ? nextIndex : 0
             }
@@ -3195,32 +2179,6 @@ export default function App() {
         : current
     );
   }, [activePlayback, campaign, entityMap]);
-
-  useEffect(() => {
-    if (!entityLinkModalOpen) {
-      return;
-    }
-
-    if (!linkableEntities.some((entity) => entity.id === entityLinkTargetId)) {
-      setEntityLinkTargetId(linkableEntities[0]?.id ?? "");
-    }
-  }, [entityLinkModalOpen, entityLinkTargetId, linkableEntities]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
-        event.preventDefault();
-        setPaletteOpen(true);
-      }
-
-      if (event.key === "Escape") {
-        setPaletteOpen(false);
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
 
   useEffect(() => {
     const onPointerMove = (event: PointerEvent) => {
@@ -3277,10 +2235,9 @@ export default function App() {
     activeModule === "dashboard" || activeModule === "combat" || isBestiaryBrowseTab(activeModule, activeTab)
       ? null
       : entityMap.get(activeEntityId) ?? null;
-  const activeLoreNote = activeEntity?.kind === "lore" ? activeEntity : null;
   const activeWorldEvent =
-    campaign && eventEditorId && eventEditorId !== NEW_WORLD_EVENT_ID
-      ? campaign.events.find((event) => event.id === eventEditorId) ?? null
+    campaign && selectedWorldEventId && selectedWorldEventId !== NEW_WORLD_EVENT_ID
+      ? campaign.events.find((event) => event.id === selectedWorldEventId) ?? null
       : null;
   const activeNpcQuests = useMemo(
     () =>
@@ -3291,22 +2248,28 @@ export default function App() {
         : [],
     [activeEntity, campaign?.quests]
   );
-  const activeQuestIssuer = useMemo(
-    () =>
-      activeEntity?.kind === "quest" && activeEntity.issuerId ? entityMap.get(activeEntity.issuerId) ?? null : null,
-    [activeEntity, entityMap]
-  );
   const previewEntity = entityMap.get(previewEntityId) ?? null;
-  const entityPlaylistTarget =
-    entityPlaylistEntityId && entityMap.has(entityPlaylistEntityId) ? entityMap.get(entityPlaylistEntityId) ?? null : null;
-  const entityGalleryTarget =
-    entityGalleryEntityId && entityMap.has(entityGalleryEntityId) ? entityMap.get(entityGalleryEntityId) ?? null : null;
+  const randomEventController = useRandomEventController({
+    activeCampaignId,
+    activeEntity,
+    activeWorldEvent,
+    campaign,
+    emptyWorldEventInput,
+    onHydrateCampaign: (nextCampaign) => hydrateCampaign(nextCampaign),
+    serializeWorldEventInput,
+    setActiveEntityId,
+    setActiveModule,
+    setActiveRailAlias: (value) => setActiveRailAlias(value),
+    setActiveTab,
+    setBootError,
+    setPreviewEntityId,
+    setSelectedWorldEventId
+  });
+
   const entityCombatSetupTarget =
     entityCombatSetupState?.entityId && entityMap.has(entityCombatSetupState.entityId)
       ? entityMap.get(entityCombatSetupState.entityId) ?? null
       : null;
-  const entityActionMenuTarget =
-    entityActionMenu && entityMap.has(entityActionMenu.entityId) ? entityMap.get(entityActionMenu.entityId) ?? null : null;
   const currentPlaybackTrack = activePlayback ? activePlayback.tracks[activePlayback.currentIndex] ?? null : null;
   const currentPlaybackTrackUrl = currentPlaybackTrack?.url ?? "";
   const currentPlaybackTrackLabel =
@@ -3333,31 +2296,65 @@ export default function App() {
 
     return null;
   };
-  const resolvePreparedCombatEntries = (plan?: PreparedCombatPlan | null) =>
-    (plan?.items ?? [])
-      .map((item) => {
-        const entity = entityMap.get(item.entityId);
-        if (!entity || !isCombatProfileEntity(entity)) {
-          return null;
-        }
-        return {
-          entity,
-          quantity: Math.max(1, item.quantity)
-        };
-      })
-      .filter((item): item is { entity: CombatProfileEntity; quantity: number } => Boolean(item));
-  const resolvePreparedCombatPlayers = (plan?: PreparedCombatPlan | null) =>
-    (plan?.playerIds ?? [])
-      .map((playerId) => entityMap.get(playerId))
-      .filter((entity): entity is PlayerEntity => entity?.kind === "player");
-  const resolveEntityPreparedCombats = (entity?: PreparedCombatHostEntity | null) =>
-    normalizePreparedCombatPlansForClient(entity?.preparedCombats, entity?.preparedCombat);
-  const resolvePreparedCombatEntriesForPlans = (plans: PreparedCombatPlan[] = []) =>
-    plans.flatMap((plan) => resolvePreparedCombatEntries(plan));
-  const activeQuestPreparedCombatEntries = useMemo(
-    () => (activeEntity?.kind === "quest" ? resolvePreparedCombatEntriesForPlans(resolveEntityPreparedCombats(activeEntity)) : []),
-    [activeEntity, entityMap]
+  const combatRoster = useMemo(
+    () => (campaign ? [...campaign.monsters, ...campaign.npcs].filter(isCombatProfileEntity) : []),
+    [campaign]
   );
+  const activeCombat = campaign?.activeCombat ?? null;
+  const {
+    combatBestiaryLoading,
+    combatEnemyTypeFilter,
+    combatEnemyTypeOptions,
+    combatSearchChallenge,
+    combatSearchItems,
+    combatSearchQuery,
+    combatSelectedBestiaryMonster,
+    combatSelectionId,
+    combatSelectionInitiative,
+    combatSelectionQuantity,
+    filteredCombatCatalogItems,
+    preparedCombatBestiaryLoading,
+    preparedCombatChallenge,
+    preparedCombatQuantity,
+    preparedCombatSearchItems,
+    preparedCombatSearchQuery,
+    preparedCombatSelectionId,
+    resetCombatEnemySearch,
+    resetPreparedCombatEnemySearch,
+    selectCombatEntity,
+    selectPreparedCombatEntity,
+    selectedCombatSearchItem,
+    selectedCombatSearchProfile,
+    selectedPreparedCombatSearchItem,
+    setCombatEnemyTypeFilter,
+    setCombatSearchChallenge,
+    setCombatSearchQuery,
+    setCombatSelectionId,
+    setCombatSelectionInitiative,
+    setCombatSelectionQuantity,
+    setPreparedCombatChallenge,
+    setPreparedCombatQuantity,
+    setPreparedCombatSearchQuery,
+    setPreparedCombatSelectionId
+  } = useCombatEnemySearch({
+    combatRoster,
+    combatSetupOpen,
+    hasActiveCombatEntries: Boolean(activeCombat?.entries.length),
+    preparedCombatModalOpen,
+    setBootError
+  });
+  const combatDraftController = useCombatDraftController({
+    activeCampaignId,
+    campaignTitle: campaign?.title ?? "",
+    combatSelectionQuantity,
+    entityMap,
+    hydrateCampaign,
+    onSelectCombatEntity: selectCombatEntity,
+    selectedCombatSearchItem,
+    setBootError,
+    setPreviewEntityId,
+    setSaving
+  });
   const configuredCombatPlayers = useMemo(
     () =>
       (campaignPreparedCombat?.playerIds ?? [])
@@ -3368,10 +2365,21 @@ export default function App() {
         .filter((entity): entity is PlayerEntity => Boolean(entity)),
     [campaignPreparedCombat?.playerIds, entityMap]
   );
+  const configuredCombatAllies = useMemo(
+    () => resolvePreparedCombatAllies(entityMap, campaignPreparedCombat),
+    [campaignPreparedCombat?.allies, entityMap]
+  );
+  const configuredCombatAllyIds = useMemo(
+    () => new Set((campaignPreparedCombat?.allies ?? []).map((item) => item.entityId)),
+    [campaignPreparedCombat?.allies]
+  );
   const configuredCombatEnemies = useMemo(
     () =>
       (campaignPreparedCombat?.items ?? [])
         .map((item) => {
+          if (configuredCombatAllyIds.has(item.entityId)) {
+            return null;
+          }
           const entity = entityMap.get(item.entityId);
           return entity && (entity.kind === "npc" || entity.kind === "monster")
             ? {
@@ -3381,64 +2389,40 @@ export default function App() {
             : null;
         })
         .filter((item): item is { entity: NpcEntity | MonsterEntity; quantity: number } => Boolean(item)),
-    [campaignPreparedCombat?.items, entityMap]
+    [campaignPreparedCombat?.items, configuredCombatAllyIds, entityMap]
   );
+  const configuredCombatAllyCount = countPreparedCombatItems(campaignPreparedCombat?.allies ?? []);
   const configuredCombatEnemyCount = configuredCombatEnemies.reduce((sum, item) => sum + item.quantity, 0);
-  const hasConfiguredCombat = configuredCombatPlayers.length > 0 || configuredCombatEnemies.length > 0;
+  const hasConfiguredCombat = configuredCombatPlayers.length > 0 || configuredCombatAllyCount > 0 || configuredCombatEnemies.length > 0;
   const canStartConfiguredCombat = configuredCombatPlayers.length > 0 && configuredCombatEnemyCount > 0;
-  const draftPreparedCombatPlayers = useMemo(
-    () =>
-      campaignPreparedCombatDraft.playerIds
-        .map((playerId) => entityMap.get(playerId))
-        .filter((entity): entity is PlayerEntity => entity?.kind === "player"),
-    [campaignPreparedCombatDraft.playerIds, entityMap]
-  );
-  const draftPreparedCombatEnemies = useMemo(
-    () =>
-      campaignPreparedCombatDraft.items
-        .map((item) => {
-          const entity = entityMap.get(item.entityId);
-          return entity?.kind === "npc" || entity?.kind === "monster"
-            ? {
-                entity,
-                quantity: Math.max(1, item.quantity)
-              }
-            : null;
-        })
-        .filter((item): item is { entity: NpcEntity | MonsterEntity; quantity: number } => Boolean(item)),
-    [campaignPreparedCombatDraft.items, entityMap]
-  );
-  const campaignPreparedCombatDraftEnemyCount = draftPreparedCombatEnemies.reduce((sum, item) => sum + item.quantity, 0);
-  const canStartPreparedCombatDraft =
-    draftPreparedCombatPlayers.length > 0 && campaignPreparedCombatDraftEnemyCount > 0;
-  useEffect(() => {
-    setPreparedCombatPlayerInitiatives((current) => {
-      const next = draftPreparedCombatPlayers.reduce<Record<string, number>>((accumulator, player) => {
-        accumulator[player.id] = Number.isFinite(current[player.id]) ? current[player.id] : 0;
-        return accumulator;
-      }, {});
-      const nextKeys = Object.keys(next);
-      const currentKeys = Object.keys(current);
-      if (nextKeys.length === currentKeys.length && nextKeys.every((key) => current[key] === next[key])) {
-        return current;
-      }
-      return next;
-    });
-  }, [draftPreparedCombatPlayers]);
-  useEffect(() => {
-    setPreparedCombatEnemyInitiatives((current) => {
-      const next = draftPreparedCombatEnemies.reduce<Record<string, number>>((accumulator, item) => {
-        accumulator[item.entity.id] = Number.isFinite(current[item.entity.id]) ? current[item.entity.id] : 0;
-        return accumulator;
-      }, {});
-      const nextKeys = Object.keys(next);
-      const currentKeys = Object.keys(current);
-      if (nextKeys.length === currentKeys.length && nextKeys.every((key) => current[key] === next[key])) {
-        return current;
-      }
-      return next;
-    });
-  }, [draftPreparedCombatEnemies]);
+  const {
+    addCampaignPreparedCombatDraftItem,
+    campaignPreparedCombatDraft,
+    campaignPreparedCombatDraftEnemyCount,
+    campaignPreparedCombatNotice,
+    canStartPreparedCombatDraft,
+    draftEnemyExperienceTotal,
+    draftPreparedCombatAllyCount,
+    draftPreparedCombatAllyIds,
+    draftPreparedCombatAllies,
+    draftPreparedCombatEnemies,
+    draftPreparedCombatPartyCount,
+    draftPreparedCombatPlayerLevels,
+    draftPreparedCombatPlayers,
+    preparedCombatAllyInitiatives,
+    preparedCombatEnemyInitiatives,
+    preparedCombatPlayerInitiatives,
+    removeCampaignPreparedCombatDraftAlly,
+    removeCampaignPreparedCombatDraftItem,
+    replaceCampaignPreparedCombatDraft,
+    setCampaignPreparedCombatNotice,
+    setPreparedCombatAllyInitiative,
+    setPreparedCombatEnemyInitiative,
+    setPreparedCombatPlayerInitiative,
+    toggleCampaignPreparedCombatAlly,
+    toggleCampaignPreparedCombatPlayer,
+    updateCampaignPreparedCombatDraftItem
+  } = combatDraftController;
   const combatPlayerCatalogItems = useMemo(
     () =>
       (campaign?.players ?? []).filter((player) =>
@@ -3449,267 +2433,20 @@ export default function App() {
       ),
     [campaign?.players, deferredCombatPlayerSearchQuery]
   );
-  const draftEnemyExperienceTotal = draftPreparedCombatEnemies.reduce(
-    (sum, item) => sum + parseChallengeXp(item.entity.statBlock?.challenge ?? "") * item.quantity,
-    0
+  const combatAllyCatalogItems = useMemo(
+    () =>
+      (campaign ? [...campaign.monsters, ...campaign.npcs].filter(isCombatProfileEntity) : []).filter((entity) =>
+        [entity.title, entity.subtitle, entity.summary, entity.role ?? "", entity.tags.join(" "), entity.statBlock?.creatureType ?? ""]
+          .join(" ")
+          .toLowerCase()
+          .includes(deferredCombatAllySearchQuery.trim().toLowerCase())
+      ),
+    [campaign, deferredCombatAllySearchQuery]
   );
-  const playerFacingEntity =
-    playerFacingView?.entityId && entityMap.has(playerFacingView.entityId) ? entityMap.get(playerFacingView.entityId) ?? null : null;
   const activeEntityPlayerCards = useMemo(
     () => (activeEntity ? normalizePlayerFacingCardsForClient(activeEntity.kind, activeEntity.playerCards, activeEntity.playerContent) : []),
     [activeEntity]
   );
-  const enterPlayerFacingEditMode = () => {
-    if (!playerFacingView || !playerFacingEntity) {
-      return;
-    }
-
-    const cardIndex = playerFacingView.cardIndex ?? 0;
-    const cards = normalizePlayerFacingCardsForClient(
-      playerFacingEntity.kind,
-      playerFacingEntity.playerCards,
-      playerFacingEntity.playerContent
-    );
-    const card =
-      cards[cardIndex] ??
-      createEmptyPlayerFacingCard(defaultPlayerFacingCardTitle(playerFacingEntity.kind, cardIndex));
-
-    openPlayerFacingEditor(playerFacingEntity, card, cardIndex, Boolean(playerFacingView.isNew));
-  };
-
-  const cancelPlayerFacingEditMode = () => {
-    if (!playerFacingView || !playerFacingEntity) {
-      closePlayerFacingView();
-      return;
-    }
-
-    if (playerFacingView.isNew) {
-      closePlayerFacingView();
-      return;
-    }
-
-    const cardIndex = playerFacingView.cardIndex ?? 0;
-    const cards = normalizePlayerFacingCardsForClient(
-      playerFacingEntity.kind,
-      playerFacingEntity.playerCards,
-      playerFacingEntity.playerContent
-    );
-    const card = cards[cardIndex];
-
-    if (!card) {
-      closePlayerFacingView();
-      return;
-    }
-
-    openPlayerFacingView(playerFacingEntity, card, { cardIndex, editMode: false, isNew: false });
-  };
-
-  const savePlayerFacingCardFromModal = async (card: PlayerFacingCard) => {
-    if (!activeCampaignId || !playerFacingEntity) {
-      return;
-    }
-
-    const cardIndex = playerFacingView?.cardIndex ?? normalizePlayerFacingCardsForClient(
-      playerFacingEntity.kind,
-      playerFacingEntity.playerCards,
-      playerFacingEntity.playerContent
-    ).length;
-    const normalizedCard = sanitizeSinglePlayerFacingCard(playerFacingEntity.kind, card, cardIndex);
-
-    if (!normalizedCard) {
-      setBootError("Добавь текст в карточку, а потом уже сохраняй её.");
-      return;
-    }
-
-    try {
-      setPlayerFacingModalSaving(true);
-      setBootError("");
-      const nextForm = entityToForm(playerFacingEntity);
-      const nextCards = [...(nextForm.playerCards ?? [])];
-
-      if (cardIndex >= nextCards.length) {
-        nextCards.push(normalizedCard);
-      } else {
-        nextCards[cardIndex] = normalizedCard;
-      }
-
-      nextForm.playerCards = nextCards;
-      const result = await api.updateEntity(activeCampaignId, playerFacingEntity.id, serializeEntityForm(nextForm));
-      hydrateCampaign(result.campaign, result.entity.id);
-      setPreviewEntityId(result.entity.id);
-
-      const updatedEntity = result.entity.kind === playerFacingEntity.kind ? result.entity : playerFacingEntity;
-      const updatedCards = normalizePlayerFacingCardsForClient(
-        updatedEntity.kind,
-        updatedEntity.playerCards,
-        updatedEntity.playerContent
-      );
-      const resolvedIndex = Math.min(cardIndex, Math.max(updatedCards.length - 1, 0));
-      openPlayerFacingView(updatedEntity, updatedCards[resolvedIndex], {
-        cardIndex: resolvedIndex,
-        editMode: false,
-        isNew: false
-      });
-    } catch (error) {
-      handleProtectedActionError(error, "Не удалось сохранить карточку для игроков.");
-    } finally {
-      setPlayerFacingModalSaving(false);
-    }
-  };
-
-  const requestPlayerFacingCardDeletion = (entity: KnowledgeEntity, card: PlayerFacingCard, cardIndex: number) => {
-    if (!activeCampaignId) {
-      return;
-    }
-
-    requestModalClose(
-      `Удалить карточку «${card.title}»?`,
-      () => {
-        void (async () => {
-          try {
-            setSaving(true);
-            setBootError("");
-
-            const nextForm = entityToForm(entity);
-            nextForm.playerCards = normalizePlayerFacingCardsForClient(entity.kind, entity.playerCards, entity.playerContent).filter(
-              (_, index) => index !== cardIndex
-            );
-            nextForm.playerContent = nextForm.playerCards[0]?.content ?? "";
-
-            const result = await api.updateEntity(activeCampaignId, entity.id, serializeEntityForm(nextForm));
-            hydrateCampaign(result.campaign, result.entity.id);
-            setPreviewEntityId(result.entity.id);
-
-            if (playerFacingView?.entityId === entity.id && playerFacingView.cardIndex === cardIndex) {
-              closePlayerFacingView();
-            }
-          } catch (error) {
-            handleProtectedActionError(error, "Не удалось удалить карточку для игроков.");
-          } finally {
-            setSaving(false);
-          }
-        })();
-      },
-      "Карточка исчезнет из сущности сразу после подтверждения.",
-      "Удалить"
-    );
-  };
-
-  const buildPreparedCombatCardView = (
-    entity: PreparedCombatHostEntity,
-    plan: PreparedCombatPlan,
-    planIndex: number
-  ): PreparedCombatCardView => {
-    const players = resolvePreparedCombatPlayers(plan);
-    const enemies = resolvePreparedCombatEntries(plan);
-    const enemyCount = enemies.reduce((sum, item) => sum + item.quantity, 0);
-    const playerNames = players.map((player) => player.title);
-    const enemyNames = enemies.map(({ entity: combatEntity, quantity }) =>
-      quantity > 1 ? `${combatEntity.title} x${quantity}` : combatEntity.title
-    );
-    const enemyXpTotal = enemies.reduce(
-      (sum, item) => sum + parseChallengeXp(item.entity.statBlock?.challenge ?? "") * item.quantity,
-      0
-    );
-    const summarizeNames = (names: string[]) => {
-      if (!names.length) {
-        return "не выбраны";
-      }
-      if (names.length === 1) {
-        return names[0];
-      }
-      if (names.length === 2) {
-        return `${names[0]}, ${names[1]}`;
-      }
-      return `${names[0]}, ${names[1]} и ещё ${names.length - 2}`;
-    };
-
-    return {
-      title: plan.title?.trim() || defaultPreparedCombatTitle(planIndex),
-      playersText: `Игроки: ${players.length || 0} • ${summarizeNames(playerNames)}`,
-      enemiesText: `Враги: ${enemyCount} • ${summarizeNames(enemyNames)}`,
-      xpText: enemyXpTotal > 0 ? `Суммарно ${enemyXpTotal} XP` : "XP подтянется из CR и состава врагов",
-      startDisabled: Boolean(activeCombat?.entries.length),
-      startLabel: activeCombat?.entries.length ? "Есть активный бой" : "Начать бой"
-    };
-  };
-
-  const requestPreparedCombatCardDeletion = (
-    entity: PreparedCombatHostEntity,
-    card: PreparedCombatCardView,
-    cardIndex: number
-  ) => {
-    if (!activeCampaignId) {
-      return;
-    }
-
-    requestModalClose(
-      `Удалить карточку боя «${card.title}»?`,
-      () => {
-        void (async () => {
-          try {
-            setSaving(true);
-            setBootError("");
-
-            const nextForm = entityToForm(entity);
-            const currentPlans = resolveEntityPreparedCombats(entity);
-            nextForm.preparedCombats = currentPlans.filter((_, index) => index !== cardIndex);
-            nextForm.preparedCombat = nextForm.preparedCombats[0];
-
-            const result = await api.updateEntity(activeCampaignId, entity.id, serializeEntityForm(nextForm));
-            hydrateCampaign(result.campaign, result.entity.id);
-            setPreviewEntityId(result.entity.id);
-
-            if (entityCombatSetupState?.entityId === entity.id) {
-              closeCombatSetupModal();
-            }
-          } catch (error) {
-            handleProtectedActionError(error, "Не удалось удалить карточку заготовленного боя.");
-          } finally {
-            setSaving(false);
-          }
-        })();
-      },
-      "Карточка боя исчезнет из сущности сразу после подтверждения.",
-      "Удалить"
-    );
-  };
-
-  const formatPlayerFacingCardFromModal = async (card: PlayerFacingCard) => {
-    if (!activeCampaignId || !playerFacingEntity) {
-      return undefined;
-    }
-
-    const sourceText = card.content.trim() || extractPlainTextFromPlayerFacingHTML(card.contentHtml);
-    if (!sourceText) {
-      throw new Error("Сначала добавь текст в карточку, а потом уже проси AI оформить его.");
-    }
-
-    try {
-      setPlayerFacingModalFormatting(true);
-      setBootError("");
-      const result: FormatPlayerFacingCardResult = await api.formatPlayerFacingCard(activeCampaignId, {
-        title: card.title.trim(),
-        content: sourceText,
-        contentHtml: card.contentHtml,
-        entityId: playerFacingEntity.id,
-        entityKind: playerFacingEntity.kind
-      });
-      const cardIndex = playerFacingView?.cardIndex ?? 0;
-      return (
-        sanitizeSinglePlayerFacingCard(playerFacingEntity.kind, result.card, cardIndex) ?? {
-          title: card.title.trim() || defaultPlayerFacingCardTitle(playerFacingEntity.kind, cardIndex),
-          content: result.card.content || sourceText,
-          contentHtml: sanitizePlayerFacingHTML(result.card.contentHtml) || undefined
-        }
-      );
-    } catch (error) {
-      handleProtectedActionError(error, "Не удалось оформить карточку игроков через AI.");
-      throw error;
-    } finally {
-      setPlayerFacingModalFormatting(false);
-    }
-  };
 
   const resolveQuestLocation = (quest: QuestEntity | null) => {
     if (!quest?.locationId) {
@@ -3728,7 +2465,7 @@ export default function App() {
     return entity?.kind === "npc" ? entity : null;
   };
   const resolveQuestPreparedCombatEntries = (quest: QuestEntity | null): QuestCombatEntrySummary[] =>
-    quest ? resolvePreparedCombatEntriesForPlans(resolveEntityPreparedCombats(quest)) : [];
+    resolvePreparedCombatEntriesForPlans(entityMap, resolveEntityPreparedCombats(quest ?? undefined)) as QuestCombatEntrySummary[];
   const buildQuestLinkedEntities = (quest: QuestEntity | null): QuestLinkedEntity[] => {
     if (!quest) {
       return [];
@@ -3796,15 +2533,8 @@ export default function App() {
               item.related.some((related) => related.id === quest.id))
         )
       : [];
-  const activeQuestLocation = activeEntity?.kind === "quest" ? resolveQuestLocation(activeEntity) : null;
-  const activeQuestLinkedEntities = activeEntity?.kind === "quest" ? buildQuestLinkedEntities(activeEntity) : [];
-  const activeQuestRelatedQuests = activeEntity?.kind === "quest" ? findRelatedQuests(activeEntity).slice(0, 3) : [];
   const questScopeEntities =
     activeModule === "quests" ? scopedEntities.filter((entity): entity is QuestEntity => entity.kind === "quest") : [];
-  const activeQuestIndex = activeEntity?.kind === "quest" ? questScopeEntities.findIndex((quest) => quest.id === activeEntity.id) : -1;
-  const previousQuest = activeQuestIndex > 0 ? questScopeEntities[activeQuestIndex - 1] : null;
-  const nextQuest =
-    activeQuestIndex >= 0 && activeQuestIndex < questScopeEntities.length - 1 ? questScopeEntities[activeQuestIndex + 1] : null;
   const previewQuest = previewEntity?.kind === "quest" ? previewEntity : null;
   const previewQuestLocation = previewQuest ? resolveQuestLocation(previewQuest) : null;
   const previewQuestIssuer = previewQuest ? resolveQuestIssuer(previewQuest) : null;
@@ -3875,7 +2605,7 @@ export default function App() {
     playPlaylist({
       scope: "combat",
       ownerId: campaign.id,
-      ownerTitle: `${campaign.title} • Боевой плейлист`,
+      ownerTitle: `${campaign.title} РІР‚Сћ Р вЂР С•Р ВµР Р†Р С•Р в„– Р С—Р В»Р ВµР в„–Р В»Р С‘РЎРѓРЎвЂљ`,
       tracks: campaign.combatPlaylist ?? [],
       index,
       random
@@ -3978,7 +2708,7 @@ export default function App() {
   };
 
   const openModuleDirectory = (moduleId: ModuleId = activeModule, tabId?: string) => {
-    if (moduleId === "dashboard" || moduleId === "combat") {
+    if (moduleId === "dashboard" || moduleId === "combat" || moduleId === "rules") {
       return;
     }
 
@@ -3996,8 +2726,7 @@ export default function App() {
     setPreviewEntityId("");
     setModuleEntitySearch("");
     if (moduleId === "monsters") {
-      setSelectedBestiaryId("");
-      setSelectedBestiaryMonster(null);
+      bestiaryController.resetBrowseSelection();
     }
     requestAnimationFrame(scrollContentToTop);
   };
@@ -4010,8 +2739,14 @@ export default function App() {
 
     const targetModule = moduleByKind[entity.kind];
     const defaultTab = entity.kind === "monster" ? "Imported" : "All";
+    const isVisibleInCurrentTab =
+      entity.kind === "monster"
+        ? activeModule === targetModule &&
+          activeTab === "Imported" &&
+          bestiaryController.filteredImportedMonsters.some((candidate) => candidate.id === entity.id)
+        : activeModule === targetModule && scopedEntities.some((candidate) => candidate.id === entity.id);
     const nextTab =
-      activeModule === targetModule && scopedEntities.some((candidate) => candidate.id === entity.id) ? activeTab : defaultTab;
+      isVisibleInCurrentTab ? activeTab : defaultTab;
 
     startTransition(() => {
       setActiveModule(targetModule);
@@ -4032,217 +2767,9 @@ export default function App() {
     setPreviewEntityId(id);
   };
 
-  const requestLoreNoteSwitch = (noteId: string) => {
-    if (!noteId || (noteEditorEntityId !== NEW_LORE_NOTE_ID && activeEntityId === noteId)) {
-      return;
-    }
-
-    if (noteEditorDirty && !window.confirm("Есть несохранённые изменения в заметке. Переключиться без сохранения?")) {
-      return;
-    }
-
-    setNoteEditorNotice("");
-    setBootError("");
-    openEntity(noteId);
-  };
-
-  const startNewLoreNote = () => {
-    if (noteEditorDirty && !window.confirm("Есть несохранённые изменения в заметке. Открыть новый черновик без сохранения?")) {
-      return;
-    }
-
-    setActiveEntityId("");
-    setPreviewEntityId("");
-    setNoteEditorEntityId(NEW_LORE_NOTE_ID);
-    setNoteEditorTitle("");
-    setNoteEditorContent("");
-    setNoteEditorDirty(false);
-    setNoteEditorNotice("");
-    setBootError("");
-  };
-
-  const saveLoreNote = async () => {
-    if (!activeCampaignId) {
-      return;
-    }
-
-    const resolvedTitle = resolveLoreNoteTitle(noteEditorTitle, noteEditorContent);
-    const resolvedContent = noteEditorContent.trim();
-
-    if (!resolvedTitle.trim() && !resolvedContent) {
-      setNoteEditorNotice("Сначала добавь текст заметки.");
-      return;
-    }
-
-    const currentNote = noteEditorEntityId && noteEditorEntityId !== NEW_LORE_NOTE_ID ? entityMap.get(noteEditorEntityId) : null;
-    const baseForm = currentNote?.kind === "lore" ? entityToForm(currentNote) : emptyEntityForm("lore");
-    const payload = serializeEntityForm({
-      ...baseForm,
-      kind: "lore",
-      title: resolvedTitle,
-      summary: loreNoteExcerpt({ summary: "", content: resolvedContent || resolvedTitle }, 150),
-      content: noteEditorContent,
-      category: baseForm.category ?? "History",
-      visibility: baseForm.visibility ?? "gm_only"
-    });
-
-    try {
-      setSaving(true);
-      setBootError("");
-      setNoteEditorNotice("");
-      const result = await persistEntityPayload({
-        payload,
-        mode: currentNote?.kind === "lore" ? "edit" : "create",
-        editingId: currentNote?.kind === "lore" ? currentNote.id : undefined
-      });
-      applyCreatedEntity(result);
-      setNoteEditorEntityId(result.entity.id);
-      setNoteEditorTitle(result.entity.title);
-      setNoteEditorContent(result.entity.content);
-      setNoteEditorDirty(false);
-      setNoteEditorNotice(currentNote?.kind === "lore" ? "Заметка сохранена." : "Заметка создана.");
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось сохранить заметку.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const updateWorldEventDraft = (updater: (current: WorldEventInput) => WorldEventInput) => {
-    setEventEditorDraft((current) => updater(current));
-    setEventEditorDirty(true);
-    setEventEditorNotice("");
-  };
-
-  const requestWorldEventSwitch = (nextEventId: string) => {
-    if (!nextEventId || nextEventId === eventEditorId) {
-      return;
-    }
-
-    if (eventEditorDirty && !window.confirm("Есть несохранённые изменения в событии. Переключиться без сохранения?")) {
-      return;
-    }
-
-    const nextEvent = campaign?.events.find((event) => event.id === nextEventId) ?? null;
-    if (!nextEvent) {
-      return;
-    }
-
-    setEventEditorId(nextEvent.id);
-    setEventEditorDraft(worldEventToForm(nextEvent));
-    setEventEditorDirty(false);
-    setEventEditorNotice("");
-    setBootError("");
-  };
-
-  const startNewWorldEvent = () => {
-    if (eventEditorDirty && !window.confirm("Есть несохранённые изменения в событии. Открыть новый черновик без сохранения?")) {
-      return;
-    }
-
-    setActiveEntityId("");
-    setPreviewEntityId("");
-    setEventEditorId(NEW_WORLD_EVENT_ID);
-    setEventEditorDraft({
-      ...emptyWorldEventInput(),
-      date: campaign?.inWorldDate ?? "",
-      locationId: "",
-      locationLabel: "",
-      origin: "manual"
-    });
-    setEventEditorDirty(false);
-    setEventEditorNotice("");
-    setBootError("");
-  };
-
-  const saveWorldEvent = async () => {
-    if (!activeCampaignId) {
-      return;
-    }
-
-    const locationLabel =
-      campaign?.locations.find((location) => location.id === eventEditorDraft.locationId)?.title ??
-      eventEditorDraft.locationLabel ??
-      "";
-    const payload = serializeWorldEventInput({
-      ...eventEditorDraft,
-      locationLabel,
-      date: eventEditorDraft.date || campaign?.inWorldDate || "",
-      origin: eventEditorDraft.origin === "ai" ? "ai" : "manual"
-    });
-
-    if (!payload.summary.trim() && !payload.sceneText.trim()) {
-      setEventEditorNotice("Сначала добавь хотя бы короткое описание или текст сцены.");
-      return;
-    }
-
-    try {
-      setSaving(true);
-      setBootError("");
-      setEventEditorNotice("");
-      const result =
-        activeWorldEvent && eventEditorId !== NEW_WORLD_EVENT_ID
-          ? await api.updateWorldEvent(activeCampaignId, activeWorldEvent.id, payload)
-          : await api.createWorldEvent(activeCampaignId, payload);
-      hydrateCampaign(result.campaign);
-      const nextEvent = normalizeWorldEventForClient(
-        result.event,
-        (result.campaign.locations ?? []).map((location) => normalizeEntityForClient(location))
-      );
-      setEventEditorId(nextEvent.id);
-      setEventEditorDraft(worldEventToForm(nextEvent));
-      setEventEditorDirty(false);
-      setEventEditorNotice(activeWorldEvent ? "Событие сохранено." : "Событие создано.");
-      setActiveRailAlias("events");
-      setActiveModule("quests");
-      setActiveTab("All");
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось сохранить событие.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const removeWorldEvent = async () => {
-    if (!activeCampaignId || !activeWorldEvent) {
-      return;
-    }
-    if (!window.confirm("Удалить это событие из кампании?")) {
-      return;
-    }
-
-    try {
-      setSaving(true);
-      setBootError("");
-      const result = await api.deleteWorldEvent(activeCampaignId, activeWorldEvent.id);
-      const normalizedCampaign = normalizeCampaignForClient(result.campaign);
-      hydrateCampaign(result.campaign);
-      if (normalizedCampaign.events[0]) {
-        setEventEditorId(normalizedCampaign.events[0].id);
-        setEventEditorDraft(worldEventToForm(normalizedCampaign.events[0]));
-      } else {
-        setEventEditorId(NEW_WORLD_EVENT_ID);
-        setEventEditorDraft({
-          ...emptyWorldEventInput(),
-          date: normalizedCampaign.inWorldDate ?? "",
-          origin: "manual"
-        });
-      }
-      setEventEditorDirty(false);
-      setEventEditorNotice("Событие удалено.");
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось удалить событие.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const openWorldEvent = (eventId: string) => {
     const event = campaign?.events.find((item) => item.id === eventId) ?? null;
     if (!event) {
-      return;
-    }
-    if (eventEditorDirty && activeRailAlias === "events" && !window.confirm("Есть несохранённые изменения в событии. Переключиться без сохранения?")) {
       return;
     }
 
@@ -4250,9 +2777,7 @@ export default function App() {
     setActiveRailAlias("events");
     setActiveTab("All");
     setActiveEntityId("");
-    setEventEditorId(event.id);
-    setEventEditorDraft(worldEventToForm(event));
-    setEventEditorDirty(false);
+    setSelectedWorldEventId(event.id);
     setPreviewEntityId(event.locationId ?? "");
     requestAnimationFrame(scrollContentToTop);
   };
@@ -4281,54 +2806,10 @@ export default function App() {
     requestAnimationFrame(scrollContentToTop);
   };
 
-  const openPlayerFacingView = (
-    entity: KnowledgeEntity,
-    card?: PlayerFacingCard,
-    options?: { cardIndex?: number; editMode?: boolean; isNew?: boolean }
-  ) => {
-    const normalizedCards = normalizePlayerFacingCardsForClient(entity.kind, entity.playerCards, entity.playerContent);
-    const selectedCard =
-      card && (options?.editMode || options?.isNew || card.title.trim() || card.content.trim() || card.contentHtml?.trim())
-        ? card
-        : normalizedCards[options?.cardIndex ?? 0] ?? normalizedCards[0];
-    const content =
-      selectedCard?.content?.trim() || (!options?.editMode && !options?.isNew ? entity.playerContent?.trim() || "" : "");
-    const contentHtml = selectedCard?.contentHtml?.trim() || undefined;
-
-    if (!content && !contentHtml && !options?.editMode) {
-      setBootError("Для этой сущности пока не заполнена отдельная версия для игроков.");
-      return;
-    }
-
-    setBootError("");
-    setPlayerFacingView({
-      entityId: entity.id,
-      title: selectedCard?.title?.trim() || entity.title,
-      content,
-      contentHtml,
-      cardIndex: options?.cardIndex,
-      editMode: options?.editMode ?? false,
-      isNew: options?.isNew ?? false
-    });
-  };
-
-  const openPlayerFacingEditor = (entity: KnowledgeEntity, card: PlayerFacingCard, cardIndex: number, isNew = false) => {
-    openPlayerFacingView(entity, card, { cardIndex, editMode: true, isNew });
-  };
-
-  const openNewPlayerFacingEditor = (entity: KnowledgeEntity) => {
-    const nextIndex = normalizePlayerFacingCardsForClient(entity.kind, entity.playerCards, entity.playerContent).length;
-    openPlayerFacingEditor(entity, createEmptyPlayerFacingCard(defaultPlayerFacingCardTitle(entity.kind, nextIndex)), nextIndex, true);
-  };
-
-  const closePlayerFacingView = () => {
-    setPlayerFacingView(null);
-  };
-
   const openRelatedEntity = (item: RelatedEntity) => {
     const linked = resolveLinkedEntity(item);
     if (!linked) {
-      setBootError(`Связанная сущность "${item.label}" не найдена в кампании. Возможно, её удалили или ссылка устарела.`);
+      setBootError(`Р РЋР Р†РЎРЏР В·Р В°Р Р…Р Р…Р В°РЎРЏ РЎРѓРЎС“РЎвЂ°Р Р…Р С•РЎРѓРЎвЂљРЎРЉ "${item.label}" Р Р…Р Вµ Р Р…Р В°Р в„–Р Т‘Р ВµР Р…Р В° Р Р† Р С”Р В°Р СР С—Р В°Р Р…Р С‘Р С‘. Р вЂ™Р С•Р В·Р СР С•Р В¶Р Р…Р С•, Р ВµРЎвЂ РЎС“Р Т‘Р В°Р В»Р С‘Р В»Р С‘ Р С‘Р В»Р С‘ РЎРѓРЎРѓРЎвЂ№Р В»Р С”Р В° РЎС“РЎРѓРЎвЂљР В°РЎР‚Р ВµР В»Р В°.`);
       return;
     }
 
@@ -4368,7 +2849,7 @@ export default function App() {
     trackerUrl.hash = buildInitiativeHash(activeCampaignId);
     const opened = window.open(trackerUrl.toString(), "_blank", "noopener,noreferrer");
     if (!opened) {
-      setBootError("Браузер заблокировал новую вкладку с трекером. Разреши pop-up для сайта и попробуй ещё раз.");
+      setBootError("Р вЂРЎР‚Р В°РЎС“Р В·Р ВµРЎР‚ Р В·Р В°Р В±Р В»Р С•Р С”Р С‘РЎР‚Р С•Р Р†Р В°Р В» Р Р…Р С•Р Р†РЎС“РЎР‹ Р Р†Р С”Р В»Р В°Р Т‘Р С”РЎС“ РЎРѓ РЎвЂљРЎР‚Р ВµР С”Р ВµРЎР‚Р С•Р С. Р В Р В°Р В·РЎР‚Р ВµРЎв‚¬Р С‘ pop-up Р Т‘Р В»РЎРЏ РЎРѓР В°Р в„–РЎвЂљР В° Р С‘ Р С—Р С•Р С—РЎР‚Р С•Р В±РЎС“Р в„– Р ВµРЎвЂ°РЎвЂ РЎР‚Р В°Р В·.");
       return;
     }
     setBootError("");
@@ -4376,7 +2857,7 @@ export default function App() {
 
   const preparePublicInitiativeTrackerLink = async () => {
     if (!activeCampaignId) {
-      throw new Error("Кампания не выбрана.");
+      throw new Error("Р С™Р В°Р СР С—Р В°Р Р…Р С‘РЎРЏ Р Р…Р Вµ Р Р†РЎвЂ№Р В±РЎР‚Р В°Р Р…Р В°.");
     }
 
     setInitiativeShareBusy(true);
@@ -4386,9 +2867,9 @@ export default function App() {
       setInitiativePublishNotice(
         hasActiveCombat
           ? share.publishedAt
-            ? `Публичная ссылка готова. Игроки увидят обычный живой трекер. Последнее обновление: ${formatDateTime(share.publishedAt)}.`
-            : "Публичная ссылка готова. Игроки увидят обычный живой трекер."
-          : "Публичная ссылка готова. Пока бой не начат, по ней будет экран ожидания. Трекер появится автоматически после старта боя."
+            ? `Р СџРЎС“Р В±Р В»Р С‘РЎвЂЎР Р…Р В°РЎРЏ РЎРѓРЎРѓРЎвЂ№Р В»Р С”Р В° Р С–Р С•РЎвЂљР С•Р Р†Р В°. Р ВР С–РЎР‚Р С•Р С”Р С‘ РЎС“Р Р†Р С‘Р Т‘РЎРЏРЎвЂљ Р С•Р В±РЎвЂ№РЎвЂЎР Р…РЎвЂ№Р в„– Р В¶Р С‘Р Р†Р С•Р в„– РЎвЂљРЎР‚Р ВµР С”Р ВµРЎР‚. Р СџР С•РЎРѓР В»Р ВµР Т‘Р Р…Р ВµР Вµ Р С•Р В±Р Р…Р С•Р Р†Р В»Р ВµР Р…Р С‘Р Вµ: ${formatDateTime(share.publishedAt)}.`
+            : "Р СџРЎС“Р В±Р В»Р С‘РЎвЂЎР Р…Р В°РЎРЏ РЎРѓРЎРѓРЎвЂ№Р В»Р С”Р В° Р С–Р С•РЎвЂљР С•Р Р†Р В°. Р ВР С–РЎР‚Р С•Р С”Р С‘ РЎС“Р Р†Р С‘Р Т‘РЎРЏРЎвЂљ Р С•Р В±РЎвЂ№РЎвЂЎР Р…РЎвЂ№Р в„– Р В¶Р С‘Р Р†Р С•Р в„– РЎвЂљРЎР‚Р ВµР С”Р ВµРЎР‚."
+          : "Р СџРЎС“Р В±Р В»Р С‘РЎвЂЎР Р…Р В°РЎРЏ РЎРѓРЎРѓРЎвЂ№Р В»Р С”Р В° Р С–Р С•РЎвЂљР С•Р Р†Р В°. Р СџР С•Р С”Р В° Р В±Р С•Р в„– Р Р…Р Вµ Р Р…Р В°РЎвЂЎР В°РЎвЂљ, Р С—Р С• Р Р…Р ВµР в„– Р В±РЎС“Р Т‘Р ВµРЎвЂљ РЎРЊР С”РЎР‚Р В°Р Р… Р С•Р В¶Р С‘Р Т‘Р В°Р Р…Р С‘РЎРЏ. Р СћРЎР‚Р ВµР С”Р ВµРЎР‚ Р С—Р С•РЎРЏР Р†Р С‘РЎвЂљРЎРѓРЎРЏ Р В°Р Р†РЎвЂљР С•Р СР В°РЎвЂљР С‘РЎвЂЎР ВµРЎРѓР С”Р С‘ Р С—Р С•РЎРѓР В»Р Вµ РЎРѓРЎвЂљР В°РЎР‚РЎвЂљР В° Р В±Р С•РЎРЏ."
       );
       return share.url;
     } catch (error) {
@@ -4408,7 +2889,7 @@ export default function App() {
 
     const popup = window.open("", "_blank");
     if (!popup) {
-      setBootError("Браузер заблокировал новую вкладку. Разреши pop-up для сайта или используй кнопку копирования ссылки.");
+      setBootError("Р вЂРЎР‚Р В°РЎС“Р В·Р ВµРЎР‚ Р В·Р В°Р В±Р В»Р С•Р С”Р С‘РЎР‚Р С•Р Р†Р В°Р В» Р Р…Р С•Р Р†РЎС“РЎР‹ Р Р†Р С”Р В»Р В°Р Т‘Р С”РЎС“. Р В Р В°Р В·РЎР‚Р ВµРЎв‚¬Р С‘ pop-up Р Т‘Р В»РЎРЏ РЎРѓР В°Р в„–РЎвЂљР В° Р С‘Р В»Р С‘ Р С‘РЎРѓР С—Р С•Р В»РЎРЉР В·РЎС“Р в„– Р С”Р Р…Р С•Р С—Р С”РЎС“ Р С”Р С•Р С—Р С‘РЎР‚Р С•Р Р†Р В°Р Р…Р С‘РЎРЏ РЎРѓРЎРѓРЎвЂ№Р В»Р С”Р С‘.");
       return;
     }
 
@@ -4452,14 +2933,29 @@ export default function App() {
     if (moduleId === "monsters") {
       setActiveEntityId("");
       setPreviewEntityId("");
-      setSelectedBestiaryId("");
-      setSelectedBestiaryMonster(null);
+      bestiaryController.resetBrowseSelection();
       requestAnimationFrame(scrollContentToTop);
       return;
     }
 
     setActiveEntityId("");
     setPreviewEntityId("");
+    requestAnimationFrame(scrollContentToTop);
+  };
+
+  const openRulesCompendium = (options?: { ruleId?: string; query?: string }) => {
+    setModuleEntitySearch("");
+    setActiveRailAlias(null);
+    setActiveModule("rules");
+    setActiveTab(tabs.rules[0]);
+    setActiveEntityId("");
+    setPreviewEntityId("");
+    bestiaryController.resetBrowseSelection();
+    setRulesNavigationState((current) => ({
+      query: options?.query ?? current.query,
+      requestId: current.requestId + 1,
+      ruleId: options?.ruleId ?? current.ruleId
+    }));
     requestAnimationFrame(scrollContentToTop);
   };
 
@@ -4485,15 +2981,8 @@ export default function App() {
     setActiveTab("All");
     setActiveEntityId("");
     setPreviewEntityId("");
-    setSelectedBestiaryId("");
-    setSelectedBestiaryMonster(null);
+    bestiaryController.resetBrowseSelection();
     requestAnimationFrame(scrollContentToTop);
-  };
-
-  const openFromSearch = (id: string) => {
-    openEntity(id);
-    setPaletteOpen(false);
-    setQuery("");
   };
 
   const togglePin = (id: string) => {
@@ -4513,114 +3002,6 @@ export default function App() {
     document.body.style.userSelect = "none";
   };
 
-  const defaultCreateKind: EntityKind =
-      activeModule === "locations"
-      ? "location"
-      : activeModule === "players"
-        ? "player"
-      : activeModule === "npcs"
-        ? "npc"
-        : activeModule === "monsters" || activeModule === "combat"
-          ? "monster"
-        : activeModule === "quests"
-          ? "quest"
-          : activeModule === "lore"
-          ? "lore"
-            : "location";
-
-  const requestModalClose = (title: string, onConfirm: () => void, description?: string, confirmLabel = "Закрыть") => {
-    pendingModalCloseRef.current = onConfirm;
-    setCloseConfirmState({
-      title,
-      description: description ?? "Несохранённые изменения в этом окне могут пропасть. Точно закрыть его сейчас?",
-      confirmLabel
-    });
-  };
-
-  const cancelModalCloseRequest = () => {
-    pendingModalCloseRef.current = null;
-    setCloseConfirmState(null);
-  };
-
-  const confirmModalCloseRequest = () => {
-    const action = pendingModalCloseRef.current;
-    pendingModalCloseRef.current = null;
-    setCloseConfirmState(null);
-    action?.();
-  };
-
-  const performEntityDeletion = async (entityId: string) => {
-    if (!activeCampaignId) {
-      return;
-    }
-
-    try {
-      setSaving(true);
-      const result = await api.deleteEntity(activeCampaignId, entityId);
-      setPinnedIds((current) => current.filter((id) => id !== result.entityId));
-      hydrateCampaign(result.campaign);
-      setActiveModule(moduleByKind[result.kind]);
-
-      if (editingEntityId === entityId) {
-        closeEntityModal();
-      }
-      if (entityPlaylistEntityId === entityId) {
-        closeEntityPlaylistModal();
-      }
-      if (entityGalleryEntityId === entityId) {
-        closeEntityGalleryModal();
-      }
-      if (preparedCombatQuestId === entityId) {
-        closePreparedCombatModal();
-      }
-      if (playerFacingView?.entityId === entityId) {
-        closePlayerFacingView();
-      }
-      if (galleryViewer?.ownerId === entityId) {
-        closeGalleryViewer();
-      }
-
-      setBootError("");
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "РќРµ СѓРґР°Р»РѕСЃСЊ СѓРґР°Р»РёС‚СЊ СЃСѓС‰РЅРѕСЃС‚СЊ.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const requestEntityDeletion = (entity: KnowledgeEntity) => {
-    closeEntityActionMenu();
-    requestModalClose(
-      `РЈРґР°Р»РёС‚СЊ В«${entity.title}В»?`,
-      () => {
-        void performEntityDeletion(entity.id);
-      },
-      "РЎСѓС‰РЅРѕСЃС‚СЊ Р±СѓРґРµС‚ СѓРґР°Р»РµРЅР° РёР· РєР°РјРїР°РЅРёРё. Р­С‚Рѕ РґРµР№СЃС‚РІРёРµ РЅРµР»СЊР·СЏ РѕС‚РјРµРЅРёС‚СЊ.",
-      "РЈРґР°Р»РёС‚СЊ"
-    );
-  };
-
-  const openCampaignModal = () => {
-    setCampaignForm(emptyCampaignForm());
-    setCampaignModalOpen(true);
-  };
-
-  const openRandomEventModal = () => {
-    const suggestedLocationId =
-      activeWorldEvent?.locationId ??
-      (activeEntity?.kind === "location"
-        ? activeEntity.id
-        : activeEntity?.kind === "npc" || activeEntity?.kind === "monster" || activeEntity?.kind === "quest"
-          ? activeEntity.locationId ?? ""
-          : "") ??
-      "";
-    setRandomEventLocationId(suggestedLocationId);
-    setRandomEventType(activeWorldEvent?.type ?? "social");
-    setRandomEventPrompt("");
-    setRandomEventNotes([]);
-    setRandomEventModalOpen(true);
-  };
-
   const openCombatPlaylistModal = () => {
     setCombatPlaylistDraft(clonePlaylistTracks(campaign?.combatPlaylist) ?? []);
     setCombatPlaylistModalOpen(true);
@@ -4630,16 +3011,12 @@ export default function App() {
     const nextDraft = cloneCampaignPreparedCombat(preparedCombatOverride ?? campaignPreparedCombat);
     focusCombatModule();
     setBootError("");
-    setCampaignPreparedCombatNotice("");
     setEntityCombatSetupState(null);
-    setCampaignPreparedCombatDraft(nextDraft);
-    setCombatPartyLevelsText(formatPartyLevelText(nextDraft.partyLevel));
+    replaceCampaignPreparedCombatDraft(nextDraft);
+    setCombatPartyLevelsText("");
     setCombatPlayerSearchQuery("");
-    setCombatSearchQuery("");
-    setCombatSearchChallenge("");
-    setCombatEnemyTypeFilter("all");
-    setCombatSelectionQuantity(1);
-    setCombatSelectionInitiative(0);
+    setCombatAllySearchQuery("");
+    resetCombatEnemySearch();
     setCombatPlayerManagerOpen(nextDraft.playerIds.length === 0);
     setCombatEnemyCatalogOpen(nextDraft.items.length === 0);
     setCombatDifficultyDetailsOpen(true);
@@ -4659,6 +3036,7 @@ export default function App() {
               title: plan.title,
               partyLevel: plan.partyLevel,
               playerIds: plan.playerIds ?? [],
+              allies: plan.allies ?? [],
               items: plan.items
             }
           : null
@@ -4666,24 +3044,21 @@ export default function App() {
         title: defaultPreparedCombatTitle(planIndex),
         partyLevel: undefined,
         playerIds: [],
+        allies: [],
         items: []
       };
     focusCombatModule();
     setBootError("");
-    setCampaignPreparedCombatNotice("");
     setEntityCombatSetupState({
       entityId: entity.id,
       planIndex,
       isNew
     });
-    setCampaignPreparedCombatDraft(nextDraft);
-    setCombatPartyLevelsText(formatPartyLevelText(nextDraft.partyLevel));
+    replaceCampaignPreparedCombatDraft(nextDraft);
+    setCombatPartyLevelsText("");
     setCombatPlayerSearchQuery("");
-    setCombatSearchQuery("");
-    setCombatSearchChallenge("");
-    setCombatEnemyTypeFilter("all");
-    setCombatSelectionQuantity(1);
-    setCombatSelectionInitiative(0);
+    setCombatAllySearchQuery("");
+    resetCombatEnemySearch();
     setCombatPlayerManagerOpen(nextDraft.playerIds.length === 0);
     setCombatEnemyCatalogOpen(nextDraft.items.length === 0);
     setCombatDifficultyDetailsOpen(true);
@@ -4700,114 +3075,6 @@ export default function App() {
       true
     );
   };
-
-  const openEntityPlaylistModal = (entity: KnowledgeEntity) => {
-    setEntityPlaylistEntityId(entity.id);
-    setEntityPlaylistDraft(clonePlaylistTracks(entity.playlist) ?? []);
-    setEntityPlaylistModalOpen(true);
-  };
-
-  const openEntityGalleryModal = (entity: KnowledgeEntity) => {
-    setEntityGalleryEntityId(entity.id);
-    setEntityGalleryDraft(cloneGalleryImages(entity.gallery) ?? []);
-    setEntityGalleryModalOpen(true);
-  };
-
-  const openEntityModal = (kind: EntityKind = defaultCreateKind) => {
-    setEntityModalMode("create");
-    setEditingEntityId("");
-    setEntityModalSourceNpcId("");
-    setGeneratedQuestIssuerDraft(null);
-    setGeneratedQuestIssuerNote("");
-    setDraftPrompt("");
-    setDraftNotes([]);
-    setEntityLinkSelection(null);
-    setEntityLinkMenuOpen(false);
-    setEntityLinkModalOpen(false);
-    setEntityLinkQuery("");
-    setEntityLinkTargetId("");
-    setEntityForm(emptyEntityForm(kind));
-    setEntityModalOpen(true);
-  };
-
-  const openEntityEditor = (entityId: string) => {
-    const entity = entityMap.get(entityId);
-    if (!entity) {
-      return;
-    }
-
-    setEntityModalMode("edit");
-    setEditingEntityId(entityId);
-    setEntityModalSourceNpcId("");
-    setGeneratedQuestIssuerDraft(null);
-    setGeneratedQuestIssuerNote("");
-    setDraftPrompt("");
-    setDraftNotes([]);
-    setEntityLinkSelection(null);
-    setEntityLinkMenuOpen(false);
-    setEntityLinkModalOpen(false);
-    setEntityLinkQuery("");
-    setEntityLinkTargetId("");
-    setEntityForm(entityToForm(entity));
-    setEntityModalOpen(true);
-  };
-
-  const openNpcQuestModal = (npc: NpcEntity) => {
-    setEntityModalMode("create");
-    setEditingEntityId("");
-    setEntityModalSourceNpcId(npc.id);
-    setGeneratedQuestIssuerDraft(null);
-    setGeneratedQuestIssuerNote("");
-    setDraftPrompt(`Создай квест для НПС ${npc.title}. Контекст НПС: ${npc.summary}`);
-    setDraftNotes([]);
-    setEntityLinkSelection(null);
-    setEntityLinkMenuOpen(false);
-    setEntityLinkModalOpen(false);
-    setEntityLinkQuery("");
-    setEntityLinkTargetId("");
-    setEntityForm({
-      ...emptyEntityForm("quest"),
-      subtitle: npc.title ? `Квест от ${npc.title}` : "",
-      issuerId: npc.id,
-      related: [
-        {
-          id: npc.id,
-          kind: "npc",
-          label: npc.title,
-          reason: "Этот НПС выдаёт, сопровождает или двигает этот квест."
-        }
-      ]
-    });
-    setEntityModalOpen(true);
-  };
-
-  const closeEntityModal = () => {
-    setEntityModalOpen(false);
-    setEntityModalMode("create");
-    setEditingEntityId("");
-    setEntityModalSourceNpcId("");
-    setEntityArtUploading(false);
-    setGalleryUploadKey("");
-    setGeneratedQuestIssuerDraft(null);
-    setGeneratedQuestIssuerNote("");
-    setDraftPrompt("");
-    setDraftNotes([]);
-    setEntityLinkSelection(null);
-    setEntityLinkMenuOpen(false);
-    setEntityLinkModalOpen(false);
-    setEntityLinkQuery("");
-    setEntityLinkTargetId("");
-  };
-
-  const closeRandomEventModal = () => {
-    setRandomEventModalOpen(false);
-    setRandomEventNotes([]);
-    setRandomEventPrompt("");
-    setRandomEventLocationId("");
-    setRandomEventType("social");
-    setRandomEventGenerating(false);
-  };
-
   const closeCombatPlaylistModal = () => {
     setCombatPlaylistModalOpen(false);
     setCombatPlaylistDraft([]);
@@ -4818,481 +3085,16 @@ export default function App() {
     setEntityCombatSetupState(null);
     setCampaignPreparedCombatNotice("");
     setCombatPlayerSearchQuery("");
-    setCombatEnemyTypeFilter("all");
-  };
-
-  const closeEntityPlaylistModal = () => {
-    setEntityPlaylistModalOpen(false);
-    setEntityPlaylistEntityId("");
-    setEntityPlaylistDraft([]);
-  };
-
-  const closeEntityGalleryModal = () => {
-    setEntityGalleryModalOpen(false);
-    setEntityGalleryEntityId("");
-    setEntityGalleryDraft([]);
-    setGalleryUploadKey("");
-  };
-
-  const closeEntityLinkContextMenu = () => {
-    setEntityLinkMenuOpen(false);
-  };
-
-  const closeEntityActionMenu = () => {
-    setEntityActionMenu(null);
-  };
-
-  const closeEntityLinkModal = () => {
-    setEntityLinkModalOpen(false);
-    setEntityLinkSelection(null);
-    setEntityLinkMenuOpen(false);
-    setEntityLinkQuery("");
-    setEntityLinkTargetId("");
-  };
-
-  const openEntityActionMenu = (entity: KnowledgeEntity, event: ReactMouseEvent<HTMLElement>) => {
-    event.preventDefault();
-    setEntityLinkSelection(null);
-    closeEntityLinkContextMenu();
-    setEntityActionMenu({
-      entityId: entity.id,
-      x: clamp(event.clientX, 12, window.innerWidth - 260),
-      y: clamp(event.clientY, 12, window.innerHeight - 120)
-    });
-  };
-
-  const handleEntityContentContextMenu = (field: EntityTextField, event: ReactMouseEvent<HTMLTextAreaElement>) => {
-    const textarea = event.currentTarget;
-    const start = textarea.selectionStart ?? 0;
-    const end = textarea.selectionEnd ?? 0;
-    const selectedText = textarea.value.slice(start, end).trim();
-
-    if (!selectedText || start === end) {
-      setEntityLinkSelection(null);
-      closeEntityLinkContextMenu();
-      return;
-    }
-
-    event.preventDefault();
-    closeEntityActionMenu();
-    setEntityLinkSelection({
-      mode: "editor",
-      field,
-      start,
-      end,
-      text: textarea.value.slice(start, end),
-      x: clamp(event.clientX, 12, window.innerWidth - 240),
-      y: clamp(event.clientY, 12, window.innerHeight - 80),
-      entityId: editingEntityId || undefined
-    });
-    setEntityLinkMenuOpen(true);
-  };
-
-  const handleNoteContentContextMenu = (event: ReactMouseEvent<HTMLTextAreaElement>) => {
-    const textarea = event.currentTarget;
-    const start = textarea.selectionStart ?? 0;
-    const end = textarea.selectionEnd ?? 0;
-    const selectedText = textarea.value.slice(start, end).trim();
-
-    if (!selectedText || start === end) {
-      setEntityLinkSelection(null);
-      closeEntityLinkContextMenu();
-      return;
-    }
-
-    event.preventDefault();
-    closeEntityActionMenu();
-    setEntityLinkSelection({
-      mode: "noteEditor",
-      field: "noteContent",
-      start,
-      end,
-      text: textarea.value.slice(start, end),
-      x: clamp(event.clientX, 12, window.innerWidth - 240),
-      y: clamp(event.clientY, 12, window.innerHeight - 80),
-      entityId: noteEditorEntityId && noteEditorEntityId !== NEW_LORE_NOTE_ID ? noteEditorEntityId : undefined
-    });
-    setEntityLinkMenuOpen(true);
-  };
-
-  const handleActiveEntityContentContextMenu = (
-    entity: KnowledgeEntity,
-    field: EntityTextField,
-    event: ReactMouseEvent<HTMLElement>
-  ) => {
-    const selection = resolveRichSelectionFromContainer(event.currentTarget);
-    if (!selection || !selection.text.trim()) {
-      setEntityLinkSelection(null);
-      closeEntityLinkContextMenu();
-      return;
-    }
-
-    event.preventDefault();
-    closeEntityActionMenu();
-    setEntityLinkSelection({
-      mode: "entity",
-      field,
-      start: selection.start,
-      end: selection.end,
-      text: selection.text,
-      x: clamp(event.clientX, 12, window.innerWidth - 240),
-      y: clamp(event.clientY, 12, window.innerHeight - 80),
-      entityId: entity.id
-    });
-    setEntityLinkMenuOpen(true);
-  };
-
-  const openEntityLinkModal = () => {
-    if (!entityLinkSelection) {
-      return;
-    }
-
-    const normalizedSelection = entityLinkSelection.text.trim();
-    setEntityLinkQuery(normalizedSelection);
-    const exactMatch = allEntities.find(
-      (entity) =>
-        entity.id !== editingEntityId &&
-        entity.id !== entityLinkSelection.entityId &&
-        entity.title.trim().toLowerCase() === normalizedSelection.toLowerCase()
-    );
-    setEntityLinkTargetId(exactMatch?.id ?? "");
-    setEntityLinkMenuOpen(false);
-    setEntityLinkModalOpen(true);
-  };
-
-  const insertEntityLinkIntoContent = () => {
-    if (!entityLinkSelection || !entityLinkTargetId) {
-      return;
-    }
-
-    const target = entityMap.get(entityLinkTargetId);
-    if (!target) {
-      return;
-    }
-
-    const sourceField = entityLinkSelection.field;
-    const currentValue =
-      sourceField === "noteContent"
-        ? noteEditorContent
-        : sourceField === "playerContent"
-          ? entityForm.playerContent ?? ""
-          : entityForm.content;
-    const nextValue =
-      currentValue.slice(0, entityLinkSelection.start) +
-      createWikiLinkMarkup(target.title, entityLinkSelection.text) +
-      currentValue.slice(entityLinkSelection.end);
-
-    if (entityLinkSelection.mode === "noteEditor" || sourceField === "noteContent") {
-      setNoteEditorContent(nextValue);
-      setNoteEditorDirty(true);
-      setNoteEditorNotice("");
-      closeEntityLinkModal();
-
-      requestAnimationFrame(() => {
-        noteEditorContentRef.current?.focus();
-      });
-      return;
-    }
-
-    if (entityLinkSelection.mode === "editor") {
-      setEntityForm((current) => ({
-        ...current,
-        [sourceField]: nextValue
-      }));
-      closeEntityLinkModal();
-
-      requestAnimationFrame(() => {
-        if (sourceField === "playerContent") {
-          entityPlayerContentRef.current?.focus();
-          return;
-        }
-        entityContentRef.current?.focus();
-      });
-      return;
-    }
-
-    const sourceEntity = entityLinkSelection.entityId ? entityMap.get(entityLinkSelection.entityId) ?? null : null;
-    if (!sourceEntity || !activeCampaignId) {
-      closeEntityLinkModal();
-      return;
-    }
-
-    void (async () => {
-      try {
-        setSaving(true);
-        const form = entityToForm(sourceEntity);
-        const sourceValue = sourceField === "playerContent" ? sourceEntity.playerContent ?? "" : sourceEntity.content;
-        const nextEntityValue =
-          sourceValue.slice(0, entityLinkSelection.start) +
-          createWikiLinkMarkup(target.title, entityLinkSelection.text) +
-          sourceValue.slice(entityLinkSelection.end);
-        form[sourceField] = nextEntityValue;
-        const result = await api.updateEntity(activeCampaignId, sourceEntity.id, serializeEntityForm(form));
-        applyCreatedEntity(result);
-        closeEntityLinkModal();
-        setPreviewEntityId(target.id);
-      } catch (error) {
-        setBootError(error instanceof Error ? error.message : "Не удалось сохранить ссылку в сущности.");
-      } finally {
-        setSaving(false);
-      }
-    })();
-  };
-
-  const updateEntityForm = (updater: (current: CreateEntityInput) => CreateEntityInput) => {
-    setEntityForm((current) => updater(current));
-  };
-
-  const updateEntityPlayerCard = (index: number, patch: Partial<PlayerFacingCard>) => {
-    updateEntityForm((current) => ({
-      ...current,
-      playerCards: (current.playerCards ?? []).map((card, cardIndex) => {
-        if (cardIndex !== index) {
-          return card;
-        }
-
-        const nextCard = { ...card, ...patch };
-        if ("content" in patch && !("contentHtml" in patch)) {
-          nextCard.contentHtml = "";
-        }
-        return nextCard;
-      })
-    }));
-  };
-
-  const addEntityPlayerCard = () => {
-    updateEntityForm((current) => {
-      const nextIndex = (current.playerCards ?? []).length;
-      return {
-        ...current,
-        playerCards: [...(current.playerCards ?? []), createEmptyPlayerFacingCard(defaultPlayerFacingCardTitle(current.kind, nextIndex))]
-      };
-    });
-  };
-
-  const removeEntityPlayerCard = (index: number) => {
-    updateEntityForm((current) => ({
-      ...current,
-      playerCards: (current.playerCards ?? []).filter((_, cardIndex) => cardIndex !== index)
-    }));
-  };
-
-  const applyImportedPlayerFacingCardHtml = (index: number, rawHtml: string) => {
-    const imported = preparePlayerFacingHTMLImport(rawHtml);
-    if (!imported.content && !imported.contentHtml) {
-      throw new Error("HTML-фрагмент пустой или после очистки в нём не осталось безопасного содержимого.");
-    }
-
-    updateEntityForm((current) => ({
-      ...current,
-      playerCards: (current.playerCards ?? []).map((card, cardIndex) => {
-        if (cardIndex !== index) {
-          return card;
-        }
-
-        const currentTitle = card.title.trim();
-        const fallbackTitle = defaultPlayerFacingCardTitle(current.kind, index);
-        const nextTitle = !currentTitle || currentTitle === fallbackTitle ? imported.title || currentTitle || fallbackTitle : card.title;
-
-        return {
-          ...card,
-          title: nextTitle,
-          content: imported.content || card.content,
-          contentHtml: imported.contentHtml
-        };
-      })
-    }));
-  };
-
-  const handleEntityPlayerCardHtmlImport = async (index: number, event: FormEvent<HTMLInputElement>) => {
-    const input = event.currentTarget;
-    const file = input.files?.[0];
-    input.value = "";
-    if (!file) {
-      return;
-    }
-
-    try {
-      setBootError("");
-      applyImportedPlayerFacingCardHtml(index, await file.text());
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось импортировать HTML в карточку игроков.");
-    }
-  };
-
-  const openEntityPlayerCardHtmlImport = (index: number) => {
-    playerCardImportInputRefs.current[index]?.click();
-  };
-
-  const readPlayerFacingHtmlFromClipboard = async () => {
-    if (typeof navigator === "undefined" || !navigator.clipboard) {
-      throw new Error("Буфер обмена недоступен в этом браузере.");
-    }
-
-    if ("read" in navigator.clipboard) {
-      const items = await navigator.clipboard.read();
-      for (const item of items) {
-        if (item.types.includes("text/html")) {
-          const blob = await item.getType("text/html");
-          return await blob.text();
-        }
-      }
-    }
-
-    if ("readText" in navigator.clipboard) {
-      return await navigator.clipboard.readText();
-    }
-
-    throw new Error("Не получилось прочитать HTML из буфера обмена.");
-  };
-
-  const pasteEntityPlayerCardHtmlFromClipboard = async (index: number) => {
-    try {
-      setBootError("");
-      applyImportedPlayerFacingCardHtml(index, await readPlayerFacingHtmlFromClipboard());
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось вставить HTML из буфера обмена.");
-    }
-  };
-
-  const clearEntityPlayerCardHtml = (index: number) => {
-    updateEntityPlayerCard(index, { contentHtml: "" });
-  };
-
-  const autoFormatEntityPlayerCard = async (index: number) => {
-    if (!activeCampaignId) {
-      return;
-    }
-
-    const card = (entityForm.playerCards ?? [])[index];
-    if (!card) {
-      return;
-    }
-
-    const sourceText = card.content.trim() || extractPlainTextFromPlayerFacingHTML(card.contentHtml);
-    if (!sourceText) {
-      setBootError("Сначала добавь текст в карточку, а потом уже проси AI оформить его.");
-      return;
-    }
-
-    try {
-      setBootError("");
-      setPlayerCardFormattingIndex(index);
-      const result: FormatPlayerFacingCardResult = await api.formatPlayerFacingCard(activeCampaignId, {
-        title: card.title,
-        content: sourceText,
-        contentHtml: card.contentHtml,
-        entityId: editingEntityId || undefined,
-        entityKind: entityForm.kind
-      });
-      updateEntityPlayerCard(index, {
-        title: result.card.title || card.title,
-        content: result.card.content,
-        contentHtml: result.card.contentHtml ?? ""
-      });
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось оформить карточку игроков через AI.");
-    } finally {
-      setPlayerCardFormattingIndex(null);
-    }
+    setCombatAllySearchQuery("");
+    resetCombatEnemySearch();
   };
 
   const uploadCampaignImage = async (file: File) => {
     if (!activeCampaignId) {
-      throw new Error("Сначала открой кампанию, а потом уже загружай изображения.");
+      throw new Error("Р РЋР Р…Р В°РЎвЂЎР В°Р В»Р В° Р С•РЎвЂљР С”РЎР‚Р С•Р в„– Р С”Р В°Р СР С—Р В°Р Р…Р С‘РЎР‹, Р В° Р С—Р С•РЎвЂљР С•Р С РЎС“Р В¶Р Вµ Р В·Р В°Р С–РЎР‚РЎС“Р В¶Р В°Р в„– Р С‘Р В·Р С•Р В±РЎР‚Р В°Р В¶Р ВµР Р…Р С‘РЎРЏ.");
     }
 
     return api.uploadImage(activeCampaignId, file);
-  };
-
-  const uploadEntityArtFile = async (file: File) => {
-    try {
-      setBootError("");
-      setEntityArtUploading(true);
-      const uploaded = await uploadCampaignImage(file);
-      const suggestedAlt = imageTitleFromFileName(file.name);
-
-      updateEntityForm((current) => ({
-        ...current,
-        art: {
-          ...(current.art ?? {}),
-          url: uploaded.url,
-          alt: current.art?.alt?.trim() || current.title.trim() || suggestedAlt
-        }
-      }));
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось загрузить изображение в приложение.");
-    } finally {
-      setEntityArtUploading(false);
-    }
-  };
-
-  const uploadEntityGalleryFile = async (index: number, file: File) => {
-    try {
-      setBootError("");
-      setGalleryUploadKey(`entity-form:${index}`);
-      const uploaded = await uploadCampaignImage(file);
-
-      updateEntityForm((current) => {
-        const nextGallery = [...(current.gallery ?? [])];
-        const existing = nextGallery[index] ?? createEmptyGalleryImage();
-        nextGallery[index] = {
-          ...existing,
-          title: existing.title.trim() || imageTitleFromFileName(file.name) || `Изображение ${index + 1}`,
-          url: uploaded.url
-        };
-        return {
-          ...current,
-          gallery: nextGallery
-        };
-      });
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось загрузить изображение в галерею.");
-    } finally {
-      setGalleryUploadKey("");
-    }
-  };
-
-  const updateEntityPlaylistTrack = (index: number, patch: Partial<PlaylistTrack>) => {
-    updateEntityForm((current) => ({
-      ...current,
-      playlist: (current.playlist ?? []).map((track, trackIndex) => (trackIndex === index ? { ...track, ...patch } : track))
-    }));
-  };
-
-  const addEntityPlaylistTrack = () => {
-    updateEntityForm((current) => ({
-      ...current,
-      playlist: [...(current.playlist ?? []), createEmptyPlaylistTrack()]
-    }));
-  };
-
-  const removeEntityPlaylistTrack = (index: number) => {
-    updateEntityForm((current) => ({
-      ...current,
-      playlist: (current.playlist ?? []).filter((_, trackIndex) => trackIndex !== index)
-    }));
-  };
-
-  const updateEntityGalleryItem = (index: number, patch: Partial<GalleryImage>) => {
-    updateEntityForm((current) => ({
-      ...current,
-      gallery: (current.gallery ?? []).map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item))
-    }));
-  };
-
-  const addEntityGalleryItem = () => {
-    updateEntityForm((current) => ({
-      ...current,
-      gallery: [...(current.gallery ?? []), createEmptyGalleryImage()]
-    }));
-  };
-
-  const removeEntityGalleryItem = (index: number) => {
-    updateEntityForm((current) => ({
-      ...current,
-      gallery: (current.gallery ?? []).filter((_, itemIndex) => itemIndex !== index)
-    }));
   };
 
   const updateCombatPlaylistTrack = (index: number, patch: Partial<PlaylistTrack>) => {
@@ -5307,544 +3109,12 @@ export default function App() {
     setCombatPlaylistDraft((current) => current.filter((_, trackIndex) => trackIndex !== index));
   };
 
-  const updateEntityPlaylistDraftTrack = (index: number, patch: Partial<PlaylistTrack>) => {
-    setEntityPlaylistDraft((current) => current.map((track, trackIndex) => (trackIndex === index ? { ...track, ...patch } : track)));
-  };
-
-  const addEntityPlaylistDraftTrack = () => {
-    setEntityPlaylistDraft((current) => [...current, createEmptyPlaylistTrack()]);
-  };
-
-  const removeEntityPlaylistDraftTrack = (index: number) => {
-    setEntityPlaylistDraft((current) => current.filter((_, trackIndex) => trackIndex !== index));
-  };
-
-  const updateEntityGalleryDraftItem = (index: number, patch: Partial<GalleryImage>) => {
-    setEntityGalleryDraft((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)));
-  };
-
-  const uploadEntityGalleryDraftFile = async (index: number, file: File) => {
-    try {
-      setBootError("");
-      setGalleryUploadKey(`entity-gallery:${index}`);
-      const uploaded = await uploadCampaignImage(file);
-
-      setEntityGalleryDraft((current) => {
-        const nextGallery = [...current];
-        const existing = nextGallery[index] ?? createEmptyGalleryImage();
-        nextGallery[index] = {
-          ...existing,
-          title: existing.title.trim() || imageTitleFromFileName(file.name) || `Изображение ${index + 1}`,
-          url: uploaded.url
-        };
-        return nextGallery;
-      });
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось загрузить изображение в галерею.");
-    } finally {
-      setGalleryUploadKey("");
-    }
-  };
-
-  const addEntityGalleryDraftItem = () => {
-    setEntityGalleryDraft((current) => [...current, createEmptyGalleryImage()]);
-  };
-
-  const removeEntityGalleryDraftItem = (index: number) => {
-    setEntityGalleryDraft((current) => current.filter((_, itemIndex) => itemIndex !== index));
-  };
-
-  const updateNpcStatBlock = (updater: (current: NpcStatBlock) => NpcStatBlock) => {
-    updateEntityForm((current) => {
-      if (current.kind !== "npc" && current.kind !== "monster") {
-        return current;
-      }
-
-      return {
-        ...current,
-        statBlock: updater(current.statBlock ?? createEmptyNpcStatBlock())
-      };
-    });
-  };
-
-  const updateNpcAbilityScore = (key: AbilityKey, value: string) => {
-    updateNpcStatBlock((current) => ({
-      ...current,
-      abilityScores: {
-        ...current.abilityScores,
-        [key]: Number.parseInt(value, 10) || 0
-      }
-    }));
-  };
-
-  const updateNpcStatEntry = (section: StatEntrySectionKey, index: number, patch: Partial<StatBlockEntry>) => {
-    updateNpcStatBlock((current) => {
-      const entries = [...(current[section] ?? [])];
-      entries[index] = {
-        ...entries[index],
-        ...patch
-      };
-      return {
-        ...current,
-        [section]: entries
-      };
-    });
-  };
-
-  const addNpcStatEntry = (section: StatEntrySectionKey) => {
-    updateNpcStatBlock((current) => ({
-      ...current,
-      [section]: [...(current[section] ?? []), createEmptyStatEntry()]
-    }));
-  };
-
-  const removeNpcStatEntry = (section: StatEntrySectionKey, index: number) => {
-    updateNpcStatBlock((current) => ({
-      ...current,
-      [section]: (current[section] ?? []).filter((_, currentIndex) => currentIndex !== index)
-    }));
-  };
-
-  const setSpellcastingEnabled = (enabled: boolean) => {
-    updateNpcStatBlock((current) => ({
-      ...current,
-      spellcasting: enabled ? current.spellcasting ?? createEmptySpellcasting() : null
-    }));
-  };
-
-  const updateNpcSpellcasting = (updater: (current: SpellcastingBlock) => SpellcastingBlock) => {
-    updateNpcStatBlock((current) => ({
-      ...current,
-      spellcasting: updater(current.spellcasting ?? createEmptySpellcasting())
-    }));
-  };
-
-  const addSpellSlot = () => {
-    updateNpcSpellcasting((current) => ({
-      ...current,
-      slots: [...(current.slots ?? []), createEmptySpellSlot()]
-    }));
-  };
-
-  const updateSpellSlot = (index: number, patch: Partial<SpellSlotSummary>) => {
-    updateNpcSpellcasting((current) => ({
-      ...current,
-      slots: (current.slots ?? []).map((slot, slotIndex) => (slotIndex === index ? { ...slot, ...patch } : slot))
-    }));
-  };
-
-  const removeSpellSlot = (index: number) => {
-    updateNpcSpellcasting((current) => ({
-      ...current,
-      slots: (current.slots ?? []).filter((_, slotIndex) => slotIndex !== index)
-    }));
-  };
-
-  const updateEntityRewardProfile = (updater: (current: MonsterRewardProfile) => MonsterRewardProfile) => {
-    updateEntityForm((current) => {
-      if (current.kind !== "npc" && current.kind !== "monster" && current.kind !== "quest") {
-        return current;
-      }
-
-      return {
-        ...current,
-        rewardProfile: updater(current.rewardProfile ?? createEmptyMonsterRewardProfile())
-      };
-    });
-  };
-
-  const updateMonsterLootEntry = (index: number, patch: Partial<MonsterLootEntry>) => {
-    updateEntityRewardProfile((current) => ({
-      ...current,
-      loot: current.loot.map((entry, entryIndex) => (entryIndex === index ? { ...entry, ...patch } : entry))
-    }));
-  };
-
-  const addMonsterLootEntry = () => {
-    updateEntityRewardProfile((current) => ({
-      ...current,
-      loot: [...current.loot, createEmptyMonsterLootEntry()]
-    }));
-  };
-
-  const removeMonsterLootEntry = (index: number) => {
-    updateEntityRewardProfile((current) => ({
-      ...current,
-      loot:
-        current.loot.length > 1
-          ? current.loot.filter((_, entryIndex) => entryIndex !== index)
-          : [createEmptyMonsterLootEntry()]
-    }));
-  };
-
-  const openPreparedCombatModal = (quest: QuestEntity) => {
-    setPreparedCombatQuestId(quest.id);
-    setPreparedCombatDraft(clonePreparedCombatPlan(quest.preparedCombat) ?? { title: `${quest.title}: бой`, items: [] });
-    setPreparedCombatNotice("");
-    setBootError("");
-    setPreparedCombatSearchQuery("");
-    setPreparedCombatChallenge("");
-    setPreparedCombatSelectionId("");
-    setPreparedCombatQuantity(1);
-    setPreparedCombatModalOpen(true);
-  };
-
-  const closePreparedCombatModal = () => {
-    setPreparedCombatModalOpen(false);
-    setPreparedCombatQuestId("");
-    setPreparedCombatDraft({ title: "", items: [] });
-    setPreparedCombatNotice("");
-    setPreparedCombatSearchQuery("");
-    setPreparedCombatChallenge("");
-    setPreparedCombatSelectionId("");
-    setPreparedCombatQuantity(1);
-  };
-
-  const requestCampaignModalClose = () => {
-    requestModalClose("Закрыть создание кампании?", () => setCampaignModalOpen(false), "Название, дата и описание кампании останутся несохранёнными.");
-  };
-
-  const requestPaletteClose = () => {
-    requestModalClose("Закрыть глобальный поиск?", () => setPaletteOpen(false), "Текущий поиск закроется. Если ещё не открыл нужную сущность, его придётся набрать заново.", "Закрыть поиск");
-  };
-
-  const requestEntityModalClose = () => {
-    requestModalClose("Закрыть редактор сущности?", closeEntityModal, "Поля, черновик AI и несохранённые правки в редакторе могут потеряться.");
-  };
-
-  const requestRandomEventModalClose = () => {
-    requestModalClose(
-      "Закрыть генератор случайного события?",
-      closeRandomEventModal,
-      "Описание сцены и текущий результат генерации могут пропасть, если окно закрыть сейчас."
-    );
-  };
-
-  const requestCombatPlaylistModalClose = () => {
-    requestModalClose("Закрыть плейлист боя?", closeCombatPlaylistModal, "Несохранённые треки и правки боевого плейлиста будут потеряны.");
-  };
-
-  const requestCombatSetupModalClose = () => {
-    requestModalClose("Закрыть настройку боя?", closeCombatSetupModal, "Подбор врагов и текущие настройки старта боя не сохранятся автоматически.");
-  };
-
-  const requestCombatSetupSwapToEntity = (kind: "player" | "monster") => {
-    requestModalClose(
-      kind === "player" ? "Открыть создание игрока?" : "Открыть создание монстра?",
-      () => {
-        closeCombatSetupModal();
-        openEntityModal(kind);
-      },
-      "Текущая настройка боя закроется. Если что-то ещё не сохранено, эти правки пропадут.",
-      kind === "player" ? "К игроку" : "К монстру"
-    );
-  };
-
-  const requestEntityPlaylistModalClose = () => {
-    requestModalClose("Закрыть редактор плейлиста?", closeEntityPlaylistModal, "Добавленные треки и правки плейлиста этой сущности будут потеряны.");
-  };
-
-  const requestEntityGalleryModalClose = () => {
-    requestModalClose("Закрыть редактор галереи?", closeEntityGalleryModal, "Несохранённые изображения и подписи в галерее будут потеряны.");
-  };
-
-  const requestPreparedCombatModalClose = () => {
-    requestModalClose("Закрыть заготовленный бой?", closePreparedCombatModal, "Текущий состав врагов и правки заготовки не сохранятся автоматически.");
-  };
-
-  const requestEntityLinkModalClose = () => {
-    requestModalClose("Закрыть вставку ссылки?", closeEntityLinkModal, "Выбранная текстовая привязка и найденная цель будут сброшены.");
-  };
-
-  const requestGalleryViewerClose = () => {
-    requestModalClose("Закрыть просмотр галереи?", closeGalleryViewer, "Окно полноэкранного просмотра закроется.", "Закрыть просмотр");
-  };
-
-  const requestPlayerFacingViewClose = () => {
-    closePlayerFacingView();
-  };
-
-  const updatePreparedCombatDraft = (updater: (current: PreparedCombatPlan) => PreparedCombatPlan) => {
-    setPreparedCombatNotice("");
-    setPreparedCombatDraft((current) => updater(current));
-  };
-
-  const addPreparedCombatDraftItem = async () => {
-    if (!activeCampaignId) {
-      return;
-    }
-
-    const selected = selectedPreparedCombatSearchItem;
-    if (!selected) {
-      setBootError("Сначала выбери НПС или монстра, которого нужно добавить в заготовленный бой.");
-      return;
-    }
-
-    try {
-      setSaving(true);
-      setBootError("");
-      let entityId = selected.id;
-
-      if (selected.source === "bestiary") {
-        const imported = await api.importBestiaryMonster(activeCampaignId, selected.id);
-        if (!imported.entity?.id) {
-          throw new Error("Backend не вернул импортированного монстра из dnd.su.");
-        }
-        hydrateCampaign(imported.campaign);
-        entityId = imported.entity.id;
-        setPreparedCombatSelectionId(combatSelectionEntityKey(entityId));
-        peekEntity(imported.entity.id);
-      }
-
-      updatePreparedCombatDraft((current) => {
-        const existingIndex = current.items.findIndex((item) => item.entityId === entityId);
-        if (existingIndex >= 0) {
-          return {
-            ...current,
-            items: current.items.map((item, index) =>
-              index === existingIndex ? { ...item, quantity: item.quantity + Math.max(1, preparedCombatQuantity) } : item
-            )
-          };
-        }
-
-        return {
-          ...current,
-          title: current.title?.trim() ? current.title : preparedCombatQuest?.title ? `${preparedCombatQuest.title}: бой` : current.title,
-          items: [
-            ...current.items,
-            {
-              entityId,
-              quantity: Math.max(1, preparedCombatQuantity)
-            }
-          ]
-        };
-      });
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось добавить существо в заготовленный бой.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const updatePreparedCombatDraftItem = (entityId: string, patch: Partial<PreparedCombatItem>) => {
-    updatePreparedCombatDraft((current) => ({
-      ...current,
-      items: current.items.map((item) =>
-        item.entityId === entityId
-          ? {
-              ...item,
-              ...patch,
-              quantity: Math.max(1, Number.isFinite(patch.quantity) ? Math.floor(patch.quantity as number) : item.quantity)
-            }
-          : item
-      )
-    }));
-  };
-
-  const removePreparedCombatDraftItem = (entityId: string) => {
-    updatePreparedCombatDraft((current) => ({
-      ...current,
-      items: current.items.filter((item) => item.entityId !== entityId)
-    }));
-  };
-
-  const savePreparedCombatDraft = async () => {
-    if (!activeCampaignId || !preparedCombatQuestId) {
-      return;
-    }
-
-    try {
-      setSaving(true);
-      setBootError("");
-      const questForSave =
-        (entityMap.get(preparedCombatQuestId) ?? campaign?.quests.find((item) => item.id === preparedCombatQuestId) ?? null);
-      if (!questForSave || questForSave.kind !== "quest") {
-        throw new Error("Квест для сохранения заготовленного боя не найден. Попробуй заново открыть настройку боя.");
-      }
-      const normalizedDraft = sanitizePreparedCombatPlan(preparedCombatDraft);
-      const payload = serializeEntityForm({
-        ...entityToForm(questForSave),
-        preparedCombat: normalizedDraft
-      });
-      const result = await api.updateEntity(activeCampaignId, questForSave.id, payload);
-      hydrateCampaign(result.campaign, result.entity.id);
-      setPreviewEntityId(result.entity.id);
-      if (result.entity.kind === "quest") {
-        setPreparedCombatDraft(clonePreparedCombatPlan(result.entity.preparedCombat) ?? { title: `${result.entity.title}: бой`, items: [] });
-        const totalCreatures = (result.entity.preparedCombat?.items ?? []).reduce(
-          (sum, item) => sum + Math.max(1, item.quantity),
-          0
-        );
-        setPreparedCombatNotice(
-          totalCreatures
-            ? `Бой сохранён. В заготовке сейчас ${totalCreatures} ${totalCreatures === 1 ? "противник" : totalCreatures < 5 ? "противника" : "противников"}.`
-            : "Бой сохранён."
-        );
-      } else {
-        setPreparedCombatNotice("Бой сохранён.");
-      }
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось сохранить заготовленный бой.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const legacyStartPreparedQuestCombat = async (quest: QuestEntity) => {
-    if (!activeCampaignId) {
-      return;
-    }
-    if (activeCombat?.entries.length) {
-      setBootError("Сначала заверши текущий активный бой или вернись в него, чтобы не смешивать две сцены.");
-      openCombatScreen();
-      return;
-    }
-
-    const items =
-      quest.preparedCombat?.items
-        ?.filter((item) => item.entityId && item.quantity > 0)
-        .filter((item) => {
-          const entity = entityMap.get(item.entityId);
-          return Boolean(entity && isCombatProfileEntity(entity));
-        })
-        .map((item) => ({ entityId: item.entityId, quantity: Math.max(1, item.quantity) })) ?? [];
-
-    if (!items.length) {
-      setBootError("В этом квесте пока нет доступных противников для старта боя.");
-      return;
-    }
-
-    try {
-      setSaving(true);
-      setBootError("");
-      const result = await api.startCombat(activeCampaignId, {
-        title: quest.preparedCombat?.title?.trim() || `${quest.title}: бой`,
-        partySize: effectivePartySize,
-        thresholds: effectiveCombatThresholds,
-        items
-      });
-      applyCombatPayload(result);
-      openCombatScreen();
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось запустить заготовленный бой для квеста.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const legacyHandleQuestCombatAction = (quest: QuestEntity) => {
-    if (activeCombat?.entries.length) {
-      openCombatScreen();
-      return;
-    }
-
-    if (resolveQuestPreparedCombatEntries(quest).length) {
-      void startPreparedQuestCombat(quest);
-      return;
-    }
-
-    openPreparedCombatModal(quest);
-  };
-
-  const startEntityPreparedCombat = async (
-    entity: PreparedCombatHostEntity,
-    plan: PreparedCombatPlan | undefined,
-    planIndex: number
-  ) => {
-    if (!activeCampaignId) {
-      return;
-    }
-    if (activeCombat?.entries.length) {
-      setBootError("Сначала заверши текущий активный бой или вернись в него, чтобы не смешивать две сцены.");
-      openCombatScreen();
-      return;
-    }
-
-    const players = resolvePreparedCombatPlayers(plan);
-    const enemies = resolvePreparedCombatEntries(plan);
-
-    if (!players.length || !enemies.length) {
-      setBootError("Для старта нужен хотя бы один игрок и хотя бы один противник. Открою подготовку боя, чтобы можно было быстро добрать состав.");
-      openEntityPreparedCombatSetup(entity, plan, planIndex, false);
-      return;
-    }
-
-    try {
-      setSaving(true);
-      setBootError("");
-      const result = await api.startCombat(activeCampaignId, {
-        title: plan?.title?.trim() || `${entity.title}: бой`,
-        partySize: effectivePartySize,
-        thresholds: effectiveCombatThresholds,
-        items: [
-          ...players.map((player) => ({
-            entityId: player.id,
-            quantity: 1,
-            initiative: 0
-          })),
-          ...enemies.map(({ entity: combatEntity, quantity }) => ({
-            entityId: combatEntity.id,
-            quantity,
-            initiative: 0
-          }))
-        ]
-      });
-      applyCombatPayload(result);
-      openCombatScreen();
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось запустить заготовленный бой.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const startPreparedQuestCombat = async (quest: QuestEntity) => {
-    const plans = resolveEntityPreparedCombats(quest);
-    await startEntityPreparedCombat(quest, plans[0], 0);
-  };
-
-  const handleQuestCombatAction = (quest: QuestEntity) => {
-    if (activeCombat?.entries.length) {
-      openCombatScreen();
-      return;
-    }
-
-    const plans = resolveEntityPreparedCombats(quest);
-    if (plans.length > 1) {
-      setBootError("У этого квеста несколько карточек боя. Открой квест и выбери нужную сцену прямо из списка карточек.");
-      openQuestFocus(quest.id);
-      return;
-    }
-
-    if (plans[0]) {
-      void startEntityPreparedCombat(quest, plans[0], 0);
-      return;
-    }
-
-    openEntityPreparedCombatSetup(quest, undefined, 0, true);
-  };
-
   const handleCampaignSelect = async (campaignId: string) => {
     try {
       setBootError("");
       await loadCampaign(campaignId);
     } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось открыть кампанию.");
-    }
-  };
-
-  const submitCampaign = async () => {
-    try {
-      setSaving(true);
-      const created = await api.createCampaign(campaignForm);
-      const list = await api.listCampaigns();
-      setCampaigns(list);
-      hydrateCampaign(created);
-      setCampaignModalOpen(false);
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось создать кампанию.");
-    } finally {
-      setSaving(false);
+      setBootError(error instanceof Error ? error.message : "Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р С”Р В°Р СР С—Р В°Р Р…Р С‘РЎР‹.");
     }
   };
 
@@ -5867,7 +3137,7 @@ export default function App() {
           setActivePlayback({
             scope: "combat",
             ownerId: activeCampaignId,
-            ownerTitle: `${updated.title} • Боевой плейлист`,
+            ownerTitle: `${updated.title} РІР‚Сћ Р вЂР С•Р ВµР Р†Р С•Р в„– Р С—Р В»Р ВµР в„–Р В»Р С‘РЎРѓРЎвЂљ`,
             tracks: sanitized,
             currentIndex: nextIndex >= 0 ? nextIndex : 0,
             token: activePlayback.token
@@ -5884,43 +3154,6 @@ export default function App() {
     }
   };
 
-  const saveEntityPlaylist = async () => {
-    if (!activeCampaignId || !entityPlaylistTarget) {
-      return;
-    }
-
-    try {
-      setSaving(true);
-      const nextForm = entityToForm(entityPlaylistTarget);
-      nextForm.playlist = sanitizePlaylistTracks(entityPlaylistDraft);
-      const result = await api.updateEntity(activeCampaignId, entityPlaylistTarget.id, serializeEntityForm(nextForm));
-      hydrateCampaign(result.campaign);
-      closeEntityPlaylistModal();
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось сохранить плейлист сущности.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const saveEntityGallery = async () => {
-    if (!activeCampaignId || !entityGalleryTarget) {
-      return;
-    }
-
-    try {
-      setSaving(true);
-      const nextForm = entityToForm(entityGalleryTarget);
-      nextForm.gallery = sanitizeGalleryImages(entityGalleryDraft);
-      const result = await api.updateEntity(activeCampaignId, entityGalleryTarget.id, serializeEntityForm(nextForm));
-      hydrateCampaign(result.campaign);
-      closeEntityGalleryModal();
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось сохранить галерею сущности.");
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const applyCreatedEntity = (result: CreateEntityResult) => {
     hydrateCampaign(result.campaign, result.entity.id);
@@ -5945,7 +3178,7 @@ export default function App() {
           id: issuer.id,
           kind: "npc",
           label: issuer.title,
-          reason: "Этот НПС выдаёт, сопровождает или продвигает квест."
+          reason: "Р В­РЎвЂљР С•РЎвЂљ Р СњР СџР РЋ Р Р†РЎвЂ№Р Т‘Р В°РЎвЂРЎвЂљ, РЎРѓР С•Р С—РЎР‚Р С•Р Р†Р С•Р В¶Р Т‘Р В°Р ВµРЎвЂљ Р С‘Р В»Р С‘ Р С—РЎР‚Р С•Р Т‘Р Р†Р С‘Р С–Р В°Р ВµРЎвЂљ Р С”Р Р†Р ВµРЎРѓРЎвЂљ."
         });
       }
     }
@@ -5957,7 +3190,7 @@ export default function App() {
           id: linkedLocation.id,
           kind: "location",
           label: linkedLocation.title,
-          reason: "Квест напрямую привязан к этой локации."
+          reason: "Р С™Р Р†Р ВµРЎРѓРЎвЂљ Р Р…Р В°Р С—РЎР‚РЎРЏР СРЎС“РЎР‹ Р С—РЎР‚Р С‘Р Р†РЎРЏР В·Р В°Р Р… Р С” РЎРЊРЎвЂљР С•Р в„– Р В»Р С•Р С”Р В°РЎвЂ Р С‘Р С‘."
         });
       }
     }
@@ -5996,7 +3229,7 @@ export default function App() {
         id: result.entity.id,
         kind: "quest",
         label: result.entity.title,
-        reason: "Связанный квест, созданный прямо из профиля этого НПС."
+        reason: "Р РЋР Р†РЎРЏР В·Р В°Р Р…Р Р…РЎвЂ№Р в„– Р С”Р Р†Р ВµРЎРѓРЎвЂљ, РЎРѓР С•Р В·Р Т‘Р В°Р Р…Р Р…РЎвЂ№Р в„– Р С—РЎР‚РЎРЏР СР С• Р С‘Р В· Р С—РЎР‚Р С•РЎвЂћР С‘Р В»РЎРЏ РЎРЊРЎвЂљР С•Р С–Р С• Р СњР СџР РЋ."
       }
     ];
 
@@ -6019,7 +3252,7 @@ export default function App() {
     linkedIssuerDraft?: CreateEntityInput | null;
   }): Promise<CreateEntityResult> => {
     if (!activeCampaignId) {
-      throw new Error("Кампания не выбрана.");
+      throw new Error("Р С™Р В°Р СР С—Р В°Р Р…Р С‘РЎРЏ Р Р…Р Вµ Р Р†РЎвЂ№Р В±РЎР‚Р В°Р Р…Р В°.");
     }
 
     let autoCreatedIssuerId = "";
@@ -6051,7 +3284,7 @@ export default function App() {
                       id: issuerResult.entity.id,
                       kind: "npc" as const,
                       label: issuerResult.entity.title,
-                      reason: "Этот НПС был автоматически создан как квестодатель для данного квеста."
+                      reason: "Р В­РЎвЂљР С•РЎвЂљ Р СњР СџР РЋ Р В±РЎвЂ№Р В» Р В°Р Р†РЎвЂљР С•Р СР В°РЎвЂљР С‘РЎвЂЎР ВµРЎРѓР С”Р С‘ РЎРѓР С•Р В·Р Т‘Р В°Р Р… Р С”Р В°Р С” Р С”Р Р†Р ВµРЎРѓРЎвЂљР С•Р Т‘Р В°РЎвЂљР ВµР В»РЎРЉ Р Т‘Р В»РЎРЏ Р Т‘Р В°Р Р…Р Р…Р С•Р С–Р С• Р С”Р Р†Р ВµРЎРѓРЎвЂљР В°."
                     }
                   ]
             ]
@@ -6077,414 +3310,44 @@ export default function App() {
     }
   };
 
-  const buildRandomEventPrompt = (eventType: WorldEventType, locationLabel: string, extraPrompt: string) =>
-    [
-      `Нужна небольшая сценка типа "${worldEventTypeLabels[eventType]}"${locationLabel ? ` для локации "${locationLabel}"` : ""}.`,
-      "Это не квест, а короткий table-ready эпизод для живой сессии.",
-      "Нужны смешные, напряжённые или боевые детали, внятные реплики и короткий конкретный лут."
-    ]
-      .concat(extraPrompt.trim() ? [`Пожелание мастера: ${extraPrompt.trim()}`] : [])
-      .join("\n");
-
-  const generateRandomEvent = async () => {
-    if (!activeCampaignId) {
-      return;
-    }
-
-    try {
-      setRandomEventGenerating(true);
-      setBootError("");
-      const selectedLocationLabel =
-        campaign?.locations.find((location) => location.id === randomEventLocationId)?.title ?? "";
-      const prompt = buildRandomEventPrompt(randomEventType, selectedLocationLabel, randomEventPrompt);
-      const draft = await api.generateWorldEvent(activeCampaignId, {
-        locationId: randomEventLocationId || undefined,
-        type: randomEventType,
-        prompt,
-        current: {
-          ...emptyWorldEventInput(),
-          type: randomEventType,
-          locationId: randomEventLocationId || "",
-          locationLabel: selectedLocationLabel,
-          origin: "ai"
-        }
-      });
-      const payload = serializeWorldEventInput({
-        ...emptyWorldEventInput(),
-        ...draft.event,
-        type: draft.event.type ?? randomEventType,
-        locationId: draft.event.locationId ?? randomEventLocationId,
-        locationLabel: draft.event.locationLabel ?? selectedLocationLabel,
-        tags: [...new Set([...(draft.event.tags ?? []), "event", randomEventType])],
-        origin: "ai"
-      });
-      const result = await api.createWorldEvent(activeCampaignId, payload);
-      setRandomEventNotes(draft.notes);
-      hydrateCampaign(result.campaign);
-      const nextEvent = normalizeWorldEventForClient(
-        result.event,
-        (result.campaign.locations ?? []).map((location) => normalizeEntityForClient(location))
-      );
-      setActiveModule("quests");
-      setActiveRailAlias("events");
-      setActiveTab("All");
-      setActiveEntityId("");
-      setPreviewEntityId(payload.locationId || "");
-      setEventEditorId(nextEvent.id);
-      setEventEditorDraft(worldEventToForm(nextEvent));
-      setEventEditorDirty(false);
-      setEventEditorNotice("Событие создано и готово к правке.");
-      closeRandomEventModal();
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось сгенерировать случайное событие.");
-    } finally {
-      setRandomEventGenerating(false);
-    }
-  };
-
-  const submitEntity = async () => {
-    if (!activeCampaignId) return;
-
-    try {
-      setSaving(true);
-      const result = await persistEntityPayload({
-        payload: serializeEntityForm(entityForm),
-        mode: entityModalMode,
-        editingId: editingEntityId,
-        linkedIssuerDraft: generatedQuestIssuerDraft
-      });
-      applyCreatedEntity(result);
-      closeEntityModal();
-    } catch (error) {
-      setBootError(
-        error instanceof Error
-          ? error.message
-          : entityModalMode === "edit"
-            ? "Не удалось сохранить сущность."
-            : "Не удалось создать сущность."
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const generateDraft = async () => {
-    if (!activeCampaignId || !draftPrompt.trim()) return;
-
-    try {
-      setGenerating(true);
-      const result: GenerateEntityDraftResult = await api.generateEntityDraft(activeCampaignId, {
-        kind: entityForm.kind,
-        prompt: draftPrompt,
-        current: entityForm
-      });
-      const generatedIssuer = result.linkedDrafts?.find((item) => item.role === "issuer" && item.entity.kind === "npc");
-      setEntityForm({
-        ...emptyEntityForm(result.entity.kind),
-        ...result.entity,
-        related: result.entity.related ?? [],
-        tags: result.entity.tags ?? []
-      });
-      setDraftNotes(result.notes);
-      setGeneratedQuestIssuerDraft(generatedIssuer?.entity ?? null);
-      setGeneratedQuestIssuerNote(generatedIssuer?.note ?? "");
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось сгенерировать AI-черновик.");
-    } finally {
-      setGenerating(false);
-    }
-  };
-
-  const deleteEntity = async () => {
-    if (!editingEntityId) {
-      return;
-    }
-    if (!window.confirm("Удалить эту сущность из кампании?")) {
-      return;
-    }
-
-    try {
-      setSaving(true);
-      const result = await api.deleteEntity(activeCampaignId, editingEntityId);
-      setPinnedIds((current) => current.filter((id) => id !== result.entityId));
-      hydrateCampaign(result.campaign);
-      setActiveModule(moduleByKind[result.kind]);
-      closeEntityModal();
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось удалить сущность.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const importSelectedBestiaryMonster = async () => {
-    if (!activeCampaignId || !selectedBestiaryId) {
-      return;
-    }
-
-    try {
-      setImportingBestiary(true);
-      const result = await api.importBestiaryMonster(activeCampaignId, selectedBestiaryId);
-      applyCreatedEntity(result);
-      setPreviewEntityId(result.entity.id);
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось импортировать монстра из dnd.su.");
-    } finally {
-      setImportingBestiary(false);
-    }
-  };
-
-  const combatRoster = useMemo(
-    () => (campaign ? [...campaign.monsters, ...campaign.npcs].filter(isCombatProfileEntity) : []),
-    [campaign]
-  );
-  const preparedCombatQuest =
-    preparedCombatModalOpen && preparedCombatQuestId
-      ? (() => {
-          const entity = entityMap.get(preparedCombatQuestId);
-          return entity?.kind === "quest" ? entity : null;
-        })()
-      : null;
-  const preparedCombatEntityItems = useMemo(
-    () =>
-      combatRoster.filter((entity) => {
-        const matchesSearch =
-          !deferredPreparedCombatSearchQuery.trim() ||
-          [entity.title, entity.subtitle, entity.summary, entity.tags.join(" ")]
-            .join(" ")
-            .toLowerCase()
-            .includes(deferredPreparedCombatSearchQuery.trim().toLowerCase());
-        const matchesChallenge = !preparedCombatChallenge || getEntityChallenge(entity) === preparedCombatChallenge;
-        return matchesSearch && matchesChallenge;
-      }),
-    [combatRoster, deferredPreparedCombatSearchQuery, preparedCombatChallenge]
-  );
-  const preparedCombatBestiaryItems = useMemo(
-    () =>
-      (preparedCombatBestiary?.items ?? []).map(
-        (item): CombatSearchItem => ({
-          key: combatSelectionBestiaryKey(item.id),
-          source: "bestiary",
-          id: item.id,
-          kind: "monster",
-          title: item.title,
-          subtitle: item.subtitle,
-          summary: item.summary,
-          challenge: item.challenge,
-          bestiary: item
-        })
-      ),
-    [preparedCombatBestiary]
-  );
-  const preparedCombatSearchItems = useMemo(
-    () => [
-      ...preparedCombatEntityItems.map(
-        (entity): CombatSearchItem => ({
-          key: combatSelectionEntityKey(entity.id),
-          source: "entity",
-          id: entity.id,
-          kind: entity.kind,
-          title: entity.title,
-          subtitle: entity.subtitle,
-          summary: entity.summary,
-          challenge: entity.statBlock?.challenge ?? "",
-          entity
-        })
-      ),
-      ...preparedCombatBestiaryItems
-    ],
-    [preparedCombatBestiaryItems, preparedCombatEntityItems]
-  );
-  const selectedPreparedCombatSearchItem =
-    preparedCombatSearchItems.find((item) => item.key === preparedCombatSelectionId) ?? preparedCombatSearchItems[0] ?? null;
-  const combatEntitySearchItems = useMemo(
-    () =>
-      combatRoster
-        .filter((entity) => {
-          const matchesSearch =
-            !deferredCombatSearchQuery.trim() ||
-            [entity.title, entity.subtitle, entity.summary, entity.tags.join(" ")]
-              .join(" ")
-              .toLowerCase()
-              .includes(deferredCombatSearchQuery.trim().toLowerCase());
-          const matchesChallenge = !combatSearchChallenge || getEntityChallenge(entity) === combatSearchChallenge;
-          return matchesSearch && matchesChallenge;
-        })
-        .map(
-          (entity): CombatSearchItem => ({
-            key: combatSelectionEntityKey(entity.id),
-            source: "entity",
-            id: entity.id,
-            kind: entity.kind,
-            title: entity.title,
-            subtitle: entity.subtitle,
-            summary: entity.summary,
-            challenge: entity.statBlock?.challenge ?? "",
-            entity
-          })
-        ),
-    [combatRoster, combatSearchChallenge, deferredCombatSearchQuery]
-  );
-  const combatBestiarySearchItems = useMemo(
-    () =>
-      (combatBestiary?.items ?? []).map(
-        (item): CombatSearchItem => ({
-          key: combatSelectionBestiaryKey(item.id),
-          source: "bestiary",
-          id: item.id,
-          kind: "monster",
-          title: item.title,
-          subtitle: item.subtitle,
-          summary: item.summary,
-          challenge: item.challenge,
-          bestiary: item
-        })
-      ),
-    [combatBestiary]
-  );
-  const combatSearchItems = useMemo(
-    () => [...combatEntitySearchItems.slice(0, 18), ...combatBestiarySearchItems.slice(0, 24)],
-    [combatBestiarySearchItems, combatEntitySearchItems]
-  );
-  const combatEnemyTypeOptions = useMemo(() => {
-    const entries = new Map<string, string>();
-    entries.set("all", combatSetupTypeLabelMap.all);
-    combatSearchItems.forEach((item) => {
-      const key = resolveCombatSearchItemType(item);
-      if (!entries.has(key)) {
-        entries.set(key, resolveCombatSearchItemTypeLabel(item));
-      }
-    });
-    return Array.from(entries, ([value, label]) => ({ value, label }));
-  }, [combatSearchItems]);
-  const filteredCombatCatalogItems = useMemo(
-    () =>
-      combatSearchItems.filter((item) =>
-        combatEnemyTypeFilter === "all" ? true : resolveCombatSearchItemType(item) === combatEnemyTypeFilter
-      ),
-    [combatEnemyTypeFilter, combatSearchItems]
-  );
-  useEffect(() => {
-    if (!preparedCombatModalOpen) {
-      return;
-    }
-
-    if (!preparedCombatSearchItems.some((item) => item.key === preparedCombatSelectionId)) {
-      setPreparedCombatSelectionId(preparedCombatSearchItems[0]?.key ?? "");
-    }
-  }, [preparedCombatModalOpen, preparedCombatSearchItems, preparedCombatSelectionId]);
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!preparedCombatModalOpen) {
-      setPreparedCombatBestiary(null);
-      setPreparedCombatBestiaryLoading(false);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    const loadPreparedCombatBestiary = async () => {
-      try {
-        setPreparedCombatBestiaryLoading(true);
-        const result = await api.browseBestiary({
-          q: deferredPreparedCombatSearchQuery.trim(),
-          challenge: preparedCombatChallenge
-        });
-        if (cancelled) return;
-        setPreparedCombatBestiary(result);
-      } catch (error) {
-        if (cancelled) return;
-        setBootError(error instanceof Error ? error.message : "Не удалось загрузить бестиарий для заготовки боя.");
-        setPreparedCombatBestiary(null);
-      } finally {
-        if (!cancelled) {
-          setPreparedCombatBestiaryLoading(false);
-        }
-      }
-    };
-
-    void loadPreparedCombatBestiary();
-    return () => {
-      cancelled = true;
-    };
-  }, [deferredPreparedCombatSearchQuery, preparedCombatChallenge, preparedCombatModalOpen]);
-
-  const activeCombat = campaign?.activeCombat ?? null;
   const campaignPreparedCombatPlayerCount = campaignPreparedCombat?.playerIds.length ?? 0;
-  const combatThresholdPartySize =
-    combatSetupOpen && !activeCombat?.entries.length
-      ? draftPreparedCombatPlayers.length > 0
-        ? draftPreparedCombatPlayers.length
-        : campaignPreparedCombatPlayerCount > 0
-          ? campaignPreparedCombatPlayerCount
-          : combatPartySize
-      : campaignPreparedCombatPlayerCount > 0
-        ? campaignPreparedCombatPlayerCount
-        : combatPartySize;
-  const enteredPartyLevel = useMemo(() => parseStoredPartyLevel(combatPartyLevelsText), [combatPartyLevelsText]);
-  const hasMultipleEnteredPartyLevels = useMemo(
-    () => combatPartyLevelsText.split(/[\s,;]+/u).filter(Boolean).length > 1,
-    [combatPartyLevelsText]
-  );
-  const effectivePartyLevels = useMemo(
-    () => derivePartyLevels(combatPartyLevelsText, combatThresholdPartySize),
-    [combatPartyLevelsText, combatThresholdPartySize]
-  );
-  const hasExplicitPartyLevels = Boolean(enteredPartyLevel) && effectivePartyLevels.length > 0;
-  const effectivePartySize = hasExplicitPartyLevels ? effectivePartyLevels.length : combatThresholdPartySize;
-  const effectiveCombatThresholds = useMemo(
-    () => (hasExplicitPartyLevels ? computeEncounterThresholds(effectivePartyLevels, combatThresholds) : combatThresholds),
-    [combatThresholds, effectivePartyLevels]
-  );
-  const combatThresholdSummary = `${effectiveCombatThresholds.easy} / ${effectiveCombatThresholds.medium} / ${effectiveCombatThresholds.hard} / ${effectiveCombatThresholds.deadly}`;
-  const combatPartySummary = hasExplicitPartyLevels
-    ? hasMultipleEnteredPartyLevels
-      ? `Сейчас считается партия из ${effectivePartySize} ${formatPartyCountLabel(effectivePartySize)}: ${effectivePartyLevels.join(", ")} уровни.`
-      : `Уровень ${enteredPartyLevel} применяется ко всем ${effectivePartySize} ${formatPartyCountLabel(effectivePartySize)} в сцене.`
-    : `Уровень партии не указан, поэтому бой будет использовать текущие пороги сложности ${combatThresholdSummary} для ${effectivePartySize} ${formatPartyCountLabel(effectivePartySize)}.`;
+  const campaignPreparedCombatPartyCount = campaignPreparedCombatPlayerCount + configuredCombatAllyCount;
   const draftEncounterMonsterCount = campaignPreparedCombatDraftEnemyCount;
   const draftEncounterBaseXp = draftEnemyExperienceTotal;
-  const draftEncounterMultiplier =
-    draftEncounterMonsterCount > 0 ? encounterMultiplier(draftEncounterMonsterCount, Math.max(effectivePartySize, 1)) : 1;
-  const draftEncounterAdjustedXp =
-    draftEncounterBaseXp > 0 ? Math.round(draftEncounterBaseXp * draftEncounterMultiplier) : 0;
-  const draftEncounterDifficulty = deriveEncounterDifficulty(draftEncounterAdjustedXp, effectiveCombatThresholds);
-  const draftEncounterDifficultyThreshold = draftEncounterDifficulty
-    ? targetThresholdValue(effectiveCombatThresholds, draftEncounterDifficulty)
-    : effectiveCombatThresholds.medium;
-  const draftEncounterProgressMax = Math.max(effectiveCombatThresholds.deadly, draftEncounterAdjustedXp, 1);
-  const draftEncounterProgressPercent =
-    draftEncounterAdjustedXp > 0 ? clamp((draftEncounterAdjustedXp / draftEncounterProgressMax) * 100, 0, 100) : 0;
-  const combatDifficultyThresholdRows: Array<{ id: EncounterDifficultyId; label: string; threshold: number }> = [
-    { id: "easy", label: "Р›С‘РіРєРёР№", threshold: effectiveCombatThresholds.easy },
-    { id: "medium", label: "РЎСЂРµРґРЅРёР№", threshold: effectiveCombatThresholds.medium },
-    { id: "hard", label: "РЎР»РѕР¶РЅС‹Р№", threshold: effectiveCombatThresholds.hard },
-    { id: "deadly", label: "РћС‡РµРЅСЊ СЃР»РѕР¶РЅС‹Р№", threshold: effectiveCombatThresholds.deadly }
-  ];
-  const selectedCombatSearchItem = combatSearchItems.find((item) => item.key === combatSelectionId) ?? null;
-  const selectedCombatSearchProfile =
-    selectedCombatSearchItem?.source === "entity"
-      ? selectedCombatSearchItem.entity ?? null
-      : combatSelectedBestiaryMonster?.monster ?? null;
-  useEffect(() => {
-    if (!combatSetupOpen) {
-      return;
-    }
-
-    if (!combatSearchItems.some((item) => item.key === combatSelectionId)) {
-      setCombatSelectionId(combatSearchItems[0]?.key ?? "");
-    }
-  }, [combatSearchItems, combatSelectionId, combatSetupOpen]);
-  useEffect(() => {
-    if (!combatSetupOpen || activeCombat?.entries.length) {
-      return;
-    }
-
-    if (!filteredCombatCatalogItems.some((item) => item.key === combatSelectionId)) {
-      setCombatSelectionId(filteredCombatCatalogItems[0]?.key ?? "");
-    }
-  }, [activeCombat?.entries.length, combatSelectionId, combatSetupOpen, filteredCombatCatalogItems]);
+  const {
+    combatThresholdPartySize,
+    fallbackCombatPartyLevelsText,
+    resolvedCombatPartyLevelsText,
+    persistedCombatPartyLevel,
+    enteredPartyLevel,
+    hasMultipleEnteredPartyLevels,
+    effectivePartyLevels,
+    hasExplicitPartyLevels,
+    effectivePartySize,
+    effectiveCombatThresholds,
+    combatLevelDisplayText,
+    combatThresholdSummary,
+    combatPartySummary,
+    draftEncounterMultiplier,
+    draftEncounterAdjustedXp,
+    draftEncounterDifficulty,
+    draftEncounterDifficultyThreshold,
+    partyCompositionText
+  } = useCombatDifficulty({
+    campaignPreparedCombatPartyCount,
+    campaignPreparedCombatPartyLevel: campaignPreparedCombatDraft.partyLevel,
+    combatPartyLevelsText,
+    combatPartySize,
+    combatSetupOpen,
+    combatThresholds,
+    draftEncounterBaseXp,
+    draftEncounterMonsterCount,
+    draftPreparedCombatAllyCount,
+    draftPreparedCombatPartyCount,
+    draftPreparedCombatPlayerLevels,
+    draftPreparedCombatPlayersCount: draftPreparedCombatPlayers.length,
+    hasActiveCombatEntries: Boolean(activeCombat?.entries.length)
+  });
   const selectedCombatEntryIndex = activeCombat?.entries.findIndex(
     (entry, index) => combatEntrySelectionKey(entry, index) === selectedCombatEntryKey
   );
@@ -6517,6 +3380,141 @@ export default function App() {
     focusCombatTurnFromState(result.combat);
   };
 
+  const preparedCombatController = usePreparedCombatController({
+    activeCampaignId,
+    activeCombat,
+    campaign,
+    campaignPreparedCombat,
+    campaignPreparedCombatDraft,
+    combatCustomAdjustedXp,
+    combatDifficulty,
+    combatMonsterCount,
+    combatPrompt,
+    combatSetupOpen,
+    combatTitle,
+    effectiveCombatThresholds,
+    effectivePartyLevels,
+    effectivePartySize,
+    entityCombatSetupState,
+    entityCombatSetupTarget,
+    entityMap,
+    hasExplicitPartyLevels,
+    hydrateCampaign,
+    onApplyCombatPayload: applyCombatPayload,
+    onCloseCombatSetupModal: closeCombatSetupModal,
+    onEntityToForm: entityToForm,
+    onHandleProtectedActionError: handleProtectedActionError,
+    onOpenCombatScreen: openCombatScreen,
+    onOpenEntityPreparedCombatSetup: openEntityPreparedCombatSetup,
+    onOpenQuestFocus: openQuestFocus,
+    onPeekEntity: peekEntity,
+    onRequestModalClose: requestModalClose,
+    onResetCombatPartyLevelsText: () => setCombatPartyLevelsText(""),
+    onSerializeEntityForm: serializeEntityForm,
+    persistedCombatPartyLevel,
+    preparedCombatModalOpen,
+    preparedCombatAllyInitiatives,
+    preparedCombatEnemyInitiatives,
+    preparedCombatPlayerInitiatives,
+    preparedCombatQuantity,
+    replaceCampaignPreparedCombatDraft,
+    resetPreparedCombatEnemySearch,
+    selectPreparedCombatEntity,
+    selectedPreparedCombatSearchItem,
+    setBootError,
+    setCampaignPreparedCombatNotice,
+    setEntityCombatSetupState,
+    setGenerating,
+    setPreparedCombatModalOpen,
+    setPreviewEntityId,
+    setSaving
+  });
+  const {
+    addPreparedCombatDraftItem,
+    closePreparedCombatModal,
+    generateCombatEncounter,
+    handleQuestCombatAction,
+    openPreparedCombatModal,
+    preparedCombatDraft,
+    preparedCombatNotice,
+    preparedCombatQuest,
+    preparedCombatQuestId,
+    requestPreparedCombatCardDeletion,
+    removePreparedCombatDraftItem,
+    saveCampaignPreparedCombatDraft,
+    saveEntityPreparedCombatDraft,
+    savePreparedCombatDraft,
+    startConfiguredCombat,
+    startEntityPreparedCombat,
+    startPreparedQuestCombat,
+    updatePreparedCombatDraftItem,
+    updatePreparedCombatTitle
+  } = preparedCombatController;
+  const {
+    campaignForm,
+    campaignModalOpen,
+    openCampaignModal,
+    submitCampaign,
+    updateCampaignForm
+  } = campaignCreation;
+  const {
+    closePalette,
+    displayResults,
+    openPalette,
+    paletteOpen,
+    query,
+    resetPalette,
+    setQuery
+  } = globalSearchController;
+  const {
+    closeRandomEventModal,
+    generateRandomEvent,
+    openRandomEventModal,
+    randomEventGenerating,
+    randomEventLocationId,
+    randomEventModalOpen,
+    randomEventNotes,
+    randomEventPrompt,
+    randomEventType,
+    setRandomEventLocationId,
+    setRandomEventPrompt,
+    setRandomEventType
+  } = randomEventController;
+  const entityActionsController = useEntityActionsController({
+    activeCampaignId,
+    editingEntityId,
+    entityGalleryTargetId: entityGalleryTarget?.id,
+    entityMap,
+    entityPlaylistTargetId: entityPlaylistTarget?.id,
+    galleryViewerOwnerId: galleryViewer?.ownerId,
+    onCloseEntityGalleryModal: () => closeEntityGalleryModal(),
+    onCloseEntityLinkContextMenu: () => entityLinkController.closeEntityLinkContextMenu(),
+    onCloseEntityModal: () => closeEntityModal(),
+    onCloseEntityPlaylistModal: () => closeEntityPlaylistModal(),
+    onCloseGalleryViewer: () => closeGalleryViewer(),
+    onClosePlayerFacingView: () => closePlayerFacingView(),
+    onClosePreparedCombatModal: () => closePreparedCombatModal(),
+    onHydrateCampaign: (nextCampaign) => hydrateCampaign(nextCampaign),
+    onOpenEntityModule: (kind) => setActiveModule(moduleByKind[kind]),
+    onRemovePinnedEntity: (entityId) => {
+      setPinnedIds((current) => current.filter((id) => id !== entityId));
+    },
+    playerFacingEntityId: playerFacingView?.entityId,
+    preparedCombatQuestId,
+    setBootError,
+    setSaving
+  });
+  const {
+    cancelEntityDeletion,
+    closeEntityActionMenu,
+    confirmEntityDeletion,
+    entityActionMenu,
+    entityActionMenuTarget,
+    openEntityActionMenu,
+    pendingDeleteEntity,
+    requestEntityDeletion
+  } = entityActionsController;
+
   const syncCombatPortraits = async () => {
     if (!activeCampaignId || !campaign) {
       return;
@@ -6528,6 +3526,7 @@ export default function App() {
           .filter((entity): entity is KnowledgeEntity => Boolean(entity))
       : [
           ...configuredCombatPlayers,
+          ...configuredCombatAllies.map((item) => item.entity),
           ...configuredCombatEnemies.map((item) => item.entity)
         ];
 
@@ -6540,7 +3539,7 @@ export default function App() {
     );
 
     if (!uniqueEntities.length) {
-      setCombatPortraitNotice("Сначала собери бой или запусти сцену, чтобы было кому подтягивать портреты.");
+      setCombatPortraitNotice("Р РЋР Р…Р В°РЎвЂЎР В°Р В»Р В° РЎРѓР С•Р В±Р ВµРЎР‚Р С‘ Р В±Р С•Р в„– Р С‘Р В»Р С‘ Р В·Р В°Р С—РЎС“РЎРѓРЎвЂљР С‘ РЎРѓРЎвЂ Р ВµР Р…РЎС“, РЎвЂЎРЎвЂљР С•Р В±РЎвЂ№ Р В±РЎвЂ№Р В»Р С• Р С”Р С•Р СРЎС“ Р С—Р С•Р Т‘РЎвЂљРЎРЏР С–Р С‘Р Р†Р В°РЎвЂљРЎРЉ Р С—Р С•РЎР‚РЎвЂљРЎР‚Р ВµРЎвЂљРЎвЂ№.");
       return;
     }
 
@@ -6594,7 +3593,7 @@ export default function App() {
       if (selectedCombatSearchItem.source === "bestiary") {
         const imported = await api.importBestiaryMonster(activeCampaignId, selectedCombatSearchItem.id);
         if (!imported.entity?.id) {
-          throw new Error("Backend не вернул импортированного монстра для добавления в бой.");
+          throw new Error("Backend Р Р…Р Вµ Р Р†Р ВµРЎР‚Р Р…РЎС“Р В» Р С‘Р СР С—Р С•РЎР‚РЎвЂљР С‘РЎР‚Р С•Р Р†Р В°Р Р…Р Р…Р С•Р С–Р С• Р СР С•Р Р…РЎРѓРЎвЂљРЎР‚Р В° Р Т‘Р В»РЎРЏ Р Т‘Р С•Р В±Р В°Р Р†Р В»Р ВµР Р…Р С‘РЎРЏ Р Р† Р В±Р С•Р в„–.");
         }
         entityId = imported.entity.id;
         setPreviewEntityId(imported.entity.id);
@@ -6611,7 +3610,7 @@ export default function App() {
         items: [{ entityId, quantity: combatSelectionQuantity, initiative: combatSelectionInitiative }]
       });
       applyCombatPayload(result);
-      setCombatSelectionId(combatSelectionEntityKey(entityId));
+      selectCombatEntity(entityId);
       closeCombatSetupModal();
     } catch (error) {
       setBootError(error instanceof Error ? error.message : "Не удалось добавить участника в бой.");
@@ -6620,379 +3619,24 @@ export default function App() {
     }
   };
 
-  const updateCampaignPreparedCombatDraft = (
-    updater: (current: CampaignPreparedCombat) => CampaignPreparedCombat
-  ) => {
-    setCampaignPreparedCombatNotice("");
-    setCampaignPreparedCombatDraft((current) => updater(current));
-  };
-
-  const toggleCampaignPreparedCombatPlayer = (playerId: string) => {
-    updateCampaignPreparedCombatDraft((current) => {
-      const selected = current.playerIds.includes(playerId);
-      return {
-        ...current,
-        playerIds: selected ? current.playerIds.filter((id) => id !== playerId) : [...current.playerIds, playerId]
-      };
-    });
-  };
-
-  const addCampaignPreparedCombatDraftItem = async (pickedItem?: CombatSearchItem) => {
-    if (!activeCampaignId) {
-      return;
-    }
-
-    const selected = pickedItem ?? selectedCombatSearchItem;
-    if (!selected) {
-      setBootError("Сначала выбери противника, которого нужно добавить в заготовленный бой.");
-      return;
-    }
-
-    try {
-      setSaving(true);
-      setBootError("");
-      let entityId = selected.id;
-
-      if (selected.source === "bestiary") {
-        const imported = await api.importBestiaryMonster(activeCampaignId, selected.id);
-        if (!imported.entity?.id) {
-          throw new Error("Backend не вернул импортированного монстра из dnd.su.");
-        }
-        hydrateCampaign(imported.campaign);
-        entityId = imported.entity.id;
-        setPreviewEntityId(imported.entity.id);
-      }
-      setCombatSelectionId(combatSelectionEntityKey(entityId));
-
-      updateCampaignPreparedCombatDraft((current) => {
-        const existingIndex = current.items.findIndex((item) => item.entityId === entityId);
-        if (existingIndex >= 0) {
-          return {
-            ...current,
-            items: current.items.map((item, index) =>
-              index === existingIndex ? { ...item, quantity: item.quantity + Math.max(1, combatSelectionQuantity) } : item
-            )
-          };
-        }
-
-        return {
-          ...current,
-          title: current.title?.trim() ? current.title : campaign?.title ? `${campaign.title}: бой` : current.title,
-          items: [
-            ...current.items,
-            {
-              entityId,
-              quantity: Math.max(1, combatSelectionQuantity)
-            }
-          ]
-        };
-      });
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось добавить противника в заготовленный бой.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const updateCampaignPreparedCombatDraftItem = (entityId: string, patch: Partial<PreparedCombatItem>) => {
-    updateCampaignPreparedCombatDraft((current) => ({
-      ...current,
-      items: current.items.map((item) =>
-        item.entityId === entityId
-          ? {
-              ...item,
-              ...patch,
-              quantity: Math.max(1, Number.isFinite(patch.quantity) ? Math.floor(patch.quantity as number) : item.quantity)
-            }
-          : item
-      )
-    }));
-  };
-
-  const removeCampaignPreparedCombatDraftItem = (entityId: string) => {
-    updateCampaignPreparedCombatDraft((current) => ({
-      ...current,
-      items: current.items.filter((item) => item.entityId !== entityId)
-    }));
-  };
-
-  const setPreparedCombatPlayerInitiative = (playerId: string, value: number) => {
-    setPreparedCombatPlayerInitiatives((current) => ({
-      ...current,
-      [playerId]: Number.isFinite(value) ? value : 0
-    }));
-  };
-
-  const setPreparedCombatEnemyInitiative = (entityId: string, value: number) => {
-    setPreparedCombatEnemyInitiatives((current) => ({
-      ...current,
-      [entityId]: Number.isFinite(value) ? value : 0
-    }));
-  };
-
   const updateCombatPartyLevelText = (value: string) => {
     setCombatPartyLevelsText(value.replace(/[^\d,;\s]/g, "").slice(0, 24));
   };
 
   const stepCombatPartyLevel = (delta: number) => {
-    const nextLevel = clampPartyLevel((parseStoredPartyLevel(combatPartyLevelsText) ?? 1) + delta);
+    const nextLevel = clampPartyLevel((parseStoredPartyLevel(resolvedCombatPartyLevelsText) ?? 1) + delta);
     setCombatPartyLevelsText(String(nextLevel));
   };
 
   const clearPreparedCombatDraft = () => {
-    if (!window.confirm("Очистить текущую сцену боя: игроков, противников, инициативу и общий уровень партии?")) {
-      return;
-    }
-
-    setBootError("");
-    setCampaignPreparedCombatNotice("");
-    setPreparedCombatPlayerInitiatives({});
-    setPreparedCombatEnemyInitiatives({});
-    setCombatPartyLevelsText("");
-    setCombatPlayerManagerOpen(true);
-    setCombatEnemyCatalogOpen(true);
-    setCampaignPreparedCombatDraft((current) => ({
-      ...current,
-      title: current.title?.trim() ? current.title : combatSetupHostEntity ? defaultPreparedCombatTitle(entityCombatSetupState?.planIndex ?? 0) : current.title,
-      partyLevel: undefined,
-      playerIds: [],
-      items: []
-    }));
-  };
-
-  const saveCampaignPreparedCombatDraft = async () => {
-    if (!activeCampaignId) {
-      return;
-    }
-
-    try {
-      setSaving(true);
-      setBootError("");
-      const normalizedDraft = sanitizeCampaignPreparedCombat({
-        ...campaignPreparedCombatDraft,
-        partyLevel: parseStoredPartyLevel(combatPartyLevelsText),
-        playerIds: campaignPreparedCombatDraft.playerIds.filter((playerId) => entityMap.get(playerId)?.kind === "player"),
-        items: campaignPreparedCombatDraft.items.filter((item) => {
-          const entity = entityMap.get(item.entityId);
-          return entity?.kind === "npc" || entity?.kind === "monster";
-        })
-      });
-      const updated = await api.updateCampaign(activeCampaignId, {
-        preparedCombat: normalizedDraft,
-        updatePreparedCombat: true
-      });
-      hydrateCampaign(updated);
-      const prepared = updated.preparedCombat;
-      if (!prepared) {
-        setCampaignPreparedCombatDraft(createEmptyCampaignPreparedCombat());
+    combatDraftController.clearPreparedCombatDraft({
+      fallbackTitle: combatSetupHostEntity ? defaultPreparedCombatTitle(entityCombatSetupState?.planIndex ?? 0) : undefined,
+      onAfterClear: () => {
         setCombatPartyLevelsText("");
-        setCampaignPreparedCombatNotice("Заготовка боя очищена.");
-        return;
+        setCombatPlayerManagerOpen(true);
+        setCombatEnemyCatalogOpen(true);
       }
-
-      const totalEnemies = prepared.items.reduce((sum, item) => sum + Math.max(1, item.quantity), 0);
-      setCampaignPreparedCombatDraft(cloneCampaignPreparedCombat(prepared));
-      setCombatPartyLevelsText(formatPartyLevelText(prepared.partyLevel));
-      setCampaignPreparedCombatNotice(
-        `Состав сохранён: ${prepared.playerIds.length} ${
-          prepared.playerIds.length === 1 ? "игрок" : prepared.playerIds.length < 5 ? "игрока" : "игроков"
-        } и ${totalEnemies} ${totalEnemies === 1 ? "противник" : totalEnemies < 5 ? "противника" : "противников"}.`
-      );
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось сохранить заготовленный бой.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const saveEntityPreparedCombatDraft = async () => {
-    if (!activeCampaignId || !entityCombatSetupState || !entityCombatSetupTarget || !isPreparedCombatHostEntity(entityCombatSetupTarget)) {
-      return;
-    }
-
-    const nextPlan = sanitizePreparedCombatPlan({
-      title: campaignPreparedCombatDraft.title,
-      partyLevel: parseStoredPartyLevel(combatPartyLevelsText),
-      playerIds: campaignPreparedCombatDraft.playerIds,
-      items: campaignPreparedCombatDraft.items
     });
-    if (!nextPlan) {
-      setBootError("Добавь в карточку хотя бы название, игроков или противников, а потом сохраняй её.");
-      return;
-    }
-
-    try {
-      setSaving(true);
-      setBootError("");
-      const existingPlans = resolveEntityPreparedCombats(entityCombatSetupTarget);
-      const nextPlans = [...existingPlans];
-      const normalizedPlan = {
-        ...nextPlan,
-        title: nextPlan.title || defaultPreparedCombatTitle(entityCombatSetupState.planIndex)
-      };
-
-      if (entityCombatSetupState.planIndex >= nextPlans.length) {
-        nextPlans.push(normalizedPlan);
-      } else {
-        nextPlans[entityCombatSetupState.planIndex] = normalizedPlan;
-      }
-
-      const nextForm = entityToForm(entityCombatSetupTarget);
-      nextForm.preparedCombats = nextPlans;
-      nextForm.preparedCombat = nextPlans[0];
-
-      const result = await api.updateEntity(activeCampaignId, entityCombatSetupTarget.id, serializeEntityForm(nextForm));
-      hydrateCampaign(result.campaign, result.entity.id);
-      setPreviewEntityId(result.entity.id);
-
-      const updatedEntity = result.entity;
-      const updatedPlans =
-        isPreparedCombatHostEntity(updatedEntity) ? resolveEntityPreparedCombats(updatedEntity) : [];
-      const resolvedIndex = Math.min(entityCombatSetupState.planIndex, Math.max(updatedPlans.length - 1, 0));
-      const savedPlan = updatedPlans[resolvedIndex];
-
-      if (!savedPlan) {
-        closeCombatSetupModal();
-        return;
-      }
-
-      setEntityCombatSetupState({
-        entityId: updatedEntity.id,
-        planIndex: resolvedIndex,
-        isNew: false
-      });
-      setCampaignPreparedCombatDraft({
-        title: savedPlan.title,
-        partyLevel: sanitizePartyLevel(savedPlan.partyLevel),
-        playerIds: [...(savedPlan.playerIds ?? [])],
-        items: savedPlan.items.map((item) => ({ ...item }))
-      });
-      setCombatPartyLevelsText(formatPartyLevelText(savedPlan.partyLevel));
-
-      const playerCount = savedPlan.playerIds?.length ?? 0;
-      const enemyCount = savedPlan.items.reduce((sum, item) => sum + Math.max(1, item.quantity), 0);
-      setCampaignPreparedCombatNotice(
-        `Карточка боя сохранена: ${playerCount} ${
-          playerCount === 1 ? "игрок" : playerCount < 5 ? "игрока" : "игроков"
-        } и ${enemyCount} ${enemyCount === 1 ? "противник" : enemyCount < 5 ? "противника" : "противников"}.`
-      );
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось сохранить карточку боя.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const startConfiguredCombat = async () => {
-    if (!activeCampaignId) {
-      return;
-    }
-
-    const plan = sanitizeCampaignPreparedCombat(
-      combatSetupOpen && !(activeCombat?.entries.length) ? campaignPreparedCombatDraft : campaignPreparedCombat
-    );
-    if (!plan) {
-      setBootError("Сначала настрой состав боя, а потом уже запускай сцену.");
-      return;
-    }
-    if (!plan.playerIds.length) {
-      setBootError("Сначала добавь хотя бы одного игрока в заготовленный бой.");
-      return;
-    }
-    if (!plan.items.length) {
-      setBootError("Сначала добавь хотя бы одного противника в заготовленный бой.");
-      return;
-    }
-
-    const startItems = [
-      ...plan.playerIds
-        .map((playerId) => {
-          const entity = entityMap.get(playerId);
-          if (entity?.kind !== "player") {
-            return null;
-          }
-          return {
-            entityId: entity.id,
-            quantity: 1,
-            initiative: preparedCombatPlayerInitiatives[entity.id] ?? 0
-          };
-        })
-        .filter((item): item is { entityId: string; quantity: number; initiative: number } => Boolean(item)),
-      ...plan.items
-        .map((item) => {
-          const entity = entityMap.get(item.entityId);
-          if (entity?.kind !== "npc" && entity?.kind !== "monster") {
-            return null;
-          }
-          return {
-            entityId: entity.id,
-            quantity: Math.max(1, item.quantity),
-            initiative: preparedCombatEnemyInitiatives[entity.id] ?? 0
-          };
-        })
-        .filter((item): item is { entityId: string; quantity: number; initiative: number } => Boolean(item))
-    ];
-
-    if (!startItems.length) {
-      setBootError("Не удалось собрать участников боя из текущей подготовки.");
-      return;
-    }
-
-    try {
-      setSaving(true);
-      setBootError("");
-      const result = await api.startCombat(activeCampaignId, {
-        title:
-          campaignPreparedCombatDraft.title?.trim() ||
-          campaignPreparedCombat?.title?.trim() ||
-          combatTitle.trim() ||
-          "Активный бой",
-        partySize: effectivePartySize,
-        thresholds: effectiveCombatThresholds,
-        items: startItems
-      });
-      applyCombatPayload(result);
-      closeCombatSetupModal();
-      openCombatScreen();
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось запустить подготовленный бой.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const generateCombatEncounter = async () => {
-    if (!activeCampaignId) {
-      return;
-    }
-    if (!hasExplicitPartyLevels) {
-      setBootError("Укажи общий уровень партии, чтобы генерация попала в нужную сложность.");
-      return;
-    }
-
-    try {
-      setGenerating(true);
-      const result = await api.generateCombat(activeCampaignId, {
-        title: combatTitle.trim() || "Активный бой",
-        prompt: combatPrompt.trim(),
-        monsterCount: combatMonsterCount,
-        difficulty: combatDifficulty,
-        partySize: effectivePartySize,
-        partyLevels: effectivePartyLevels,
-        thresholds: effectiveCombatThresholds,
-        customAdjustedXp: combatDifficulty === "custom" ? Math.max(0, combatCustomAdjustedXp) : undefined
-      });
-      applyCombatPayload(result);
-      closeCombatSetupModal();
-      const firstCreated = result.createdEntities[0]?.id;
-      if (firstCreated) {
-        setPreviewEntityId(firstCreated);
-      }
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось сгенерировать бой.");
-    } finally {
-      setGenerating(false);
-    }
   };
 
   const patchCombatEntry = async (entry: CombatEntry, patch: { currentHitPoints?: number; defeated?: boolean; initiative?: number }) => {
@@ -7115,7 +3759,7 @@ export default function App() {
       return;
     }
 
-    if (!window.confirm("Показать игрокам экран победы и пометить врагов побеждёнными?")) {
+    if (!window.confirm("Р СџР С•Р С”Р В°Р В·Р В°РЎвЂљРЎРЉ Р С‘Р С–РЎР‚Р С•Р С”Р В°Р С РЎРЊР С”РЎР‚Р В°Р Р… Р С—Р С•Р В±Р ВµР Т‘РЎвЂ№ Р С‘ Р С—Р С•Р СР ВµРЎвЂљР С‘РЎвЂљРЎРЉ Р Р†РЎР‚Р В°Р С–Р С•Р Р† Р С—Р С•Р В±Р ВµР В¶Р Т‘РЎвЂР Р…Р Р…РЎвЂ№Р СР С‘?")) {
       return;
     }
 
@@ -7127,7 +3771,7 @@ export default function App() {
       setBootError("");
       hydrateCampaign(result.campaign);
     } catch (error) {
-      handleProtectedActionError(error, "Не удалось отметить победу игроков.");
+      handleProtectedActionError(error, "Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•РЎвЂљР СР ВµРЎвЂљР С‘РЎвЂљРЎРЉ Р С—Р С•Р В±Р ВµР Т‘РЎС“ Р С‘Р С–РЎР‚Р С•Р С”Р С•Р Р†.");
     } finally {
       setCombatStateBusy(false);
     }
@@ -7138,7 +3782,7 @@ export default function App() {
       return;
     }
 
-    if (!window.confirm("Завершить бой, очистить активную сцену и посчитать опыт за всех врагов, которые уже выведены или имеют 0 HP?")) {
+    if (!window.confirm("Р вЂ”Р В°Р Р†Р ВµРЎР‚РЎв‚¬Р С‘РЎвЂљРЎРЉ Р В±Р С•Р в„–, Р С•РЎвЂЎР С‘РЎРѓРЎвЂљР С‘РЎвЂљРЎРЉ Р В°Р С”РЎвЂљР С‘Р Р†Р Р…РЎС“РЎР‹ РЎРѓРЎвЂ Р ВµР Р…РЎС“ Р С‘ Р С—Р С•РЎРѓРЎвЂЎР С‘РЎвЂљР В°РЎвЂљРЎРЉ Р С•Р С—РЎвЂ№РЎвЂљ Р В·Р В° Р Р†РЎРѓР ВµРЎвЂ¦ Р Р†РЎР‚Р В°Р С–Р С•Р Р†, Р С”Р С•РЎвЂљР С•РЎР‚РЎвЂ№Р Вµ РЎС“Р В¶Р Вµ Р Р†РЎвЂ№Р Р†Р ВµР Т‘Р ВµР Р…РЎвЂ№ Р С‘Р В»Р С‘ Р С‘Р СР ВµРЎР‹РЎвЂљ 0 HP?")) {
       return;
     }
 
@@ -7160,6 +3804,7 @@ export default function App() {
   const isCombatScreen = activeModule === "combat";
   const isCombatPrepScreen = isCombatScreen && combatSetupOpen && !activeCombat?.entries.length;
   const isItemsRail = activeRailAlias === "items";
+  const hasFeatureOwnedDetailsPanel = isItemsRail || activeModule === "rules";
   const latestCombatSummary =
     campaign?.lastCombatSummary ??
     (combatReport
@@ -7172,7 +3817,6 @@ export default function App() {
           experiencePerPlayer: combatReport.experiencePerPlayer
         }
       : null);
-  const isBestiaryScreen = activeModule === "monsters" && activeTab !== "Imported";
   const hasActiveCombat = Boolean(activeCombat?.entries.length);
   const activeRailKey = railNavKeyFromView(activeModule, activeRailAlias);
   const activeSectionLabel = campaign ? railSectionTitle(campaign, activeModule, activeRailAlias) : "";
@@ -7183,51 +3827,36 @@ export default function App() {
     { key: "players", label: "Игроки", icon: "player", onClick: () => switchModule("players") },
     { key: "npcs", label: "NPC", icon: "npc", onClick: () => switchModule("npcs") },
     { key: "monsters", label: "Монстры", icon: "monster", onClick: () => switchModule("monsters") },
+    { key: "rules", label: "Правила", icon: "rule", onClick: () => openRulesCompendium() },
     { key: "items", label: railAliasTitle.items, icon: "item", onClick: () => openRailAlias("items") },
     { key: "events", label: railAliasTitle.events, icon: "event", onClick: () => openRailAlias("events") },
     { key: "notes", label: railAliasTitle.notes, icon: "note", onClick: () => openRailAlias("notes") }
   ];
-  const selectedEntityLinkTarget = entityLinkTargetId ? entityMap.get(entityLinkTargetId) ?? null : null;
-  const selectedBestiarySummary = bestiary?.items.find((item) => item.id === selectedBestiaryId) ?? null;
-  const importedMonsterTitles = useMemo(
-    () => new Set((campaign?.monsters ?? []).map((monster) => monster.title.trim().toLowerCase())),
-    [campaign?.monsters]
-  );
-  const selectedBestiaryImported =
-    selectedBestiaryMonster?.monster.title
-      ? importedMonsterTitles.has(selectedBestiaryMonster.monster.title.trim().toLowerCase())
-      : false;
-  const isEditingEntity = entityModalMode === "edit";
-  const entityFormImageUploading = entityArtUploading || galleryUploadKey.startsWith("entity-form:");
-  const entityGalleryModalUploading = galleryUploadKey.startsWith("entity-gallery:");
-  const entityModalTitle = isEditingEntity ? "Edit Entity" : "Create Entity";
-  const entityModalDescription = isEditingEntity
-    ? "Измени поля, статблок и затем сохрани сущность на backend"
-    : "Сгенерируй черновик, отредактируй поля и потом создай сущность в кампании";
-  const entitySubmitLabel = isEditingEntity ? "Сохранить изменения" : "Создать";
   const combatSetupHostEntity =
     entityCombatSetupTarget && isPreparedCombatHostEntity(entityCombatSetupTarget) ? entityCombatSetupTarget : null;
 
   const renderPreparedCombatSection = (entity: PreparedCombatHostEntity): ReactNode => {
-    const plans = resolveEntityPreparedCombats(entity);
-    const cards = plans.map((plan, index) => buildPreparedCombatCardView(entity, plan, index));
-
     return (
-      <PreparedCombatCardStrip
-        cards={cards}
-        createDescription="Сохрани сюда отдельную сцену боя с нужными игроками и противниками, чтобы запускать её одной кнопкой."
-        description={
-          entity.kind === "quest"
-            ? "Несколько готовых сцен для этого квеста: засада, переговоры, финальная схватка или запасной боевой поворот."
-            : "Отдельные заготовленные сцены боя для этой локации: гарнизон, случайная встреча, тревога или финальная оборона."
-        }
-        emptyDescription="Пока карточек боя нет. Создай первую, и она откроется сразу в экране подготовки боя с отдельным сохранением."
-        entityId={entity.id}
+      <PreparedCombatList
+        entity={entity}
+        entityMap={entityMap}
+        hasActiveCombatEntries={Boolean(activeCombat?.entries.length)}
         onCreateCard={() => openNewEntityPreparedCombatSetup(entity)}
-        onDeleteCard={(card, index) => requestPreparedCombatCardDeletion(entity, card, index)}
-        onOpenCard={(_, index) => openEntityPreparedCombatSetup(entity, plans[index], index, false)}
-        onStartCard={(_, index) => {
-          void startEntityPreparedCombat(entity, plans[index], index);
+        onDeleteCard={(_, index, title) =>
+          requestPreparedCombatCardDeletion(
+            entity,
+            {
+              title,
+              playersText: "",
+              enemiesText: "",
+              xpText: ""
+            },
+            index
+          )
+        }
+        onOpenCard={(plan, index) => openEntityPreparedCombatSetup(entity, plan, index, false)}
+        onStartCard={(plan, index) => {
+          void startEntityPreparedCombat(entity, plan, index);
         }}
       />
     );
@@ -7235,447 +3864,121 @@ export default function App() {
 
   const combatDifficultyToneClass = draftEncounterDifficulty ? `difficulty-${draftEncounterDifficulty}` : "difficulty-empty";
   const combatDangerText = draftEncounterDifficulty ? combatDifficultyLabel[draftEncounterDifficulty] : "Не рассчитана";
-  const combatDangerThresholdText = draftEncounterDifficulty ? `${draftEncounterDifficultyThreshold} XP` : "—";
-  const combatAdjustedMultiplierText =
-    draftEncounterMultiplier % 1 === 0 ? `${draftEncounterMultiplier}` : draftEncounterMultiplier.toFixed(1);
+  const combatDangerThresholdText = draftEncounterDifficulty ? `${draftEncounterDifficultyThreshold} XP` : "РІР‚вЂќ";
+  const combatDangerDetailText =
+    draftEncounterAdjustedXp > 0
+      ? `${combatDangerThresholdText} РІР‚Сћ Р В Р В°РЎРѓРЎвЂЎРЎвЂРЎвЂљ: ${draftEncounterAdjustedXp} XP`
+      : "Р вЂќР С•Р В±Р В°Р Р†РЎРЉ Р С—РЎР‚Р С•РЎвЂљР С‘Р Р†Р Р…Р С‘Р С”Р С•Р Р†, РЎвЂЎРЎвЂљР С•Р В±РЎвЂ№ РЎС“Р Р†Р С‘Р Т‘Р ВµРЎвЂљРЎРЉ РЎР‚Р В°РЎРѓРЎвЂЎРЎвЂРЎвЂљ.";
+  const combatLevelMetricHint = draftPreparedCombatPlayerLevels.length
+    ? `Авто из карточек игроков • Пороги: ${combatThresholdSummary}`
+    : hasExplicitPartyLevels
+      ? `РџРѕСЂРѕРіРё: ${combatThresholdSummary}`
+      : "Укажи уровень партии от 1 до 20";
+  const combatEnemyMetricHint =
+    draftEncounterMonsterCount > 0 ? `${draftEncounterMonsterCount} ${formatEnemyCountLabel(draftEncounterMonsterCount)}` : "Противников пока нет";
+  const preparedCombatLevelMetricHint = draftPreparedCombatPlayerLevels.length
+    ? `Авто из карточек игроков • Пороги: ${combatThresholdSummary}`
+    : hasExplicitPartyLevels
+      ? `РџРѕСЂРѕРіРё: ${combatThresholdSummary}`
+      : "Заполни уровень в карточках игроков";
   const combatMasterRecommendation =
     draftEncounterDifficulty === "deadly"
-      ? "Очень высокий риск гибели персонажей. Подходит для кульминации или сцены, где у партии есть план, укрытия или союзники."
+      ? "Р С›РЎвЂЎР ВµР Р…РЎРЉ Р Р†РЎвЂ№РЎРѓР С•Р С”Р С‘Р в„– РЎР‚Р С‘РЎРѓР С” Р С–Р С‘Р В±Р ВµР В»Р С‘ Р С—Р ВµРЎР‚РЎРѓР С•Р Р…Р В°Р В¶Р ВµР в„–. Р СџР С•Р Т‘РЎвЂ¦Р С•Р Т‘Р С‘РЎвЂљ Р Т‘Р В»РЎРЏ Р С”РЎС“Р В»РЎРЉР СР С‘Р Р…Р В°РЎвЂ Р С‘Р С‘ Р С‘Р В»Р С‘ РЎРѓРЎвЂ Р ВµР Р…РЎвЂ№, Р С–Р Т‘Р Вµ РЎС“ Р С—Р В°РЎР‚РЎвЂљР С‘Р С‘ Р ВµРЎРѓРЎвЂљРЎРЉ Р С—Р В»Р В°Р Р…, РЎС“Р С”РЎР‚РЎвЂ№РЎвЂљР С‘РЎРЏ Р С‘Р В»Р С‘ РЎРѓР С•РЎР‹Р В·Р Р…Р С‘Р С”Р С‘."
       : draftEncounterDifficulty === "hard"
-        ? "Опасная сцена. Дай игрокам возможность подготовиться, занять позицию или понять угрозу до начала боя."
+        ? "Р С›Р С—Р В°РЎРѓР Р…Р В°РЎРЏ РЎРѓРЎвЂ Р ВµР Р…Р В°. Р вЂќР В°Р в„– Р С‘Р С–РЎР‚Р С•Р С”Р В°Р С Р Р†Р С•Р В·Р СР С•Р В¶Р Р…Р С•РЎРѓРЎвЂљРЎРЉ Р С—Р С•Р Т‘Р С–Р С•РЎвЂљР С•Р Р†Р С‘РЎвЂљРЎРЉРЎРѓРЎРЏ, Р В·Р В°Р Р…РЎРЏРЎвЂљРЎРЉ Р С—Р С•Р В·Р С‘РЎвЂ Р С‘РЎР‹ Р С‘Р В»Р С‘ Р С—Р С•Р Р…РЎРЏРЎвЂљРЎРЉ РЎС“Р С–РЎР‚Р С•Р В·РЎС“ Р Т‘Р С• Р Р…Р В°РЎвЂЎР В°Р В»Р В° Р В±Р С•РЎРЏ."
         : draftEncounterDifficulty === "medium"
-          ? "Хорошая рабочая сложность для обычной сцены. Бой должен чувствоваться опасным, но честным."
+          ? "Р ТђР С•РЎР‚Р С•РЎв‚¬Р В°РЎРЏ РЎР‚Р В°Р В±Р С•РЎвЂЎР В°РЎРЏ РЎРѓР В»Р С•Р В¶Р Р…Р С•РЎРѓРЎвЂљРЎРЉ Р Т‘Р В»РЎРЏ Р С•Р В±РЎвЂ№РЎвЂЎР Р…Р С•Р в„– РЎРѓРЎвЂ Р ВµР Р…РЎвЂ№. Р вЂР С•Р в„– Р Т‘Р С•Р В»Р В¶Р ВµР Р… РЎвЂЎРЎС“Р Р†РЎРѓРЎвЂљР Р†Р С•Р Р†Р В°РЎвЂљРЎРЉРЎРѓРЎРЏ Р С•Р С—Р В°РЎРѓР Р…РЎвЂ№Р С, Р Р…Р С• РЎвЂЎР ВµРЎРѓРЎвЂљР Р…РЎвЂ№Р С."
           : draftEncounterDifficulty === "easy"
-            ? "Лёгкая встреча. Подходит для разогрева, проверки ресурсов или быстрых последствий выбора."
+            ? "Р вЂєРЎвЂР С–Р С”Р В°РЎРЏ Р Р†РЎРѓРЎвЂљРЎР‚Р ВµРЎвЂЎР В°. Р СџР С•Р Т‘РЎвЂ¦Р С•Р Т‘Р С‘РЎвЂљ Р Т‘Р В»РЎРЏ РЎР‚Р В°Р В·Р С•Р С–РЎР‚Р ВµР Р†Р В°, Р С—РЎР‚Р С•Р Р†Р ВµРЎР‚Р С”Р С‘ РЎР‚Р ВµРЎРѓРЎС“РЎР‚РЎРѓР С•Р Р† Р С‘Р В»Р С‘ Р В±РЎвЂ№РЎРѓРЎвЂљРЎР‚РЎвЂ№РЎвЂ¦ Р С—Р С•РЎРѓР В»Р ВµР Т‘РЎРѓРЎвЂљР Р†Р С‘Р в„– Р Р†РЎвЂ№Р В±Р С•РЎР‚Р В°."
             : "Добавь игроков, уровень партии и противников, чтобы получить оценку опасности.";
 
-  const campaignCombatSetupView =
+  const combatPrepPage =
     campaign ? (
-      <div className="combat-prep-page combat-prep-reference">
-        <section className="combat-prep-reference-header">
-          <button className="combat-prep-back" onClick={requestCombatSetupModalClose} type="button">
-            <span aria-hidden="true">←</span>
-            <span>{combatSetupHostEntity ? "К карточкам боя" : "Назад к кампании"}</span>
-          </button>
-
-          <div className="combat-prep-context-row">
-            <div className="combat-prep-context-mark" aria-hidden="true">✦</div>
-            <div className="combat-prep-context-block">
-              <span>Кампания</span>
-              <strong>{campaign.title}</strong>
-            </div>
-            <span className="combat-prep-context-separator">›</span>
-            <div className="combat-prep-context-block">
-              <span>Сцена</span>
-              <strong>{campaignPreparedCombatDraft.title?.trim() || "Грань Тени: бой"}</strong>
-            </div>
-          </div>
-
-          <div className="combat-prep-title-block">
-            <span className="combat-prep-title-line" />
-            <h1>Подготовка боя</h1>
-            <span className="combat-prep-title-line" />
-          </div>
-
-          <div className="combat-prep-reference-actions">
-            <button className="ghost combat-prep-action" onClick={clearPreparedCombatDraft} type="button">
-              Очистить
-            </button>
-            <button
-              className="ghost combat-prep-action"
-              disabled={saving}
-              onClick={() => void (combatSetupHostEntity ? saveEntityPreparedCombatDraft() : saveCampaignPreparedCombatDraft())}
-              type="button"
-            >
-              {saving ? "Сохраняю..." : "Сохранить"}
-            </button>
-            <button
-              className="primary combat-prep-start-button"
-              disabled={!canStartPreparedCombatDraft || saving}
-              onClick={() => void startConfiguredCombat()}
-              type="button"
-            >
-              <span aria-hidden="true">⚔</span>
-              <span>{saving ? "Запускаю..." : "Начать бой"}</span>
-            </button>
-          </div>
-        </section>
-
-        {bootError ? (
-          <div className="card mini form-error combat-prep-status-message" role="status">
-            <strong>Проблема при выполнении действия</strong>
-            <p>{bootError}</p>
-          </div>
-        ) : null}
-
-        {campaignPreparedCombatNotice ? (
-          <div className="card mini form-success combat-prep-status-message" role="status">
-            <strong>Сохранено</strong>
-            <p>{campaignPreparedCombatNotice}</p>
-          </div>
-        ) : null}
-
-        <section className={`combat-prep-danger-board ${combatDifficultyToneClass}`}>
-          <article className="combat-prep-danger-metric">
-            <span className="combat-prep-metric-icon" aria-hidden="true">☄</span>
-            <div>
-              <small>Уровень группы</small>
-              <strong>{enteredPartyLevel ? `${enteredPartyLevel} уровень` : "—"}</strong>
-            </div>
-          </article>
-
-          <article className="combat-prep-danger-metric">
-            <span className="combat-prep-metric-icon" aria-hidden="true">♟</span>
-            <div>
-              <small>Размер группы</small>
-              <strong>{`${effectivePartySize} ${formatPartyCountLabel(effectivePartySize)}`}</strong>
-              <span>{`${draftPreparedCombatPlayers.length} игрока${effectivePartySize > draftPreparedCombatPlayers.length ? " + союзники" : ""}`}</span>
-            </div>
-          </article>
-
-          <article className="combat-prep-danger-metric">
-            <div>
-              <small>Общий XP противников</small>
-              <strong>{`${draftEncounterBaseXp} XP`}</strong>
-            </div>
-          </article>
-
-          <article className="combat-prep-danger-metric adjusted">
-            <div>
-              <small>{`Скорр. XP (×${combatAdjustedMultiplierText})`}</small>
-              <strong>{`${draftEncounterAdjustedXp} XP`}</strong>
-            </div>
-          </article>
-
-          <article className="combat-prep-danger-core">
-            <div className="combat-prep-skull-orb" aria-hidden="true">☠</div>
-            <div>
-              <small>Текущая опасность</small>
-              <strong>{combatDangerText}</strong>
-              <span>{`${combatDangerThresholdText} • Скорр. XP: ${draftEncounterAdjustedXp} XP`}</span>
-            </div>
-          </article>
-
-          <div className="combat-prep-threshold-grid-ref">
-            <article className={draftEncounterDifficulty === "easy" ? "active" : ""}>
-              <small>Легко</small>
-              <strong>{effectiveCombatThresholds.easy}</strong>
-            </article>
-            <article className={draftEncounterDifficulty === "medium" ? "active" : ""}>
-              <small>Средне</small>
-              <strong>{effectiveCombatThresholds.medium}</strong>
-            </article>
-            <article className={draftEncounterDifficulty === "hard" ? "active" : ""}>
-              <small>Сложно</small>
-              <strong>{effectiveCombatThresholds.hard}</strong>
-            </article>
-            <article className={draftEncounterDifficulty === "deadly" ? "active deadly" : ""}>
-              <small>Смертельно</small>
-              <strong>{effectiveCombatThresholds.deadly}</strong>
-            </article>
-          </div>
-
-          <article className="combat-prep-master-tip">
-            <small>Рекомендация мастеру</small>
-            <p>{combatMasterRecommendation}</p>
-          </article>
-        </section>
-
-        <div className="combat-prep-reference-grid">
-          <section className="combat-prep-reference-panel party-panel">
-            <div className="combat-prep-panel-head">
-              <div>
-                <h2>Состав группы</h2>
-                <span>{`${draftPreparedCombatPlayers.length} / ${combatPlayerCatalogItems.length}`}</span>
-              </div>
-              <button className="combat-prep-small-icon" type="button" aria-label="Настройки состава">⚙</button>
-            </div>
-
-            <div className="combat-prep-party-tabs">
-              <button className="active" type="button">Игроки</button>
-              <button type="button">Союзники</button>
-            </div>
-
-            <div className="combat-prep-subhead">
-              <strong>{`Игроки (${draftPreparedCombatPlayers.length})`}</strong>
-              <button
-                className="combat-prep-purple-button"
-                onClick={() => requestCombatSetupSwapToEntity("player")}
-                type="button"
-              >
-                + Добавить игрока
-              </button>
-            </div>
-
-            <label className="combat-prep-search-field">
-              <span>⌕</span>
-              <input
-                onChange={(event) => setCombatPlayerSearchQuery(event.target.value)}
-                placeholder="Поиск игрока..."
-                value={combatPlayerSearchQuery}
-              />
-            </label>
-
-            <div className="combat-prep-party-list">
-              {combatPlayerCatalogItems.length ? (
-                combatPlayerCatalogItems.map((player) => {
-                  const selected = campaignPreparedCombatDraft.playerIds.includes(player.id);
-                  return (
-                    <article key={`combat-prep-player-${player.id}`} className={`combat-prep-party-card ${selected ? "selected" : ""}`}>
-                      <img alt={player.title} loading="lazy" src={createPortraitSource(player)} />
-                      <div>
-                        <strong>{player.title}</strong>
-                        <span>{player.role || player.subtitle || "Персонаж партии"}</span>
-                      </div>
-                      <button
-                        className={`combat-prep-check ${selected ? "active" : ""}`}
-                        onClick={() => toggleCampaignPreparedCombatPlayer(player.id)}
-                        type="button"
-                        aria-label={selected ? "Убрать игрока" : "Добавить игрока"}
-                      >
-                        {selected ? "✓" : "+"}
-                      </button>
-                    </article>
-                  );
-                })
-              ) : (
-                <p className="copy">Игроки не найдены.</p>
-              )}
-            </div>
-
-            <div className="combat-prep-subhead allies-head">
-              <strong>Союзники (0)</strong>
-              <button
-                className="combat-prep-purple-button"
-                onClick={() => requestCombatSetupSwapToEntity("player")}
-                type="button"
-              >
-                + Добавить союзника
-              </button>
-            </div>
-            <div className="combat-prep-empty-ally">
-              <span aria-hidden="true">♡</span>
-              <p>Союзники используют тот же уровень партии. Создай союзника как персонажа, а затем добавь его в бой.</p>
-            </div>
-          </section>
-
-          <section className="combat-prep-reference-panel field-panel">
-            <div className="combat-prep-panel-head field-head">
-              <div>
-                <h2>Бой на поле</h2>
-                <span>Готов к инициативе</span>
-              </div>
-              <div className="combat-prep-count-tabs">
-                <span>{`Персонажи ${draftPreparedCombatPlayers.length}`}</span>
-                <span>{`Противники ${campaignPreparedCombatDraftEnemyCount}`}</span>
-                <span>{`Всего ${draftPreparedCombatPlayers.length + campaignPreparedCombatDraftEnemyCount}`}</span>
-              </div>
-            </div>
-
-            <div className="combat-prep-field-section players">
-              <div className="combat-prep-field-title">
-                <strong>♟ Игроки</strong>
-                <span>Инициатива</span>
-                <span>Заметки</span>
-              </div>
-              <div className="combat-prep-field-list">
-                {draftPreparedCombatPlayers.length ? (
-                  draftPreparedCombatPlayers.map((player) => (
-                    <article key={`combat-prep-selected-player-${player.id}`} className="combat-prep-field-row player-row">
-                      <span className="combat-prep-drag-handle">⋮⋮</span>
-                      <img alt={player.title} loading="lazy" src={createPortraitSource(player)} />
-                      <div className="combat-prep-field-copy">
-                        <strong>{player.title}</strong>
-                        <span>{player.role || player.subtitle || "Игрок"}</span>
-                      </div>
-                      <input
-                        className="combat-prep-initiative-input"
-                        inputMode="numeric"
-                        onChange={(event) => setPreparedCombatPlayerInitiative(player.id, Number.parseInt(event.target.value, 10) || 0)}
-                        type="number"
-                        value={preparedCombatPlayerInitiatives[player.id] ?? 0}
-                      />
-                      <button className="combat-prep-note-button" type="button" aria-label="Заметка">▱</button>
-                      <button className="combat-prep-remove-ref" onClick={() => toggleCampaignPreparedCombatPlayer(player.id)} type="button" aria-label="Убрать">
-                        ×
-                      </button>
-                    </article>
-                  ))
-                ) : (
-                  <p className="copy">Добавь игроков слева.</p>
-                )}
-              </div>
-            </div>
-
-            <div className="combat-prep-field-section allies">
-              <div className="combat-prep-field-title">
-                <strong>♧ Союзники</strong>
-                <span>Инициатива</span>
-                <span>Заметки</span>
-              </div>
-              <div className="combat-prep-empty-drop">Добавь союзника слева, если он участвует в бою.</div>
-            </div>
-
-            <div className="combat-prep-field-section enemies">
-              <div className="combat-prep-field-title">
-                <strong>☠ Противники</strong>
-                <span>Кол-во</span>
-                <span>Инициатива</span>
-                <span>XP</span>
-              </div>
-              <div className="combat-prep-field-list enemy-list">
-                {draftPreparedCombatEnemies.length ? (
-                  draftPreparedCombatEnemies.map(({ entity, quantity }) => {
-                    const enemyXp = parseChallengeXp(entity.statBlock?.challenge ?? "") * quantity;
-                    return (
-                      <article key={`combat-prep-selected-enemy-${entity.id}`} className="combat-prep-field-row enemy-row">
-                        <span className="combat-prep-drag-handle">⋮⋮</span>
-                        <img alt={entity.title} loading="lazy" src={createPortraitSource(entity)} />
-                        <div className="combat-prep-field-copy">
-                          <strong>{entity.title}</strong>
-                          <span>{entity.statBlock?.creatureType || kindTitle[entity.kind]} • {getEntityChallenge(entity) || "CR не указан"}</span>
-                        </div>
-                        <div className="combat-prep-quantity-control">
-                          <button
-                            onClick={() => updateCampaignPreparedCombatDraftItem(entity.id, { quantity: Math.max(1, quantity - 1) })}
-                            type="button"
-                          >
-                            −
-                          </button>
-                          <input
-                            inputMode="numeric"
-                            onChange={(event) =>
-                              updateCampaignPreparedCombatDraftItem(entity.id, {
-                                quantity: Math.max(1, Number.parseInt(event.target.value, 10) || 1)
-                              })
-                            }
-                            type="number"
-                            value={quantity}
-                          />
-                          <button
-                            onClick={() => updateCampaignPreparedCombatDraftItem(entity.id, { quantity: quantity + 1 })}
-                            type="button"
-                          >
-                            +
-                          </button>
-                        </div>
-                        <input
-                          className="combat-prep-initiative-input"
-                          inputMode="numeric"
-                          onChange={(event) => setPreparedCombatEnemyInitiative(entity.id, Number.parseInt(event.target.value, 10) || 0)}
-                          type="number"
-                          value={preparedCombatEnemyInitiatives[entity.id] ?? 0}
-                        />
-                        <strong className="combat-prep-enemy-xp">{enemyXp} XP</strong>
-                        <button className="combat-prep-remove-ref" onClick={() => removeCampaignPreparedCombatDraftItem(entity.id)} type="button" aria-label="Убрать">
-                          ×
-                        </button>
-                      </article>
-                    );
-                  })
-                ) : (
-                  <p className="copy">Добавь противников справа.</p>
-                )}
-              </div>
-              <button className="combat-prep-drop-zone" type="button">↙ Перетащи монстров сюда или добавь из списка справа</button>
-            </div>
-          </section>
-
-          <section className="combat-prep-reference-panel bestiary-panel">
-            <div className="combat-prep-panel-head">
-              <div>
-                <h2>Бестиарий</h2>
-                <span>{`${filteredCombatCatalogItems.length} найдено`}</span>
-              </div>
-            </div>
-
-            <div className="combat-prep-bestiary-search-row">
-              <label className="combat-prep-search-field">
-                <span>⌕</span>
-                <input
-                  onChange={(event) => setCombatSearchQuery(event.target.value)}
-                  placeholder="Поиск монстров..."
-                  value={combatSearchQuery}
-                />
-              </label>
-              <button className="combat-prep-filter-button" type="button" aria-label="Фильтр">⌯</button>
-            </div>
-
-            <div className="combat-prep-filter-grid-ref">
-              {combatEnemyTypeOptions.map((option) => (
-                <button
-                  key={`combat-type-${option.value}`}
-                  className={`combat-prep-filter-chip-ref ${combatEnemyTypeFilter === option.value ? "active" : ""}`}
-                  onClick={() => setCombatEnemyTypeFilter(option.value)}
-                  type="button"
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="combat-prep-bestiary-list">
-              {filteredCombatCatalogItems.length ? (
-                filteredCombatCatalogItems.map((item) => {
-                  const itemXp = parseChallengeXp(item.challenge ?? "");
-                  return (
-                    <article key={`combat-prep-enemy-${item.key}`} className="combat-prep-bestiary-row">
-                      <img
-                        alt={item.title}
-                        loading="lazy"
-                        src={
-                          item.source === "entity" && item.entity
-                            ? createPortraitSource(item.entity)
-                            : item.bestiary
-                              ? createBestiaryPortraitSource(item.bestiary)
-                              : createPortraitSource({ kind: item.kind, title: item.title })
-                        }
-                      />
-                      <button className="combat-prep-row-main" onClick={() => setCombatSelectionId(item.key)} type="button">
-                        <div className="combat-prep-row-copy">
-                          <strong>{item.title}</strong>
-                          <small>
-                            {resolveCombatSearchItemTypeLabel(item)} • {item.challenge ? `CR ${extractChallengeToken(item.challenge)}` : "CR не указан"}
-                          </small>
-                        </div>
-                      </button>
-                      <span className="combat-prep-catalog-xp">{itemXp ? `${itemXp} XP` : "XP —"}</span>
-                      <button
-                        className={`combat-prep-add-enemy ${combatSelectionId === item.key ? "active" : ""}`}
-                        onClick={() => {
-                          setCombatSelectionId(item.key);
-                          void addCampaignPreparedCombatDraftItem(item);
-                        }}
-                        type="button"
-                        aria-label="Добавить противника"
-                      >
-                        +
-                      </button>
-                    </article>
-                  );
-                })
-              ) : (
-                <p className="copy">По текущему фильтру противники не найдены.</p>
-              )}
-            </div>
-          </section>
-        </div>
-
-        <footer className="combat-prep-reference-footer">
-          <div>
-            <span>Правила:</span>
-            <strong>D&D 5e</strong>
-          </div>
-          <div>
-            <span>Множитель сложности:</span>
-            <strong>{`×${combatAdjustedMultiplierText} (${draftEncounterMonsterCount} ${formatEnemyCountLabel(draftEncounterMonsterCount)})`}</strong>
-          </div>
-          <div>
-            <span>Статус:</span>
-            <strong>Черновик</strong>
-          </div>
-        </footer>
-      </div>
+      <CombatPrepPage
+        battlefieldPanelProps={{
+          campaignPreparedCombatDraftEnemyCount,
+          draftPreparedCombatAllyCount,
+          draftPreparedCombatAllies,
+          draftPreparedCombatEnemies,
+          draftPreparedCombatPlayers,
+          onAllyInitiativeChange: setPreparedCombatAllyInitiative,
+          onEnemyInitiativeChange: setPreparedCombatEnemyInitiative,
+          onEnemyQuantityChange: (entityId, quantity) => {
+            updateCampaignPreparedCombatDraftItem(entityId, { quantity });
+          },
+          onPlayerInitiativeChange: setPreparedCombatPlayerInitiative,
+          onRemoveAlly: removeCampaignPreparedCombatDraftAlly,
+          onRemoveEnemy: removeCampaignPreparedCombatDraftItem,
+          onTogglePlayer: toggleCampaignPreparedCombatPlayer,
+          preparedCombatAllyInitiatives,
+          preparedCombatEnemyInitiatives,
+          preparedCombatPlayerInitiatives
+        }}
+        bestiaryPanelProps={{
+          combatEnemyTypeFilter,
+          combatEnemyTypeOptions,
+          combatSearchQuery,
+          combatSelectionId,
+          filteredCombatCatalogItems,
+          onAddEnemy: (item) => {
+            void addCampaignPreparedCombatDraftItem(item);
+          },
+          onCombatEnemyTypeFilterChange: setCombatEnemyTypeFilter,
+          onCombatSearchQueryChange: setCombatSearchQuery,
+          onSelectCatalogItem: setCombatSelectionId
+        }}
+        bootError={bootError}
+        canStartPreparedCombatDraft={canStartPreparedCombatDraft}
+        campaignPreparedCombatNotice={campaignPreparedCombatNotice}
+        campaignTitle={campaign.title}
+        dangerProps={{
+          combatDangerDetailText,
+          combatDangerText,
+          combatDangerThresholdText,
+          combatDifficultyToneClass,
+          combatEnemyMetricHint,
+          combatLevelDisplayText,
+          combatMasterRecommendation,
+          draftEncounterAdjustedXp,
+          draftEncounterBaseXp,
+          draftEncounterDifficulty,
+          effectiveCombatThresholds,
+          onCombatPartyLevelsChange: updateCombatPartyLevelText,
+          onStepCombatPartyLevel: stepCombatPartyLevel,
+          preparedCombatLevelMetricHint,
+          resolvedCombatPartyLevelsText
+        }}
+        enteredPartyLevel={enteredPartyLevel}
+        hasExplicitPartyLevels={hasExplicitPartyLevels}
+        hasHostEntity={Boolean(combatSetupHostEntity)}
+        onBack={requestCombatSetupModalClose}
+        onClear={clearPreparedCombatDraft}
+        onSave={() => {
+          void (combatSetupHostEntity ? saveEntityPreparedCombatDraft() : saveCampaignPreparedCombatDraft());
+        }}
+        onStart={() => {
+          void startConfiguredCombat();
+        }}
+        partyCompositionText={partyCompositionText}
+        partyPanelProps={{
+          combatAllyCatalogItems,
+          combatAllySearchQuery,
+          combatPlayerCatalogItems,
+          combatPlayerSearchQuery,
+          draftPreparedCombatAllyCount,
+          draftPreparedCombatPartyCount,
+          draftPreparedCombatPlayers,
+          onCombatAllySearchQueryChange: setCombatAllySearchQuery,
+          onCombatPlayerSearchQueryChange: setCombatPlayerSearchQuery,
+          onRequestSwapToEntity: (kind) => requestCombatSetupSwapToEntity(kind),
+          onToggleAlly: toggleCampaignPreparedCombatAlly,
+          onTogglePlayer: toggleCampaignPreparedCombatPlayer,
+          selectedAllyIds: draftPreparedCombatAllyIds,
+          selectedPlayerIds: campaignPreparedCombatDraft.playerIds
+        }}
+        saving={saving}
+        sceneTitle={campaignPreparedCombatDraft.title?.trim() || "Грань Тени: бой"}
+      />
     ) : null;
 
   if (authState === "checking") {
@@ -7683,8 +3986,8 @@ export default function App() {
       <div className="boot">
         <div className="panel boot-card">
           <p className="eyebrow">Shadow Edge Ward</p>
-          <h1>Проверяю ключ от мастерской</h1>
-          <p>Поднимаю сессию и убеждаюсь, что кабинет можно открыть безопасно.</p>
+          <h1>Р СџРЎР‚Р С•Р Р†Р ВµРЎР‚РЎРЏРЎР‹ Р С”Р В»РЎР‹РЎвЂЎ Р С•РЎвЂљ Р СР В°РЎРѓРЎвЂљР ВµРЎР‚РЎРѓР С”Р С•Р в„–</h1>
+          <p>Р СџР С•Р Т‘Р Р…Р С‘Р СР В°РЎР‹ РЎРѓР ВµРЎРѓРЎРѓР С‘РЎР‹ Р С‘ РЎС“Р В±Р ВµР В¶Р Т‘Р В°РЎР‹РЎРѓРЎРЉ, РЎвЂЎРЎвЂљР С• Р С”Р В°Р В±Р С‘Р Р…Р ВµРЎвЂљ Р СР С•Р В¶Р Р…Р С• Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р В±Р ВµР В·Р С•Р С—Р В°РЎРѓР Р…Р С•.</p>
         </div>
       </div>
     );
@@ -7709,8 +4012,8 @@ export default function App() {
       <div className="boot">
         <div className="panel boot-card">
           <p className="eyebrow">Phase 1 Foundation</p>
-          <h1>Собираем кабинет мастера</h1>
-          <p>Загружаю кампанию, связи и рабочий shell для мастера.</p>
+          <h1>Р РЋР С•Р В±Р С‘РЎР‚Р В°Р ВµР С Р С”Р В°Р В±Р С‘Р Р…Р ВµРЎвЂљ Р СР В°РЎРѓРЎвЂљР ВµРЎР‚Р В°</h1>
+          <p>Р вЂ”Р В°Р С–РЎР‚РЎС“Р В¶Р В°РЎР‹ Р С”Р В°Р СР С—Р В°Р Р…Р С‘РЎР‹, РЎРѓР Р†РЎРЏР В·Р С‘ Р С‘ РЎР‚Р В°Р В±Р С•РЎвЂЎР С‘Р в„– shell Р Т‘Р В»РЎРЏ Р СР В°РЎРѓРЎвЂљР ВµРЎР‚Р В°.</p>
         </div>
       </div>
     );
@@ -7722,82 +4025,27 @@ export default function App() {
         <div className="boot">
           <div className="panel boot-card stack">
             <p className="eyebrow">Backend Connection</p>
-            <h1>Сервер не отдал активную кампанию</h1>
+            <h1>Р РЋР ВµРЎР‚Р Р†Р ВµРЎР‚ Р Р…Р Вµ Р С•РЎвЂљР Т‘Р В°Р В» Р В°Р С”РЎвЂљР С‘Р Р†Р Р…РЎС“РЎР‹ Р С”Р В°Р СР С—Р В°Р Р…Р С‘РЎР‹</h1>
             <p className="copy">
-              Убедись, что backend запущен и доступен на текущем домене. Для локальной разработки это обычно `http://localhost:8080`. Текущая ошибка: {bootError || "кампании не найдены"}.
+              Р Р€Р В±Р ВµР Т‘Р С‘РЎРѓРЎРЉ, РЎвЂЎРЎвЂљР С• backend Р В·Р В°Р С—РЎС“РЎвЂ°Р ВµР Р… Р С‘ Р Т‘Р С•РЎРѓРЎвЂљРЎС“Р С—Р ВµР Р… Р Р…Р В° РЎвЂљР ВµР С”РЎС“РЎвЂ°Р ВµР С Р Т‘Р С•Р СР ВµР Р…Р Вµ. Р вЂќР В»РЎРЏ Р В»Р С•Р С”Р В°Р В»РЎРЉР Р…Р С•Р в„– РЎР‚Р В°Р В·РЎР‚Р В°Р В±Р С•РЎвЂљР С”Р С‘ РЎРЊРЎвЂљР С• Р С•Р В±РЎвЂ№РЎвЂЎР Р…Р С• `http://localhost:8080`. Р СћР ВµР С”РЎС“РЎвЂ°Р В°РЎРЏ Р С•РЎв‚¬Р С‘Р В±Р С”Р В°: {bootError || "Р С”Р В°Р СР С—Р В°Р Р…Р С‘Р С‘ Р Р…Р Вµ Р Р…Р В°Р в„–Р Т‘Р ВµР Р…РЎвЂ№"}.
             </p>
             <div className="actions">
               <button className="primary" onClick={openCampaignModal} type="button">
-                Создать кампанию
+                Р РЋР С•Р В·Р Т‘Р В°РЎвЂљРЎРЉ Р С”Р В°Р СР С—Р В°Р Р…Р С‘РЎР‹
               </button>
             </div>
           </div>
         </div>
-
-        {campaignModalOpen ? (
-          <div className="overlay" role="presentation">
-            <div className="panel palette form-modal" onClick={(event) => event.stopPropagation()} role="dialog">
-              <div className="row">
-                <div>
-                  <p className="eyebrow">Create Campaign</p>
-                  <strong>Новая кампания сохраняется сразу на localhost backend</strong>
-                </div>
-                <button className="ghost" onClick={requestCampaignModalClose} type="button">
-                  Esc
-                </button>
-              </div>
-
-              <div className="form-grid">
-                <label className="field">
-                  <span>Название</span>
-                  <input
-                    className="input"
-                    onChange={(event) => setCampaignForm((current) => ({ ...current, title: event.target.value }))}
-                    value={campaignForm.title}
-                  />
-                </label>
-                <label className="field">
-                  <span>Система</span>
-                  <input
-                    className="input"
-                    onChange={(event) => setCampaignForm((current) => ({ ...current, system: event.target.value }))}
-                    value={campaignForm.system}
-                  />
-                </label>
-                <label className="field">
-                  <span>Сеттинг</span>
-                  <input
-                    className="input"
-                    onChange={(event) => setCampaignForm((current) => ({ ...current, settingName: event.target.value }))}
-                    value={campaignForm.settingName}
-                  />
-                </label>
-                <label className="field">
-                  <span>Игровая дата</span>
-                  <input
-                    className="input"
-                    onChange={(event) => setCampaignForm((current) => ({ ...current, inWorldDate: event.target.value }))}
-                    value={campaignForm.inWorldDate}
-                  />
-                </label>
-                <label className="field field-full">
-                  <span>Краткое описание</span>
-                  <textarea
-                    className="input textarea"
-                    onChange={(event) => setCampaignForm((current) => ({ ...current, summary: event.target.value }))}
-                    value={campaignForm.summary}
-                  />
-                </label>
-              </div>
-
-              <div className="actions">
-                <button className="primary" disabled={saving} onClick={() => void submitCampaign()} type="button">
-                  {saving ? "Сохраняю..." : "Создать кампанию"}
-                </button>
-              </div>
-            </div>
-          </div>
-        ) : null}
+        <CampaignCreateModal
+          form={campaignForm}
+          onChange={updateCampaignForm}
+          onClose={requestCampaignModalClose}
+          onSubmit={() => {
+            void submitCampaign();
+          }}
+          open={campaignModalOpen}
+          saving={saving}
+        />
       </>
     );
   }
@@ -7820,222 +4068,93 @@ export default function App() {
     <>
       <div className={`shell ${isCombatScreen ? "combat-layout" : ""} ${isCombatPrepScreen ? "combat-prep-shell" : ""} ${isItemsRail ? "items-shell" : ""}`.trim()} style={shellStyle}>
         {!isCombatScreen ? (
-          <>
-            <aside className="panel rail">
-              <div className="rail-shell">
-                <div className="rail-brand">
-                  <span className="rail-brand-mark">
-                    <RailIcon name="brand" />
-                  </span>
-                  <div className="rail-brand-copy">
-                    <strong>Shadow Edge GM</strong>
-                    <small>{authUsername}</small>
-                  </div>
-                </div>
-
-                <section className="rail-group">
-                  <div className="rail-group-head">
-                    <p className="eyebrow">Кампания</p>
-                    <button className="rail-plus-btn" onClick={openCampaignModal} title="Новая кампания" type="button">
-                      +
-                    </button>
-                  </div>
-
-                  <div className="rail-select-shell">
-                    <select
-                      className="rail-select"
-                      onChange={(event) => void handleCampaignSelect(event.target.value)}
-                      value={activeCampaignId}
-                    >
-                      {campaigns.map((item) => (
-                        <option key={item.id} value={item.id}>
-                          {item.title}
-                        </option>
-                      ))}
-                    </select>
-                    <span className="rail-select-chevron" aria-hidden="true">
-                      <svg className="rail-icon-svg" viewBox="0 0 20 20">
-                        <path d="m6 8 4 4 4-4" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" />
-                      </svg>
-                    </span>
-                  </div>
-                </section>
-
-                <section className="rail-group rail-group-nav">
-                  <p className="eyebrow">Навигация</p>
-                  <nav className="rail-nav" aria-label="Основная навигация">
-                    {railNavItems.map((item) => (
-                      <button
-                        key={item.key}
-                        className={`rail-nav-item ${activeRailKey === item.key ? "active" : ""}`}
-                        onClick={item.onClick}
-                        type="button"
-                      >
-                        <span className="rail-nav-icon">
-                          <RailIcon name={item.icon} />
-                        </span>
-                        <span className="rail-nav-label">{item.label}</span>
-                      </button>
-                    ))}
-                  </nav>
-                </section>
-
-                <div className="meta rail-meta">
-                  <div className="rail-meta-row">
-                    <span>Мир</span>
-                    <strong>{campaign.settingName}</strong>
-                  </div>
-                  <div className="rail-meta-row">
-                    <span>Дата</span>
-                    <strong>{campaign.inWorldDate}</strong>
-                  </div>
-                  <div className="rail-meta-row">
-                    <span>Пины</span>
-                    <strong>{pinnedEntities.length}</strong>
-                  </div>
-                  <button className="ghost rail-logout" disabled={authBusy} onClick={() => void logout()} type="button">
-                    {authBusy ? "Выходим..." : "Выйти"}
-                  </button>
-                </div>
-              </div>
-            </aside>
-          </>
+          <AppSidebar
+            activeCampaignId={activeCampaignId}
+            activeRailKey={activeRailKey}
+            authBusy={authBusy}
+            authUsername={authUsername}
+            campaigns={campaigns}
+            inWorldDate={campaign.inWorldDate}
+            items={railNavItems}
+            onCampaignSelect={(campaignId) => {
+              void handleCampaignSelect(campaignId);
+            }}
+            onCreateCampaign={openCampaignModal}
+            onLogout={() => {
+              void logout();
+            }}
+            pinnedCount={pinnedEntities.length}
+            settingName={campaign.settingName}
+          />
         ) : null}
 
         <main className={`center ${isCombatScreen ? "combat-center" : ""}`}>
           {isCombatScreen ? (
-            <header className="panel topbar combat-topbar">
-              <div className="actions combat-topbar-left">
-                <button className="ghost" onClick={returnToApp} type="button">
-                  Вернуться в приложение
-                </button>
-                <div className="topbar-campaign">
-                  <p className="eyebrow">Campaign</p>
-                  <strong>{campaign.title}</strong>
-                  <small>{campaign.inWorldDate}</small>
-                </div>
-              </div>
-
-              <div className="combat-screen-title">
-                <p className="eyebrow">Combat Screen</p>
-                <strong>{activeCombat?.title ?? combatTitle}</strong>
-                <small>
-                  {hasActiveCombat
-                    ? `${activeCombat?.entries.length ?? 0} участников в сцене`
-                    : "Подготовка новой сцены боя"}
-                </small>
-              </div>
-
-              <div className="chips">
-                {hasActiveCombat ? (
-                  <span className="chip active-combat-indicator">
-                    Активный бой • {activeCombat?.entries.length ?? 0}
-                  </span>
-                ) : null}
-                <button
-                  className="ghost"
-                  disabled={!(campaign.combatPlaylist ?? []).length}
-                  onClick={() => playCombatPlaylist()}
-                  type="button"
-                >
-                  {isCombatPlaylistActive ? "Следующий трек боя" : "Случайный трек боя"}
-                </button>
-                <button className="ghost" onClick={openCombatPlaylistModal} type="button">
-                  Плейлист боя
-                </button>
-                <button className="ghost" disabled={!activeCombat?.entries.length} onClick={openInitiativeTracker} type="button">
-                  Трекер
-                </button>
-                <button
-                  className="ghost"
-                  disabled={initiativeShareBusy}
-                  onClick={openPublicInitiativeTracker}
-                  type="button"
-                >
-                  {initiativeShareBusy ? "Готовлю..." : "Публичный трекер"}
-                </button>
-                <button
-                  className="ghost"
-                  disabled={initiativeShareBusy}
-                  onClick={() => void copyPublicInitiativeTrackerLink()}
-                  type="button"
-                >
-                  {initiativeShareBusy ? "Готовлю..." : "Копировать публичную ссылку"}
-                </button>
-                <button className="ghost" disabled={saving} onClick={() => void syncCombatPortraits()} type="button">
-                  Подтянуть фотки
-                </button>
-                <button className="ghost" onClick={() => openCombatSetupModal()} type="button">
-                  Добавить врага
-                </button>
-                <button className="ghost" disabled={authBusy} onClick={() => void logout()} type="button">
-                  {authBusy ? "Выходим..." : "Выйти"}
-                </button>
-                <button className="primary" disabled={!activeCombat || saving} onClick={() => void finishCombat()} type="button">
-                  Завершить бой
-                </button>
-              </div>
-            </header>
+            <AppHeader
+              activeCombatCount={activeCombat?.entries.length ?? 0}
+              authBusy={authBusy}
+              campaignTitle={campaign.title}
+              combatTitle={activeCombat?.title ?? combatTitle}
+              hasActiveCombat={hasActiveCombat}
+              inWorldDate={campaign.inWorldDate}
+              initiativeShareBusy={initiativeShareBusy}
+              isCombatPlaylistActive={isCombatPlaylistActive}
+              onCopyPublicInitiativeTracker={() => {
+                void copyPublicInitiativeTrackerLink();
+              }}
+              onFinishCombat={() => {
+                void finishCombat();
+              }}
+              onLogout={() => {
+                void logout();
+              }}
+              onOpenCombatPlaylistModal={openCombatPlaylistModal}
+              onOpenCombatSetupModal={() => openCombatSetupModal()}
+              onOpenInitiativeTracker={openInitiativeTracker}
+              onOpenPublicInitiativeTracker={openPublicInitiativeTracker}
+              onPlayCombatPlaylist={() => playCombatPlaylist()}
+              onReturnToApp={returnToApp}
+              onSyncCombatPortraits={() => {
+                void syncCombatPortraits();
+              }}
+              saving={saving}
+              variant="combat"
+            />
           ) : (
             <>
-              <header className="panel topbar">
-                <div className="topbar-campaign">
-                  <p className="eyebrow">Campaign</p>
-                  <strong>{campaign.title}</strong>
-                  <small>{campaign.inWorldDate}</small>
-                </div>
+                <AppHeader
+                  activeModule={activeModule}
+                  authBusy={authBusy}
+                  campaignTitle={campaign.title}
+                  canOpenDirectory={
+                    !isCombatScreen &&
+                    activeModule !== "dashboard" &&
+                    Boolean(activeEntity || (bestiaryController.isBrowseMode && bestiaryController.selectedBestiaryMonster))
+                  }
+                hasActiveCombat={hasActiveCombat}
+                inWorldDate={campaign.inWorldDate}
+                isCombatScreen={isCombatScreen}
+                isItemsRail={hasFeatureOwnedDetailsPanel}
+                onCreateEntity={() => openEntityModal()}
+                onLogout={() => {
+                  void logout();
+                }}
+                onOpenCombat={() => {
+                  if (activeCombat?.entries.length) {
+                    openCombatScreen();
+                    return;
+                  }
+                  openCombatSetupModal();
+                }}
+                onOpenDirectory={() => openModuleDirectory(activeModule)}
+                onOpenPinnedEntity={peekEntity}
+                onOpenRandomEvent={openRandomEventModal}
+                onOpenSearch={openPalette}
+                pinnedEntities={pinnedEntities}
+                variant="default"
+              />
 
-                <button className="search-btn" onClick={() => setPaletteOpen(true)} type="button">
-                  <span>Ctrl + K</span>
-                  <strong>Поиск сущностей, сцен и слухов</strong>
-                </button>
-
-                <div className="chips">
-                  <button
-                    className={`ghost ${isCombatScreen ? "active" : ""}`}
-                    onClick={() => {
-                      if (activeCombat?.entries.length) {
-                        openCombatScreen();
-                        return;
-                      }
-                      openCombatSetupModal();
-                    }}
-                    type="button"
-                  >
-                    Бой
-                  </button>
-                  {!isCombatScreen && activeModule !== "dashboard" && (activeEntity || (isBestiaryScreen && selectedBestiaryMonster)) ? (
-                    <button className="ghost" onClick={() => openModuleDirectory(activeModule)} type="button">
-                      К списку
-                    </button>
-                  ) : null}
-                  {hasActiveCombat ? (
-                    <button className="chip active-combat-indicator" onClick={openCombatScreen} type="button">
-                      Активный бой • {activeCombat?.entries.length ?? 0}
-                    </button>
-                  ) : null}
-                  {pinnedEntities.map((entity) => (
-                    <button key={entity.id} className="chip" onClick={() => peekEntity(entity.id)} type="button">
-                      {entity.title}
-                    </button>
-                  ))}
-                  {activeModule === "quests" && !isCombatScreen ? (
-                    <button className="ghost" onClick={openRandomEventModal} type="button">
-                      Случайное событие
-                    </button>
-                  ) : null}
-                  <button className="ghost" disabled={authBusy} onClick={() => void logout()} type="button">
-                    {authBusy ? "Выходим..." : "Выйти"}
-                  </button>
-                  {!isItemsRail ? (
-                    <button className="ghost" onClick={() => openEntityModal()} type="button">
-                      Создать
-                    </button>
-                  ) : null}
-                </div>
-              </header>
-
-              {!isItemsRail ? (
+              {!isItemsRail && activeModule !== "rules" ? (
                 <div className="panel tabs">
                   {tabs[activeModule].map((tab) => (
                     <button
@@ -8049,8 +4168,7 @@ export default function App() {
                           setPreviewEntityId("");
                         }
                         if (activeModule === "monsters") {
-                          setSelectedBestiaryId("");
-                          setSelectedBestiaryMonster(null);
+                          bestiaryController.resetBrowseSelection();
                         }
                         requestAnimationFrame(scrollContentToTop);
                       }}
@@ -8072,8 +4190,8 @@ export default function App() {
                     <p className="eyebrow">GM Cockpit</p>
                     <h1>{campaign.title}</h1>
                     <p className="copy">
-                      Один кабинет для мира, квестов и живой сессии. Сущности открываются в центре без
-                      прыжков страницы, а справа можно держать быстрый preview и закреплённые карточки.
+                      Один кабинет для мира, квестов и живой сессии. Сущности открываются в центре без прыжков страницы,
+                      а справа можно держать быстрый preview и закреплённые карточки.
                     </p>
                   </div>
 
@@ -8110,7 +4228,7 @@ export default function App() {
                             <strong>{event.title}</strong>
                             <span className={badge(worldEventTypeTones[event.type])}>{worldEventTypeLabels[event.type]}</span>
                           </div>
-                          <small>{event.locationLabel ? `${event.locationLabel} • ` : ""}{event.date}</small>
+                          <small>{event.locationLabel ? `${event.locationLabel} РІР‚Сћ ` : ""}{event.date}</small>
                           <p>{event.summary}</p>
                         </button>
                       ))}
@@ -8120,7 +4238,7 @@ export default function App() {
                   <article className="card section-card">
                     <div className="row muted">
                       <span>Hot Entities</span>
-                      <span>Быстрый переход</span>
+                      <span>Р вЂРЎвЂ№РЎРѓРЎвЂљРЎР‚РЎвЂ№Р в„– Р С—Р ВµРЎР‚Р ВµРЎвЂ¦Р С•Р Т‘</span>
                     </div>
                     <div className="stack">
                       {[...campaign.locations, ...campaign.npcs, ...campaign.monsters, ...campaign.quests, ...campaign.lore]
@@ -8135,1196 +4253,249 @@ export default function App() {
                 </section>
               </div>
             ) : activeModule === "combat" ? (
-              <div className={`stack wide ${combatSetupOpen && !activeCombat?.entries.length ? "combat-prep-only" : ""}`}> 
-                {latestCombatSummary ? (
-                    <section className="card section-card combat-report">
-                      <div className="row muted">
-                        <span>Итог последнего боя</span>
-                        <span>Опыт считается по врагам, которые к финалу уже имеют 0 HP</span>
-                      </div>
-                      <div className="combat-report-grid">
-                        <article className="card mini fact-box">
-                          <small>Побеждено</small>
-                        <strong className="fact-value">{latestCombatSummary.defeatedCount}</strong>
-                        </article>
-                        <article className="card mini fact-box">
-                          <small>Всего опыта</small>
-                        <strong className="fact-value">{latestCombatSummary.totalExperience} XP</strong>
-                        </article>
-                        <article className="card mini fact-box">
-                          <small>На игрока</small>
-                        <strong className="fact-value">{latestCombatSummary.experiencePerPlayer} XP</strong>
-                        </article>
-                      </div>
-                    </section>
-                ) : null}
-
-                {activeCombat?.entries.length ? (
-                  <CombatWorkbench
-                    activeCombat={activeCombat}
-                    bootError={bootError}
-                    campaign={campaign}
-                    combatPlayerEntityId={combatPlayerEntityId}
-                    combatPlayerInitiative={combatPlayerInitiative}
-                    combatPortraitNotice={combatPortraitNotice}
-                    combatStateBusy={combatStateBusy}
+              <CombatPage
+                activeCombat={activeCombat}
+                bootError={bootError}
+                campaign={campaign}
+                campaignPreparedCombat={campaignPreparedCombat}
+                combatPartySummary={combatPartySummary}
+                combatPortraitNotice={combatPortraitNotice}
+                combatSetupOpen={combatSetupOpen}
+                configuredCombatEnemies={configuredCombatEnemies}
+                configuredCombatEnemyCount={configuredCombatEnemyCount}
+                configuredCombatPlayers={configuredCombatPlayers}
+                currentPlaybackTrackLabel={currentPlaybackTrackLabel}
+                currentPlaybackTrackUrl={currentPlaybackTrackUrl}
+                hasConfiguredCombat={hasConfiguredCombat}
+                canStartConfiguredCombat={canStartConfiguredCombat}
+                initiativePublishNotice={initiativePublishNotice}
+                isCombatPlaylistActive={isCombatPlaylistActive}
+                latestCombatSummary={latestCombatSummary}
+                onCombatPartyLevelsChange={updateCombatPartyLevelText}
+                onOpenCombatPlaylistModal={openCombatPlaylistModal}
+                onOpenCombatSetupModal={() => openCombatSetupModal()}
+                onOpenEntityPreview={peekEntity}
+                onPlayCombatPlaylist={() => playCombatPlaylist()}
+                onPlayCombatTrack={(index) => playCombatPlaylist(index, false)}
+                onPlayNextRandomTrack={playNextRandomTrack}
+                onStopPlayback={stopPlayback}
+                prepContent={combatPrepPage}
+                resolvedCombatPartyLevelsText={resolvedCombatPartyLevelsText}
+                trackerProps={{
+                  activeCombat,
+                  bootError,
+                  campaign,
+                  combatPlayerEntityId,
+                  combatPlayerInitiative,
+                  combatPortraitNotice,
+                  combatStateBusy,
+                  currentPlaybackTrackLabel,
+                  entityMap,
+                  initiativePublishNotice,
+                  initiativeShareBusy,
+                  isCombatPlaylistActive,
+                  onAddManualPlayer: () => void addManualPlayerToCombat(),
+                  onChangeHitPoints: updateCombatHitPoints,
+                  onChangeInitiative: updateCombatInitiative,
+                  onCombatPlayerEntityIdChange: setCombatPlayerEntityId,
+                  onCombatPlayerInitiativeChange: setCombatPlayerInitiative,
+                  onCopyPublicTracker: () => void copyPublicInitiativeTrackerLink(),
+                  onDeclarePlayersVictory: () => void declarePlayersVictory(),
+                  onFinishCombat: () => void finishCombat(),
+                  onNextTurn: () => void nextCombatTurn(),
+                  onOpenCombatPlaylistModal: openCombatPlaylistModal,
+                  onOpenCombatSetupModal: openCombatSetupModal,
+                  onOpenPublicTracker: openPublicInitiativeTracker,
+                  onOpenRandomEventModal: openRandomEventModal,
+                  onPlayCombatPlaylist: () => playCombatPlaylist(),
+                  onPlayNextRandomTrack: playNextRandomTrack,
+                  onSelectEntry: selectCombatEntryById,
+                  onSetTurn: (entryId) => void setCombatTurn(entryId),
+                  onSyncCombatPortraits: () => void syncCombatPortraits(),
+                  saving,
+                  selectedEntity: selectedCombatEntity,
+                  selectedEntry: selectedCombatEntry
+                }}
+              />
+            ) : activeModule === "monsters" ||
+              activeModule === "rules" ||
+              activeRailAlias === "items" ||
+              activeRailAlias === "events" ||
+              activeModule === "lore" ||
+              (activeEntity?.kind === "quest" && activeModule === "quests") ? (
+              <AppContentRouter
+                activeEntity={activeEntity}
+                activeModule={activeModule}
+                activeRailAlias={activeRailAlias}
+                bestiaryContent={
+                  <BestiaryPageContainer
+                    activeMonster={activeEntity?.kind === "monster" ? activeEntity : null}
+                    activeMonsterPinned={activeEntity?.kind === "monster" ? activeEntityPinned : false}
+                    activeTab={activeTab}
+                    composeVisibleQuickFacts={composeVisibleQuickFacts}
+                    controller={bestiaryController}
                     currentPlaybackTrackLabel={currentPlaybackTrackLabel}
-                    entityMap={entityMap}
-                    initiativePublishNotice={initiativePublishNotice}
-                    initiativeShareBusy={initiativeShareBusy}
-                    isCombatPlaylistActive={isCombatPlaylistActive}
-                    onAddManualPlayer={() => void addManualPlayerToCombat()}
-                    onChangeHitPoints={updateCombatHitPoints}
-                    onChangeInitiative={updateCombatInitiative}
-                    onCombatPlayerEntityIdChange={setCombatPlayerEntityId}
-                    onCombatPlayerInitiativeChange={setCombatPlayerInitiative}
-                      onCopyPublicTracker={() => void copyPublicInitiativeTrackerLink()}
-                      onDeclarePlayersVictory={() => void declarePlayersVictory()}
-                      onFinishCombat={() => void finishCombat()}
-                      onNextTurn={() => void nextCombatTurn()}
-                    onOpenCombatPlaylistModal={openCombatPlaylistModal}
-                    onOpenCombatSetupModal={openCombatSetupModal}
-                    onOpenPublicTracker={openPublicInitiativeTracker}
-                    onOpenRandomEventModal={openRandomEventModal}
-                    onPlayCombatPlaylist={() => playCombatPlaylist()}
-                    onPlayNextRandomTrack={playNextRandomTrack}
-                    onSelectEntry={selectCombatEntryById}
-                    onSetTurn={(entryId) => void setCombatTurn(entryId)}
-                    onSyncCombatPortraits={() => void syncCombatPortraits()}
-                    saving={saving}
-                    selectedEntity={selectedCombatEntity}
-                    selectedEntry={selectedCombatEntry}
+                    currentPlaybackTrackUrl={currentPlaybackTrackUrl}
+                    entityByTitle={entityByTitle}
+                    isEntityPlaylistActive={isEntityPlaylistActive}
+                    onContentContextMenu={(entity, event) => entityLinkController.handleActiveEntityContentContextMenu(entity, "content", event)}
+                    onCopyImageLink={handleCopyImageLink}
+                    onEditEntity={openEntityEditor}
+                    onOpenDirectory={() => openModuleDirectory("monsters", "Imported")}
+                    onOpenEntity={openEntity}
+                    onOpenEntityActionMenu={openEntityActionMenu}
+                    onOpenGallery={openEntityGalleryModal}
+                    onOpenGalleryViewer={openEntityGalleryViewer}
+                    onOpenPlaylist={openEntityPlaylistModal}
+                    onOpenPreview={openPreview}
+                    onOpenRelatedEntity={openRelatedEntity}
+                    onPlayNextPlaylistTrack={playNextRandomTrack}
+                    onPlayPlaylist={playEntityPlaylist}
+                    onResolveRelatedEntity={resolveLinkedEntity}
+                    onStopPlayback={stopPlayback}
+                    onTogglePin={togglePin}
+                    playerFacing={playerFacing}
                   />
-                ) : (
-                  <>
-                    <PlaylistSection
-                      action={
-                        <button className="ghost" onClick={openCombatPlaylistModal} type="button">
-                          Настроить
-                        </button>
-                      }
-                      activeTrackLabel={currentPlaybackTrackLabel}
-                      activeTrackUrl={currentPlaybackTrackUrl}
-                      defaultCollapsed={!(campaign.combatPlaylist ?? []).length}
-                      hint="Один общий плейлист кампании для всех старых и новых боёв"
-                      isActive={isCombatPlaylistActive}
-                      onNextRandom={playNextRandomTrack}
-                      onPlayRandom={() => playCombatPlaylist()}
-                      onPlayTrack={(index) => playCombatPlaylist(index, false)}
-                      onStop={stopPlayback}
-                      title="Общий боевой плейлист"
-                      tracks={campaign.combatPlaylist ?? []}
-                    />
-
-                    {combatPortraitNotice ? (
-                      <div className="card mini form-success" role="status">
-                        <strong>Портреты обновлены</strong>
-                        <p>{combatPortraitNotice}</p>
-                      </div>
-                    ) : null}
-
-                    {initiativePublishNotice ? (
-                      <div className="card mini form-success" role="status">
-                        <strong>Публичный трекер</strong>
-                        <p>{initiativePublishNotice}</p>
-                      </div>
-                    ) : null}
-
-                    {bootError ? (
-                      <div className="card mini form-error" role="status">
-                        <strong>Проблема в бою</strong>
-                        <p>{bootError}</p>
-                      </div>
-                    ) : null}
-
-                    {combatSetupOpen ? (
-                      campaignCombatSetupView
-                    ) : (
-                      <section className="card section-card combat-screen-shell">
-                        <div className="row muted">
-                          <span>Активного боя пока нет</span>
-                          <span>{hasConfiguredCombat ? "Сцена подготовлена" : "Нужна предварительная настройка"}</span>
-                        </div>
-                        <div className="stack">
-                          <h2>Подготовь сцену перед стартом</h2>
-                          <p className="copy">
-                            {hasConfiguredCombat
-                              ? "Состав боя уже подготовлен. Открой подготовку, впиши инициативу рядом с участниками и стартуй бой сразу."
-                              : "Сначала настрой состав боя: выбери игроков партии и добавь врагов, которых хочешь держать заготовленными для быстрого старта."}
-                          </p>
-                          {hasConfiguredCombat ? (
-                            <div className="stack compact">
-                              <div className="row muted">
-                                <span>{campaignPreparedCombat?.title?.trim() || "Подготовленная сцена"}</span>
-                                <span>
-                                  {configuredCombatPlayers.length}{" "}
-                                  {configuredCombatPlayers.length === 1 ? "игрок" : configuredCombatPlayers.length < 5 ? "игрока" : "игроков"} •{" "}
-                                  {configuredCombatEnemyCount}{" "}
-                                  {configuredCombatEnemyCount === 1 ? "противник" : configuredCombatEnemyCount < 5 ? "противника" : "противников"}
-                                </span>
-                              </div>
-                              <div className="grid">
-                                {configuredCombatPlayers.map((player) => (
-                                  <button
-                                    key={`configured-player-${player.id}`}
-                                    className="card mini fill relation-card relation-card-with-visual"
-                                    onClick={() => peekEntity(player.id)}
-                                    type="button"
-                                  >
-                                    <EntityVisual entity={player} variant="relation" />
-                                    <span className={badge("success")}>Игрок</span>
-                                    <strong>{player.title}</strong>
-                                    <p>{player.role || player.summary || "Персонаж партии"}</p>
-                                  </button>
-                                ))}
-                                {configuredCombatEnemies.map(({ entity, quantity }) => (
-                                  <button
-                                    key={`configured-enemy-${entity.id}`}
-                                    className="card mini fill relation-card relation-card-with-visual"
-                                    onClick={() => peekEntity(entity.id)}
-                                    type="button"
-                                  >
-                                    <EntityVisual entity={entity} variant="relation" />
-                                    <span className={badge(entity.kind === "monster" ? "danger" : "accent")}>{kindTitle[entity.kind]}</span>
-                                    <strong>{entity.title}</strong>
-                                    <p>
-                                      {quantity} шт. • {getEntityChallenge(entity) || "CR не указан"}
-                                    </p>
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          ) : null}
-                          <label className="field field-full">
-                            <span>Уровень партии</span>
-                            <small className="field-hint">Нужны только для расчёта сложности. На сам запуск боя они не влияют.</small>
-                            <input
-                              className="input"
-                              onChange={(event) => updateCombatPartyLevelText(event.target.value)}
-                              placeholder="Например: 3"
-                              value={combatPartyLevelsText}
-                            />
-                          </label>
-                          <p className="copy combat-inline-note">{combatPartySummary}</p>
-                          <div className="actions">
-                            <button className="ghost" onClick={() => openCombatSetupModal()} type="button">
-                              Настроить бой
-                            </button>
-                            <button className="primary" disabled={!canStartConfiguredCombat} onClick={() => openCombatSetupModal()} type="button">
-                              К старту боя
-                            </button>
-                          </div>
-                        </div>
-                      </section>
-                    )}
-                  </>
-                )}
-              </div>
-            ) : isBestiaryScreen ? (
-              <div className="stack wide">
-                <section className="card section-card bestiary-toolbar">
-                  <div className="row muted">
-                    <span>Официальный bestiary dnd.su</span>
-                    <span>
-                      {bestiary?.status.total ?? 0} записей • {bestiary?.status.hydrated ?? 0} в детальном кэше
-                    </span>
-                  </div>
-
-                  <div className="bestiary-filter-grid">
-                    <label className="field field-full">
-                      <span>Поиск по названию</span>
-                      <input
-                        className="input"
-                        onChange={(event) => setBestiarySearch(event.target.value)}
-                        placeholder="Например: giant spider, дракон, нежить"
-                        value={bestiarySearch}
-                      />
-                    </label>
-
-                    <label className="field">
-                      <span>Опасность / CR</span>
-                      <select
-                        className="input"
-                        onChange={(event) => setBestiaryChallenge(event.target.value)}
-                        value={bestiaryChallenge}
-                      >
-                        <option value="">Все значения</option>
-                        {bestiary?.filters.challenges.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <label className="field">
-                      <span>Тип существа</span>
-                      <select className="input" onChange={(event) => setBestiaryType(event.target.value)} value={bestiaryType}>
-                        <option value="">Все типы</option>
-                        {bestiary?.filters.types.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-
-                  <div className="row muted">
-                    <span>
-                      {activeTab === "Catalog"
-                        ? "Каталог dnd.su"
-                        : activeTab === "Named NPC"
-                          ? "Именные НИП из бестиария"
-                          : "Карточки с пометкой «Классика»"}
-                    </span>
-                    <span>
-                      {bestiaryLoading ? "Обновляю каталог..." : `${bestiary?.total ?? 0} результатов`}
-                    </span>
-                  </div>
-                </section>
-
-                {selectedBestiaryMonster ? (
-                  <>
-                    <section
-                      className="card hero"
-                      style={createHeroPanelStyle(
-                        gradients.monster,
-                        selectedBestiaryMonster.summary.imageUrl ?? selectedBestiaryMonster.monster.art?.url
-                      )}
-                    >
-                      <div className="hero-head">
-                        <span className="sigil big" style={{ backgroundImage: gradients.monster }}>
-                          {sigil(selectedBestiaryMonster.monster.title)}
-                        </span>
-                        <div className="hero-copy-block">
-                          <div className="hero-tags">
-                            <span className={badge("accent")}>dnd.su</span>
-                            {selectedBestiarySummary?.challenge ? (
-                              <span className={badge()}>{selectedBestiarySummary.challenge}</span>
-                            ) : null}
-                            {selectedBestiarySummary?.creatureTypeLabel ? (
-                              <span className={badge()}>{selectedBestiarySummary.creatureTypeLabel}</span>
-                            ) : null}
-                            {selectedBestiarySummary?.source ? (
-                              <span className={badge()}>{selectedBestiarySummary.source}</span>
-                            ) : null}
-                          </div>
-                          <h1>{selectedBestiaryMonster.monster.title}</h1>
-                          <p className="hero-subtitle">{selectedBestiaryMonster.monster.subtitle}</p>
-                          <p className="copy">{selectedBestiaryMonster.monster.summary}</p>
-                        </div>
-                      </div>
-
-                      <div className="actions">
-                        <button
-                          className="ghost"
-                          onClick={() => window.open(selectedBestiaryMonster.sourceUrl, "_blank", "noopener,noreferrer")}
-                          type="button"
-                        >
-                          Открыть dnd.su
-                        </button>
-                        <button
-                          className="primary"
-                          disabled={importingBestiary}
-                          onClick={() => void importSelectedBestiaryMonster()}
-                          type="button"
-                        >
-                          {importingBestiary
-                            ? "Импортирую..."
-                            : selectedBestiaryImported
-                              ? "Импортировать ещё раз"
-                              : "Импортировать в кампанию"}
-                        </button>
-                      </div>
-                    </section>
-
-                    <div className="facts">
-                      {selectedBestiaryMonster.monster.quickFacts.map((fact) => (
-                        <article key={fact.label} className="card mini fact-box">
-                          <small>{fact.label}</small>
-                          <strong className={`fact-value ${toneClass[fact.tone ?? "default"]}`}>{fact.value}</strong>
-                        </article>
-                      ))}
-                    </div>
-
-                    <CombatEntityStatSheet entity={selectedBestiaryMonster.monster} />
-                    <RewardSection kind="monster" rewardProfile={selectedBestiaryMonster.monster.rewardProfile} />
-
-                    <article className="card section-card">
-                      <div className="row muted">
-                        <span>Описание</span>
-                        <span>Подтянуто из официальной карточки dnd.su</span>
-                      </div>
-                      <div className="rich">
-                        {selectedBestiaryMonster.monster.content
-                          .split(/\n+/)
-                          .filter(Boolean)
-                          .map((paragraph) => (
-                            <p key={paragraph}>{paragraph}</p>
-                          ))}
-                      </div>
-                    </article>
-                  </>
-                ) : (
-                  <section className="card section-card directory-screen">
-                    <div className="directory-head">
-                      <div>
-                        <p className="eyebrow">Bestiary Browser</p>
-                        <h2>{bestiaryDetailLoading ? "Открываю карточку..." : "Каталог монстров"}</h2>
-                        <p className="copy">Сначала выбери запись из списка, а уже потом откроется полная карточка монстра.</p>
-                      </div>
-                      <span className={badge("accent")}>{bestiary?.total ?? 0}</span>
-                    </div>
-
-                    <div className="directory-grid">
-                      {(bestiary?.items ?? []).map((item) => (
-                        <button key={item.id} className="directory-card bestiary-directory-card" onClick={() => setSelectedBestiaryId(item.id)} type="button">
-                          <span className="directory-card-thumb">
-                            <img alt={item.title} className="directory-card-image" loading="lazy" src={createBestiaryPortraitSource(item)} />
-                          </span>
-                          <span className="directory-card-copy">
-                            <span className="directory-card-topline">
-                              <strong>{item.title}</strong>
-                              <span className={badge("warning")}>{item.challenge ? `CR ${item.challenge}` : "CR ?"}</span>
-                            </span>
-                            <small>{item.creatureTypeLabel || item.source}</small>
-                            <p>{truncateInlineText(item.summary || item.subtitle, 140)}</p>
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </section>
-                )}
-              </div>
-            ) : activeRailAlias === "items" ? (
-              <ItemsWorkspace campaignId={campaign.id} />
-            ) : activeRailAlias === "events" ? (
-              <EventsWorkspace
-                draft={eventEditorDraft}
-                draftId={eventEditorId}
-                error={bootError}
-                events={campaign.events}
-                generating={randomEventGenerating}
-                locations={campaign.locations}
-                notice={eventEditorNotice}
-                onAddBranch={() =>
-                  updateWorldEventDraft((current) => ({
-                    ...current,
-                    dialogueBranches: [...(current.dialogueBranches ?? []), createEmptyWorldEventDialogueBranch()]
-                  }))
                 }
-                onAddLoot={() =>
-                  updateWorldEventDraft((current) => ({
-                    ...current,
-                    loot: [...(current.loot ?? []), ""]
-                  }))
-                }
-                onBranchChange={(index, updater) =>
-                  updateWorldEventDraft((current) => ({
-                    ...current,
-                    dialogueBranches: (current.dialogueBranches ?? []).map((branch, branchIndex) =>
-                      branchIndex === index ? updater(branch) : branch
-                    )
-                  }))
-                }
-                onCreateEvent={startNewWorldEvent}
-                onDelete={() => void removeWorldEvent()}
-                onDraftChange={updateWorldEventDraft}
-                onLootChange={(index, value) =>
-                  updateWorldEventDraft((current) => ({
-                    ...current,
-                    loot: (current.loot ?? []).map((item, lootIndex) => (lootIndex === index ? value : item))
-                  }))
-                }
-                onOpenGenerator={openRandomEventModal}
-                onOpenLocation={openEntity}
-                onRemoveBranch={(index) =>
-                  updateWorldEventDraft((current) => ({
-                    ...current,
-                    dialogueBranches: (current.dialogueBranches ?? []).filter((_, branchIndex) => branchIndex !== index)
-                  }))
-                }
-                onRemoveLoot={(index) =>
-                  updateWorldEventDraft((current) => ({
-                    ...current,
-                    loot: (current.loot ?? []).length <= 1 ? [""] : (current.loot ?? []).filter((_, lootIndex) => lootIndex !== index)
-                  }))
-                }
-                onSave={() => void saveWorldEvent()}
-                onSearchChange={setModuleEntitySearch}
-                onSelectEvent={requestWorldEventSwitch}
-                saving={saving}
-                searchQuery={moduleEntitySearch}
-                selectedEventId={activeWorldEvent?.id ?? ""}
-              />
-            ) : activeModule === "lore" ? (
-              <NotesWorkspace
-                draftContent={noteEditorContent}
-                draftId={noteEditorEntityId}
-                draftTitle={noteEditorTitle}
-                error={bootError}
-                notice={noteEditorNotice}
-                notes={campaign.lore}
-                onContentChange={(value) => {
-                  setNoteEditorContent(value);
-                  setNoteEditorDirty(true);
-                  setNoteEditorNotice("");
-                }}
-                onContentContextMenu={handleNoteContentContextMenu}
-                onCreateNote={startNewLoreNote}
-                onOpenPreview={openPreview}
-                onSave={() => void saveLoreNote()}
-                onSearchChange={setModuleEntitySearch}
-                onSelectNote={requestLoreNoteSwitch}
-                onTitleChange={(value) => {
-                  setNoteEditorTitle(value);
-                  setNoteEditorDirty(true);
-                  setNoteEditorNotice("");
-                }}
-                saving={saving}
-                searchQuery={moduleEntitySearch}
-                selectedNoteId={activeLoreNote?.id ?? ""}
-                editorRef={noteEditorContentRef}
-              />
-            ) : activeEntity?.kind === "quest" && activeModule === "quests" ? (
-              <QuestWorkspace
-                issuer={activeQuestIssuer?.kind === "npc" ? activeQuestIssuer : null}
-                linkedEntities={activeQuestLinkedEntities}
-                location={activeQuestLocation}
-                nextQuest={nextQuest}
+                campaign={campaign}
+                combatContent={null}
+                createEmptyWorldEventDialogueBranch={createEmptyWorldEventDialogueBranch}
+                currentPlaybackTrackLabel={currentPlaybackTrackLabel}
+                editorRef={entityLinkController.noteEditorContentRef}
+                emptyWorldEventInput={emptyWorldEventInput}
+                entityMap={entityMap}
+                entityToForm={entityToForm}
+                hydrateCampaign={hydrateCampaign}
+                initialEventId={selectedWorldEventId || undefined}
+                isEntityPlaylistActive={isEntityPlaylistActive}
+                legacyContent={null}
+                normalizeWorldEventForClient={normalizeWorldEventForClient}
+                notesContentContextMenu={entityLinkController.handleNoteContentContextMenu}
+                onActiveEventChange={setSelectedWorldEventId}
+                onEditEntity={openEntityEditor}
                 onOpenDirectory={() => openModuleDirectory("quests")}
-                onEdit={openEntityEditor}
-                onOpenEntity={openPreview}
-                onCreatePlayerCard={() => {
-                  if (activeEntity.kind === "quest") {
-                    openNewPlayerFacingEditor(activeEntity);
-                  }
-                }}
-                onDeletePlayerCard={(card, index) => {
-                  if (activeEntity.kind === "quest") {
-                    requestPlayerFacingCardDeletion(activeEntity, card, index);
-                  }
-                }}
-                onEditPlayerCard={(card, index) => {
-                  if (activeEntity.kind === "quest") {
-                    openPlayerFacingEditor(activeEntity, card, index);
-                  }
-                }}
-                onOpenPlayerCard={(card, index) => {
-                  if (activeEntity.kind === "quest") {
-                    openPlayerFacingView(activeEntity, card, { cardIndex: index });
-                  }
-                }}
-                onOpenQuest={openQuestFocus}
+                onOpenEntity={openEntity}
+                onOpenEventGenerator={openRandomEventModal}
                 onOpenPlaylist={openEntityPlaylistModal}
-                onTogglePin={togglePin}
-                onPlayPlaylist={() => {
-                  if (activeEntity.kind === "quest") {
-                    playEntityPlaylist(activeEntity);
-                  }
-                }}
+                onOpenPreview={openPreview}
+                onOpenQuest={openQuestFocus}
                 onPlayNextPlaylistTrack={playNextRandomTrack}
-                playerCards={activeEntityPlayerCards}
-                playlistActive={isEntityPlaylistActive(activeEntity.id)}
-                playlistTrackLabel={currentPlaybackTrackLabel}
+                onPlayPlaylist={playEntityPlaylist}
+                onTogglePin={togglePin}
                 pinned={activeEntityPinned}
-                preparedCombatSection={renderPreparedCombatSection(activeEntity)}
-                preparedCombatEntries={activeQuestPreparedCombatEntries}
-                previousQuest={previousQuest}
-                quest={activeEntity}
-                relatedQuests={activeQuestRelatedQuests}
+                playerFacing={playerFacing}
+                preparedCombatSection={activeEntity?.kind === "quest" ? renderPreparedCombatSection(activeEntity) : null}
+                questScopeEntities={questScopeEntities}
+                resolveLinkedEntity={resolveLinkedEntity}
+                rulesInitialQuery={rulesNavigationState.query || undefined}
+                rulesInitialRuleId={rulesNavigationState.ruleId || undefined}
+                rulesSelectionKey={rulesNavigationState.requestId}
+                serializeEntityForm={serializeEntityForm}
+                serializeWorldEventInput={serializeWorldEventInput}
+                worldEventToForm={worldEventToForm}
               />
             ) : activeEntity ? (
-              <div className="stack wide">
-                {activeModule === "monsters" && activeTab === "Imported" ? (
-                  <section className="card section-card bestiary-toolbar">
-                    <div className="row muted">
-                      <span>Монстры кампании</span>
-                      <span>{scopedEntities.length} результатов</span>
-                    </div>
-
-                    <div className="bestiary-filter-grid">
-                      <label className="field field-full">
-                        <span>Поиск по названию</span>
-                        <input
-                          className="input"
-                          onChange={(event) => setImportedMonsterSearch(event.target.value)}
-                          placeholder="Ищи монстра по имени или краткому описанию"
-                          value={importedMonsterSearch}
-                        />
-                      </label>
-
-                      <label className="field">
-                        <span>Опасность / CR</span>
-                        <select
-                          className="input"
-                          onChange={(event) => setImportedMonsterChallenge(event.target.value)}
-                          value={importedMonsterChallenge}
-                        >
-                          <option value="">Все значения</option>
-                          {challengeFilterOptions.map((option) => (
-                            <option key={option} value={option}>
-                              {`CR ${option}`}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-
-                      <div className="field">
-                        <span>Что сейчас показано</span>
-                        <div className="combat-selected-summary">
-                          <strong>{scopedEntities.length} монстров в выборке</strong>
-                          <small>
-                            Фильтруются только уже импортированные монстры кампании, чтобы удобно быстро открыть нужную карточку.
-                          </small>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-                ) : null}
-
-                <section
-                  className="card hero"
-                  onContextMenu={(event) => openEntityActionMenu(activeEntity, event)}
-                  style={createHeroPanelStyle(gradients[activeEntity.kind], activeEntity.art?.url)}
-                >
-                  <div className="hero-head">
-                    <EntityVisual entity={activeEntity} variant="hero" />
-                    <div className="hero-copy-block">
-                      <div className="hero-tags">
-                        <span className={badge("accent")}>{kindTitle[activeEntity.kind]}</span>
-                        {activeEntity.tags.map((tag) => (
-                          <span key={tag} className={badge()}>
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                      <h1>{activeEntity.title}</h1>
-                      <p className="hero-subtitle">{activeEntity.subtitle}</p>
-                      <p className="copy">{activeEntity.summary}</p>
-                    </div>
-                  </div>
-
-                  <div className="actions">
-                    {activeEntity.playlist?.length ? (
-                      <button className="ghost" onClick={() => playEntityPlaylist(activeEntity)} type="button">
-                        {isEntityPlaylistActive(activeEntity.id) ? "Следующий трек" : "Случайный трек"}
-                      </button>
-                    ) : null}
-                    <button className="ghost" onClick={() => openEntityEditor(activeEntity.id)} type="button">
-                      Редактировать
-                    </button>
-                    <button className="ghost" onClick={() => togglePin(activeEntity.id)} type="button">
-                      {activeEntityPinned ? "Unpin" : "Pin"}
-                    </button>
-                    <button className="primary" onClick={() => openPreview(activeEntity.id)} type="button">
-                      Открыть в preview
-                    </button>
-                  </div>
-                </section>
-
-                <PlayerFacingCardStrip
-                  cards={activeEntityPlayerCards}
-                  createDescription="Отдельная сцена, handout или короткая заметка для игроков. Откроется сразу в режиме редактирования."
-                  description={
-                    activeEntity.kind === "location"
-                      ? "Создавай сколько угодно отдельных карточек-сцен и handout-описаний для игроков."
-                      : "Храни здесь player-safe описания, речи, handout-карточки и любые отдельные тексты, которые удобно открывать по одной."
+              <EntityDetailsPage
+                activeEntity={activeEntity}
+                activeEntityPinned={activeEntityPinned}
+                activeEntityPlayerCards={activeEntityPlayerCards}
+                activeNpcQuests={activeNpcQuests}
+                composeVisibleQuickFacts={composeVisibleQuickFacts}
+                currentPlaybackTrackLabel={currentPlaybackTrackLabel}
+                currentPlaybackTrackUrl={currentPlaybackTrackUrl}
+                entityByTitle={entityByTitle}
+                isEntityPlaylistActive={isEntityPlaylistActive}
+                onCopyImageLink={handleCopyImageLink}
+                onContentContextMenu={(event) => entityLinkController.handleActiveEntityContentContextMenu(activeEntity, "content", event)}
+                onCreatePlayerFacingCard={() => openNewPlayerFacingEditor(activeEntity)}
+                onDeletePlayerFacingCard={(card, index) => requestPlayerFacingCardDeletion(activeEntity, card, index)}
+                onEditEntity={() => openEntityEditor(activeEntity.id)}
+                onEditPlayerFacingCard={(card, index) => openPlayerFacingEditor(activeEntity, card, index)}
+                onOpenEntityActionMenu={(event) => openEntityActionMenu(activeEntity, event)}
+                onOpenGallery={() => openEntityGalleryModal(activeEntity)}
+                onOpenGalleryViewer={(index) => openEntityGalleryViewer(activeEntity, index)}
+                onOpenNpcQuestModal={() => {
+                  if (activeEntity.kind === "npc") {
+                    openNpcQuestModal(activeEntity);
                   }
-                  emptyDescription="Пока карточек нет. Создай первую, и она сразу появится в отдельном удобном просмотре для зачитывания игрокам."
-                  entityId={activeEntity.id}
-                  onCreateCard={() => openNewPlayerFacingEditor(activeEntity)}
-                  onDeleteCard={(card, index) => requestPlayerFacingCardDeletion(activeEntity, card, index)}
-                  onEditCard={(card, index) => openPlayerFacingEditor(activeEntity, card, index)}
-                  onOpenCard={(card, index) => openPlayerFacingView(activeEntity, card, { cardIndex: index })}
-                />
-
-                {isPreparedCombatHostEntity(activeEntity) ? renderPreparedCombatSection(activeEntity) : null}
-
-                {composeVisibleQuickFacts(activeEntity).length ? (
-                  <CollapsibleSection
-                    key={`${activeEntity.id}-facts`}
-                    hint="Ключевые данные, которые стоит держать перед глазами"
-                    summary={
-                      <p className="copy">
-                        {composeVisibleQuickFacts(activeEntity)
-                          .slice(0, 3)
-                          .map((fact) => `${fact.label}: ${fact.value}`)
-                          .join(" • ")}
-                      </p>
-                    }
-                    title="Быстрая сводка"
-                  >
-                    <div className="facts">
-                      {composeVisibleQuickFacts(activeEntity).map((fact) => (
-                        <article key={fact.label} className="card mini fact-box">
-                          <small>{fact.label}</small>
-                          <strong className={`fact-value ${toneClass[fact.tone ?? "default"]}`}>{fact.value}</strong>
-                        </article>
-                      ))}
-                    </div>
-                  </CollapsibleSection>
-                ) : null}
-
-                <PlaylistSection
-                  action={
-                    <button className="ghost" onClick={() => openEntityPlaylistModal(activeEntity)} type="button">
-                      Настроить
-                    </button>
-                  }
-                  activeTrackLabel={currentPlaybackTrackLabel}
-                  activeTrackUrl={currentPlaybackTrackUrl}
-                  defaultCollapsed={!(activeEntity.playlist ?? []).length}
-                  hint="Запусти случайный трек для этой сцены или выбери конкретную композицию вручную"
-                  isActive={isEntityPlaylistActive(activeEntity.id)}
-                  onNextRandom={playNextRandomTrack}
-                  onPlayRandom={() => playEntityPlaylist(activeEntity)}
-                  onPlayTrack={(index) => playEntityPlaylist(activeEntity, index, false)}
-                  onStop={stopPlayback}
-                  title="Плейлист сцены"
-                  tracks={activeEntity.playlist ?? []}
-                />
-
-                <GallerySection
-                  action={
-                    <button className="ghost" onClick={() => openEntityGalleryModal(activeEntity)} type="button">
-                      Настроить
-                    </button>
-                  }
-                  defaultCollapsed={!(activeEntity.gallery ?? []).length}
-                  hint="Карты, письма, handout-арты и любые изображения, которые можно быстро показать игрокам"
-                  items={activeEntity.gallery ?? []}
-                  onCopyLink={handleCopyImageLink}
-                  onOpenFullscreen={(index) => openEntityGalleryViewer(activeEntity, index)}
-                  title="Галерея"
-                />
-
-                {activeEntity.kind === "quest" && activeQuestIssuer ? (
-                  <CollapsibleSection
-                    key={`${activeEntity.id}-issuer`}
-                    action={
-                      <button className="ghost" onClick={() => openPreview(activeQuestIssuer.id)} type="button">
-                        Preview NPC
-                      </button>
-                    }
-                    hint="НПС, который выдаёт, ведёт или продвигает этот квест"
-                    summary={<p className="copy">{activeQuestIssuer.title}</p>}
-                    title="Квестодатель"
-                  >
-                    <button className="card mini fill relation-card" onClick={() => peekEntity(activeQuestIssuer.id)} type="button">
-                      <span className={badge("accent")}>НПС</span>
-                      <strong>{activeQuestIssuer.title}</strong>
-                      <p>{activeQuestIssuer.summary}</p>
-                    </button>
-                  </CollapsibleSection>
-                ) : null}
-
-                {activeEntity.kind === "quest" ? (
-                  <CollapsibleSection
-                    key={`${activeEntity.id}-prepared-combat`}
-                    action={
-                      <div className="row">
-                        <button className="ghost" onClick={() => openPreparedCombatModal(activeEntity)} type="button">
-                          Настроить
-                        </button>
-                        <button
-                          className="primary"
-                          disabled={saving || !activeQuestPreparedCombatEntries.length}
-                          onClick={() => {
-                            if (activeCombat?.entries.length) {
-                              openCombatScreen();
-                              return;
-                            }
-                            void startPreparedQuestCombat(activeEntity);
-                          }}
-                          type="button"
-                        >
-                          {activeCombat?.entries.length ? "Есть активный бой" : "Начать бой"}
-                        </button>
-                      </div>
-                    }
-                    hint="Состав врагов, который можно заранее собрать для этого квеста и запустить одной кнопкой"
-                    summary={
-                      <p className="copy">
-                        {activeQuestPreparedCombatEntries.length
-                          ? `${activeQuestPreparedCombatEntries.reduce((sum, item) => sum + item.quantity, 0)} противников в заготовленном бою.`
-                          : "Заготовленный бой пока не настроен."}
-                      </p>
-                    }
-                    title="Заготовленный бой"
-                  >
-                    {activeQuestPreparedCombatEntries.length ? (
-                      <div className="stack">
-                        <div className="row muted">
-                          <span>{activeEntity.preparedCombat?.title?.trim() || `${activeEntity.title}: бой`}</span>
-                          <span>
-                            {activeQuestPreparedCombatEntries.reduce((sum, item) => sum + item.quantity, 0)} существ в сцене
-                          </span>
-                        </div>
-                        {bootError ? (
-                          <div className="card mini form-error" role="status">
-                            <strong>Проблема при запуске боя</strong>
-                            <p>{bootError}</p>
-                          </div>
-                        ) : null}
-                        <label className="field field-full">
-                          <span>Уровень партии</span>
-                          <small className="field-hint">
-                            Одно число применяется ко всем игрокам в сцене. Например: `3` для всей партии. Если оставить поле пустым,
-                            сцена всё равно стартует, но будет использовать текущие пороги сложности.
-                          </small>
-                          <input
-                            className="input"
-                            onChange={(event) => updateCombatPartyLevelText(event.target.value)}
-                            placeholder="3"
-                            value={combatPartyLevelsText}
-                          />
-                        </label>
-                        <p className="copy combat-inline-note">{combatPartySummary}</p>
-                        {!hasExplicitPartyLevels ? (
-                          <p className="copy combat-inline-note">
-                            Текущие пороги: Easy {effectiveCombatThresholds.easy} • Medium {effectiveCombatThresholds.medium} • Hard{" "}
-                            {effectiveCombatThresholds.hard} • Deadly {effectiveCombatThresholds.deadly}
-                          </p>
-                        ) : null}
-                        <div className="grid">
-                          {activeQuestPreparedCombatEntries.map(({ entity, quantity }) => (
-                            <button
-                              key={`${activeEntity.id}-prepared-${entity.id}`}
-                              className="card mini fill relation-card relation-card-with-visual"
-                              onClick={() => peekEntity(entity.id)}
-                              type="button"
-                            >
-                              <EntityVisual entity={entity} variant="relation" />
-                              <span className={badge(entity.kind === "monster" ? "danger" : "accent")}>
-                                {kindTitle[entity.kind]}
-                              </span>
-                              <strong>{entity.title}</strong>
-                              <p>
-                                {quantity} шт. • {getEntityChallenge(entity) || "CR не указан"}
-                              </p>
-                            </button>
-                          ))}
-                        </div>
-                        {activeCombat?.entries.length ? (
-                          <p className="copy">
-                            Сейчас уже есть активный бой. Заверши его или перейди в экран боя, чтобы не смешивать две сцены.
-                          </p>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <p className="copy">
-                        Пока тут пусто. Открой редактирование квеста и добавь в заготовленный бой монстров или НПС, чтобы потом запускать сцену одной кнопкой.
-                      </p>
-                    )}
-                  </CollapsibleSection>
-                ) : null}
-
-                {activeEntity.kind === "npc" ? (
-                  <CollapsibleSection
-                    key={`${activeEntity.id}-quests`}
-                    action={
-                      <button className="ghost" onClick={() => openNpcQuestModal(activeEntity)} type="button">
-                        Создать квест
-                      </button>
-                    }
-                    hint="Квесты, которые этот НПС выдаёт, сопровождает или к которым привязан"
-                    summary={
-                      <p className="copy">
-                        {activeNpcQuests.length
-                          ? `${activeNpcQuests.length} связанных квестов.`
-                          : "Связанных квестов пока нет."}
-                      </p>
-                    }
-                    title="Квесты НПС"
-                  >
-                    {activeNpcQuests.length ? (
-                      <div className="grid">
-                        {activeNpcQuests.map((quest) => (
-                          <button key={quest.id} className="card mini fill relation-card relation-card-with-visual" onClick={() => peekEntity(quest.id)} type="button">
-                            <EntityVisual entity={quest} variant="relation" />
-                            <span className={badge("warning")}>Квест</span>
-                            <strong>{quest.title}</strong>
-                            <p>{quest.summary}</p>
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="copy">
-                        Пока этот НПС не привязан ни к одному квесту. Кнопка сверху сразу создаст новый квест с обратной ссылкой.
-                      </p>
-                    )}
-                  </CollapsibleSection>
-                ) : null}
-
-                {isRewardableEntity(activeEntity) ? (
-                  <RewardSection kind={activeEntity.kind} rewardProfile={activeEntity.rewardProfile} />
-                ) : null}
-
-                <CollapsibleSection
-                  key={`${activeEntity.id}-knowledge`}
-                  hint="Полная версия для мастера: скрытые детали, связи, последствия и служебные заметки"
-                  summary={<p className="copy">{activeEntity.summary || activeEntity.content.slice(0, 180)}</p>}
-                  title="Информация для мастера"
-                >
-                  <div onContextMenu={(event) => handleActiveEntityContentContextMenu(activeEntity, "content", event)}>
-                    <RichParagraphs
-                      content={activeEntity.content}
-                      entityByTitle={entityByTitle}
-                      onMentionClick={openPreview}
-                    />
-                  </div>
-                </CollapsibleSection>
-
-                <CollapsibleSection
-                  key={`${activeEntity.id}-related`}
-                  hint="Быстрые переходы без перегруза интерфейса"
-                  summary={
-                    <p className="copy">
-                      {activeEntity.related.length
-                        ? `${activeEntity.related.length} связанных сущностей`
-                        : "Связей пока не добавлено."}
-                    </p>
-                  }
-                  title="Связанные сущности"
-                >
-                  {activeEntity.related.length ? (
-                    <div className="grid">
-                      {activeEntity.related.map((item) => (
-                        <button
-                          key={`${item.id}-${item.label}`}
-                          className="card mini fill relation-card relation-card-with-visual"
-                          onClick={() => openRelatedEntity(item)}
-                          type="button"
-                        >
-                          {resolveLinkedEntity(item) ? (
-                            <EntityVisual entity={resolveLinkedEntity(item)!} variant="relation" />
-                          ) : (
-                            <span className="sigil" style={{ backgroundImage: gradients[item.kind] }}>
-                              {sigil(item.label)}
-                            </span>
-                          )}
-                          <span className={badge()}>{kindTitle[item.kind]}</span>
-                          <strong>{item.label}</strong>
-                          <p>{item.reason}</p>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="copy">Пока здесь пусто. Связи можно добавлять через редактор или wiki-ссылки в тексте.</p>
-                  )}
-                </CollapsibleSection>
-
-                {isCombatProfileEntity(activeEntity) ? <CombatEntityStatSheet entity={activeEntity} /> : null}
-              </div>
+                }}
+                onOpenPlayerFacingCard={(card, index) => openPlayerFacingView(activeEntity, card, { cardIndex: index })}
+                onOpenPlaylistEditor={() => openEntityPlaylistModal(activeEntity)}
+                onOpenPreview={() => openPreview(activeEntity.id)}
+                onOpenRelatedEntity={openRelatedEntity}
+                onPeekQuest={peekEntity}
+                onPlayNextPlaylistTrack={playNextRandomTrack}
+                onPlayPlaylist={(index, advanceIfActive) => playEntityPlaylist(activeEntity, index, advanceIfActive)}
+                onResolveRelatedEntity={resolveLinkedEntity}
+                onStopPlayback={stopPlayback}
+                onTogglePin={() => togglePin(activeEntity.id)}
+                preparedCombatSection={isPreparedCombatHostEntity(activeEntity) ? renderPreparedCombatSection(activeEntity) : null}
+              />
             ) : (
-              <div className="stack wide">
-                <section className="card section-card directory-screen">
-                  <div className="directory-head">
-                    <div>
-                      <p className="eyebrow">{activeSectionLabel}</p>
-                      <h2>Выбери запись</h2>
-                      <p className="copy">Сначала показываю весь список по разделу. Когда выберешь сущность, здесь откроется её полноценная страница.</p>
-                    </div>
-                    <div className="actions">
-                      {activeModule === "quests" ? (
-                        <button className="ghost" onClick={openRandomEventModal} type="button">
-                          Случайное событие
-                        </button>
-                      ) : null}
-                      <button className="primary" onClick={() => openEntityModal(defaultCreateKind)} type="button">
-                        Создать сущность
-                      </button>
-                    </div>
-                  </div>
-
-                  {activeModule === "monsters" && activeTab === "Imported" ? (
-                    <div className="directory-toolbar directory-toolbar-wide">
-                      <label className="field">
-                        <span>Поиск по названию</span>
-                        <input
-                          className="input"
-                          onChange={(event) => setImportedMonsterSearch(event.target.value)}
-                          placeholder="Например: волк, паук, капитан"
-                          value={importedMonsterSearch}
-                        />
-                      </label>
-                      <label className="field">
-                        <span>Опасность / CR</span>
-                        <select
-                          className="input"
-                          onChange={(event) => setImportedMonsterChallenge(event.target.value)}
-                          value={importedMonsterChallenge}
-                        >
-                          <option value="">Все значения</option>
-                          {challengeFilterOptions.map((option) => (
-                            <option key={option} value={option}>
-                              {`CR ${option}`}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                    </div>
-                  ) : (
-                    <label className="field">
-                      <span>Поиск</span>
-                      <input
-                        className="input"
-                        onChange={(event) => setModuleEntitySearch(event.target.value)}
-                        placeholder={`Поиск по разделу «${activeSectionLabel}»`}
-                        value={moduleEntitySearch}
-                      />
-                    </label>
-                  )}
-
-                  {moduleDirectoryEntities.length ? (
-                    <div className="directory-grid">
-                      {activeModule === "quests"
-                        ? moduleDirectoryEntities
-                            .filter((entity): entity is QuestEntity => entity.kind === "quest")
-                            .map((quest) => {
-                              const location = resolveQuestLocation(quest);
-                              const issuer = resolveQuestIssuer(quest);
-                              const preparedEntries = resolveQuestPreparedCombatEntries(quest);
-                              const preparedCombatCount = preparedEntries.reduce((sum, item) => sum + item.quantity, 0);
-                              const sceneImage = resolveQuestSceneArtwork(quest, location, issuer, preparedEntries);
-
-                              return (
-                                <button
-                                  key={quest.id}
-                                  className="directory-card quest-directory-card"
-                                  onClick={() => openQuestFocus(quest.id)}
-                                  onContextMenu={(event) => openEntityActionMenu(quest, event)}
-                                  type="button"
-                                >
-                                  <span className="directory-card-thumb">
-                                    <img alt={quest.title} className="directory-card-image" loading="lazy" src={sceneImage} />
-                                  </span>
-                                  <span className="directory-card-copy">
-                                    <span className="directory-card-topline">
-                                      <strong>{quest.title}</strong>
-                                      <span className={badge(questStatusTone(quest.status))}>{quest.status}</span>
-                                    </span>
-                                    <small>{location?.title ?? issuer?.title ?? quest.subtitle}</small>
-                                    <p>{truncateInlineText(quest.summary, 150)}</p>
-                                    <span className="directory-meta">
-                                      <span>{quest.urgency}</span>
-                                      {preparedCombatCount ? <span>{preparedCombatCount} в бою</span> : null}
-                                    </span>
-                                  </span>
-                                </button>
-                              );
-                            })
-                        : moduleDirectoryEntities.map((entity) => (
-                            <button
-                              key={entity.id}
-                              className="directory-card"
-                              onClick={() => openEntity(entity.id)}
-                              onContextMenu={(event) => openEntityActionMenu(entity, event)}
-                              type="button"
-                            >
-                              <span className="directory-card-thumb">
-                                {hasVisibleArt(entity.art) ? (
-                                  <img alt={entity.title} className="directory-card-image" loading="lazy" src={createPortraitSource(entity)} />
-                                ) : (
-                                  <span className="sigil big" style={{ backgroundImage: gradients[entity.kind] }}>
-                                    {sigil(entity.title)}
-                                  </span>
-                                )}
-                              </span>
-                              <span className="directory-card-copy">
-                                <span className="directory-card-topline">
-                                  <strong>{entity.title}</strong>
-                                  <span className={badge()}>{kindTitle[entity.kind]}</span>
-                                </span>
-                                <small>{entity.subtitle}</small>
-                                <p>{truncateInlineText(entity.summary, 150)}</p>
-                              </span>
-                            </button>
-                          ))}
-                    </div>
-                  ) : (
-                    <div className="directory-empty">
-                      <h3>Ничего не найдено</h3>
-                      <p className="copy">Либо в разделе пока нет записей, либо текущий поиск/фильтр ничего не дал.</p>
-                    </div>
-                  )}
-                </section>
-              </div>
+              <EntityDirectoryScreen
+                activeModule={activeModule}
+                activeSectionLabel={activeSectionLabel}
+                defaultCreateKind={defaultCreateKind}
+                moduleDirectoryEntities={moduleDirectoryEntities}
+                moduleEntitySearch={moduleEntitySearch}
+                onChangeSearch={setModuleEntitySearch}
+                onOpenEntity={openEntity}
+                onOpenEntityActionMenu={openEntityActionMenu}
+                onOpenEntityModal={openEntityModal}
+                onOpenQuestFocus={openQuestFocus}
+                onOpenRandomEventModal={openRandomEventModal}
+                resolveQuestIssuer={resolveQuestIssuer}
+                resolveQuestLocation={resolveQuestLocation}
+                resolveQuestPreparedCombatEntries={resolveQuestPreparedCombatEntries}
+              />
             )}
           </section>
         </main>
 
-        {!isCombatScreen && !isItemsRail ? (
-          <>
-        <div
-          className="resize-handle preview-handle"
-          onPointerDown={(event) => startResize("preview", event)}
-          role="presentation"
-        />
-
-        <aside className="panel preview">
-          {isBestiaryScreen && selectedBestiaryMonster ? (
-            <div className="stack wide">
-              <div className="row">
-                <p className="eyebrow">dnd.su / Preview</p>
-                <span className={badge(selectedBestiaryImported ? "success" : "default")}>
-                  {selectedBestiaryImported ? "Уже в кампании" : "Ещё не импортирован"}
-                </span>
-              </div>
-
-              <section
-                className="preview-hero"
-                style={createHeroPanelStyle(
-                  gradients.monster,
-                  selectedBestiaryMonster.summary.imageUrl ?? selectedBestiaryMonster.monster.art?.url
-                )}
-              >
-                <span>Монстр</span>
-                <strong>{selectedBestiaryMonster.monster.title}</strong>
-                <small>{selectedBestiaryMonster.monster.subtitle}</small>
-              </section>
-
-              <p className="copy">{selectedBestiaryMonster.monster.summary}</p>
-              <CombatEntityPreviewSummary entity={selectedBestiaryMonster.monster} />
-              <RewardSection compact kind="monster" rewardProfile={selectedBestiaryMonster.monster.rewardProfile} />
-
-              <div className="actions">
-                <button className="ghost" onClick={() => window.open(selectedBestiaryMonster.sourceUrl, "_blank", "noopener,noreferrer")} type="button">
-                  dnd.su
-                </button>
-                <button className="primary" disabled={importingBestiary} onClick={() => void importSelectedBestiaryMonster()} type="button">
-                  {importingBestiary ? "Импорт..." : "Импорт"}
-                </button>
-              </div>
-            </div>
-          ) : isBestiaryScreen ? (
-            <div className="stack">
-              <p className="eyebrow">dnd.su / Preview</p>
-              <h3>Выбери монстра из каталога</h3>
-              <p className="copy">Когда откроешь запись слева, сюда подтянется краткая сводка и кнопка импорта в кампанию.</p>
-            </div>
-          ) : previewQuest ? (
-            <QuestPreviewPanel
+        {!isCombatScreen && !hasFeatureOwnedDetailsPanel ? (
+          <AppPreviewPanel onPointerDown={(event) => startResize("preview", event)}>
+          {bestiaryController.isBrowseMode ? (
+            <BestiaryPreviewPanel controller={bestiaryController} />
+          ) : (
+            <AppPreviewContent
               combatPartyLevelsText={combatPartyLevelsText}
               combatPartySummary={combatPartySummary}
+              composeVisibleQuickFacts={composeVisibleQuickFacts}
+              currentPlaybackTrackLabel={currentPlaybackTrackLabel}
+              currentPlaybackTrackUrl={currentPlaybackTrackUrl}
               effectiveCombatThresholds={effectiveCombatThresholds}
               hasActiveCombat={hasActiveCombat}
               hasExplicitPartyLevels={hasExplicitPartyLevels}
-              issuer={previewQuestIssuer}
-              linkedEntities={previewQuestLinkedEntities}
-              location={previewQuestLocation}
+              isEntityPlaylistActive={isEntityPlaylistActive}
               onCombatPartyLevelsChange={updateCombatPartyLevelText}
+              onCopyImageLink={handleCopyImageLink}
               onEdit={openEntityEditor}
-              onOpenEntity={openPreview}
+              onOpenEntityPage={openEntity}
+              onOpenEntityActionMenu={openEntityActionMenu}
               onOpenGallery={openEntityGalleryModal}
+              onOpenGalleryViewer={openEntityGalleryViewer}
               onOpenPlayerView={openPlayerFacingView}
+              onOpenPreviewEntity={openPreview}
               onOpenPlaylist={openEntityPlaylistModal}
               onOpenQuest={openQuestFocus}
               onOpenRandomEvent={openRandomEventModal}
+              onOpenRelatedEntity={openRelatedEntity}
+              onPlayNextPlaylistTrack={playNextRandomTrack}
+              onPlayPlaylist={playEntityPlaylist}
               onRunCombat={handleQuestCombatAction}
+              onStopPlayback={stopPlayback}
               onTogglePin={togglePin}
-              pinned={previewPinned}
-              preparedCombatEntries={previewQuestPreparedCombatEntries}
-              quest={previewQuest}
-              relatedQuests={previewQuestRelatedQuests}
+              previewEntity={previewEntity}
+              previewPinned={previewPinned}
+              previewQuest={previewQuest}
+              previewQuestIssuer={previewQuestIssuer}
+              previewQuestLinkedEntities={previewQuestLinkedEntities}
+              previewQuestLocation={previewQuestLocation}
+              previewQuestPreparedCombatEntries={previewQuestPreparedCombatEntries}
+              previewQuestRelatedQuests={previewQuestRelatedQuests}
             />
-          ) : previewEntity ? (
-            <div className="stack wide">
-              <div className="row">
-                <p className="eyebrow">Peek / Preview</p>
-                <button
-                  className={badge(previewPinned ? "success" : "default")}
-                  onClick={() => togglePin(previewEntity.id)}
-                  type="button"
-                >
-                  {previewPinned ? "Pinned" : "Pin"}
-                </button>
-              </div>
-
-              <section
-                className="preview-hero"
-                onContextMenu={(event) => openEntityActionMenu(previewEntity, event)}
-                style={createHeroPanelStyle(gradients[previewEntity.kind], previewEntity.art?.url)}
-              >
-                <span>{kindTitle[previewEntity.kind]}</span>
-                <strong>{previewEntity.title}</strong>
-                <small>{previewEntity.subtitle}</small>
-              </section>
-
-              <p className="copy">{previewEntity.summary}</p>
-
-              <div className="facts preview-facts">
-                {composeVisibleQuickFacts(previewEntity).slice(0, 3).map((fact) => (
-                  <article key={fact.label} className="card mini fact-box">
-                    <small>{fact.label}</small>
-                    <strong className="fact-value">{fact.value}</strong>
-                  </article>
-                ))}
-              </div>
-
-              {isCombatProfileEntity(previewEntity) ? <CombatEntityPreviewSummary entity={previewEntity} /> : null}
-              {isRewardableEntity(previewEntity) ? (
-                <RewardSection compact kind={previewEntity.kind} rewardProfile={previewEntity.rewardProfile} />
-              ) : null}
-              <PlaylistSection
-                action={
-                  <button className="ghost" onClick={() => openEntityPlaylistModal(previewEntity)} type="button">
-                    Настроить
-                  </button>
-                }
-                activeTrackLabel={currentPlaybackTrackLabel}
-                activeTrackUrl={currentPlaybackTrackUrl}
-                compact
-                defaultCollapsed
-                hint="Быстрый музыкальный запуск без ухода со страницы"
-                isActive={isEntityPlaylistActive(previewEntity.id)}
-                onNextRandom={playNextRandomTrack}
-                onPlayRandom={() => playEntityPlaylist(previewEntity)}
-                onPlayTrack={(index) => playEntityPlaylist(previewEntity, index, false)}
-                onStop={stopPlayback}
-                title="Плейлист"
-                tracks={previewEntity.playlist ?? []}
-              />
-
-              <GallerySection
-                action={
-                  <button className="ghost" onClick={() => openEntityGalleryModal(previewEntity)} type="button">
-                    Настроить
-                  </button>
-                }
-                compact
-                defaultCollapsed
-                displayLimit={4}
-                hint="Карты и handout-изображения можно открыть прямо отсюда"
-                items={previewEntity.gallery ?? []}
-                onCopyLink={handleCopyImageLink}
-                onOpenFullscreen={(index) => openEntityGalleryViewer(previewEntity, index)}
-                title="Галерея"
-              />
-
-              <div className="stack">
-                {previewEntity.related.slice(0, 4).map((item) => (
-                  <button key={`${item.id}-${item.label}`} className="ghost fill" onClick={() => openRelatedEntity(item)} type="button">
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-
-              <button className="primary" onClick={() => openEntity(previewEntity.id)} type="button">
-                Открыть полностью
-              </button>
-            </div>
-          ) : (
-            <div className="stack">
-              <p className="eyebrow">Preview</p>
-              <h3>Контекст справа</h3>
-              <p className="copy">Выбери запись в центре, кликни по `[[ссылке]]` или используй поиск, чтобы открыть карточку и синхронизировать preview.</p>
-            </div>
           )}
-        </aside>
-          </>
+          </AppPreviewPanel>
         ) : null}
       </div>
 
@@ -9341,212 +4512,86 @@ export default function App() {
         />
       ) : null}
 
-      {galleryViewer ? (
-        <GalleryLightbox
-          onClose={closeGalleryViewer}
-          onCopyLink={handleCopyImageLink}
-          onSelect={selectGalleryViewerIndex}
-          viewer={galleryViewer}
-        />
-      ) : null}
+      <EntityGalleryViewer
+        onClose={closeGalleryViewer}
+        onCopyLink={handleCopyImageLink}
+        onSelect={selectGalleryViewerIndex}
+        viewer={galleryViewer}
+      />
 
-      {paletteOpen ? (
-        <div className="overlay" role="presentation">
-          <div className="panel palette" onClick={(event) => event.stopPropagation()} role="dialog">
-            <div className="row">
-              <div>
-                <p className="eyebrow">Global Search</p>
-                <strong>Открывает полную страницу сущности и сразу синхронизирует preview справа</strong>
-              </div>
-              <button className="ghost" onClick={requestPaletteClose} type="button">
-                Esc
-              </button>
-            </div>
+      <GlobalSearchModal
+        entityMap={entityMap}
+        onChangeQuery={setQuery}
+        onClose={requestPaletteClose}
+        onOpenPrimaryResult={(result) => {
+          if (result.type === "rule") {
+            openRulesCompendium({
+              query,
+              ruleId: result.id
+            });
+            resetPalette();
+            return;
+          }
 
-            <input
-              autoFocus
-              className="input"
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Лускан, Аркадий, волк, мост, руины..."
-              value={query}
-            />
+          openEntity(result.id);
+          resetPalette();
+        }}
+        onOpenSecondaryResult={(result) => {
+          if (result.type === "rule") {
+            openRulesCompendium({
+              query,
+              ruleId: result.id
+            });
+            closePalette();
+            return;
+          }
 
-            <div className="stack">
-              {results.map((result) => (
-                <div key={`${result.kind}-${result.id}`} className="palette-item">
-                  <button className="ghost fill left palette-main palette-main-with-visual" onClick={() => openFromSearch(result.id)} type="button">
-                    <EntityVisual
-                      entity={{
-                        kind: result.kind,
-                        title: result.title,
-                        art: entityMap.get(result.id)?.art
-                      }}
-                    />
-                    <span className="palette-copy">
-                      <span className={badge("accent")}>{kindTitle[result.kind]}</span>
-                      <strong>{result.title}</strong>
-                      <small>{result.subtitle}</small>
-                      <p>{result.summary}</p>
-                    </span>
-                  </button>
-                  <button
-                    className="ghost palette-side"
-                    onClick={() => {
-                      openEntity(result.id);
-                      openPreview(result.id);
-                      setPaletteOpen(false);
-                    }}
-                    type="button"
-                  >
-                    Открыть
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      ) : null}
+          openEntity(result.id);
+          openPreview(result.id);
+          closePalette();
+        }}
+        open={paletteOpen}
+        query={query}
+        results={displayResults}
+      />
 
-      {campaignModalOpen ? (
-        <div className="overlay" role="presentation">
-          <div className="panel palette form-modal" onClick={(event) => event.stopPropagation()} role="dialog">
-            <div className="row">
-              <div>
-                <p className="eyebrow">Create Campaign</p>
-                <strong>Новая кампания сохраняется сразу на localhost backend</strong>
-              </div>
-              <button className="ghost" onClick={requestCampaignModalClose} type="button">
-                Esc
-              </button>
-            </div>
+      <CampaignCreateModal
+        form={campaignForm}
+        onChange={updateCampaignForm}
+        onClose={requestCampaignModalClose}
+        onSubmit={() => {
+          void submitCampaign();
+        }}
+        open={campaignModalOpen}
+        saving={saving}
+      />
 
-            <div className="form-grid">
-              <label className="field">
-                <span>Название</span>
-                <input
-                  className="input"
-                  onChange={(event) => setCampaignForm((current) => ({ ...current, title: event.target.value }))}
-                  placeholder="Грань Тени"
-                  value={campaignForm.title}
-                />
-              </label>
-              <label className="field">
-                <span>Система</span>
-                <input
-                  className="input"
-                  onChange={(event) => setCampaignForm((current) => ({ ...current, system: event.target.value }))}
-                  placeholder="D&D 5e"
-                  value={campaignForm.system}
-                />
-              </label>
-              <label className="field">
-                <span>Сеттинг</span>
-                <input
-                  className="input"
-                  onChange={(event) => setCampaignForm((current) => ({ ...current, settingName: event.target.value }))}
-                  placeholder="Северная граница"
-                  value={campaignForm.settingName}
-                />
-              </label>
-              <label className="field">
-                <span>Игровая дата</span>
-                <input
-                  className="input"
-                  onChange={(event) => setCampaignForm((current) => ({ ...current, inWorldDate: event.target.value }))}
-                  placeholder="17 Найтала, 1492 DR"
-                  value={campaignForm.inWorldDate}
-                />
-              </label>
-              <label className="field field-full">
-                <span>Краткое описание</span>
-                <textarea
-                  className="input textarea"
-                  onChange={(event) => setCampaignForm((current) => ({ ...current, summary: event.target.value }))}
-                  placeholder="О чём эта кампания и какой у неё тон"
-                  value={campaignForm.summary}
-                />
-              </label>
-            </div>
+      <EntityPlaylistModal
+        onAdd={addEntityPlaylistDraftTrack}
+        onChange={updateEntityPlaylistDraftTrack}
+        onClose={requestEntityPlaylistModalClose}
+        onRemove={removeEntityPlaylistDraftTrack}
+        onSave={saveEntityPlaylist}
+        open={entityPlaylistModalOpen}
+        saving={saving}
+        target={entityPlaylistTarget}
+        tracks={entityPlaylistDraft}
+      />
 
-            <div className="actions">
-              <button className="primary" disabled={saving} onClick={() => void submitCampaign()} type="button">
-                {saving ? "Сохраняю..." : "Создать кампанию"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {entityPlaylistModalOpen && entityPlaylistTarget ? (
-        <div className="overlay" role="presentation">
-          <div className="panel palette form-modal combat-playlist-modal" onClick={(event) => event.stopPropagation()} role="dialog">
-            <div className="row">
-              <div>
-                <p className="eyebrow">Entity Playlist</p>
-                <strong>{entityPlaylistTarget.title}</strong>
-              </div>
-              <button className="ghost" onClick={requestEntityPlaylistModalClose} type="button">
-                Esc
-              </button>
-            </div>
-
-            <PlaylistEditorSection
-              hint="Точечная правка только для музыки этой сущности. Никакого полного редактора и длинной формы."
-              onAdd={addEntityPlaylistDraftTrack}
-              onChange={updateEntityPlaylistDraftTrack}
-              onRemove={removeEntityPlaylistDraftTrack}
-              title="Плейлист сцены"
-              tracks={entityPlaylistDraft}
-            />
-
-            <div className="actions">
-              <button className="ghost" onClick={requestEntityPlaylistModalClose} type="button">
-                Отмена
-              </button>
-              <button className="primary" disabled={saving} onClick={() => void saveEntityPlaylist()} type="button">
-                {saving ? "Сохраняю..." : "Сохранить плейлист"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {entityGalleryModalOpen && entityGalleryTarget ? (
-        <div className="overlay" role="presentation">
-          <div className="panel palette form-modal combat-playlist-modal" onClick={(event) => event.stopPropagation()} role="dialog">
-            <div className="row">
-              <div>
-                <p className="eyebrow">Entity Gallery</p>
-                <strong>{entityGalleryTarget.title}</strong>
-              </div>
-              <button className="ghost" onClick={requestEntityGalleryModalClose} type="button">
-                Esc
-              </button>
-            </div>
-
-            <GalleryEditorSection
-              hint="Точечная правка только для карт, писем и handout-изображений этой сущности. Без полного редактора и длинной формы."
-              items={entityGalleryDraft}
-              onAdd={addEntityGalleryDraftItem}
-              onChange={updateEntityGalleryDraftItem}
-              onRemove={removeEntityGalleryDraftItem}
-              onUpload={uploadEntityGalleryDraftFile}
-              title="Галерея сущности"
-              uploadDisabled={entityGalleryModalUploading}
-              uploadingIndex={entityGalleryModalUploading ? Number.parseInt(galleryUploadKey.split(":")[1] ?? "-1", 10) : null}
-            />
-
-            <div className="actions">
-              <button className="ghost" onClick={requestEntityGalleryModalClose} type="button">
-                Отмена
-              </button>
-              <button className="primary" disabled={saving || entityGalleryModalUploading} onClick={() => void saveEntityGallery()} type="button">
-                {saving ? "Сохраняю..." : "Сохранить галерею"}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <EntityGalleryModal
+        items={entityGalleryDraft}
+        onAdd={addEntityGalleryDraftItem}
+        onChange={updateEntityGalleryDraftItem}
+        onClose={requestEntityGalleryModalClose}
+        onRemove={removeEntityGalleryDraftItem}
+        onSave={saveEntityGallery}
+        onUpload={uploadEntityGalleryDraftFile}
+        open={entityGalleryModalOpen}
+        saving={saving}
+        target={entityGalleryTarget}
+        uploadDisabled={entityGalleryModalUploading}
+        uploadingIndex={entityGalleryModalUploading ? Number.parseInt(galleryUploadKey.split(":")[1] ?? "-1", 10) : null}
+      />
 
       {combatPlaylistModalOpen ? (
         <div className="overlay" role="presentation">
@@ -9554,7 +4599,7 @@ export default function App() {
             <div className="row">
               <div>
                 <p className="eyebrow">Combat Playlist</p>
-                <strong>Один общий плейлист для всех боёв этой кампании</strong>
+                <strong>Р С›Р Т‘Р С‘Р Р… Р С•Р В±РЎвЂ°Р С‘Р в„– Р С—Р В»Р ВµР в„–Р В»Р С‘РЎРѓРЎвЂљ Р Т‘Р В»РЎРЏ Р Р†РЎРѓР ВµРЎвЂ¦ Р В±Р С•РЎвЂР Р† РЎРЊРЎвЂљР С•Р в„– Р С”Р В°Р СР С—Р В°Р Р…Р С‘Р С‘</strong>
               </div>
               <button className="ghost" onClick={requestCombatPlaylistModalClose} type="button">
                 Esc
@@ -9562,17 +4607,17 @@ export default function App() {
             </div>
 
             <PlaylistEditorSection
-              hint="Обычно сюда удобно складывать атмосферные боевые YouTube-треки. Любой новый или старый бой будет пользоваться этим списком."
+              hint="Р С›Р В±РЎвЂ№РЎвЂЎР Р…Р С• РЎРѓРЎР‹Р Т‘Р В° РЎС“Р Т‘Р С•Р В±Р Р…Р С• РЎРѓР С”Р В»Р В°Р Т‘РЎвЂ№Р Р†Р В°РЎвЂљРЎРЉ Р В°РЎвЂљР СР С•РЎРѓРЎвЂћР ВµРЎР‚Р Р…РЎвЂ№Р Вµ Р В±Р С•Р ВµР Р†РЎвЂ№Р Вµ YouTube-РЎвЂљРЎР‚Р ВµР С”Р С‘. Р вЂєРЎР‹Р В±Р С•Р в„– Р Р…Р С•Р Р†РЎвЂ№Р в„– Р С‘Р В»Р С‘ РЎРѓРЎвЂљР В°РЎР‚РЎвЂ№Р в„– Р В±Р С•Р в„– Р В±РЎС“Р Т‘Р ВµРЎвЂљ Р С—Р С•Р В»РЎРЉР В·Р С•Р Р†Р В°РЎвЂљРЎРЉРЎРѓРЎРЏ РЎРЊРЎвЂљР С‘Р С РЎРѓР С—Р С‘РЎРѓР С”Р С•Р С."
               onAdd={addCombatPlaylistTrack}
               onChange={updateCombatPlaylistTrack}
               onRemove={removeCombatPlaylistTrack}
-              title="Боевой плейлист"
+              title="Р вЂР С•Р ВµР Р†Р С•Р в„– Р С—Р В»Р ВµР в„–Р В»Р С‘РЎРѓРЎвЂљ"
               tracks={combatPlaylistDraft}
             />
 
             <div className="actions">
               <button className="ghost" onClick={requestCombatPlaylistModalClose} type="button">
-                Отмена
+                Р С›РЎвЂљР СР ВµР Р…Р В°
               </button>
               <button className="primary" disabled={saving} onClick={() => void saveCombatPlaylist()} type="button">
                 {saving ? "Сохраняю..." : "Сохранить плейлист"}
@@ -9598,7 +4643,7 @@ export default function App() {
                   }}
                   type="button"
                 >
-                  Новый монстр
+                  Р СњР С•Р Р†РЎвЂ№Р в„– Р СР С•Р Р…РЎРѓРЎвЂљРЎР‚
                 </button>
                 <button className="ghost" onClick={requestCombatSetupModalClose} type="button">
                   Esc
@@ -9608,7 +4653,7 @@ export default function App() {
 
             {bootError ? (
               <div className="card mini form-error" role="status">
-                <strong>Проблема при выполнении действия</strong>
+                <strong>Р СџРЎР‚Р С•Р В±Р В»Р ВµР СР В° Р С—РЎР‚Р С‘ Р Р†РЎвЂ№Р С—Р С•Р В»Р Р…Р ВµР Р…Р С‘Р С‘ Р Т‘Р ВµР в„–РЎРѓРЎвЂљР Р†Р С‘РЎРЏ</strong>
                 <p>{bootError}</p>
               </div>
             ) : null}
@@ -9626,7 +4671,7 @@ export default function App() {
                     className="input"
                     onChange={(event) => updateCombatPartyLevelText(event.target.value)}
                     placeholder="Например: 3"
-                    value={combatPartyLevelsText}
+                    value={resolvedCombatPartyLevelsText}
                   />
                 </label>
               </div>
@@ -9656,9 +4701,9 @@ export default function App() {
                   <span>CR</span>
                   <select
                     className="input"
-                    onChange={(event) => setCombatSearchChallenge(event.target.value)}
-                    value={combatSearchChallenge}
-                  >
+                  onChange={(event) => setCombatSearchChallenge(event.target.value)}
+                  value={combatSearchChallenge}
+                >
                     <option value="">Все значения</option>
                     {challengeFilterOptions.map((option) => (
                       <option key={option} value={option}>
@@ -9731,22 +4776,23 @@ export default function App() {
                   ))
                 ) : (
                   <p className="copy">
-                    Ничего не найдено. Для монстров dnd.su введи название или выбери CR, а локальные НПС и монстры фильтруются сразу.
+                    Ничего не найдено. Для монстров dnd.su введи название или выбери CR, а локальные НПС и монстры
+                    фильтруются сразу.
                   </p>
                 )}
               </div>
 
               {selectedCombatSearchProfile?.statBlock ? (
                 <div className="combat-selected-summary">
-                  <div className="row">
-                    <span className={badge(selectedCombatSearchItem?.source === "bestiary" ? "accent" : "default")}>
-                      {selectedCombatSearchItem?.source === "bestiary" ? "dnd.su" : "Кампания"}
-                    </span>
+                    <div className="row">
+                      <span className={badge(selectedCombatSearchItem?.source === "bestiary" ? "accent" : "default")}>
+                        {selectedCombatSearchItem?.source === "bestiary" ? "dnd.su" : "Кампания"}
+                      </span>
                     <span className={badge("accent")}>{selectedCombatSearchProfile.statBlock.challenge ?? "CR не задан"}</span>
-                  </div>
+                    </div>
                   <strong>{selectedCombatSearchProfile.title}</strong>
                   <small>
-                    КБ {selectedCombatSearchProfile.statBlock.armorClass} • ХП {selectedCombatSearchProfile.statBlock.hitPoints}
+                    Р С™Р вЂ {selectedCombatSearchProfile.statBlock.armorClass} РІР‚Сћ Р ТђР Сџ {selectedCombatSearchProfile.statBlock.hitPoints}
                   </small>
                   <small>{selectedCombatSearchProfile.summary}</small>
                 </div>
@@ -9769,7 +4815,7 @@ export default function App() {
             <section className="card section-card combat-tool-card">
               <div className="row muted">
                 <span>Автогенерация encounter</span>
-                <span>Кампания, мир и параметры партии уходят в генерацию как контекст</span>
+                <span>Р С™Р В°Р СР С—Р В°Р Р…Р С‘РЎРЏ, Р СР С‘РЎР‚ Р С‘ Р С—Р В°РЎР‚Р В°Р СР ВµРЎвЂљРЎР‚РЎвЂ№ Р С—Р В°РЎР‚РЎвЂљР С‘Р С‘ РЎС“РЎвЂ¦Р С•Р Т‘РЎРЏРЎвЂљ Р Р† Р С–Р ВµР Р…Р ВµРЎР‚Р В°РЎвЂ Р С‘РЎР‹ Р С”Р В°Р С” Р С”Р С•Р Р…РЎвЂљР ВµР С”РЎРѓРЎвЂљ</span>
               </div>
 
               <div className="form-grid">
@@ -9778,7 +4824,7 @@ export default function App() {
                   <textarea
                     className="input textarea"
                     onChange={(event) => setCombatPrompt(event.target.value)}
-                    placeholder="Например: бандитская засада у тракта, 5 врагов, один лидер"
+                    placeholder="Р СњР В°Р С—РЎР‚Р С‘Р СР ВµРЎР‚: Р В±Р В°Р Р…Р Т‘Р С‘РЎвЂљРЎРѓР С”Р В°РЎРЏ Р В·Р В°РЎРѓР В°Р Т‘Р В° РЎС“ РЎвЂљРЎР‚Р В°Р С”РЎвЂљР В°, 5 Р Р†РЎР‚Р В°Р С–Р С•Р Р†, Р С•Р Т‘Р С‘Р Р… Р В»Р С‘Р Т‘Р ВµРЎР‚"
                     value={combatPrompt}
                   />
                 </label>
@@ -9792,7 +4838,7 @@ export default function App() {
                     <option value="easy">Легко</option>
                     <option value="medium">Средне</option>
                     <option value="hard">Сложно</option>
-                    <option value="deadly">Смертоносно</option>
+                    <option value="deadly">Смертельно</option>
                     <option value="custom">Своя сложность</option>
                   </select>
                 </label>
@@ -9870,7 +4916,7 @@ export default function App() {
 
               {generating ? (
                 <DndGenerationProgress
-                  detail="Собираю контекст кампании и отправляю запрос на сборку encounter. Это живой индикатор процесса, не точный процент."
+                  detail="Р РЋР С•Р В±Р С‘РЎР‚Р В°РЎР‹ Р С”Р С•Р Р…РЎвЂљР ВµР С”РЎРѓРЎвЂљ Р С”Р В°Р СР С—Р В°Р Р…Р С‘Р С‘ Р С‘ Р С•РЎвЂљР С—РЎР‚Р В°Р Р†Р В»РЎРЏРЎР‹ Р В·Р В°Р С—РЎР‚Р С•РЎРѓ Р Р…Р В° РЎРѓР В±Р С•РЎР‚Р С”РЎС“ encounter. Р В­РЎвЂљР С• Р В¶Р С‘Р Р†Р С•Р в„– Р С‘Р Р…Р Т‘Р С‘Р С”Р В°РЎвЂљР С•РЎР‚ Р С—РЎР‚Р С•РЎвЂ Р ВµРЎРѓРЎРѓР В°, Р Р…Р Вµ РЎвЂљР С•РЎвЂЎР Р…РЎвЂ№Р в„– Р С—РЎР‚Р С•РЎвЂ Р ВµР Р…РЎвЂљ."
                   steps={combatGenerationSteps}
                   title="Оракул собирает бой"
                 />
@@ -9880,1597 +4926,86 @@ export default function App() {
         </div>
       ) : null}
 
-      {entityModalOpen ? (
-        <div className="overlay" role="presentation">
-          <div className="panel palette form-modal" onClick={(event) => event.stopPropagation()} role="dialog">
-            <div className="row">
-              <div>
-                <p className="eyebrow">{entityModalTitle}</p>
-                <strong>{entityModalDescription}</strong>
-              </div>
-              <button className="ghost" onClick={requestEntityModalClose} type="button">
-                Esc
-              </button>
-            </div>
+      <EntityEditorModal
+        campaign={campaign}
+        controller={entityEditor}
+        entityGenerationSteps={entityGenerationSteps}
+        generating={generating}
+        onClose={requestEntityModalClose}
+        onContentContextMenu={entityLinkController.handleEntityContentContextMenu}
+        saving={saving}
+      />
 
-            <div className="field field-full">
-              <span>Описание для AI</span>
-              <textarea
-                className="input textarea"
-                onChange={(event) => setDraftPrompt(event.target.value)}
-                placeholder="Опиши город, НПС, монстра или квест. AI заполнит форму, а ты потом отредактируешь её вручную."
-                value={draftPrompt}
-              />
-            </div>
+      <RandomEventModal
+        campaign={campaign}
+        generating={randomEventGenerating}
+        generationSteps={randomEventGenerationSteps}
+        notes={randomEventNotes}
+        onChangeLocationId={setRandomEventLocationId}
+        onChangePrompt={setRandomEventPrompt}
+        onChangeType={setRandomEventType}
+        onClose={requestRandomEventModalClose}
+        onGenerate={() => {
+          void generateRandomEvent();
+        }}
+        open={randomEventModalOpen}
+        prompt={randomEventPrompt}
+        selectedLocationId={randomEventLocationId}
+        selectedType={randomEventType}
+      />
 
-            <div className="actions">
-              <button className="ghost" disabled={generating || !draftPrompt.trim()} onClick={() => void generateDraft()} type="button">
-                {generating ? "Генерирую..." : "Сгенерировать и заполнить"}
-              </button>
-            </div>
+      <PlayerFacingController controller={playerFacing} onClose={requestPlayerFacingViewClose} />
 
-            {generating ? (
-              <DndGenerationProgress
-                detail="Собираю текущую форму, контекст кампании и прошу AI подготовить новый черновик сущности."
-                steps={entityGenerationSteps}
-                title="Пишу новый черновик"
-              />
-            ) : null}
+      <PreparedCombatModal
+        bootError={bootError}
+        entityMap={entityMap}
+        notice={preparedCombatNotice}
+        open={preparedCombatModalOpen}
+        preparedCombatBestiaryLoading={preparedCombatBestiaryLoading}
+        preparedCombatChallenge={preparedCombatChallenge}
+        preparedCombatDraft={preparedCombatDraft}
+        preparedCombatQuantity={preparedCombatQuantity}
+        preparedCombatSearchItems={preparedCombatSearchItems}
+        preparedCombatSearchQuery={preparedCombatSearchQuery}
+        questTitle={preparedCombatQuest?.title ?? ""}
+        saving={saving}
+        selectedPreparedCombatSearchItem={selectedPreparedCombatSearchItem}
+        onAddEnemy={() => void addPreparedCombatDraftItem()}
+        onChangeChallenge={setPreparedCombatChallenge}
+        onChangeQuantity={setPreparedCombatQuantity}
+        onChangeSearchQuery={setPreparedCombatSearchQuery}
+        onChangeTitle={updatePreparedCombatTitle}
+        onClose={requestPreparedCombatModalClose}
+        onPeekEntity={peekEntity}
+        onRemoveEnemy={removePreparedCombatDraftItem}
+        onSave={() => void savePreparedCombatDraft()}
+        onSelectItem={setPreparedCombatSelectionId}
+        onUpdateEnemyQuantity={(entityId, quantity) => updatePreparedCombatDraftItem(entityId, { quantity })}
+      />
 
-            {draftNotes.length ? <p className="copy draft-notes">{draftNotes.join(" ")}</p> : null}
+      <EntityActionMenu
+        menu={entityActionMenu}
+        onClose={closeEntityActionMenu}
+        onRequestDelete={requestEntityDeletion}
+        target={entityActionMenuTarget}
+      />
+      <EntityDeleteDialog
+        entity={pendingDeleteEntity}
+        onCancel={cancelEntityDeletion}
+        onConfirm={(entity) => {
+          void confirmEntityDeletion(entity);
+        }}
+        saving={saving}
+      />
 
-            <div className="form-grid">
-              <label className="field">
-                <span>Тип</span>
-                <select
-                  className="input"
-                  disabled={isEditingEntity}
-                  onChange={(event) => {
-                    setGeneratedQuestIssuerDraft(null);
-                    setGeneratedQuestIssuerNote("");
-                    setEntityForm(emptyEntityForm(event.target.value as EntityKind));
-                  }}
-                  value={entityForm.kind}
-                >
-                  <option value="location">Локация</option>
-                  <option value="player">Игрок</option>
-                  <option value="npc">НПС</option>
-                  <option value="monster">Монстр</option>
-                  <option value="quest">Квест</option>
-                  <option value="lore">Лор</option>
-                </select>
-              </label>
-              <label className="field">
-                <span>Название</span>
-                <input
-                  className="input"
-                  onChange={(event) => setEntityForm((current) => ({ ...current, title: event.target.value }))}
-                  value={entityForm.title}
-                />
-              </label>
-              <label className="field">
-                <span>Подзаголовок</span>
-                <input
-                  className="input"
-                  onChange={(event) => setEntityForm((current) => ({ ...current, subtitle: event.target.value }))}
-                  value={entityForm.subtitle}
-                />
-              </label>
-              <label className="field">
-                <span>Теги</span>
-                <input
-                  className="input"
-                  onChange={(event) =>
-                    setEntityForm((current) => ({
-                      ...current,
-                      tags: event.target.value
-                        .split(",")
-                        .map((tag) => tag.trim())
-                        .filter(Boolean)
-                    }))
-                  }
-                  placeholder="порт, тьма, север"
-                  value={(entityForm.tags ?? []).join(", ")}
-                />
-              </label>
-              <label className="field">
-                <span>Ссылка на изображение</span>
-                <input
-                  className="input"
-                  onChange={(event) =>
-                    updateEntityForm((current) => ({
-                      ...current,
-                      art: {
-                        ...(current.art ?? {}),
-                        url: event.target.value
-                      }
-                    }))
-                  }
-                  placeholder="https://..."
-                  value={entityForm.art?.url ?? ""}
-                />
-                <div className="actions entity-art-upload-actions">
-                  <label className={`ghost media-upload-trigger ${entityArtUploading ? "disabled" : ""}`}>
-                    <input
-                      accept={acceptedImageUploadTypes}
-                      className="media-upload-input"
-                      disabled={entityArtUploading}
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        event.target.value = "";
-                        if (!file) {
-                          return;
-                        }
-                        void uploadEntityArtFile(file);
-                      }}
-                      type="file"
-                    />
-                    {entityArtUploading ? "Загружаю..." : "Загрузить в приложение"}
-                  </label>
-                  <small className="field-hint">Можно оставить внешний URL или загрузить файл прямо в приложение.</small>
-                </div>
-              </label>
-              <label className="field">
-                <span>Alt-текст</span>
-                <input
-                  className="input"
-                  onChange={(event) =>
-                    updateEntityForm((current) => ({
-                      ...current,
-                      art: {
-                        ...(current.art ?? {}),
-                        alt: event.target.value
-                      }
-                    }))
-                  }
-                  value={entityForm.art?.alt ?? ""}
-                />
-              </label>
-              <label className="field field-full">
-                <span>Подпись к изображению</span>
-                <input
-                  className="input"
-                  onChange={(event) =>
-                    updateEntityForm((current) => ({
-                      ...current,
-                      art: {
-                        ...(current.art ?? {}),
-                        caption: event.target.value
-                      }
-                    }))
-                  }
-                  value={entityForm.art?.caption ?? ""}
-                />
-              </label>
+      <EntityLinkContextMenu controller={entityLinkController} />
+      <EntityLinkPickerModal controller={entityLinkController} onClose={requestEntityLinkModalClose} />
 
-              {entityForm.kind === "player" || entityForm.kind === "npc" || entityForm.kind === "monster" ? (
-                <section className="card npc-section form-subsection field-full entity-art-editor">
-                  <div className="row muted">
-                    <span>Превью портрета</span>
-                    <span>
-                      {entityForm.art?.url?.trim()
-                        ? "Используется реальная ссылка на изображение"
-                        : "Пока используется заглушка, но после вставки URL портрет обновится сразу"}
-                    </span>
-                  </div>
-
-                  <div className="npc-top">
-                    <figure className="npc-portrait-frame">
-                      <img
-                        alt={
-                          entityForm.art?.alt ??
-                          (entityForm.title || (entityForm.kind === "monster" ? "Монстр" : entityForm.kind === "player" ? "Игрок" : "НПС"))
-                        }
-                        className="npc-portrait"
-                        src={createPortraitSource({
-                          kind: entityForm.kind,
-                          title: entityForm.title || (entityForm.kind === "monster" ? "Монстр" : entityForm.kind === "player" ? "Игрок" : "НПС"),
-                          art: entityForm.art
-                        })}
-                      />
-                      <figcaption>
-                        {entityForm.art?.caption ??
-                          (entityForm.kind === "monster"
-                            ? "Для монстров из dnd.su ссылка на изображение подставится автоматически при импорте."
-                            : entityForm.kind === "player"
-                              ? "Портрет игрока будет виден в карточке персонажа и в трекере инициативы."
-                              : "Для НПС вставь URL портрета, и он сразу появится в карточке персонажа.")}
-                      </figcaption>
-                    </figure>
-
-                    <div className="npc-overview">
-                      <div className="stack">
-                        <div>
-                          <p className="eyebrow">Изображение</p>
-                          <h2>
-                            {entityForm.title ||
-                              (entityForm.kind === "monster" ? "Новый монстр" : entityForm.kind === "player" ? "Новый игрок" : "Новый НПС")}
-                          </h2>
-                          <p className="npc-type-line">
-                            {entityForm.art?.url?.trim()
-                              ? "Изображение сохранится в сущности и будет видно в карточке, preview и боевом профиле."
-                              : "Можно вставить внешний URL вручную или загрузить файл прямо в приложение."}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-              ) : null}
-
-              {entityModalMode === "create" ? (
-                <div className="field field-full">
-                  <PlaylistEditorSection
-                    hint="Во время создания можно сразу добавить музыку сцены. Для уже существующей сущности плейлист редактируется отдельно маленькой модалкой прямо из её карточки."
-                    onAdd={addEntityPlaylistTrack}
-                    onChange={updateEntityPlaylistTrack}
-                    onRemove={removeEntityPlaylistTrack}
-                    title="Плейлист сущности"
-                    tracks={entityForm.playlist ?? []}
-                  />
-                </div>
-              ) : null}
-              {entityModalMode === "create" ? (
-                <div className="field field-full">
-                  <GalleryEditorSection
-                    hint="Во время создания можно сразу прикрепить карты, письма, handout-арты и любые другие изображения. Для существующей сущности галерея потом редактируется отдельной маленькой модалкой."
-                    items={entityForm.gallery ?? []}
-                    onAdd={addEntityGalleryItem}
-                    onChange={updateEntityGalleryItem}
-                    onRemove={removeEntityGalleryItem}
-                    onUpload={uploadEntityGalleryFile}
-                    title="Галерея сущности"
-                    uploadDisabled={galleryUploadKey.startsWith("entity-form:")}
-                    uploadingIndex={galleryUploadKey.startsWith("entity-form:") ? Number.parseInt(galleryUploadKey.split(":")[1] ?? "-1", 10) : null}
-                  />
-                </div>
-              ) : null}
-              {entityForm.kind === "location" ? (
-                <>
-                  <label className="field">
-                    <span>Категория</span>
-                    <select
-                      className="input"
-                      onChange={(event) => setEntityForm((current) => ({ ...current, category: event.target.value as CreateEntityInput["category"] }))}
-                      value={entityForm.category ?? "City"}
-                    >
-                      <option value="City">City</option>
-                      <option value="Region">Region</option>
-                      <option value="Dungeon">Dungeon</option>
-                      <option value="POI">POI</option>
-                    </select>
-                  </label>
-                  <label className="field">
-                    <span>Регион</span>
-                    <input
-                      className="input"
-                      onChange={(event) => setEntityForm((current) => ({ ...current, region: event.target.value }))}
-                      value={entityForm.region ?? ""}
-                    />
-                  </label>
-                  <label className="field">
-                    <span>Опасность</span>
-                    <select
-                      className="input"
-                      onChange={(event) => setEntityForm((current) => ({ ...current, danger: event.target.value as CreateEntityInput["danger"] }))}
-                      value={entityForm.danger ?? "Tense"}
-                    >
-                      <option value="Safe">Safe</option>
-                      <option value="Tense">Tense</option>
-                      <option value="Dangerous">Dangerous</option>
-                      <option value="Deadly">Deadly</option>
-                    </select>
-                  </label>
-                </>
-              ) : null}
-              {entityForm.kind === "player" ? (
-                <>
-                  <label className="field">
-                    <span>Роль</span>
-                    <input
-                      className="input"
-                      onChange={(event) => setEntityForm((current) => ({ ...current, role: event.target.value }))}
-                      placeholder="Например: паладин, вор, маг, лицо партии"
-                      value={entityForm.role ?? ""}
-                    />
-                  </label>
-                  <label className="field">
-                    <span>Статус</span>
-                    <select
-                      className="input"
-                      onChange={(event) => setEntityForm((current) => ({ ...current, status: event.target.value as CreateEntityInput["status"] }))}
-                      value={entityForm.status ?? "Active"}
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Reserve">Reserve</option>
-                      <option value="Guest">Guest</option>
-                    </select>
-                  </label>
-                </>
-              ) : null}
-              {entityForm.kind === "npc" || entityForm.kind === "monster" ? (
-                <>
-                  <label className="field">
-                    <span>Роль</span>
-                    <input
-                      className="input"
-                      onChange={(event) => setEntityForm((current) => ({ ...current, role: event.target.value }))}
-                      value={entityForm.role ?? ""}
-                    />
-                  </label>
-                  <label className="field">
-                    <span>Статус</span>
-                    <select
-                      className="input"
-                      onChange={(event) => setEntityForm((current) => ({ ...current, status: event.target.value as CreateEntityInput["status"] }))}
-                      value={entityForm.status ?? (entityForm.kind === "monster" ? "Hostile" : "Unknown")}
-                    >
-                      {entityForm.kind === "monster" ? (
-                        <>
-                          <option value="Hostile">Hostile</option>
-                          <option value="Territorial">Territorial</option>
-                          <option value="Summoned">Summoned</option>
-                          <option value="Neutral">Neutral</option>
-                        </>
-                      ) : (
-                        <>
-                          <option value="Unknown">Unknown</option>
-                          <option value="Ally">Ally</option>
-                          <option value="Watcher">Watcher</option>
-                          <option value="Threat">Threat</option>
-                        </>
-                      )}
-                    </select>
-                  </label>
-                  <label className="field">
-                    <span>Важность</span>
-                    <select
-                      className="input"
-                      onChange={(event) => setEntityForm((current) => ({ ...current, importance: event.target.value as CreateEntityInput["importance"] }))}
-                      value={entityForm.importance ?? (entityForm.kind === "monster" ? "Standard" : "Major")}
-                    >
-                      {entityForm.kind === "monster" ? (
-                        <>
-                          <option value="Minion">Minion</option>
-                          <option value="Standard">Standard</option>
-                          <option value="Elite">Elite</option>
-                          <option value="Boss">Boss</option>
-                        </>
-                      ) : (
-                        <>
-                          <option value="Background">Background</option>
-                          <option value="Major">Major</option>
-                          <option value="Critical">Critical</option>
-                        </>
-                      )}
-                    </select>
-                  </label>
-                  <label className="field">
-                    <span>Локация</span>
-                    <select
-                      className="input"
-                      onChange={(event) => setEntityForm((current) => ({ ...current, locationId: event.target.value || undefined }))}
-                      value={entityForm.locationId ?? ""}
-                    >
-                      <option value="">Не привязано</option>
-                      {(campaign?.locations ?? []).map((location) => (
-                        <option key={location.id} value={location.id}>
-                          {location.title}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </>
-              ) : null}
-              {entityForm.kind === "quest" ? (
-                <>
-                  <label className="field">
-                    <span>Статус</span>
-                    <select
-                      className="input"
-                      onChange={(event) => setEntityForm((current) => ({ ...current, status: event.target.value as CreateEntityInput["status"] }))}
-                      value={entityForm.status ?? "active"}
-                    >
-                      <option value="active">active</option>
-                      <option value="paused">paused</option>
-                      <option value="completed">completed</option>
-                    </select>
-                  </label>
-                  <label className="field">
-                    <span>Срочность</span>
-                    <select
-                      className="input"
-                      onChange={(event) => setEntityForm((current) => ({ ...current, urgency: event.target.value as CreateEntityInput["urgency"] }))}
-                      value={entityForm.urgency ?? "Medium"}
-                    >
-                      <option value="Low">Low</option>
-                      <option value="Medium">Medium</option>
-                      <option value="High">High</option>
-                      <option value="Critical">Critical</option>
-                    </select>
-                  </label>
-                  <label className="field">
-                    <span>Квестодатель</span>
-                    <select
-                      className="input"
-                      onChange={(event) => setEntityForm((current) => ({ ...current, issuerId: event.target.value || undefined }))}
-                      value={entityForm.issuerId ?? ""}
-                    >
-                      <option value="">Не указан</option>
-                      {(campaign?.npcs ?? []).map((npc) => (
-                        <option key={npc.id} value={npc.id}>
-                          {npc.title}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="field">
-                    <span>Локация квеста</span>
-                    <select
-                      className="input"
-                      onChange={(event) => setEntityForm((current) => ({ ...current, locationId: event.target.value || undefined }))}
-                      value={entityForm.locationId ?? ""}
-                    >
-                      <option value="">Не указана</option>
-                      {(campaign?.locations ?? []).map((location) => (
-                        <option key={location.id} value={location.id}>
-                          {location.title}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  {!entityForm.issuerId && generatedQuestIssuerDraft?.kind === "npc" ? (
-                    <section className="card npc-section form-subsection field-full generated-linked-draft">
-                      <div className="row muted">
-                        <span>AI-квестодатель</span>
-                        <span>{generatedQuestIssuerNote || "Будет создан вместе с квестом"}</span>
-                      </div>
-                      <div className="entry-card">
-                        <div className="row">
-                          <strong>{generatedQuestIssuerDraft.title || "Новый НПС-квестодатель"}</strong>
-                          <span className={badge("accent")}>Создастся автоматически</span>
-                        </div>
-                        <p className="copy">{generatedQuestIssuerDraft.summary || "AI подготовил отдельного НПС для выдачи этого квеста."}</p>
-                        {generatedQuestIssuerDraft.playerContent?.trim() ? (
-                          <p className="copy">
-                            <strong>Игрокам:</strong> {generatedQuestIssuerDraft.playerContent}
-                          </p>
-                        ) : null}
-                      </div>
-                    </section>
-                  ) : null}
-                  <section className="card npc-section form-subsection field-full">
-                    <div className="row muted">
-                      <span>Заготовленный бой</span>
-                      <span>Настраивается отдельно после сохранения квеста</span>
-                    </div>
-                    <p className="copy">
-                      Сначала сохрани квест, потом открой его страницу и настрой заготовленный бой через отдельное меню с поиском по НПС и монстрам.
-                    </p>
-                  </section>
-                </>
-              ) : null}
-              {entityForm.kind === "lore" ? (
-                <>
-                  <label className="field">
-                    <span>Категория</span>
-                    <select
-                      className="input"
-                      onChange={(event) => setEntityForm((current) => ({ ...current, category: event.target.value as CreateEntityInput["category"] }))}
-                      value={entityForm.category ?? "History"}
-                    >
-                      <option value="History">History</option>
-                      <option value="Rumor">Rumor</option>
-                      <option value="Religion">Religion</option>
-                      <option value="Threat">Threat</option>
-                    </select>
-                  </label>
-                  <label className="field">
-                    <span>Видимость</span>
-                    <select
-                      className="input"
-                      onChange={(event) => setEntityForm((current) => ({ ...current, visibility: event.target.value as CreateEntityInput["visibility"] }))}
-                      value={entityForm.visibility ?? "gm_only"}
-                    >
-                      <option value="gm_only">gm_only</option>
-                      <option value="player_safe">player_safe</option>
-                    </select>
-                  </label>
-                </>
-              ) : null}
-              <label className="field field-full">
-                <span>Краткое описание</span>
-                <textarea
-                  className="input textarea"
-                  onChange={(event) => setEntityForm((current) => ({ ...current, summary: event.target.value }))}
-                  value={entityForm.summary}
-                />
-              </label>
-              {entityForm.kind === "location" ? (
-                <section className="card npc-section form-subsection field-full player-card-editor-section">
-                  <div className="row muted">
-                    <span>Карточки для игроков</span>
-                    <button className="ghost" onClick={addEntityPlayerCard} type="button">
-                      Добавить карточку
-                    </button>
-                  </div>
-                  <p className="copy">
-                    Каждую карточку можно назвать по-своему и потом отдельно открыть игрокам прямо со страницы локации.
-                  </p>
-
-                  <div className="player-card-editor-list">
-                    {(entityForm.playerCards ?? []).length ? (
-                      (entityForm.playerCards ?? []).map((card, index) => (
-                        <article key={`player-card-editor-${index}`} className="entry-card player-card-editor">
-                          <div className="player-card-editor-header">
-                            <strong>{card.title.trim() || defaultPlayerFacingCardTitle(entityForm.kind, index)}</strong>
-                            <div className="player-card-editor-actions">
-                              <button className="ghost" onClick={() => openEntityPlayerCardHtmlImport(index)} type="button">
-                                Импорт HTML
-                              </button>
-                              <button className="ghost" onClick={() => void pasteEntityPlayerCardHtmlFromClipboard(index)} type="button">
-                                HTML из буфера
-                              </button>
-                              <button
-                                className="ghost player-facing-ai-button"
-                                disabled={playerCardFormattingIndex === index}
-                                onClick={() => void autoFormatEntityPlayerCard(index)}
-                                type="button"
-                              >
-                                {playerCardFormattingIndex === index ? <span aria-hidden="true" className="player-facing-button-spinner" /> : null}
-                                {playerCardFormattingIndex === index ? "AI оформляет" : "AI автоформат"}
-                              </button>
-                              {card.contentHtml?.trim() ? (
-                                <button className="ghost" onClick={() => clearEntityPlayerCardHtml(index)} type="button">
-                                  Сбросить стиль
-                                </button>
-                              ) : null}
-                              <button className="ghost danger-action" onClick={() => removeEntityPlayerCard(index)} type="button">
-                                Удалить
-                              </button>
-                            </div>
-                          </div>
-
-                          {playerCardFormattingIndex === index ? (
-                            <PlayerFacingFormattingIndicator className="player-card-editor-ai-status" compact />
-                          ) : null}
-
-                          <input
-                            accept={acceptedPlayerFacingHtmlUploadTypes}
-                            className="player-card-editor-file-input"
-                            onChange={(event) => void handleEntityPlayerCardHtmlImport(index, event)}
-                            ref={(node) => {
-                              playerCardImportInputRefs.current[index] = node;
-                            }}
-                            type="file"
-                          />
-
-                          <label className="field">
-                            <span>Название карточки</span>
-                            <input
-                              className="input"
-                              onChange={(event) => updateEntityPlayerCard(index, { title: event.target.value })}
-                              placeholder={defaultPlayerFacingCardTitle(entityForm.kind, index)}
-                              value={card.title}
-                            />
-                          </label>
-
-                          <label className="field">
-                            <span>Текст для игроков</span>
-                            <textarea
-                              className="input textarea textarea-lg"
-                              onChange={(event) => updateEntityPlayerCard(index, { content: event.target.value })}
-                              value={card.content}
-                            />
-                            <small className="field-hint">
-                              Можно писать обычный текст, импортировать готовый HTML-фрагмент или попросить AI красиво оформить этот же текст.
-                            </small>
-                          </label>
-
-                          {card.contentHtml?.trim() ? (
-                            <div className="player-card-editor-status">
-                              <span className={badge("success")}>HTML-стиль активен</span>
-                              <span className="copy">При ручной правке текста оформление можно быстро собрать заново кнопкой AI или повторным импортом.</span>
-                            </div>
-                          ) : (
-                            <div className="player-card-editor-status">
-                              <span className={badge("default")}>Plain text</span>
-                              <span className="copy">Сейчас карточка откроется как обычный чистый текст без встроенного HTML-оформления.</span>
-                            </div>
-                          )}
-                        </article>
-                      ))
-                    ) : (
-                      <div className="entry-card player-card-editor-empty">
-                        <p className="copy">Пока карточек нет. Добавь первую, чтобы показывать игрокам разные описания одной и той же локации.</p>
-                      </div>
-                    )}
-                  </div>
-                </section>
-              ) : (
-                <label className="field field-full">
-                  <span>Что зачитывается при встрече</span>
-                  <small className="field-hint">
-                    Player-safe версия без мастерских секретов: речь NPC, описание первой встречи, слух, объявление о задании или любой текст,
-                    который удобно показать и зачитать игрокам.
-                  </small>
-                  <textarea
-                    className="input textarea textarea-lg"
-                    onContextMenu={(event) => handleEntityContentContextMenu("playerContent", event)}
-                    onChange={(event) => setEntityForm((current) => ({ ...current, playerContent: event.target.value }))}
-                    ref={entityPlayerContentRef}
-                    value={entityForm.playerContent ?? ""}
-                  />
-                </label>
-              )}
-              <label className="field field-full">
-                <span>Информация для мастера</span>
-                <small className="field-hint">
-                  Полная GM-версия сущности: скрытые мотивы, правда, тайные связи, последствия и служебные заметки. Выдели текст и нажми
-                  правой кнопкой, чтобы привязать его к другой сущности.
-                </small>
-                <textarea
-                  className="input textarea textarea-lg"
-                  onContextMenu={(event) => handleEntityContentContextMenu("content", event)}
-                  onChange={(event) => setEntityForm((current) => ({ ...current, content: event.target.value }))}
-                  ref={entityContentRef}
-                  value={entityForm.content}
-                />
-              </label>
-            </div>
-
-            {(entityForm.kind === "player" || entityForm.kind === "npc" || entityForm.kind === "monster") && entityForm.statBlock ? (
-              <>
-                <section className="card npc-section form-subsection">
-                  <div className="row muted">
-                    <span>
-                      {entityForm.kind === "monster"
-                        ? "Monster Stat Block"
-                        : entityForm.kind === "player"
-                          ? "Player Combat Profile"
-                          : "NPC Stat Block"}
-                    </span>
-                    <span>Полное редактирование боевого профиля</span>
-                  </div>
-
-                  <div className="form-grid">
-                    <label className="field">
-                      <span>Размер</span>
-                      <input
-                        className="input"
-                        onChange={(event) => updateNpcStatBlock((current) => ({ ...current, size: event.target.value }))}
-                        value={entityForm.statBlock.size}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Тип существа</span>
-                      <input
-                        className="input"
-                        onChange={(event) => updateNpcStatBlock((current) => ({ ...current, creatureType: event.target.value }))}
-                        value={entityForm.statBlock.creatureType}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Мировоззрение</span>
-                      <input
-                        className="input"
-                        onChange={(event) => updateNpcStatBlock((current) => ({ ...current, alignment: event.target.value }))}
-                        value={entityForm.statBlock.alignment}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>КБ</span>
-                      <input
-                        className="input"
-                        onChange={(event) => updateNpcStatBlock((current) => ({ ...current, armorClass: event.target.value }))}
-                        value={entityForm.statBlock.armorClass}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>ХП</span>
-                      <input
-                        className="input"
-                        onChange={(event) => updateNpcStatBlock((current) => ({ ...current, hitPoints: event.target.value }))}
-                        value={entityForm.statBlock.hitPoints}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Скорость</span>
-                      <input
-                        className="input"
-                        onChange={(event) => updateNpcStatBlock((current) => ({ ...current, speed: event.target.value }))}
-                        value={entityForm.statBlock.speed}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Бонус мастерства</span>
-                      <input
-                        className="input"
-                        onChange={(event) => updateNpcStatBlock((current) => ({ ...current, proficiencyBonus: event.target.value }))}
-                        value={entityForm.statBlock.proficiencyBonus ?? ""}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Опасность / CR</span>
-                      <input
-                        className="input"
-                        onChange={(event) => updateNpcStatBlock((current) => ({ ...current, challenge: event.target.value }))}
-                        value={entityForm.statBlock.challenge ?? ""}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Чувства</span>
-                      <input
-                        className="input"
-                        onChange={(event) => updateNpcStatBlock((current) => ({ ...current, senses: event.target.value }))}
-                        value={entityForm.statBlock.senses ?? ""}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Языки</span>
-                      <input
-                        className="input"
-                        onChange={(event) => updateNpcStatBlock((current) => ({ ...current, languages: event.target.value }))}
-                        value={entityForm.statBlock.languages ?? ""}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Спасброски</span>
-                      <input
-                        className="input"
-                        onChange={(event) => updateNpcStatBlock((current) => ({ ...current, savingThrows: event.target.value }))}
-                        value={entityForm.statBlock.savingThrows ?? ""}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Навыки</span>
-                      <input
-                        className="input"
-                        onChange={(event) => updateNpcStatBlock((current) => ({ ...current, skills: event.target.value }))}
-                        value={entityForm.statBlock.skills ?? ""}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Сопротивления</span>
-                      <input
-                        className="input"
-                        onChange={(event) => updateNpcStatBlock((current) => ({ ...current, resistances: event.target.value }))}
-                        value={entityForm.statBlock.resistances ?? ""}
-                      />
-                    </label>
-                    <label className="field">
-                      <span>Иммунитеты</span>
-                      <input
-                        className="input"
-                        onChange={(event) => updateNpcStatBlock((current) => ({ ...current, immunities: event.target.value }))}
-                        value={entityForm.statBlock.immunities ?? ""}
-                      />
-                    </label>
-                    <label className="field field-full">
-                      <span>Иммунитеты к состояниям</span>
-                      <input
-                        className="input"
-                        onChange={(event) =>
-                          updateNpcStatBlock((current) => ({
-                            ...current,
-                            conditionImmunities: event.target.value
-                          }))
-                        }
-                        value={entityForm.statBlock.conditionImmunities ?? ""}
-                      />
-                    </label>
-                  </div>
-                </section>
-
-                <section className="card npc-section form-subsection">
-                  <div className="row muted">
-                    <span>Характеристики</span>
-                    <span>Очки характеристик и модификаторы</span>
-                  </div>
-
-                  <div className="ability-edit-grid">
-                    {abilityLabels.map(({ key, label }) => (
-                      <label key={key} className="field ability-edit-card">
-                        <span>{label}</span>
-                        <input
-                          className="input"
-                          min={1}
-                          onChange={(event) => updateNpcAbilityScore(key, event.target.value)}
-                          type="number"
-                          value={entityForm.statBlock?.abilityScores[key] ?? 10}
-                        />
-                      </label>
-                    ))}
-                  </div>
-                </section>
-
-                <section className="card npc-section form-subsection">
-                  <div className="row muted">
-                    <span>Магия</span>
-                    <button
-                      className="ghost"
-                      onClick={() => setSpellcastingEnabled(!entityForm.statBlock?.spellcasting)}
-                      type="button"
-                    >
-                      {entityForm.statBlock?.spellcasting ? "Убрать магию" : "Добавить магию"}
-                    </button>
-                  </div>
-
-                  {entityForm.statBlock?.spellcasting ? (
-                    <div className="stack">
-                      <div className="form-grid">
-                        <label className="field">
-                          <span>Заголовок</span>
-                          <input
-                            className="input"
-                            onChange={(event) => updateNpcSpellcasting((current) => ({ ...current, title: event.target.value }))}
-                            value={entityForm.statBlock.spellcasting.title}
-                          />
-                        </label>
-                        <label className="field">
-                          <span>Базовая характеристика</span>
-                          <input
-                            className="input"
-                            onChange={(event) => updateNpcSpellcasting((current) => ({ ...current, ability: event.target.value }))}
-                            value={entityForm.statBlock.spellcasting.ability}
-                          />
-                        </label>
-                        <label className="field">
-                          <span>СЛ спасброска</span>
-                          <input
-                            className="input"
-                            onChange={(event) => updateNpcSpellcasting((current) => ({ ...current, saveDc: event.target.value }))}
-                            value={entityForm.statBlock.spellcasting.saveDc}
-                          />
-                        </label>
-                        <label className="field">
-                          <span>Модификатор атаки</span>
-                          <input
-                            className="input"
-                            onChange={(event) =>
-                              updateNpcSpellcasting((current) => ({ ...current, attackBonus: event.target.value }))
-                            }
-                            value={entityForm.statBlock.spellcasting.attackBonus}
-                          />
-                        </label>
-                        <label className="field field-full">
-                          <span>Описание магии</span>
-                          <textarea
-                            className="input textarea"
-                            onChange={(event) =>
-                              updateNpcSpellcasting((current) => ({ ...current, description: event.target.value }))
-                            }
-                            value={entityForm.statBlock.spellcasting.description ?? ""}
-                          />
-                        </label>
-                        <label className="field field-full">
-                          <span>Список заклинаний</span>
-                          <textarea
-                            className="input textarea"
-                            onChange={(event) =>
-                              updateNpcSpellcasting((current) => ({
-                                ...current,
-                                spells: event.target.value
-                                  .split(/\n|,/)
-                                  .map((spell) => spell.trim())
-                                  .filter(Boolean)
-                              }))
-                            }
-                            placeholder="mage hand&#10;shield&#10;misty step"
-                            value={entityForm.statBlock.spellcasting.spells.join("\n")}
-                          />
-                        </label>
-                      </div>
-
-                      <div className="row muted">
-                        <span>Ячейки заклинаний</span>
-                        <button className="ghost" onClick={addSpellSlot} type="button">
-                          Добавить ячейку
-                        </button>
-                      </div>
-
-                      <div className="spell-slot-editor-list">
-                        {(entityForm.statBlock.spellcasting.slots ?? []).map((slot, index) => (
-                          <div key={`${slot.level}-${index}`} className="spell-slot-row">
-                            <label className="field">
-                              <span>Уровень</span>
-                              <input
-                                className="input"
-                                onChange={(event) => updateSpellSlot(index, { level: event.target.value })}
-                                value={slot.level}
-                              />
-                            </label>
-                            <label className="field">
-                              <span>Ячейки</span>
-                              <input
-                                className="input"
-                                onChange={(event) => updateSpellSlot(index, { slots: event.target.value })}
-                                value={slot.slots}
-                              />
-                            </label>
-                            <button className="ghost danger-action slot-remove" onClick={() => removeSpellSlot(index)} type="button">
-                              Удалить
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="copy">У этой сущности сейчас нет секции spellcasting.</p>
-                  )}
-                </section>
-
-                <StatEntryEditorSection
-                  entries={entityForm.statBlock.traits}
-                  hint="Пассивные особенности, ауры и правила поведения"
-                  onAdd={() => addNpcStatEntry("traits")}
-                  onChange={(index, patch) => updateNpcStatEntry("traits", index, patch)}
-                  onRemove={(index) => removeNpcStatEntry("traits", index)}
-                  title="Способности"
-                />
-                <StatEntryEditorSection
-                  entries={entityForm.statBlock.actions}
-                  hint="Удары, укусы, заклинания и основные действия"
-                  onAdd={() => addNpcStatEntry("actions")}
-                  onChange={(index, patch) => updateNpcStatEntry("actions", index, patch)}
-                  onRemove={(index) => removeNpcStatEntry("actions", index)}
-                  title="Действия"
-                />
-                <StatEntryEditorSection
-                  entries={entityForm.statBlock.bonusActions ?? []}
-                  hint="То, что тратит bonus action"
-                  onAdd={() => addNpcStatEntry("bonusActions")}
-                  onChange={(index, patch) => updateNpcStatEntry("bonusActions", index, patch)}
-                  onRemove={(index) => removeNpcStatEntry("bonusActions", index)}
-                  title="Бонусные действия"
-                />
-                <StatEntryEditorSection
-                  entries={entityForm.statBlock.reactions ?? []}
-                  hint="Ответные действия и защитные приёмы"
-                  onAdd={() => addNpcStatEntry("reactions")}
-                  onChange={(index, patch) => updateNpcStatEntry("reactions", index, patch)}
-                  onRemove={(index) => removeNpcStatEntry("reactions", index)}
-                  title="Реакции"
-                />
-              </>
-            ) : null}
-
-            {entityForm.kind === "npc" || entityForm.kind === "monster" || entityForm.kind === "quest" ? (
-              <section className="card npc-section form-subsection">
-                <div className="row muted">
-                  <span>{rewardSectionLabel(entityForm.kind).title}</span>
-                  <span>{rewardSectionLabel(entityForm.kind).hint}</span>
-                </div>
-
-                <div className="form-grid">
-                  <label className="field field-full">
-                    <span>{entityForm.kind === "quest" ? "Описание награды" : "Сводка наград и лута"}</span>
-                    <textarea
-                      className="input textarea"
-                      onChange={(event) => updateEntityRewardProfile((current) => ({ ...current, summary: event.target.value }))}
-                      placeholder={
-                        entityForm.kind === "quest"
-                          ? "Золото, артефакт, покровительство, доступ к локации, политическая услуга."
-                          : entityForm.kind === "npc"
-                            ? "Что НПС может заплатить, отдать добровольно или что можно забрать у него как трофей."
-                            : "Что можно снять с монстра, сколько это стоит, какие риски и в каком состоянии находится добыча."
-                      }
-                      value={entityForm.rewardProfile?.summary ?? ""}
-                    />
-                  </label>
-                </div>
-
-                <div className="row muted">
-                  <span>{entityForm.kind === "quest" ? "Список наград" : "Список добычи"}</span>
-                  <button className="ghost" onClick={addMonsterLootEntry} type="button">
-                    Добавить предмет
-                  </button>
-                </div>
-
-                <div className="entry-editor-list">
-                  {(entityForm.rewardProfile?.loot ?? []).map((entry, index) => (
-                    <article key={`loot-${index}`} className="entry-editor">
-                      <div className="row">
-                        <strong>{entityForm.kind === "quest" ? `Награда #${index + 1}` : `Добыча #${index + 1}`}</strong>
-                        <button className="ghost danger-action" onClick={() => removeMonsterLootEntry(index)} type="button">
-                          Удалить
-                        </button>
-                      </div>
-
-                      <div className="form-grid">
-                        <label className="field">
-                          <span>Название</span>
-                          <input
-                            className="input"
-                            onChange={(event) => updateMonsterLootEntry(index, { name: event.target.value })}
-                            placeholder={entityForm.kind === "quest" ? "Кошель с золотом" : "Клыки ледяного волка"}
-                            value={entry.name}
-                          />
-                        </label>
-                        <label className="field">
-                          <span>Категория</span>
-                          <input
-                            className="input"
-                            onChange={(event) => updateMonsterLootEntry(index, { category: event.target.value })}
-                            placeholder={
-                              entityForm.kind === "quest"
-                                ? "Деньги / Артефакт / Репутация / Услуга"
-                                : "Трофей / Алхимия / Оружие / Квест"
-                            }
-                            value={entry.category}
-                          />
-                        </label>
-                        <label className="field">
-                          <span>Количество</span>
-                          <input
-                            className="input"
-                            onChange={(event) => updateMonsterLootEntry(index, { quantity: event.target.value })}
-                            placeholder={entityForm.kind === "quest" ? "200 зм" : "2 клыка"}
-                            value={entry.quantity}
-                          />
-                        </label>
-                        <label className="field">
-                          <span>Проверка</span>
-                          <input
-                            className="input"
-                            onChange={(event) => updateMonsterLootEntry(index, { check: event.target.value })}
-                            placeholder={
-                              entityForm.kind === "quest"
-                                ? "Убеждение, История, доступ по статусу, без проверки"
-                                : "Медицина, Выживание, Воровские инструменты"
-                            }
-                            value={entry.check}
-                          />
-                        </label>
-                        <label className="field">
-                          <span>СЛ</span>
-                          <input
-                            className="input"
-                            onChange={(event) => updateMonsterLootEntry(index, { dc: event.target.value })}
-                            placeholder="СЛ 14"
-                            value={entry.dc ?? ""}
-                          />
-                        </label>
-                        <label className="field field-full">
-                          <span>Детали</span>
-                          <textarea
-                            className="input textarea"
-                            onChange={(event) => updateMonsterLootEntry(index, { details: event.target.value })}
-                            placeholder={
-                              entityForm.kind === "quest"
-                                ? "Условия получения награды, кто вручает, какие есть ограничения и что меняется в мире."
-                                : "Что именно получает группа, при каких условиях добыча портится и как это можно использовать."
-                            }
-                            value={entry.details ?? ""}
-                          />
-                        </label>
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
-            <div className="actions">
-              {isEditingEntity ? (
-                <button className="ghost danger-action" disabled={saving} onClick={() => void deleteEntity()} type="button">
-                  Удалить
-                </button>
-              ) : null}
-              <button className="primary" disabled={saving || entityFormImageUploading} onClick={() => void submitEntity()} type="button">
-                {saving ? "Сохраняю..." : entitySubmitLabel}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {randomEventModalOpen ? (
-        <div className="overlay" role="presentation">
-          <div className="panel palette random-event-modal" onClick={(event) => event.stopPropagation()} role="dialog">
-            <div className="stack wide">
-              <div className="row">
-                <div>
-                  <p className="eyebrow">Событие</p>
-                  <h2>Подбросить сценку</h2>
-                  <p className="copy">
-                    AI соберёт маленькое событие для стола: короткую сцену, реплики, пару веток разговора и конкретный
-                    лут или награду.
-                  </p>
-                </div>
-                <button className="ghost" onClick={requestRandomEventModalClose} type="button">
-                  Esc
-                </button>
-              </div>
-
-              <section className="card section-card random-event-card">
-                <div className="form-grid">
-                  <label className="field">
-                    <span>Локация</span>
-                    <select
-                      className="input"
-                      onChange={(event) => setRandomEventLocationId(event.target.value)}
-                      value={randomEventLocationId}
-                    >
-                      <option value="">Без привязки</option>
-                      {campaign?.locations.map((location) => (
-                        <option key={location.id} value={location.id}>
-                          {location.title}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="field">
-                    <span>Тип сценки</span>
-                    <select
-                      className="input"
-                      onChange={(event) => setRandomEventType(event.target.value as WorldEventType)}
-                      value={randomEventType}
-                    >
-                      {worldEventTypeOptions.map((type) => (
-                        <option key={type} value={type}>
-                          {worldEventTypeLabels[type]}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="field field-full">
-                    <span>Дополнительное пожелание</span>
-                    <small className="field-hint">
-                      Необязательно. Можно уточнить настроение, тему или гэг: например, «торговец ругается только матом»,
-                      «маленькая стычка без смертей», «неловкое ограбление», «мрачная, но короткая сценка».
-                    </small>
-                    <textarea
-                      className="input textarea"
-                      onChange={(event) => setRandomEventPrompt(event.target.value)}
-                      placeholder="Например: на рынке партии липнет торговец, который оскорбляет всех подряд, но может продать полезную наводку."
-                      value={randomEventPrompt}
-                    />
-                  </label>
-                </div>
-              </section>
-
-              {randomEventNotes.length ? <p className="copy draft-notes">{randomEventNotes.join(" ")}</p> : null}
-
-              <div className="actions">
-                <button className="ghost" onClick={requestRandomEventModalClose} type="button">
-                  Отмена
-                </button>
-                <button className="primary" disabled={randomEventGenerating} onClick={() => void generateRandomEvent()} type="button">
-                  {randomEventGenerating ? "Генерирую событие..." : "Сгенерировать событие"}
-                </button>
-              </div>
-
-              {randomEventGenerating ? (
-                <DndGenerationProgress
-                  detail="AI собирает короткую сцену, подбирает реплики, ветки разговора и быстрый лут."
-                  steps={randomEventGenerationSteps}
-                  title="Тку маленькое событие"
-                />
-              ) : null}
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {playerFacingEntity && playerFacingView ? (
-        <PlayerFacingEntityModal
-          content={playerFacingView.content}
-          contentHtml={playerFacingView.contentHtml}
-          editable={typeof playerFacingView.cardIndex === "number"}
-          editMode={Boolean(playerFacingView.editMode)}
-          entity={playerFacingEntity}
-          formatting={playerFacingModalFormatting}
-          isNew={Boolean(playerFacingView.isNew)}
-          onAutoFormat={formatPlayerFacingCardFromModal}
-          onCancelEdit={cancelPlayerFacingEditMode}
-          onClose={requestPlayerFacingViewClose}
-          onEnterEdit={enterPlayerFacingEditMode}
-          onSave={savePlayerFacingCardFromModal}
-          saving={playerFacingModalSaving}
-          title={playerFacingView.title}
-        />
-      ) : null}
-
-      {preparedCombatModalOpen && preparedCombatQuest ? (
-        <div className="overlay" role="presentation">
-          <div className="panel palette prepared-combat-modal" onClick={(event) => event.stopPropagation()} role="dialog">
-            <div className="stack wide">
-              <div className="row">
-                <div>
-                  <p className="eyebrow">Prepared Combat</p>
-                  <h2>{preparedCombatQuest.title}</h2>
-                  <p className="copy">
-                    Подготовь список врагов отдельно от полного редактирования квеста: ищи по всем НПС и монстрам кампании,
-                    фильтруй по CR и собирай сцену для запуска одной кнопкой.
-                  </p>
-                </div>
-                <button className="ghost" onClick={requestPreparedCombatModalClose} type="button">
-                  Esc
-                </button>
-              </div>
-
-              {bootError ? (
-                <div className="card mini form-error" role="status">
-                  <strong>Проблема при сохранении или добавлении</strong>
-                  <p>{bootError}</p>
-                </div>
-              ) : null}
-
-              {preparedCombatNotice ? (
-                <div className="card mini form-success" role="status">
-                  <strong>Сохранено</strong>
-                  <p>{preparedCombatNotice}</p>
-                </div>
-              ) : null}
-
-              <section className="card section-card prepared-combat-card">
-                <div className="form-grid">
-                  <label className="field field-full">
-                    <span>Название сцены</span>
-                    <input
-                      className="input"
-                      onChange={(event) =>
-                        updatePreparedCombatDraft((current) => ({
-                          ...current,
-                          title: event.target.value
-                        }))
-                      }
-                      placeholder="Например: Засада у старого моста"
-                      value={preparedCombatDraft.title ?? ""}
-                    />
-                  </label>
-
-                  <label className="field field-full">
-                    <span>Поиск по названию</span>
-                    <input
-                      className="input"
-                      onChange={(event) => setPreparedCombatSearchQuery(event.target.value)}
-                      placeholder="Бандит, волк, капитан, паук, сторож..."
-                      value={preparedCombatSearchQuery}
-                    />
-                  </label>
-
-                  <label className="field">
-                    <span>CR</span>
-                    <select
-                      className="input"
-                      onChange={(event) => setPreparedCombatChallenge(event.target.value)}
-                      value={preparedCombatChallenge}
-                    >
-                      <option value="">Все значения</option>
-                      {challengeFilterOptions.map((option) => (
-                        <option key={option} value={option}>
-                          {`CR ${option}`}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-
-                  <label className="field">
-                    <span>Количество</span>
-                    <input
-                      className="input"
-                      min={1}
-                      onChange={(event) => setPreparedCombatQuantity(Math.max(1, Number.parseInt(event.target.value, 10) || 1))}
-                      type="number"
-                      value={preparedCombatQuantity}
-                    />
-                  </label>
-
-                  <div className="field">
-                    <span>Добавить врага</span>
-                    <button className="ghost fill" disabled={!selectedPreparedCombatSearchItem || saving} onClick={() => void addPreparedCombatDraftItem()} type="button">
-                      Добавить в сцену
-                    </button>
-                  </div>
-                </div>
-
-                <div className="prepared-combat-layout">
-                  <div className="stack">
-                    <div className="row muted">
-                      <span>НПС кампании + бестиарий dnd.su</span>
-                      <span>{preparedCombatSearchItems.length} результатов</span>
-                    </div>
-                    <div className="combat-search-results prepared-combat-results">
-                      {preparedCombatSearchItems.length ? (
-                        preparedCombatSearchItems.map((item) => (
-                          <button
-                            key={item.key}
-                            className={`entity-row combat-search-result ${
-                              hasVisibleArt(item.source === "entity" ? item.entity?.art : undefined) || item.source === "bestiary" ? "has-thumb" : ""
-                            } ${selectedPreparedCombatSearchItem?.key === item.key ? "active" : ""}`}
-                            onClick={() => setPreparedCombatSelectionId(item.key)}
-                            type="button"
-                          >
-                            {item.source === "entity" && item.entity ? (
-                              <EntityVisual entity={item.entity} />
-                            ) : (
-                              <span className="entity-thumb-frame">
-                                <img
-                                  alt={item.title}
-                                  className="entity-thumb"
-                                  loading="lazy"
-                                  src={
-                                    item.bestiary
-                                      ? createBestiaryPortraitSource(item.bestiary)
-                                      : createPortraitSource({ kind: item.kind, title: item.title })
-                                  }
-                                />
-                              </span>
-                            )}
-                            <span className="entity-row-copy">
-                              <strong>{item.title}</strong>
-                              <small>
-                                {[
-                                  item.source === "bestiary" ? "dnd.su" : item.kind === "monster" ? "Кампания • монстр" : "Кампания • НПС",
-                                  item.challenge ? `CR ${extractChallengeToken(item.challenge)}` : "CR не указан",
-                                  item.subtitle || item.summary
-                                ]
-                                  .filter(Boolean)
-                                  .join(" • ")}
-                              </small>
-                            </span>
-                          </button>
-                        ))
-                      ) : (
-                        <p className="copy">
-                          По текущему поиску и фильтру ничего не найдено. Попробуй убрать CR-фильтр или изменить запрос.
-                        </p>
-                      )}
-                    </div>
-                    {preparedCombatBestiaryLoading ? <p className="copy">Подтягиваю полный список dnd.su под текущий фильтр…</p> : null}
-                  </div>
-
-                  <div className="stack">
-                    {selectedPreparedCombatSearchItem ? (
-                      <div className="combat-selected-summary">
-                        <div className="row">
-                          <span
-                            className={badge(
-                              selectedPreparedCombatSearchItem.source === "bestiary"
-                                ? "accent"
-                                : selectedPreparedCombatSearchItem.kind === "monster"
-                                  ? "danger"
-                                  : "accent"
-                            )}
-                          >
-                            {selectedPreparedCombatSearchItem.source === "bestiary"
-                              ? "dnd.su"
-                              : kindTitle[selectedPreparedCombatSearchItem.kind]}
-                          </span>
-                          <span className={badge("accent")}>
-                            {selectedPreparedCombatSearchItem.challenge
-                              ? `CR ${extractChallengeToken(selectedPreparedCombatSearchItem.challenge)}`
-                              : "CR не указан"}
-                          </span>
-                        </div>
-                        <strong>{selectedPreparedCombatSearchItem.title}</strong>
-                        <small>
-                          {selectedPreparedCombatSearchItem.source === "entity" && selectedPreparedCombatSearchItem.entity?.statBlock
-                            ? `КБ ${selectedPreparedCombatSearchItem.entity.statBlock.armorClass ?? "—"} • ХП ${selectedPreparedCombatSearchItem.entity.statBlock.hitPoints ?? "—"}`
-                            : selectedPreparedCombatSearchItem.subtitle || "Монстр из dnd.su будет импортирован в кампанию при добавлении в сцену."}
-                        </small>
-                        <small>{selectedPreparedCombatSearchItem.summary || "Готовый боевой профиль."}</small>
-                        {selectedPreparedCombatSearchItem.source === "entity" ? (
-                          <button className="ghost" onClick={() => peekEntity(selectedPreparedCombatSearchItem.id)} type="button">
-                            Открыть в preview
-                          </button>
-                        ) : null}
-                      </div>
-                    ) : (
-                      <p className="copy">
-                        Выбери НПС кампании или монстра из dnd.su слева, чтобы посмотреть краткую сводку и добавить его в заготовленный бой.
-                      </p>
-                    )}
-
-                    <div className="row muted">
-                      <span>Текущий состав сцены</span>
-                      <span>{preparedCombatDraft.items.reduce((sum, item) => sum + item.quantity, 0)} существ</span>
-                    </div>
-
-                    {preparedCombatDraft.items.length ? (
-                      <div className="entry-editor-list prepared-combat-entry-list">
-                        {preparedCombatDraft.items.map((item) => {
-                          const linked = entityMap.get(item.entityId);
-                          const linkedEntity = linked && isCombatProfileEntity(linked) ? linked : null;
-                          return (
-                            <article key={`prepared-combat-draft-${item.entityId}`} className="entry-editor">
-                              <div className="row">
-                                <strong>{linkedEntity?.title ?? "Сущность не найдена"}</strong>
-                                <button className="ghost danger-action" onClick={() => removePreparedCombatDraftItem(item.entityId)} type="button">
-                                  Удалить
-                                </button>
-                              </div>
-                              <div className="form-grid">
-                                <label className="field">
-                                  <span>Количество</span>
-                                  <input
-                                    className="input"
-                                    min={1}
-                                    onChange={(event) =>
-                                      updatePreparedCombatDraftItem(item.entityId, {
-                                        quantity: Math.max(1, Number.parseInt(event.target.value, 10) || 1)
-                                      })
-                                    }
-                                    type="number"
-                                    value={item.quantity}
-                                  />
-                                </label>
-                                <div className="field">
-                                  <span>Профиль</span>
-                                  <div className="combat-selected-summary">
-                                    <strong>{linkedEntity ? `${kindTitle[linkedEntity.kind]} • ${linkedEntity.title}` : item.entityId}</strong>
-                                    <small>
-                                      {linkedEntity
-                                        ? `${getEntityChallenge(linkedEntity) || "CR не указан"} • ${linkedEntity.summary || linkedEntity.subtitle || "Готов к бою"}`
-                                        : "Эта запись больше не найдена в кампании и будет пропущена при старте боя."}
-                                    </small>
-                                  </div>
-                                </div>
-                              </div>
-                            </article>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="copy">
-                        Пока враги не добавлены. Выбери подходящих НПС или монстров слева и собери сцену так, как она должна стартовать в квесте.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </section>
-
-              <div className="actions">
-                <button className="ghost" onClick={requestPreparedCombatModalClose} type="button">
-                  Отмена
-                </button>
-                <button className="primary" disabled={saving} onClick={() => void savePreparedCombatDraft()} type="button">
-                  {saving ? "Сохраняю..." : "Сохранить бой"}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {entityActionMenu && entityActionMenuTarget ? (
-        <div className="entity-action-backdrop" onClick={closeEntityActionMenu} role="presentation">
-          <div
-            className="entity-action-menu"
-            onClick={(event) => event.stopPropagation()}
-            role="menu"
-            style={{ left: entityActionMenu.x, top: entityActionMenu.y }}
-          >
-            <div className="entity-action-menu-label">
-              <small>{kindTitle[entityActionMenuTarget.kind]}</small>
-              <strong>{entityActionMenuTarget.title}</strong>
-            </div>
-            <button className="ghost fill danger-action" onClick={() => requestEntityDeletion(entityActionMenuTarget)} type="button">
-              РЈРґР°Р»РёС‚СЊ
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {entityLinkMenuOpen && entityLinkSelection ? (
-        <div
-          className="link-context-backdrop"
-          onClick={() => {
-            setEntityLinkSelection(null);
-            closeEntityLinkContextMenu();
-          }}
-          role="presentation"
-        >
-          <div
-            className="link-context-menu"
-            onClick={(event) => event.stopPropagation()}
-            role="menu"
-            style={{ left: entityLinkSelection.x, top: entityLinkSelection.y }}
-          >
-            <button className="ghost fill" onClick={openEntityLinkModal} type="button">
-              Создать ссылку
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {entityLinkModalOpen ? (
-        <div className="link-picker-backdrop" role="presentation">
-          <div className="panel link-picker-modal" onClick={(event) => event.stopPropagation()} role="dialog">
-            <div className="row">
-              <div>
-                <p className="eyebrow">Create Hyperlink</p>
-                <strong>Выбери сущность, на которую будет вести выделенный текст</strong>
-              </div>
-              <button className="ghost" onClick={requestEntityLinkModalClose} type="button">
-                Esc
-              </button>
-            </div>
-
-            <div className="field field-full">
-              <span>Искать сущность</span>
-              <input
-                className="input"
-                onChange={(event) => setEntityLinkQuery(event.target.value)}
-                placeholder="Начни вводить название локации, НПС, квеста или лора"
-                value={entityLinkQuery}
-              />
-            </div>
-
-            <div className="link-picker-selection">
-              <small>Выделенный текст</small>
-              <strong>{entityLinkSelection?.text.trim()}</strong>
-            </div>
-
-            <div className="link-picker-results">
-              {linkableEntities.length ? (
-                linkableEntities.slice(0, 12).map((entity) => (
-                  <button
-                    key={entity.id}
-                    className={`entity-row ${hasVisibleArt(entity.art) ? "has-thumb" : ""} ${entityLinkTargetId === entity.id ? "active" : ""}`}
-                    onClick={() => setEntityLinkTargetId(entity.id)}
-                    type="button"
-                  >
-                    <EntityVisual entity={entity} />
-                    <span className="entity-row-copy">
-                      <strong>{entity.title}</strong>
-                      <small>{kindTitle[entity.kind]} • {entity.subtitle}</small>
-                    </span>
-                  </button>
-                ))
-              ) : (
-                <p className="copy">По текущему запросу сущности не нашлись.</p>
-              )}
-            </div>
-
-            {selectedEntityLinkTarget ? (
-              <div className="link-picker-selection">
-                <small>Ссылка будет вести на</small>
-                <strong>{selectedEntityLinkTarget.title}</strong>
-              </div>
-            ) : null}
-
-            <div className="actions">
-                <button className="ghost" onClick={requestEntityLinkModalClose} type="button">
-                  Отмена
-                </button>
-              <button className="primary" disabled={!entityLinkTargetId} onClick={insertEntityLinkIntoContent} type="button">
-                Сохранить ссылку
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {closeConfirmState ? (
-        <div className="overlay" role="presentation">
-          <div className="panel palette close-confirm-modal" aria-modal="true" onClick={(event) => event.stopPropagation()} role="alertdialog">
-            <div className="stack wide">
-              <div className="row">
-                <div>
-                  <p className="eyebrow">Confirm Close</p>
-                  <strong>{closeConfirmState.title}</strong>
-                </div>
-              </div>
-
-              <p className="copy">{closeConfirmState.description}</p>
-
-              <div className="actions">
-                <button className="ghost" onClick={cancelModalCloseRequest} type="button">
-                  Продолжить редактирование
-                </button>
-                <button className="ghost danger-action" onClick={confirmModalCloseRequest} type="button">
-                  {closeConfirmState.confirmLabel}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <CloseConfirmDialog
+        onCancel={cancelModalCloseRequest}
+        onConfirm={confirmModalCloseRequest}
+        state={closeConfirmState}
+      />
     </>
   );
 }

@@ -60,6 +60,60 @@ func TestCampaignStoreFinishCombatCountsZeroHitPointEnemiesForExperience(t *test
 	}
 }
 
+func TestCampaignStoreFinishCombatRewardsOnlyActualPlayers(t *testing.T) {
+	store, err := newCampaignStore(filepath.Join(t.TempDir(), "store.json"))
+	if err != nil {
+		t.Fatalf("newCampaignStore() error = %v", err)
+	}
+
+	campaign, err := store.createCampaign(createCampaignInput{
+		Title:       "Finish combat allies",
+		System:      "D&D 5e",
+		SettingName: "Shadow Edge",
+		InWorldDate: "17 Nightal, 1492 DR",
+		Summary:     "Test campaign",
+	})
+	if err != nil {
+		t.Fatalf("createCampaign() error = %v", err)
+	}
+
+	for index := range store.data.Campaigns {
+		if store.data.Campaigns[index].ID != campaign.ID {
+			continue
+		}
+
+		store.data.Campaigns[index].ActiveCombat = &activeCombat{
+			ID:        "combat-ally",
+			Title:     "Bridge defense",
+			PartySize: 2,
+			Entries: []combatEntry{
+				{ID: "player-1", EntityID: "player-1", EntityKind: "player", Side: "player", Title: "Aelar", CurrentHitPoints: 18, MaxHitPoints: 18},
+				{ID: "ally-1", EntityID: "ally-1", EntityKind: "npc", Side: "player", Title: "Captain Rhea", CurrentHitPoints: 22, MaxHitPoints: 22},
+				{ID: "enemy-down", EntityID: "enemy-down", EntityKind: "monster", Side: "enemy", Title: "Ogre", Challenge: "2", Experience: 450, CurrentHitPoints: 0, MaxHitPoints: 59},
+			},
+		}
+		break
+	}
+
+	result, err := store.finishCombat(campaign.ID)
+	if err != nil {
+		t.Fatalf("finishCombat() error = %v", err)
+	}
+
+	if result.ExperiencePerPlayer != 450 {
+		t.Fatalf("expected allied NPCs to be ignored when splitting XP, got %d", result.ExperiencePerPlayer)
+	}
+	if result.Summary == nil {
+		t.Fatal("expected finishCombat() to build a summary")
+	}
+	if len(result.Summary.PlayerRewards) != 1 {
+		t.Fatalf("expected exactly one player reward entry, got %d", len(result.Summary.PlayerRewards))
+	}
+	if result.Summary.PlayerRewards[0].Title != "Aelar" {
+		t.Fatalf("expected only the actual player to receive rewards, got %+v", result.Summary.PlayerRewards)
+	}
+}
+
 func TestBuildPublicInitiativeSnapshotHidesEnemyMetaUntilVictory(t *testing.T) {
 	campaign := campaignData{
 		ID:    "campaign-1",

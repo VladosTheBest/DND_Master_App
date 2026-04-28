@@ -28,6 +28,10 @@ func main() {
 	if bestiaryCacheFile == "" {
 		bestiaryCacheFile = filepath.Join("data", "dndsu-bestiary.json")
 	}
+	itemCatalogCacheFile := os.Getenv("SHADOW_EDGE_ITEM_CATALOG_CACHE_FILE")
+	if itemCatalogCacheFile == "" {
+		itemCatalogCacheFile = filepath.Join("data", "dndsu-items.json")
+	}
 	webDir := os.Getenv("SHADOW_EDGE_WEB_DIR")
 	if webDir == "" {
 		webDir = filepath.Join("apps", "web", "dist")
@@ -43,10 +47,11 @@ func main() {
 	aiToken := firstEnv("SHADOW_EDGE_AI_API_KEY", "OPENAI_API_KEY")
 
 	server, err := httpapi.NewServer(httpapi.Options{
-		DataFile:          dataFile,
-		BestiaryCacheFile: bestiaryCacheFile,
-		WebDir:            webDir,
-		UploadDir:         uploadDir,
+		DataFile:             dataFile,
+		BestiaryCacheFile:    bestiaryCacheFile,
+		ItemCatalogCacheFile: itemCatalogCacheFile,
+		WebDir:               webDir,
+		UploadDir:            uploadDir,
 		AI: httpapi.AIOptions{
 			Provider: aiProvider,
 			Model:    aiModel,

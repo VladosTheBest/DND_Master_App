@@ -1,0 +1,28 @@
+.entity-action-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+}
+
+.entity-action-menu {
+  position: fixed;
+  z-index: 71;
+  min-width: 15rem;
+  padding: .45rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: rgba(14, 18, 28, .98);
+  box-shadow: var(--shadow-md);
+  display: grid;
+  gap: .35rem;
+}
+
+.entity-action-menu-label {
+  display: grid;
+  gap: .14rem;
+  padding: .35rem .45rem .25rem;
+}
+
+.entity-action-menu-label small {
+  color: var(--text-soft);
+}

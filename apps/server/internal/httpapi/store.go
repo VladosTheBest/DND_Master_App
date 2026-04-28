@@ -701,13 +701,14 @@ func (store *campaignStore) finishCombat(campaignID string) (finishCombatResult,
 		}
 
 		report.DefeatedCount = len(report.DefeatedEntries)
-		if campaign.ActiveCombat.PartySize > 0 {
-			report.ExperiencePerPlayer = report.TotalExperience / campaign.ActiveCombat.PartySize
+		rewardParticipants := combatRewardParticipantCount(campaign.ActiveCombat.Entries)
+		if rewardParticipants > 0 {
+			report.ExperiencePerPlayer = report.TotalExperience / rewardParticipants
 		}
 
 		playerRewards := make([]combatRewardShare, 0)
 		for _, entry := range campaign.ActiveCombat.Entries {
-			if combatEntrySide(entry) != "player" {
+			if combatEntrySide(entry) != "player" || entry.EntityKind != "player" {
 				continue
 			}
 			playerRewards = append(playerRewards, combatRewardShare{
@@ -771,7 +772,7 @@ func buildCombatEntriesForItems(campaign campaignData, existing []combatEntry, i
 
 		for quantityIndex := 0; quantityIndex < item.Quantity; quantityIndex++ {
 			counts[entity.ID]++
-			entries = append(entries, buildCombatEntry(entity, counts[entity.ID], item.Initiative))
+			entries = append(entries, buildCombatEntry(entity, counts[entity.ID], item.Initiative, item.Side))
 		}
 	}
 
@@ -902,6 +903,7 @@ func materializeEntity(input createEntityInput) knowledgeEntity {
 		ParentID:        input.ParentID,
 		Role:            input.Role,
 		Status:          input.Status,
+		Level:           normalizeEntityLevel(input.Level),
 		Importance:      input.Importance,
 		LocationID:      input.LocationID,
 		StatBlock:       input.StatBlock,
@@ -925,6 +927,14 @@ func normalizePreparedCombat(plan *preparedCombatPlan) *preparedCombatPlan {
 		return nil
 	}
 
+	partyLevel := plan.PartyLevel
+	switch {
+	case partyLevel < 0:
+		partyLevel = 0
+	case partyLevel > 20:
+		partyLevel = 20
+	}
+
 	playerSeen := map[string]struct{}{}
 	playerIDs := make([]string, 0, len(plan.PlayerIDs))
 	for _, playerID := range plan.PlayerIDs {
@@ -937,6 +947,19 @@ func normalizePreparedCombat(plan *preparedCombatPlan) *preparedCombatPlan {
 		}
 		playerSeen[trimmed] = struct{}{}
 		playerIDs = append(playerIDs, trimmed)
+	}
+
+	allies := make([]preparedCombatItem, 0, len(plan.Allies))
+	for _, item := range plan.Allies {
+		entityID := strings.TrimSpace(item.EntityID)
+		quantity := item.Quantity
+		if entityID == "" || quantity <= 0 {
+			continue
+		}
+		allies = append(allies, preparedCombatItem{
+			EntityID: entityID,
+			Quantity: quantity,
+		})
 	}
 
 	items := make([]preparedCombatItem, 0, len(plan.Items))
@@ -952,14 +975,16 @@ func normalizePreparedCombat(plan *preparedCombatPlan) *preparedCombatPlan {
 		})
 	}
 
-	if len(playerIDs) == 0 && len(items) == 0 && strings.TrimSpace(plan.Title) == "" {
+	if partyLevel == 0 && len(playerIDs) == 0 && len(allies) == 0 && len(items) == 0 && strings.TrimSpace(plan.Title) == "" {
 		return nil
 	}
 
 	return &preparedCombatPlan{
-		Title:     strings.TrimSpace(plan.Title),
-		PlayerIDs: playerIDs,
-		Items:     items,
+		Title:      strings.TrimSpace(plan.Title),
+		PartyLevel: partyLevel,
+		PlayerIDs:  playerIDs,
+		Allies:     allies,
+		Items:      items,
 	}
 }
 
@@ -1008,6 +1033,14 @@ func normalizeCampaignPreparedCombat(plan *campaignPreparedCombat) *campaignPrep
 		return nil
 	}
 
+	partyLevel := plan.PartyLevel
+	switch {
+	case partyLevel < 0:
+		partyLevel = 0
+	case partyLevel > 20:
+		partyLevel = 20
+	}
+
 	playerSeen := map[string]struct{}{}
 	playerIDs := make([]string, 0, len(plan.PlayerIDs))
 	for _, playerID := range plan.PlayerIDs {
@@ -1020,6 +1053,19 @@ func normalizeCampaignPreparedCombat(plan *campaignPreparedCombat) *campaignPrep
 		}
 		playerSeen[trimmed] = struct{}{}
 		playerIDs = append(playerIDs, trimmed)
+	}
+
+	allies := make([]preparedCombatItem, 0, len(plan.Allies))
+	for _, item := range plan.Allies {
+		entityID := strings.TrimSpace(item.EntityID)
+		quantity := item.Quantity
+		if entityID == "" || quantity <= 0 {
+			continue
+		}
+		allies = append(allies, preparedCombatItem{
+			EntityID: entityID,
+			Quantity: quantity,
+		})
 	}
 
 	items := make([]preparedCombatItem, 0, len(plan.Items))
@@ -1036,14 +1082,16 @@ func normalizeCampaignPreparedCombat(plan *campaignPreparedCombat) *campaignPrep
 	}
 
 	title := strings.TrimSpace(plan.Title)
-	if title == "" && len(playerIDs) == 0 && len(items) == 0 {
+	if title == "" && partyLevel == 0 && len(playerIDs) == 0 && len(allies) == 0 && len(items) == 0 {
 		return nil
 	}
 
 	return &campaignPreparedCombat{
-		Title:     title,
-		PlayerIDs: playerIDs,
-		Items:     items,
+		Title:      title,
+		PartyLevel: partyLevel,
+		PlayerIDs:  playerIDs,
+		Allies:     allies,
+		Items:      items,
 	}
 }
 
@@ -1077,8 +1125,11 @@ func defaultQuickFacts(entity knowledgeEntity) []quickFact {
 	case "player":
 		facts := []quickFact{
 			{Label: "Статус", Value: firstNonEmpty(entity.Status, "Active"), Tone: "success"},
-			{Label: "Роль", Value: firstNonEmpty(entity.Role, "Персонаж игрока")},
 		}
+		if entity.Level > 0 {
+			facts = append(facts, quickFact{Label: "Уровень", Value: strconv.Itoa(entity.Level), Tone: "accent"})
+		}
+		facts = append(facts, quickFact{Label: "Роль", Value: firstNonEmpty(entity.Role, "Персонаж игрока")})
 		if entity.StatBlock != nil {
 			facts = append(facts, quickFact{Label: "КБ / ХП", Value: entity.StatBlock.ArmorClass + " / " + entity.StatBlock.HitPoints})
 		}

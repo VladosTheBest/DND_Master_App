@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-14381",
+  "remoteId": "14381",
+  "slug": "14381-drum",
+  "title": "Барабан",
+  "englishTitle": "Drum",
+  "source": "dndsu-equipment",
+  "category": "tool",
+  "subcategory": "Инструмент",
+  "typeLabel": "Инструмент",
+  "summary": "Вариант Музыкального инструмента . Каждый вариант инструмента требует отдельного владения.",
+  "searchText": "барабан,drum, toolkit инструмент инструмент барабан",
+  "buyPriceGp": 6,
+  "buyPriceLabel": "6 ЗМ",
+  "sellPriceGp": 3,
+  "sellPriceLabel": "3 зм",
+  "url": "https://next.dnd.su/equipment/14381-drum",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-04-28T10:56:52Z",
+  "description": "Вариант Музыкального инструмента . Каждый вариант инструмента требует отдельного владения.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tВариант Музыкального инструмента.\u0026nbsp;Каждый вариант инструмента требует отдельного владения.\n\t\u003c/p\u003e",
+  "weightLb": 3
+}

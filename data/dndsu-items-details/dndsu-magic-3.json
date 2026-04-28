@@ -1,0 +1,27 @@
+{
+  "id": "dndsu-magic-3",
+  "remoteId": "3",
+  "slug": "3-amulet-of-proof-against-detection-and-location",
+  "title": "Амулет защиты от обнаружения и поиска",
+  "englishTitle": "Amulet of proof against detection and location",
+  "source": "dndsu-magic",
+  "category": "other",
+  "subcategory": "Чудесный предмет, необычный (требуется настройка)",
+  "rarity": "Необычный",
+  "typeLabel": "Чудесный предмет, необычный (требуется настройка)",
+  "summary": "Пока вы носите этот амулет, вы скрыты от магии школы Прорицания. Вы не можете быть целью подобной магии, и вас не воспринимают магические сенсоры слежения.",
+  "searchText": "амулет защиты от обнаружения и поиска,amulet of proof against detection and location, чудесный предмет амулет защиты от обнаружения и поиска",
+  "buyPriceGp": 300.5,
+  "buyPriceLabel": "101-500 зм",
+  "sellPriceGp": 150.25,
+  "sellPriceLabel": "50 зм 5 см-250 зм",
+  "reference": "Dungeon Master's Guide",
+  "url": "https://dnd.su/items/3-amulet-of-proof-against-detection-and-location/",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-04-28T10:56:51Z",
+  "description": "Пока вы носите этот амулет, вы скрыты от магии школы Прорицания. Вы не можете быть целью подобной магии, и вас не воспринимают магические сенсоры слежения.",
+  "descriptionHtml": "\u003cp\u003eПока вы носите этот амулет, вы скрыты от магии школы Прорицания. Вы не можете быть целью подобной магии, и вас не воспринимают магические сенсоры слежения.\u003c/p\u003e",
+  "properties": [
+    "Требуется настройка"
+  ]
+}

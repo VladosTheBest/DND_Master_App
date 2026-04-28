@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-213",
+  "remoteId": "213",
+  "slug": "213-block-and-tackle",
+  "title": "Блок и лебёдка",
+  "englishTitle": "Block and Tackle",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Блок и лебёдка позволяют вам поднять вес в четыре раза больший, чем обычно.",
+  "searchText": "блок и лебёдка,block and tackle, equipment предмет снаряжения предмет снаряжения блок и лебёдка",
+  "buyPriceGp": 1,
+  "buyPriceLabel": "1 ЗМ",
+  "sellPriceGp": 0.5,
+  "sellPriceLabel": "5 см",
+  "url": "https://next.dnd.su/equipment/213-block-and-tackle",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-04-28T10:56:53Z",
+  "description": "Блок и лебёдка позволяют вам поднять вес в четыре раза больший, чем обычно.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tБлок и лебёдка позволяют вам поднять вес в четыре раза больший, чем обычно.\n\t\u003c/p\u003e",
+  "weightLb": 5
+}

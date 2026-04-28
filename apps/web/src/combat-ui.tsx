@@ -144,10 +144,10 @@ const combatEntryRoleLabel = (entry: CombatEntry, revealEnemyMeta = false) =>
 
 const combatEntryDisplayMeta = (entry: CombatEntry, revealEnemyMeta = false) =>
   entry.side === "player"
-    ? "РРіСЂРѕРє"
+    ? "Игрок"
     : shouldRevealCombatEntryExperience(entry, revealEnemyMeta)
       ? `${entry.experience} XP`
-      : entry.role || "РџСЂРѕС‚РёРІРЅРёРє";
+      : entry.role || "Противник";
 
 void combatEntryRoleLabel;
 

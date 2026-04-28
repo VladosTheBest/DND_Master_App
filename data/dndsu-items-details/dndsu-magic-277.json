@@ -1,0 +1,27 @@
+{
+  "id": "dndsu-magic-277",
+  "remoteId": "277",
+  "slug": "277-brooch-of-shielding",
+  "title": "Брошь защиты",
+  "englishTitle": "Brooch of shielding",
+  "source": "dndsu-magic",
+  "category": "other",
+  "subcategory": "Чудесный предмет, необычный (требуется настройка)",
+  "rarity": "Необычный",
+  "typeLabel": "Чудесный предмет, необычный (требуется настройка)",
+  "summary": "Пока вы носите эту брошь, вы обладаете сопротивлением урону силовым полем и иммунитетом к урону от заклинания волшебная стрела [magic missile] .",
+  "searchText": "брошь защиты,brooch of shielding, чудесный предмет брошь защиты",
+  "buyPriceGp": 300.5,
+  "buyPriceLabel": "101-500 зм",
+  "sellPriceGp": 150.25,
+  "sellPriceLabel": "50 зм 5 см-250 зм",
+  "reference": "Dungeon Master's Guide",
+  "url": "https://dnd.su/items/277-brooch-of-shielding/",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-04-28T10:56:54Z",
+  "description": "Пока вы носите эту брошь, вы обладаете сопротивлением урону силовым полем и иммунитетом к урону от заклинания волшебная стрела [magic missile] .",
+  "descriptionHtml": "\u003cp\u003eПока вы носите эту брошь, вы обладаете сопротивлением урону силовым полем и иммунитетом к урону от заклинания волшебная стрела [magic missile].\u003c/p\u003e",
+  "properties": [
+    "Требуется настройка"
+  ]
+}

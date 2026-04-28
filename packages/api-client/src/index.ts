@@ -18,6 +18,8 @@ import type {
   GenerateCombatResult,
   GenerateEntityDraftInput,
   GenerateEntityDraftResult,
+  ItemCatalogBrowseResult,
+  ItemCatalogDetail,
   GenerateWorldEventInput,
   GenerateWorldEventResult,
   InitiativeShareResult,
@@ -155,6 +157,18 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
   },
   async getBestiaryMonster(monsterId) {
     return requestJson<BestiaryMonsterDetail>(`${baseUrl}/api/bestiary/${monsterId}`);
+  },
+  async browseItemCatalog(params) {
+    const search = new URLSearchParams();
+    if (params?.q) search.set("q", params.q);
+    if (params?.source) search.set("source", params.source);
+    if (params?.category) search.set("category", params.category);
+    if (params?.armorType) search.set("armorType", params.armorType);
+    const suffix = search.toString() ? `?${search.toString()}` : "";
+    return requestJson<ItemCatalogBrowseResult>(`${baseUrl}/api/items-catalog${suffix}`);
+  },
+  async getCatalogItem(itemId) {
+    return requestJson<ItemCatalogDetail>(`${baseUrl}/api/items-catalog/${itemId}`);
   },
   async importBestiaryMonster(campaignId, monsterId) {
     return requestJson<CreateEntityResult>(`${baseUrl}/api/campaigns/${campaignId}/bestiary/${monsterId}/import`, {

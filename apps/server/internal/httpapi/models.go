@@ -35,6 +35,7 @@ type preparedCombatPlan struct {
 	Title      string               `json:"title,omitempty"`
 	PartyLevel int                  `json:"partyLevel,omitempty"`
 	PlayerIDs  []string             `json:"playerIds,omitempty"`
+	Allies     []preparedCombatItem `json:"allies,omitempty"`
 	Items      []preparedCombatItem `json:"items"`
 }
 
@@ -42,6 +43,7 @@ type campaignPreparedCombat struct {
 	Title      string               `json:"title,omitempty"`
 	PartyLevel int                  `json:"partyLevel,omitempty"`
 	PlayerIDs  []string             `json:"playerIds"`
+	Allies     []preparedCombatItem `json:"allies,omitempty"`
 	Items      []preparedCombatItem `json:"items"`
 }
 
@@ -161,6 +163,7 @@ type knowledgeEntity struct {
 	ParentID        string                `json:"parentId,omitempty"`
 	Role            string                `json:"role,omitempty"`
 	Status          string                `json:"status,omitempty"`
+	Level           int                   `json:"level,omitempty"`
 	Importance      string                `json:"importance,omitempty"`
 	LocationID      string                `json:"locationId,omitempty"`
 	StatBlock       *npcStatBlock         `json:"statBlock,omitempty"`
@@ -353,6 +356,7 @@ type createEntityInput struct {
 	ParentID        string                `json:"parentId,omitempty"`
 	Role            string                `json:"role,omitempty"`
 	Status          string                `json:"status,omitempty"`
+	Level           int                   `json:"level,omitempty"`
 	Importance      string                `json:"importance,omitempty"`
 	LocationID      string                `json:"locationId,omitempty"`
 	StatBlock       *npcStatBlock         `json:"statBlock,omitempty"`
@@ -435,6 +439,7 @@ type addCombatantItem struct {
 	EntityID   string `json:"entityId"`
 	Quantity   int    `json:"quantity"`
 	Initiative int    `json:"initiative,omitempty"`
+	Side       string `json:"side,omitempty"`
 }
 
 type manualCombatantInput struct {

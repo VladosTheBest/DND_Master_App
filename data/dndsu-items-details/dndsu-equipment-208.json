@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-208",
+  "remoteId": "208",
+  "slug": "208-barrel",
+  "title": "Бочка",
+  "englishTitle": "Barrel",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Бочка вмещает до 40 галлонов жидкости или до 4 кубических футов сухих веществ.",
+  "searchText": "бочка,barrel, equipment предмет снаряжения предмет снаряжения бочка",
+  "buyPriceGp": 2,
+  "buyPriceLabel": "2 ЗМ",
+  "sellPriceGp": 1,
+  "sellPriceLabel": "1 зм",
+  "url": "https://next.dnd.su/equipment/208-barrel",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-04-28T10:56:54Z",
+  "description": "Бочка вмещает до 40 галлонов жидкости или до 4 кубических футов сухих веществ.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tБочка вмещает до 40 галлонов жидкости или до 4 кубических футов сухих веществ.\n\t\u003c/p\u003e",
+  "weightLb": 70
+}

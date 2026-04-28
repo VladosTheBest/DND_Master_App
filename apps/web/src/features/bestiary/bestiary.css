@@ -1,0 +1,23 @@
+.bestiary-toolbar {
+  gap: .72rem;
+}
+.imported-monster-filters {
+  gap: .6rem;
+}
+.bestiary-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) repeat(2, minmax(180px, .8fr));
+  gap: .62rem;
+}
+
+.bestiary-row small {
+  color: var(--text-soft);
+}
+
+.bestiary-directory-card {
+  grid-template-columns: 5.6rem minmax(0, 1fr);
+}
+
+.bestiary-import-actions.compact {
+  justify-content: flex-start;
+}

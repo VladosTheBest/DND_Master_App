@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-17353",
+  "remoteId": "17353",
+  "slug": "17353-bandore",
+  "title": "Бандура",
+  "englishTitle": "Bandore",
+  "source": "dndsu-equipment",
+  "category": "tool",
+  "subcategory": "Инструмент",
+  "typeLabel": "Инструмент",
+  "summary": "Вариант Музыкального инструмента . Каждый вариант инструмента требует отдельного владения.",
+  "searchText": "бандура,bandore, toolkit инструмент инструмент бандура",
+  "buyPriceGp": 65,
+  "buyPriceLabel": "65 ЗМ",
+  "sellPriceGp": 32.5,
+  "sellPriceLabel": "32 зм 5 см",
+  "url": "https://next.dnd.su/equipment/17353-bandore",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-04-28T10:56:52Z",
+  "description": "Вариант Музыкального инструмента . Каждый вариант инструмента требует отдельного владения.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tВариант Музыкального инструмента. Каждый вариант инструмента требует отдельного владения.\n\t\u003c/p\u003e",
+  "weightLb": 3
+}

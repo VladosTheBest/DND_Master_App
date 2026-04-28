@@ -1,4 +1,4 @@
-export type RailIconName = "brand" | "home" | "quest" | "location" | "player" | "npc" | "monster" | "item" | "event" | "note";
+export type RailIconName = "brand" | "home" | "quest" | "location" | "player" | "npc" | "monster" | "rule" | "item" | "event" | "note";
 
 export function RailIcon({ name }: { name: RailIconName }) {
   const common = {
@@ -73,6 +73,13 @@ export function RailIcon({ name }: { name: RailIconName }) {
           <path {...common} d="M5.2 11.6c0-3 2-5.1 4.8-5.1s4.8 2.1 4.8 5.1" />
           <circle cx="8" cy="10.3" fill="currentColor" r="1" />
           <circle cx="12" cy="10.3" fill="currentColor" r="1" />
+        </svg>
+      );
+    case "rule":
+      return (
+        <svg aria-hidden="true" className="rail-icon-svg" viewBox="0 0 20 20">
+          <path {...common} d="M5.4 4.5h7.8A1.8 1.8 0 0 1 15 6.3v9.2a1 1 0 0 1-1.5.9l-1.8-1-1.8 1-1.8-1-1.8 1A1 1 0 0 1 4.2 15.5V5.7a1.2 1.2 0 0 1 1.2-1.2Z" />
+          <path {...common} d="M7.2 7.6h5.1M7.2 10.1h5.1M7.2 12.6h3.4" />
         </svg>
       );
     case "item":

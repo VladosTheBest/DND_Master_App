@@ -1,0 +1,119 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(5,8,14,.72);
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+}
+
+.palette {
+  width: min(56rem, 100%);
+  max-height: min(46rem, 90vh);
+  overflow: auto;
+  padding: .78rem;
+  border: 1px solid var(--line-strong);
+}
+.input {
+  width: 100%;
+  padding: .62rem .75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,.03);
+  color: var(--text);
+  outline: none;
+  line-height: 1.3;
+}
+.input:focus { border-color: rgba(124,166,255,.52); }
+select.input option {
+  background: #141924;
+  color: var(--text);
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-muted);
+}
+.textarea {
+  min-height: 5.8rem;
+  resize: vertical;
+}
+.textarea-lg { min-height: 8.5rem; }
+.form-modal { display: grid; gap: .82rem; }
+.close-confirm-modal {
+  width: min(30rem, calc(100vw - 2rem));
+  padding: .9rem;
+  border: 1px solid rgba(206, 159, 95, .34);
+  background:
+    radial-gradient(circle at top, rgba(255, 200, 118, .08), transparent 38%),
+    linear-gradient(180deg, rgba(22, 19, 25, .98), rgba(14, 18, 28, .98));
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.03),
+    0 24px 48px rgba(0,0,0,.34);
+}
+.form-error {
+  border-color: rgba(229,124,98,.38);
+  background: rgba(127,44,38,.16);
+}
+.form-error p {
+  margin: .35rem 0 0;
+  color: var(--text);
+}
+.form-success {
+  border-color: rgba(126,214,161,.38);
+  background: rgba(33,88,62,.18);
+}
+.form-success p {
+  margin: .35rem 0 0;
+  color: var(--text);
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .62rem;
+}
+.field {
+  display: grid;
+  gap: .3rem;
+  color: var(--text-soft);
+  font-size: .76rem;
+}
+.field span {
+  color: var(--text-soft);
+}
+.field-hint {
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+.field-full {
+  grid-column: 1 / -1;
+}
+.field select.input {
+  appearance: none;
+  cursor: pointer;
+  color-scheme: dark;
+  padding-right: 2.4rem;
+  color: var(--text);
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(197, 210, 232, .88) 50%),
+    linear-gradient(135deg, rgba(197, 210, 232, .88) 50%, transparent 50%);
+  background-position:
+    calc(100% - 1.15rem) calc(50% - .15rem),
+    calc(100% - .82rem) calc(50% - .15rem);
+  background-size: .42rem .42rem, .42rem .42rem;
+  background-repeat: no-repeat;
+}
+.field select.input option,
+.field select.input optgroup {
+  background: #111723;
+  color: var(--text);
+}
+select.input {
+  color: var(--text);
+}
+.draft-notes {
+  padding: .62rem .72rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,.02);
+}

@@ -1,0 +1,26 @@
+.prepared-combat-modal {
+  width: min(980px, calc(100vw - 2rem));
+  max-height: min(90vh, 920px);
+  overflow: auto;
+}
+
+.prepared-combat-card {
+  display: grid;
+  gap: .78rem;
+}
+.prepared-combat-layout {
+  display: grid;
+  grid-template-columns: minmax(0, .95fr) minmax(0, 1.05fr);
+  gap: .78rem;
+  align-items: start;
+  min-width: 0;
+}
+.prepared-combat-results {
+  max-height: 24rem;
+}
+.prepared-combat-entry-list {
+  max-height: 26rem;
+  overflow: auto;
+  padding-right: .16rem;
+  min-width: 0;
+}

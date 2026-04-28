@@ -1,4 +1,4 @@
-export type ModuleId = "dashboard" | "locations" | "players" | "npcs" | "monsters" | "combat" | "quests" | "lore";
+export type ModuleId = "dashboard" | "locations" | "players" | "npcs" | "monsters" | "combat" | "quests" | "lore" | "rules";
 export type EntityKind = "location" | "player" | "npc" | "monster" | "quest" | "lore";
 export type QuickFactTone = "default" | "accent" | "success" | "warning" | "danger";
 export type AbilityKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
@@ -32,6 +32,7 @@ export interface PreparedCombatPlan {
   title?: string;
   partyLevel?: number;
   playerIds?: string[];
+  allies?: PreparedCombatItem[];
   items: PreparedCombatItem[];
 }
 
@@ -39,6 +40,7 @@ export interface CampaignPreparedCombat {
   title?: string;
   partyLevel?: number;
   playerIds: string[];
+  allies?: PreparedCombatItem[];
   items: PreparedCombatItem[];
 }
 
@@ -206,6 +208,7 @@ export interface PlayerEntity extends KnowledgeEntityBase {
   kind: "player";
   role: string;
   status: "Active" | "Reserve" | "Guest";
+  level?: number;
   statBlock?: NpcStatBlock;
 }
 
@@ -244,6 +247,88 @@ export interface BestiaryMonsterDetail {
   monster: MonsterEntity;
   sourceUrl: string;
   status: BestiarySyncStatus;
+}
+
+export type ItemCatalogSource = "dndsu-magic" | "dndsu-equipment";
+export type ItemCatalogCategory =
+  | "armor"
+  | "weapon"
+  | "potion"
+  | "poison"
+  | "staff"
+  | "ring"
+  | "scroll"
+  | "wand"
+  | "tool"
+  | "gear"
+  | "focus"
+  | "clothing"
+  | "other";
+export type ItemCatalogArmorType = "light" | "medium" | "heavy" | "shield" | null;
+
+export interface ItemCatalogFilterOption {
+  value: string;
+  label: string;
+  count?: number;
+}
+
+export interface ItemCatalogSyncStatus {
+  state: "idle" | "syncing" | "ready" | "error";
+  total: number;
+  hydrated: number;
+  lastError?: string;
+  lastStartedAt?: string;
+  lastFinishedAt?: string;
+  updatedAt?: string;
+}
+
+export interface ItemCatalogSummary {
+  id: string;
+  remoteId: string;
+  slug: string;
+  title: string;
+  englishTitle?: string;
+  source: ItemCatalogSource;
+  sourceLabel: string;
+  category: ItemCatalogCategory;
+  subcategory?: string;
+  armorType?: ItemCatalogArmorType;
+  rarity?: string | null;
+  typeLabel: string;
+  summary: string;
+  buyPriceGp?: number | null;
+  buyPriceLabel?: string | null;
+  sellPriceGp?: number | null;
+  sellPriceLabel?: string | null;
+  reference?: string | null;
+  url: string;
+  descriptionLoaded?: boolean;
+}
+
+export interface ItemCatalogBrowseResult {
+  items: ItemCatalogSummary[];
+  filters: {
+    sources: ItemCatalogFilterOption[];
+    categories: ItemCatalogFilterOption[];
+    armorTypes: ItemCatalogFilterOption[];
+  };
+  status: ItemCatalogSyncStatus;
+  total: number;
+}
+
+export interface ItemCatalogDetail {
+  summary: ItemCatalogSummary;
+  description: string;
+  descriptionHtml?: string;
+  properties?: string[];
+  weightLb?: number | null;
+  damage?: string | null;
+  damageType?: string | null;
+  armorClass?: number | null;
+  strengthRequirement?: number | null;
+  stealthDisadvantage?: boolean | null;
+  sourceUrl: string;
+  status: ItemCatalogSyncStatus;
 }
 
 export interface QuestEntity extends KnowledgeEntityBase {
@@ -441,6 +526,7 @@ export interface CreateEntityInput {
   parentId?: string;
   role?: string;
   status?: PlayerEntity["status"] | NpcEntity["status"] | MonsterEntity["status"] | QuestEntity["status"];
+  level?: number;
   importance?: NpcEntity["importance"] | MonsterEntity["importance"];
   locationId?: string;
   statBlock?: PlayerEntity["statBlock"] | NpcEntity["statBlock"] | MonsterEntity["statBlock"];
@@ -532,6 +618,7 @@ export interface AddCombatantItem {
   entityId: string;
   quantity: number;
   initiative?: number;
+  side?: "player" | "enemy";
 }
 
 export interface ManualCombatantInput {
@@ -643,6 +730,13 @@ export interface ApiClient {
     classic?: boolean;
   }): Promise<BestiaryBrowseResult>;
   getBestiaryMonster(monsterId: string): Promise<BestiaryMonsterDetail>;
+  browseItemCatalog(params?: {
+    q?: string;
+    source?: ItemCatalogSource;
+    category?: ItemCatalogCategory;
+    armorType?: Exclude<ItemCatalogArmorType, null>;
+  }): Promise<ItemCatalogBrowseResult>;
+  getCatalogItem(itemId: string): Promise<ItemCatalogDetail>;
   importBestiaryMonster(campaignId: string, monsterId: string): Promise<CreateEntityResult>;
   uploadImage(campaignId: string, file: File): Promise<UploadImageResult>;
   createEntity(campaignId: string, input: CreateEntityInput): Promise<CreateEntityResult>;

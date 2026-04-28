@@ -59,6 +59,7 @@ func ensureKnowledgeEntities(entities []knowledgeEntity) []knowledgeEntity {
 	}
 
 	for index := range entities {
+		entities[index].Level = normalizeEntityLevel(entities[index].Level)
 		if entities[index].Tags == nil {
 			entities[index].Tags = []string{}
 		}
@@ -84,6 +85,17 @@ func ensureKnowledgeEntities(entities []knowledgeEntity) []knowledgeEntity {
 	}
 
 	return entities
+}
+
+func normalizeEntityLevel(level int) int {
+	switch {
+	case level < 1:
+		return 0
+	case level > 20:
+		return 20
+	default:
+		return level
+	}
 }
 
 func normalizePlayerFacingCards(kind string, cards []playerFacingCard, legacyContent string) []playerFacingCard {

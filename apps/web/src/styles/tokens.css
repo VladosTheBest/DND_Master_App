@@ -1,0 +1,16 @@
+:root {
+  --text: #edf2ff;
+  --text-soft: #aeb9d1;
+  --text-muted: #8894ad;
+  --accent: #9fbcff;
+  --success: #8ad3b1;
+  --warning: #e6c07d;
+  --danger: #f0937d;
+  --bg-panel: linear-gradient(180deg, rgba(16, 21, 31, .94), rgba(10, 14, 22, .92));
+  --line: rgba(164, 179, 209, .14);
+  --line-strong: rgba(164, 179, 209, .24);
+  --radius-xl: 24px;
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --shadow-md: 0 20px 44px rgba(0, 0, 0, .28);
+}

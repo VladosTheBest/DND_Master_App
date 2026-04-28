@@ -1,0 +1,22 @@
+{
+  "id": "dndsu-equipment-250",
+  "remoteId": "250",
+  "slug": "250-paper",
+  "title": "Бумага",
+  "englishTitle": "Paper",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Один лист Бумаги вмещает около 250 рукописных слов.",
+  "searchText": "бумага,paper, equipment предмет снаряжения предмет снаряжения бумага",
+  "buyPriceGp": 0.2,
+  "buyPriceLabel": "2 СМ",
+  "sellPriceGp": 0.1,
+  "sellPriceLabel": "1 см",
+  "url": "https://next.dnd.su/equipment/250-paper",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-04-28T10:56:55Z",
+  "description": "Один лист Бумаги вмещает около 250 рукописных слов.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tОдин лист Бумаги вмещает около 250 рукописных слов.\n\t\u003c/p\u003e"
+}

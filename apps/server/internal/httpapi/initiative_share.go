@@ -1371,7 +1371,7 @@ func (srv *server) handleInitiativeShareLegacy(writer http.ResponseWriter, reque
 			writer,
 			http.StatusBadRequest,
 			"initiative_share_unavailable",
-			"РЎРЅР°С‡Р°Р»Р° РЅР°С‡РЅРё Р±РѕР№, С‡С‚РѕР±С‹ РѕС‚РєСЂС‹С‚СЊ РїСѓР±Р»РёС‡РЅС‹Р№ С‚СЂРµРєРµСЂ РёРЅРёС†РёР°С‚РёРІС‹.",
+			"Сначала начни бой, чтобы открыть публичный трекер инициативы.",
 		)
 		return
 	}
@@ -1401,7 +1401,7 @@ func (srv *server) handleInitiativeSharePublishLegacy(writer http.ResponseWriter
 			writer,
 			http.StatusBadRequest,
 			"initiative_share_unavailable",
-			"РЎРЅР°С‡Р°Р»Р° РЅР°С‡РЅРё Р±РѕР№, С‡С‚РѕР±С‹ РѕРїСѓР±Р»РёРєРѕРІР°С‚СЊ РїСѓР±Р»РёС‡РЅС‹Р№ С‚СЂРµРєРµСЂ РёРЅРёС†РёР°С‚РёРІС‹.",
+			"Сначала начни бой, чтобы опубликовать публичный трекер инициативы.",
 		)
 		return
 	}
@@ -2107,7 +2107,7 @@ func buildPublicInitiativeSnapshot(campaign campaignData) publicInitiativeSnapsh
 	if combatShouldShowVictory(campaign.ActiveCombat) {
 		playerRewards := make([]combatRewardShare, 0)
 		for _, entry := range campaign.ActiveCombat.Entries {
-			if combatEntrySide(entry) != "player" {
+			if combatEntrySide(entry) != "player" || entry.EntityKind != "player" {
 				continue
 			}
 			playerRewards = append(playerRewards, combatRewardShare{
@@ -2241,12 +2241,7 @@ func publicCombatVictoryExperiencePerPlayer(combat *activeCombat) int {
 	if combat == nil {
 		return 0
 	}
-	playerCount := 0
-	for _, entry := range combat.Entries {
-		if combatEntrySide(entry) == "player" {
-			playerCount++
-		}
-	}
+	playerCount := combatRewardParticipantCount(combat.Entries)
 	if playerCount <= 0 {
 		return 0
 	}

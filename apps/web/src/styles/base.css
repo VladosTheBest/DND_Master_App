@@ -1,0 +1,27 @@
+* { box-sizing: border-box; }
+
+html, body, #root { min-height: 100%; }
+body {
+  margin: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top left, rgba(124, 166, 255, 0.16), transparent 30%),
+    radial-gradient(circle at top right, rgba(126, 214, 161, 0.1), transparent 24%),
+    linear-gradient(180deg, #090c12 0%, #07090f 100%);
+  color: var(--text);
+  font-family: "Segoe UI Variable", "Trebuchet MS", sans-serif;
+  font-size: 13px;
+  line-height: 1.38;
+}
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+h1, h2, h3 {
+  margin: 0;
+  font-family: "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  font-weight: 700;
+  letter-spacing: -.015em;
+}
+p { margin: 0; }
+strong { font-family: inherit; font-weight: 600; }
+small { color: var(--text-soft); }
+body, button, input, select, textarea, span, small, strong, p, h1, h2, h3 { overflow-wrap: anywhere; }

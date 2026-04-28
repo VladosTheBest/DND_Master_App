@@ -9,18 +9,20 @@ import (
 )
 
 type Options struct {
-	DataFile          string
-	BestiaryCacheFile string
-	WebDir            string
-	UploadDir         string
-	AI                AIOptions
-	Auth              AuthOptions
-	PublicBaseURL     string
+	DataFile             string
+	BestiaryCacheFile    string
+	ItemCatalogCacheFile string
+	WebDir               string
+	UploadDir            string
+	AI                   AIOptions
+	Auth                 AuthOptions
+	PublicBaseURL        string
 }
 
 type server struct {
 	store     *campaignStore
 	bestiary  *bestiaryCatalog
+	items     *itemCatalog
 	generator entityGenerator
 	shares    *initiativeShareManager
 	auth      *authManager
@@ -51,6 +53,11 @@ func NewServer(options Options) (http.Handler, error) {
 		return nil, err
 	}
 
+	items, err := newItemCatalog(options.ItemCatalogCacheFile)
+	if err != nil {
+		return nil, err
+	}
+
 	webHandler, err := newWebAppHandler(options.WebDir)
 	if err != nil {
 		return nil, err
@@ -64,6 +71,7 @@ func NewServer(options Options) (http.Handler, error) {
 	srv := &server{
 		store:     store,
 		bestiary:  bestiary,
+		items:     items,
 		generator: newEntityGenerator(options.AI),
 		shares:    newInitiativeShareManager(store, options.PublicBaseURL),
 		auth:      newAuthManager(options.Auth),
@@ -84,6 +92,8 @@ func NewServer(options Options) (http.Handler, error) {
 	mux.HandleFunc("/api/campaigns/", srv.handleCampaignByPath)
 	mux.HandleFunc("/api/bestiary", srv.handleBestiary)
 	mux.HandleFunc("/api/bestiary/", srv.handleBestiaryByPath)
+	mux.HandleFunc("/api/items-catalog", srv.handleItemCatalog)
+	mux.HandleFunc("/api/items-catalog/", srv.handleItemCatalogByPath)
 	if uploadHandler != nil {
 		mux.Handle("/uploads/", uploadHandler)
 	}
@@ -469,6 +479,41 @@ func (srv *server) handleBestiaryByPath(writer http.ResponseWriter, request *htt
 	}
 
 	detail, err := srv.bestiary.getMonster(id)
+	if err != nil {
+		writeError(writer, http.StatusNotFound, "not_found", err.Error())
+		return
+	}
+
+	writeJSON(writer, http.StatusOK, detail)
+}
+
+func (srv *server) handleItemCatalog(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodGet {
+		writeError(writer, http.StatusMethodNotAllowed, "method_not_allowed", "Only GET is supported")
+		return
+	}
+
+	writeJSON(writer, http.StatusOK, srv.items.browse(itemCatalogQuery{
+		Query:     request.URL.Query().Get("q"),
+		Source:    request.URL.Query().Get("source"),
+		Category:  request.URL.Query().Get("category"),
+		ArmorType: request.URL.Query().Get("armorType"),
+	}))
+}
+
+func (srv *server) handleItemCatalogByPath(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodGet {
+		writeError(writer, http.StatusMethodNotAllowed, "method_not_allowed", "Only GET is supported")
+		return
+	}
+
+	id := strings.Trim(strings.TrimPrefix(request.URL.Path, "/api/items-catalog/"), "/")
+	if id == "" {
+		writeError(writer, http.StatusNotFound, "not_found", "Item not found")
+		return
+	}
+
+	detail, err := srv.items.getItem(id)
 	if err != nil {
 		writeError(writer, http.StatusNotFound, "not_found", err.Error())
 		return

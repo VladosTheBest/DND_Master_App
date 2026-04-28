@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-216",
+  "remoteId": "216",
+  "slug": "216-bucket",
+  "title": "Ведро",
+  "englishTitle": "Bucket",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Ведро вмещает до половины кубического фута содержимого.",
+  "searchText": "ведро,bucket, equipment предмет снаряжения предмет снаряжения ведро",
+  "buyPriceGp": 0.05,
+  "buyPriceLabel": "5 ММ",
+  "sellPriceGp": 0.025,
+  "sellPriceLabel": "3 мм",
+  "url": "https://next.dnd.su/equipment/216-bucket",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-04-28T10:56:55Z",
+  "description": "Ведро вмещает до половины кубического фута содержимого.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tВедро вмещает до половины кубического фута содержимого.\n\t\u003c/p\u003e",
+  "weightLb": 2
+}

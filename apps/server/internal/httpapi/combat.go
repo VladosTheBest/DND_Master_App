@@ -305,18 +305,32 @@ func deriveCombatDifficulty(adjustedXP int, thresholds combatThresholds) string 
 	}
 }
 
-func buildCombatEntry(entity knowledgeEntity, sequence int, initiative int) combatEntry {
+func defaultCombatEntrySide(entity knowledgeEntity) string {
+	if entity.Kind == "player" {
+		return "player"
+	}
+	return "enemy"
+}
+
+func normalizeCombatSideValue(side string, fallback string) string {
+	switch strings.ToLower(strings.TrimSpace(side)) {
+	case "player", "ally":
+		return "player"
+	case "enemy":
+		return "enemy"
+	default:
+		return fallback
+	}
+}
+
+func buildCombatEntry(entity knowledgeEntity, sequence int, initiative int, forcedSide string) combatEntry {
 	maxHitPoints := parseMaximumHitPoints(entity.StatBlock)
 	title := entity.Title
 	if sequence > 1 {
 		title = fmt.Sprintf("%s #%d", entity.Title, sequence)
 	}
 	challenge := challengeForEntityCombat(entity)
-
-	side := "enemy"
-	if entity.Kind == "player" {
-		side = "player"
-	}
+	side := normalizeCombatSideValue(forcedSide, defaultCombatEntrySide(entity))
 
 	return combatEntry{
 		ID:               newID("combat-entry"),
@@ -378,6 +392,17 @@ func combatEntrySide(entry combatEntry) string {
 		return "player"
 	}
 	return "enemy"
+}
+
+func combatRewardParticipantCount(entries []combatEntry) int {
+	count := 0
+	for _, entry := range entries {
+		if combatEntrySide(entry) != "player" || entry.EntityKind != "player" {
+			continue
+		}
+		count++
+	}
+	return count
 }
 
 func initiativeOrderedCombatEntries(entries []combatEntry, includeDefeated bool) []combatEntry {

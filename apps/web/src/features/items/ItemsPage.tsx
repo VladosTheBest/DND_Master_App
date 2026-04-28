@@ -1,4 +1,5 @@
-import builtInItemsRaw from "../../../dnd_items_150_ru_official_basic_rules_2014.json";
+import "./items.css";
+import builtInItemsRaw from "../../../../../dnd_items_150_ru_official_basic_rules_2014.json";
 import {
   startTransition,
   useDeferredValue,
@@ -9,46 +10,9 @@ import {
   type CSSProperties
 } from "react";
 import { createPortal } from "react-dom";
-
-export type ItemSource = "builtin" | "custom";
-
-export type ItemCategory =
-  | "armor"
-  | "weapon"
-  | "potion"
-  | "poison"
-  | "staff"
-  | "ring"
-  | "scroll"
-  | "wand"
-  | "tool"
-  | "gear"
-  | "focus"
-  | "clothing"
-  | "other";
-
-export type ArmorType = "light" | "medium" | "heavy" | "shield" | null;
-
-export type Item = {
-  id: string;
-  source: ItemSource;
-  name: string;
-  category: ItemCategory;
-  subcategory?: string;
-  armorType?: ArmorType;
-  rarity?: string | null;
-  description: string;
-  buyPriceGp?: number | null;
-  sellPriceGp?: number | null;
-  weightLb?: number | null;
-  properties?: string[];
-  damage?: string | null;
-  damageType?: string | null;
-  armorClass?: number | null;
-  strengthRequirement?: number | null;
-  stealthDisadvantage?: boolean | null;
-  reference?: string | null;
-};
+import type { ArmorType, Item, ItemCategory, ItemSource } from "./items.types";
+import { buildBuiltInItemLookup, enrichRemoteItemWithBuiltInMetrics, isRemoteItem } from "./items.utils";
+import { useItemsCatalogController } from "./useItemsCatalogController";
 
 type RawBuiltInItem = {
   id?: number;
@@ -129,7 +93,9 @@ const itemCategoryLabels: Record<ItemCategory, string> = {
 
 const itemSourceLabels: Record<ItemSource, string> = {
   builtin: "Built-in D&D",
-  custom: "Custom"
+  custom: "Custom",
+  "dndsu-magic": "DnD.su • магические",
+  "dndsu-equipment": "DnD.su • снаряжение"
 };
 
 const armorTypeLabels: Record<Exclude<ArmorType, null>, string> = {
@@ -389,6 +355,7 @@ function normalizeBuiltInItem(raw: RawBuiltInItem): Item {
 }
 
 const builtInItems = ((builtInItemsRaw as RawBuiltInItem[]) ?? []).map(normalizeBuiltInItem);
+const builtInItemLookup = buildBuiltInItemLookup(builtInItems);
 
 function normalizeCustomItem(raw: unknown): Item | null {
   if (!raw || typeof raw !== "object") {
@@ -497,6 +464,23 @@ const formatGold = (value?: number | null) => {
 };
 const formatWeight = (value?: number | null) => (value == null ? "—" : `${formatNumber(value)} фнт`);
 
+const resolveBuyPriceLabel = (item: Item) => item.buyPriceLabel ?? formatGold(item.buyPriceGp);
+const resolveSellPriceLabel = (item: Item) => item.sellPriceLabel ?? formatGold(item.sellPriceGp);
+
+const resolveItemSourceTone = (source: ItemSource): Tone => {
+  switch (source) {
+    case "custom":
+      return "success";
+    case "dndsu-magic":
+      return "warning";
+    case "dndsu-equipment":
+      return "accent";
+    case "builtin":
+    default:
+      return "default";
+  }
+};
+
 const getEffectivePrice = (item: Item) => item.buyPriceGp ?? item.sellPriceGp ?? null;
 
 const matchesPriceFilter = (item: Item, filter: PriceFilter) => {
@@ -530,6 +514,9 @@ const buildItemSearchText = (item: Item) =>
       item.damage ?? "",
       item.damageType ?? "",
       item.reference ?? "",
+      item.searchText ?? "",
+      item.buyPriceLabel ?? "",
+      item.sellPriceLabel ?? "",
       itemCategoryLabels[item.category],
       item.armorType ? armorTypeLabels[item.armorType] : "",
       itemSourceLabels[item.source]
@@ -721,9 +708,9 @@ const getItemSummaryMetric = (item: Item) => {
   };
 };
 
-const createTabOptions = (customCount: number) => [
-  { id: "all" as const, label: "Все предметы", count: builtInItems.length + customCount },
-  { id: "builtin" as const, label: "Базовые D&D", count: builtInItems.length },
+const createTabOptions = (officialCount: number, customCount: number) => [
+  { id: "all" as const, label: "Все предметы", count: officialCount + customCount },
+  { id: "builtin" as const, label: "Официальные", count: officialCount },
   { id: "custom" as const, label: "Кастомные", count: customCount }
 ];
 
@@ -934,7 +921,7 @@ function ItemListCard({
     ...getItemMetrics(item).filter((metric) => metric.label !== summaryMetric.label)
   ])
     .slice(0, 3);
-  const primaryPrice = item.buyPriceGp != null ? formatGold(item.buyPriceGp) : formatGold(item.sellPriceGp);
+  const primaryPrice = item.buyPriceGp != null ? resolveBuyPriceLabel(item) : resolveSellPriceLabel(item);
 
   return (
     <article className={`items-list-card ${selected ? "selected" : ""}`}>
@@ -957,14 +944,14 @@ function ItemListCard({
 
           <div className="items-list-card-aside">
             <div className="items-list-card-badges">
-              <ItemBadge label={item.source === "builtin" ? "Built-in" : "Custom"} tone={item.source === "builtin" ? "accent" : "success"} />
+              <ItemBadge label={itemSourceLabels[item.source]} tone={resolveItemSourceTone(item.source)} />
               {item.rarity ? <ItemBadge label={item.rarity} tone="default" /> : null}
             </div>
 
             <div className="items-list-card-pricing">
               <ItemPricePill label={item.buyPriceGp != null ? "Покупка" : "Цена"} value={primaryPrice} emphasize />
               {item.buyPriceGp != null && item.sellPriceGp != null ? (
-                <ItemPricePill label="Продажа" value={formatGold(item.sellPriceGp)} />
+                <ItemPricePill label="Продажа" value={resolveSellPriceLabel(item)} />
               ) : null}
             </div>
           </div>
@@ -1034,7 +1021,7 @@ function ItemDetailModal({
                 <div className="actions items-inline-actions">
                   <ItemBadge label={itemCategoryLabels[item.category]} tone="default" />
                   {item.subcategory ? <ItemBadge label={item.subcategory} tone="accent" /> : null}
-                  <ItemBadge label={item.source === "builtin" ? "Built-in" : "Custom"} tone={item.source === "builtin" ? "accent" : "success"} />
+                  <ItemBadge label={itemSourceLabels[item.source]} tone={resolveItemSourceTone(item.source)} />
                 </div>
               </div>
 
@@ -1063,8 +1050,8 @@ function ItemDetailModal({
             </div>
 
             <div className="items-modal-price-stack">
-              <ItemPricePill label="Покупка" value={formatGold(item.buyPriceGp)} emphasize />
-              <ItemPricePill label="Продажа" value={formatGold(item.sellPriceGp)} />
+              <ItemPricePill label="Покупка" value={resolveBuyPriceLabel(item)} emphasize />
+              <ItemPricePill label="Продажа" value={resolveSellPriceLabel(item)} />
             </div>
           </div>
 
@@ -1095,7 +1082,11 @@ function ItemDetailModal({
 
           <section className="card mini items-detail-section">
             <strong>Описание</strong>
-            <p className="copy">{item.description}</p>
+            {item.descriptionHtml ? (
+              <div className="copy items-description-rich" dangerouslySetInnerHTML={{ __html: item.descriptionHtml }} />
+            ) : (
+              <p className="copy">{item.description}</p>
+            )}
           </section>
 
           {item.properties?.length ? (
@@ -1355,7 +1346,11 @@ function ItemEditorPanel({
   );
 }
 
-export function ItemsWorkspace({ campaignId }: { campaignId: string }) {
+type ItemsPageProps = {
+  campaignId: string;
+};
+
+export function ItemsPage({ campaignId }: ItemsPageProps) {
   const [customItems, setCustomItems] = useState<Item[]>([]);
   const [storageHydrated, setStorageHydrated] = useState(false);
   const [activeTab, setActiveTab] = useState<ItemTab>("all");
@@ -1372,6 +1367,12 @@ export function ItemsWorkspace({ campaignId }: { campaignId: string }) {
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const deferredSearchQuery = useDeferredValue(searchQuery);
+  const {
+    catalogItems,
+    catalogLoading,
+    catalogError,
+    ensureCatalogItemDetail
+  } = useItemsCatalogController({ campaignId });
 
   useEffect(() => {
     setStorageHydrated(false);
@@ -1433,17 +1434,21 @@ export function ItemsWorkspace({ campaignId }: { campaignId: string }) {
     }
   }, [armorTypeFilter, categoryFilter]);
 
-  const allItems = useMemo(() => [...builtInItems, ...customItems], [customItems]);
+  const officialItems = useMemo(
+    () => [...builtInItems, ...catalogItems.map((item) => enrichRemoteItemWithBuiltInMetrics(item, builtInItemLookup))],
+    [catalogItems]
+  );
+  const allItems = useMemo(() => [...officialItems, ...customItems], [customItems, officialItems]);
 
   const scopedItems = useMemo(() => {
     if (activeTab === "builtin") {
-      return builtInItems;
+      return officialItems;
     }
     if (activeTab === "custom") {
       return customItems;
     }
     return allItems;
-  }, [activeTab, allItems, customItems]);
+  }, [activeTab, allItems, customItems, officialItems]);
 
   const filteredItems = useMemo(() => {
     const normalizedQuery = normalizeSearchValue(deferredSearchQuery);
@@ -1475,6 +1480,21 @@ export function ItemsWorkspace({ campaignId }: { campaignId: string }) {
   );
 
   useEffect(() => {
+    if (!selectedItem || !isRemoteItem(selectedItem) || selectedItem.detailLoaded) {
+      return;
+    }
+    ensureCatalogItemDetail(selectedItem.id);
+  }, [ensureCatalogItemDetail, selectedItem]);
+
+  useEffect(() => {
+    filteredItems
+      .filter(isRemoteItem)
+      .filter((item) => !item.detailLoaded)
+      .slice(0, 12)
+      .forEach((item) => ensureCatalogItemDetail(item.id));
+  }, [ensureCatalogItemDetail, filteredItems]);
+
+  useEffect(() => {
     if (editorMode !== "closed") {
       return;
     }
@@ -1498,7 +1518,10 @@ export function ItemsWorkspace({ campaignId }: { campaignId: string }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [editorMode, selectedItemId]);
 
-  const tabOptions = useMemo(() => createTabOptions(customItems.length), [customItems.length]);
+  const tabOptions = useMemo(
+    () => createTabOptions(officialItems.length, customItems.length),
+    [customItems.length, officialItems.length]
+  );
 
   const updateDraftField = <Key extends keyof ItemDraft>(field: Key, value: ItemDraft[Key]) => {
     setEditorDraft((current) => ({
@@ -1569,7 +1592,7 @@ export function ItemsWorkspace({ campaignId }: { campaignId: string }) {
 
   const revealSavedItem = (item: Item) => {
     setSearchQuery("");
-    setSourceFilter((current) => (current === "builtin" ? "all" : current));
+    setSourceFilter((current) => (current !== "all" && current !== item.source ? "all" : current));
     setActiveTab((current) => (current === "builtin" ? "custom" : current));
     setCategoryFilter((current) => (current !== "all" && current !== item.category ? "all" : current));
     setArmorTypeFilter((current) =>
@@ -1634,7 +1657,7 @@ export function ItemsWorkspace({ campaignId }: { campaignId: string }) {
         <div className="notes-workspace-copy">
           <p className="eyebrow">Предметы</p>
           <h1>Предметы</h1>
-          <p className="copy">Базовые предметы D&D и ваши кастомные предметы</p>
+          <p className="copy">Базовые предметы D&D, ваши кастомные предметы и внешние официальные каталоги в одном поиске</p>
         </div>
 
         <div className="actions">
@@ -1643,6 +1666,18 @@ export function ItemsWorkspace({ campaignId }: { campaignId: string }) {
           </button>
         </div>
       </section>
+
+      {catalogLoading ? (
+        <section className="card mini">
+          <p className="copy">Подтягиваю внешний каталог предметов и подмешиваю его в общий поиск…</p>
+        </section>
+      ) : null}
+
+      {catalogError ? (
+        <section className="card mini">
+          <p className="copy">Внешний каталог сейчас недоступен: {catalogError}</p>
+        </section>
+      ) : null}
 
       <div className="items-workspace-grid">
         <aside className="card items-directory-panel">
@@ -1734,8 +1769,11 @@ export function ItemsWorkspace({ campaignId }: { campaignId: string }) {
                   value={sourceFilter}
                 >
                   <option value="all">Все</option>
-                  <option value="builtin">Built-in</option>
-                  <option value="custom">Custom</option>
+                  {Object.entries(itemSourceLabels).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
                 </select>
               </label>
             ) : null}

@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-14383",
+  "remoteId": "14383",
+  "slug": "14383-bagpipes",
+  "title": "Волынка",
+  "englishTitle": "Bagpipes",
+  "source": "dndsu-equipment",
+  "category": "tool",
+  "subcategory": "Инструмент",
+  "typeLabel": "Инструмент",
+  "summary": "Вариант Музыкального инструмента . Каждый вариант инструмента требует отдельного владения.",
+  "searchText": "волынка,bagpipes, toolkit инструмент инструмент волынка",
+  "buyPriceGp": 30,
+  "buyPriceLabel": "30 ЗМ",
+  "sellPriceGp": 15,
+  "sellPriceLabel": "15 зм",
+  "url": "https://next.dnd.su/equipment/14383-bagpipes",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-04-28T10:57:03Z",
+  "description": "Вариант Музыкального инструмента . Каждый вариант инструмента требует отдельного владения.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tВариант Музыкального инструмента. Каждый вариант инструмента требует отдельного владения.\n\t\u003c/p\u003e",
+  "weightLb": 6
+}

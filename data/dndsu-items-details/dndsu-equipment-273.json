@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-273",
+  "remoteId": "273",
+  "slug": "273-waterskin",
+  "title": "Бурдюк",
+  "englishTitle": "Waterskin",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Бурдюк вмещает до 4 пинт. Если вы не пьёте достаточно воды, вы рискуете Обезвоживанием .",
+  "searchText": "бурдюк,waterskin, equipment предмет снаряжения предмет снаряжения бурдюк",
+  "buyPriceGp": 0.2,
+  "buyPriceLabel": "2 СМ",
+  "sellPriceGp": 0.1,
+  "sellPriceLabel": "1 см",
+  "url": "https://next.dnd.su/equipment/273-waterskin",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-04-28T10:56:54Z",
+  "description": "Бурдюк вмещает до 4 пинт. Если вы не пьёте достаточно воды, вы рискуете Обезвоживанием .",
+  "descriptionHtml": "\u003cp\u003e\n\t\tБурдюк вмещает до 4 пинт. Если вы не пьёте достаточно воды, вы рискуете Обезвоживанием.\n\t\u003c/p\u003e",
+  "weightLb": 5
+}

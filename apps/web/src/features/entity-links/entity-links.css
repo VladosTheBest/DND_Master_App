@@ -1,0 +1,48 @@
+.link-context-backdrop,
+.link-picker-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+}
+
+.link-context-menu {
+  position: fixed;
+  z-index: 71;
+  min-width: 13rem;
+  padding: .45rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: rgba(14, 18, 28, .98);
+  box-shadow: var(--shadow-md);
+}
+
+.link-picker-backdrop {
+  display: grid;
+  place-items: center;
+  background: rgba(5, 8, 14, .52);
+}
+
+.link-picker-modal {
+  width: min(38rem, calc(100vw - 2rem));
+  max-height: min(38rem, calc(100vh - 4rem));
+  overflow: auto;
+  padding: .82rem;
+  display: grid;
+  gap: .72rem;
+}
+
+.link-picker-results {
+  display: grid;
+  gap: .52rem;
+  max-height: 18rem;
+  overflow: auto;
+}
+
+.link-picker-selection {
+  display: grid;
+  gap: .2rem;
+  padding: .62rem .72rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,.025);
+}
