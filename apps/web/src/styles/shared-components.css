@@ -319,9 +319,28 @@
   font-weight: 500;
 }
 .mention:hover { color: #a8c5ff; }
-.relation-card { display: grid; gap: .4rem; }
+.relation-card {
+  display: grid;
+  gap: .4rem;
+  min-height: 13rem;
+  max-height: 13rem;
+  overflow: hidden;
+}
 .relation-card-with-visual {
   align-content: start;
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+}
+.relation-card strong {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.relation-card p {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
 }
 
 .preview-stat-card, .npc-core-card, .ability-card {

@@ -1076,6 +1076,9 @@
   align-items: start;
   gap: .58rem;
   text-align: left;
+  min-height: 7.6rem;
+  max-height: 7.6rem;
+  overflow: hidden;
 }
 
 .quest-preview-entity-copy,
@@ -1097,6 +1100,25 @@
   justify-content: space-between;
   gap: .58rem;
   text-align: left;
+  min-height: 5.7rem;
+  max-height: 5.7rem;
+  overflow: hidden;
+}
+
+.quest-preview-entity-copy > strong,
+.quest-preview-list-copy > strong {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.quest-preview-entity-copy > span,
+.quest-preview-list-copy > small {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .quest-preview-list-badge {
