@@ -125,113 +125,131 @@ export function RuleDetailsPanel({
         </div>
 
         <div className="rules-details-mode" role="tablist" aria-label="Режим просмотра правила">
-          <button className={mode === "short" ? "active" : ""} onClick={() => setMode("short")} type="button">Кратко</button>
-          <button className={mode === "full" ? "active" : ""} onClick={() => setMode("full")} type="button">Подробно</button>
+          <button className={mode === "short" ? "active" : ""} onClick={() => setMode("short")} type="button">
+            Кратко
+          </button>
+          <button className={mode === "full" ? "active" : ""} onClick={() => setMode("full")} type="button">
+            Подробно
+          </button>
         </div>
       </div>
 
-      <div className="rules-details-meta">
-        <span>Категория</span>
-        <strong>{getRuleCategoryLabel(rule.category)}</strong>
-        <span>Источник</span>
-        <strong>{rule.source}</strong>
-        <span>Раздел</span>
-        <strong>{rule.sourceSection}</strong>
-        {rule.sourcePage != null ? (
-          <>
-            <span>Страница</span>
-            <strong>{rule.sourcePage}</strong>
-          </>
-        ) : null}
-      </div>
-
-      <section className="rules-info-card rules-summary-card">
-        <span className="rules-section-icon" aria-hidden="true">⚖</span>
-        <div>
-          <strong>Быстрый ответ</strong>
-          <p className="copy">{rule.summaryRu}</p>
+      <div className="rules-details-body">
+        <div className="rules-details-meta">
+          <span>Категория</span>
+          <strong>{getRuleCategoryLabel(rule.category)}</strong>
+          <span>Источник</span>
+          <strong>{rule.source}</strong>
+          <span>Раздел</span>
+          <strong>{rule.sourceSection}</strong>
+          {rule.sourcePage != null ? (
+            <>
+              <span>Страница</span>
+              <strong>{rule.sourcePage}</strong>
+            </>
+          ) : null}
         </div>
-      </section>
 
-      {enhancedRule.mechanics?.length ? (
-        <section className="rules-details-section">
-          <div className="rules-section-title">
-            <span className="rules-section-icon" aria-hidden="true">✦</span>
-            <strong>Механика</strong>
-          </div>
-          <div className="rules-mechanics-grid">
-            {enhancedRule.mechanics.map((mechanic, index) => (
-              <article className="rules-mechanic-card" key={`${rule.id}-mechanic-${index}`}>
-                <span>{mechanic.label}</span>
-                {mechanic.formula ? <strong>{mechanic.formula}</strong> : null}
-                {mechanic.descriptionRu ? <p>{mechanic.descriptionRu}</p> : null}
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
-
-      {levelRows.length ? (
-        <section className="rules-details-section">
-          <div className="rules-section-title">
-            <span className="rules-section-icon" aria-hidden="true">▦</span>
-            <strong>Таблица</strong>
-          </div>
-          <RuleDataTable rows={levelRows} />
-        </section>
-      ) : null}
-
-      {mode === "full" ? (
-        <section className="rules-info-card rules-details-text-card">
-          <span className="rules-section-icon" aria-hidden="true">▣</span>
+        <section className="rules-info-card rules-summary-card">
+          <span className="rules-section-icon" aria-hidden="true">
+            ✦
+          </span>
           <div>
-            <strong>Полный текст</strong>
-            <div className="copy rules-body-text">{rule.ruleTextRu}</div>
+            <strong>Быстрый ответ</strong>
+            <p className="copy">{rule.summaryRu}</p>
           </div>
         </section>
-      ) : null}
 
-      {mode === "full" && rule.examplesRu?.length ? (
-        <section className="rules-info-card rules-details-text-card">
-          <span className="rules-section-icon" aria-hidden="true">✧</span>
-          <div>
-            <strong>Примеры</strong>
-            <div className="rules-example-list">
-              {rule.examplesRu.map((example, index) => (
-                <p key={`${rule.id}-example-${index}`} className="copy">
-                  {example}
-                </p>
+        {enhancedRule.mechanics?.length ? (
+          <section className="rules-details-section">
+            <div className="rules-section-title">
+              <span className="rules-section-icon" aria-hidden="true">
+                ✧
+              </span>
+              <strong>Механика</strong>
+            </div>
+            <div className="rules-mechanics-grid">
+              {enhancedRule.mechanics.map((mechanic, index) => (
+                <article className="rules-mechanic-card" key={`${rule.id}-mechanic-${index}`}>
+                  <span>{mechanic.label}</span>
+                  {mechanic.formula ? <strong>{mechanic.formula}</strong> : null}
+                  {mechanic.descriptionRu ? <p>{mechanic.descriptionRu}</p> : null}
+                </article>
               ))}
             </div>
-          </div>
-        </section>
-      ) : null}
+          </section>
+        ) : null}
 
-      {mode === "full" && enhancedRule.commonQuestions?.length ? (
-        <section className="rules-details-section">
-          <div className="rules-section-title">
-            <span className="rules-section-icon" aria-hidden="true">?</span>
-            <strong>Частые вопросы</strong>
-          </div>
-          <div className="rules-faq-list">
-            {enhancedRule.commonQuestions.map((item, index) => (
-              <article className="rules-faq-card" key={`${rule.id}-faq-${index}`}>
-                <strong>{item.questionRu}</strong>
-                <p>{item.answerRu}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-      ) : null}
+        {levelRows.length ? (
+          <section className="rules-details-section">
+            <div className="rules-section-title">
+              <span className="rules-section-icon" aria-hidden="true">
+                ▦
+              </span>
+              <strong>Таблица</strong>
+            </div>
+            <RuleDataTable rows={levelRows} />
+          </section>
+        ) : null}
 
-      <RelatedRules onSelectRule={onSelectRelatedRule} rules={relatedRules} />
+        {mode === "full" ? (
+          <section className="rules-info-card rules-details-text-card">
+            <span className="rules-section-icon" aria-hidden="true">
+              ▣
+            </span>
+            <div>
+              <strong>Полный текст</strong>
+              <div className="copy rules-body-text">{rule.ruleTextRu}</div>
+            </div>
+          </section>
+        ) : null}
 
-      {attribution ? (
-        <details className="rules-attribution">
-          <summary>Источник и лицензия</summary>
-          <p>{attribution}</p>
-        </details>
-      ) : null}
+        {mode === "full" && rule.examplesRu?.length ? (
+          <section className="rules-info-card rules-details-text-card">
+            <span className="rules-section-icon" aria-hidden="true">
+              ✧
+            </span>
+            <div>
+              <strong>Примеры</strong>
+              <div className="rules-example-list">
+                {rule.examplesRu.map((example, index) => (
+                  <p key={`${rule.id}-example-${index}`} className="copy">
+                    {example}
+                  </p>
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : null}
+
+        {mode === "full" && enhancedRule.commonQuestions?.length ? (
+          <section className="rules-details-section">
+            <div className="rules-section-title">
+              <span className="rules-section-icon" aria-hidden="true">
+                ?
+              </span>
+              <strong>Частые вопросы</strong>
+            </div>
+            <div className="rules-faq-list">
+              {enhancedRule.commonQuestions.map((item, index) => (
+                <article className="rules-faq-card" key={`${rule.id}-faq-${index}`}>
+                  <strong>{item.questionRu}</strong>
+                  <p>{item.answerRu}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        <RelatedRules onSelectRule={onSelectRelatedRule} rules={relatedRules} />
+
+        {attribution ? (
+          <details className="rules-attribution">
+            <summary>Источник и лицензия</summary>
+            <p>{attribution}</p>
+          </details>
+        ) : null}
+      </div>
     </aside>
   );
 }

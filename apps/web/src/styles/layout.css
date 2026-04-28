@@ -17,6 +17,12 @@
     minmax(0, 1fr);
 }
 
+.shell.feature-owned-details-shell {
+  grid-template-columns:
+    var(--rail-width, 236px)
+    minmax(0, 1fr);
+}
+
 .rail, .preview, .content { overflow: auto; }
 .rail, .preview, .topbar, .tabs, .content { padding: .72rem .78rem; }
 
@@ -29,6 +35,7 @@
   padding: 0;
 }
 .items-shell .center { grid-template-rows: auto minmax(0, 1fr); }
+.feature-owned-details-shell .center { grid-template-rows: auto minmax(0, 1fr); }
 .content { min-height: 0; scrollbar-gutter: stable; }
 .stack { display: grid; gap: .62rem; }
 .stack.wide { gap: .82rem; }

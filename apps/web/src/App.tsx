@@ -4066,7 +4066,10 @@ export default function App() {
 
   return (
     <>
-      <div className={`shell ${isCombatScreen ? "combat-layout" : ""} ${isCombatPrepScreen ? "combat-prep-shell" : ""} ${isItemsRail ? "items-shell" : ""}`.trim()} style={shellStyle}>
+      <div
+        className={`shell ${isCombatScreen ? "combat-layout" : ""} ${isCombatPrepScreen ? "combat-prep-shell" : ""} ${isItemsRail ? "items-shell" : ""} ${hasFeatureOwnedDetailsPanel ? "feature-owned-details-shell" : ""}`.trim()}
+        style={shellStyle}
+      >
         {!isCombatScreen ? (
           <AppSidebar
             activeCampaignId={activeCampaignId}
