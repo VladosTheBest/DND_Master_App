@@ -101,7 +101,6 @@ import { useCombatDraftController } from "./features/combat/hooks/useCombatDraft
 import { useCombatEnemySearch } from "./features/combat/hooks/useCombatEnemySearch";
 import {
   challengeFilterOptions,
-  clampPartyLevel,
   cloneCampaignPreparedCombat,
   clonePreparedCombatPlan,
   combatDifficultyLabel,
@@ -126,7 +125,6 @@ import {
   normalizeCombatSetupTypeKey,
   normalizePreparedCombatPlansForClient,
   parseChallengeXp,
-  parseStoredPartyLevel,
   resolveCombatSearchItemType,
   resolveCombatSearchItemTypeLabel,
   resolveEntityPreparedCombats,
@@ -3623,11 +3621,6 @@ export default function App() {
     setCombatPartyLevelsText(value.replace(/[^\d,;\s]/g, "").slice(0, 24));
   };
 
-  const stepCombatPartyLevel = (delta: number) => {
-    const nextLevel = clampPartyLevel((parseStoredPartyLevel(resolvedCombatPartyLevelsText) ?? 1) + delta);
-    setCombatPartyLevelsText(String(nextLevel));
-  };
-
   const clearPreparedCombatDraft = () => {
     combatDraftController.clearPreparedCombatDraft({
       fallbackTitle: combatSetupHostEntity ? defaultPreparedCombatTitle(entityCombatSetupState?.planIndex ?? 0) : undefined,
@@ -3864,33 +3857,30 @@ export default function App() {
 
   const combatDifficultyToneClass = draftEncounterDifficulty ? `difficulty-${draftEncounterDifficulty}` : "difficulty-empty";
   const combatDangerText = draftEncounterDifficulty ? combatDifficultyLabel[draftEncounterDifficulty] : "Не рассчитана";
-  const combatDangerThresholdText = draftEncounterDifficulty ? `${draftEncounterDifficultyThreshold} XP` : "РІР‚вЂќ";
+  const combatDangerThresholdText = draftEncounterDifficulty ? `${draftEncounterDifficultyThreshold} XP` : "—";
   const combatDangerDetailText =
     draftEncounterAdjustedXp > 0
-      ? `${combatDangerThresholdText} РІР‚Сћ Р В Р В°РЎРѓРЎвЂЎРЎвЂРЎвЂљ: ${draftEncounterAdjustedXp} XP`
-      : "Р вЂќР С•Р В±Р В°Р Р†РЎРЉ Р С—РЎР‚Р С•РЎвЂљР С‘Р Р†Р Р…Р С‘Р С”Р С•Р Р†, РЎвЂЎРЎвЂљР С•Р В±РЎвЂ№ РЎС“Р Р†Р С‘Р Т‘Р ВµРЎвЂљРЎРЉ РЎР‚Р В°РЎРѓРЎвЂЎРЎвЂРЎвЂљ.";
-  const combatLevelMetricHint = draftPreparedCombatPlayerLevels.length
-    ? `Авто из карточек игроков • Пороги: ${combatThresholdSummary}`
-    : hasExplicitPartyLevels
-      ? `РџРѕСЂРѕРіРё: ${combatThresholdSummary}`
-      : "Укажи уровень партии от 1 до 20";
+      ? draftEncounterDifficulty
+        ? `${draftEncounterAdjustedXp} XP с учётом множителя против порога ${combatDangerThresholdText}.`
+        : `${draftEncounterAdjustedXp} XP с учётом множителя. Заполни уровни игроков, чтобы оценить сложность.`
+      : "Добавь противников справа, чтобы увидеть итоговый XP с учётом множителя.";
   const combatEnemyMetricHint =
     draftEncounterMonsterCount > 0 ? `${draftEncounterMonsterCount} ${formatEnemyCountLabel(draftEncounterMonsterCount)}` : "Противников пока нет";
   const preparedCombatLevelMetricHint = draftPreparedCombatPlayerLevels.length
-    ? `Авто из карточек игроков • Пороги: ${combatThresholdSummary}`
+    ? `Из карточек игроков • Пороги: ${combatThresholdSummary}`
     : hasExplicitPartyLevels
-      ? `РџРѕСЂРѕРіРё: ${combatThresholdSummary}`
-      : "Заполни уровень в карточках игроков";
+      ? `Из сохранённого состава • Пороги: ${combatThresholdSummary}`
+      : "Заполни уровни в карточках игроков";
   const combatMasterRecommendation =
     draftEncounterDifficulty === "deadly"
-      ? "Р С›РЎвЂЎР ВµР Р…РЎРЉ Р Р†РЎвЂ№РЎРѓР С•Р С”Р С‘Р в„– РЎР‚Р С‘РЎРѓР С” Р С–Р С‘Р В±Р ВµР В»Р С‘ Р С—Р ВµРЎР‚РЎРѓР С•Р Р…Р В°Р В¶Р ВµР в„–. Р СџР С•Р Т‘РЎвЂ¦Р С•Р Т‘Р С‘РЎвЂљ Р Т‘Р В»РЎРЏ Р С”РЎС“Р В»РЎРЉР СР С‘Р Р…Р В°РЎвЂ Р С‘Р С‘ Р С‘Р В»Р С‘ РЎРѓРЎвЂ Р ВµР Р…РЎвЂ№, Р С–Р Т‘Р Вµ РЎС“ Р С—Р В°РЎР‚РЎвЂљР С‘Р С‘ Р ВµРЎРѓРЎвЂљРЎРЉ Р С—Р В»Р В°Р Р…, РЎС“Р С”РЎР‚РЎвЂ№РЎвЂљР С‘РЎРЏ Р С‘Р В»Р С‘ РЎРѓР С•РЎР‹Р В·Р Р…Р С‘Р С”Р С‘."
+      ? "Сцена смертельно опасна. Снизь число врагов, добавь союзника или подготовь запасной план, если бой должен остаться честным."
       : draftEncounterDifficulty === "hard"
-        ? "Р С›Р С—Р В°РЎРѓР Р…Р В°РЎРЏ РЎРѓРЎвЂ Р ВµР Р…Р В°. Р вЂќР В°Р в„– Р С‘Р С–РЎР‚Р С•Р С”Р В°Р С Р Р†Р С•Р В·Р СР С•Р В¶Р Р…Р С•РЎРѓРЎвЂљРЎРЉ Р С—Р С•Р Т‘Р С–Р С•РЎвЂљР С•Р Р†Р С‘РЎвЂљРЎРЉРЎРѓРЎРЏ, Р В·Р В°Р Р…РЎРЏРЎвЂљРЎРЉ Р С—Р С•Р В·Р С‘РЎвЂ Р С‘РЎР‹ Р С‘Р В»Р С‘ Р С—Р С•Р Р…РЎРЏРЎвЂљРЎРЉ РЎС“Р С–РЎР‚Р С•Р В·РЎС“ Р Т‘Р С• Р Р…Р В°РЎвЂЎР В°Р В»Р В° Р В±Р С•РЎРЏ."
+        ? "Сцена жёсткая. Хорошо подходит для кульминации или боя, где у партии есть тактическое преимущество."
         : draftEncounterDifficulty === "medium"
-          ? "Р ТђР С•РЎР‚Р С•РЎв‚¬Р В°РЎРЏ РЎР‚Р В°Р В±Р С•РЎвЂЎР В°РЎРЏ РЎРѓР В»Р С•Р В¶Р Р…Р С•РЎРѓРЎвЂљРЎРЉ Р Т‘Р В»РЎРЏ Р С•Р В±РЎвЂ№РЎвЂЎР Р…Р С•Р в„– РЎРѓРЎвЂ Р ВµР Р…РЎвЂ№. Р вЂР С•Р в„– Р Т‘Р С•Р В»Р В¶Р ВµР Р… РЎвЂЎРЎС“Р Р†РЎРѓРЎвЂљР Р†Р С•Р Р†Р В°РЎвЂљРЎРЉРЎРѓРЎРЏ Р С•Р С—Р В°РЎРѓР Р…РЎвЂ№Р С, Р Р…Р С• РЎвЂЎР ВµРЎРѓРЎвЂљР Р…РЎвЂ№Р С."
+          ? "Нормальная боевая нагрузка. Бой должен ощущаться напряжённым, но без перегиба по риску."
           : draftEncounterDifficulty === "easy"
-            ? "Р вЂєРЎвЂР С–Р С”Р В°РЎРЏ Р Р†РЎРѓРЎвЂљРЎР‚Р ВµРЎвЂЎР В°. Р СџР С•Р Т‘РЎвЂ¦Р С•Р Т‘Р С‘РЎвЂљ Р Т‘Р В»РЎРЏ РЎР‚Р В°Р В·Р С•Р С–РЎР‚Р ВµР Р†Р В°, Р С—РЎР‚Р С•Р Р†Р ВµРЎР‚Р С”Р С‘ РЎР‚Р ВµРЎРѓРЎС“РЎР‚РЎРѓР С•Р Р† Р С‘Р В»Р С‘ Р В±РЎвЂ№РЎРѓРЎвЂљРЎР‚РЎвЂ№РЎвЂ¦ Р С—Р С•РЎРѓР В»Р ВµР Т‘РЎРѓРЎвЂљР Р†Р С‘Р в„– Р Р†РЎвЂ№Р В±Р С•РЎР‚Р В°."
-            : "Добавь игроков, уровень партии и противников, чтобы получить оценку опасности.";
+            ? "Лёгкая сцена. Подойдёт для разогрева, знакомства с врагом или короткой стычки без серьёзного риска."
+            : "Выбери игроков и добавь противников, чтобы получить точную оценку опасности.";
 
   const combatPrepPage =
     campaign ? (
@@ -3943,10 +3933,7 @@ export default function App() {
           draftEncounterBaseXp,
           draftEncounterDifficulty,
           effectiveCombatThresholds,
-          onCombatPartyLevelsChange: updateCombatPartyLevelText,
-          onStepCombatPartyLevel: stepCombatPartyLevel,
-          preparedCombatLevelMetricHint,
-          resolvedCombatPartyLevelsText
+          preparedCombatLevelMetricHint
         }}
         enteredPartyLevel={enteredPartyLevel}
         hasExplicitPartyLevels={hasExplicitPartyLevels}

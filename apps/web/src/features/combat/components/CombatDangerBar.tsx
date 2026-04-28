@@ -13,9 +13,6 @@ export type CombatDangerBarProps = {
   effectiveCombatThresholds: CombatThresholds;
   draftEncounterDifficulty: "easy" | "medium" | "hard" | "deadly" | "";
   combatMasterRecommendation: string;
-  resolvedCombatPartyLevelsText: string;
-  onCombatPartyLevelsChange: (value: string) => void;
-  onStepCombatPartyLevel: (delta: number) => void;
 };
 
 export function CombatDangerBar({
@@ -30,10 +27,7 @@ export function CombatDangerBar({
   combatDangerDetailText,
   effectiveCombatThresholds,
   draftEncounterDifficulty,
-  combatMasterRecommendation,
-  resolvedCombatPartyLevelsText,
-  onCombatPartyLevelsChange,
-  onStepCombatPartyLevel
+  combatMasterRecommendation
 }: CombatDangerBarProps) {
   return (
     <section className={`combat-prep-danger-board ${combatDifficultyToneClass}`}>
@@ -44,31 +38,6 @@ export function CombatDangerBar({
         <div>
           <small>Уровень группы</small>
           <strong className="combat-prep-level-value">{combatLevelDisplayText}</strong>
-          <div className="combat-prep-level-control">
-            <button
-              className="combat-prep-level-stepper"
-              onClick={() => onStepCombatPartyLevel(-1)}
-              type="button"
-              aria-label="Уменьшить уровень группы"
-            >
-              −
-            </button>
-            <input
-              className="combat-prep-level-input"
-              inputMode="numeric"
-              onChange={(event) => onCombatPartyLevelsChange(event.target.value)}
-              placeholder="1-20"
-              value={resolvedCombatPartyLevelsText}
-            />
-            <button
-              className="combat-prep-level-stepper"
-              onClick={() => onStepCombatPartyLevel(1)}
-              type="button"
-              aria-label="Увеличить уровень группы"
-            >
-              +
-            </button>
-          </div>
           <span>{preparedCombatLevelMetricHint}</span>
         </div>
       </article>

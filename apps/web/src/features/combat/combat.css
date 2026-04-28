@@ -780,9 +780,9 @@
 
 .combat-prep-danger-board {
   position: relative;
-  min-height: 7.5rem;
+  min-height: 0;
   display: grid;
-  grid-template-columns: minmax(120px, .55fr) minmax(155px, .68fr) minmax(130px, .56fr) minmax(130px, .56fr) minmax(235px, 1fr) minmax(340px, 1.25fr) minmax(260px, .95fr);
+  grid-template-columns: repeat(12, minmax(0, 1fr));
   align-items: stretch;
   gap: .7rem;
   padding: .85rem .95rem;
@@ -824,6 +824,11 @@
   color: #f1b53c;
 }
 
+.combat-prep-level-metric,
+.combat-prep-danger-metric {
+  grid-column: span 2;
+}
+
 .combat-prep-danger-metric div,
 .combat-prep-danger-core div,
 .combat-prep-master-tip {
@@ -858,6 +863,7 @@
   margin-top: .2rem;
   color: rgba(203, 214, 234, .72);
   font-size: .75rem;
+  line-height: 1.35;
 }
 
 .combat-prep-metric-icon {
@@ -872,8 +878,13 @@
   border: 1px solid rgba(180, 139, 255, .18);
 }
 
+.combat-prep-level-metric .combat-prep-level-value {
+  font-size: clamp(1.35rem, 1.45vw, 1.9rem);
+}
+
 .combat-prep-danger-core {
-  justify-content: center;
+  grid-column: span 3;
+  justify-content: flex-start;
   gap: .9rem;
   border-color: rgba(255, 70, 85, .25);
   background:
@@ -905,6 +916,7 @@
 }
 
 .combat-prep-threshold-grid-ref {
+  grid-column: span 3;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: .55rem;
@@ -933,15 +945,18 @@
 }
 
 .combat-prep-master-tip {
+  grid-column: 1 / -1;
   display: grid;
   align-content: center;
   gap: .22rem;
+  padding: .82rem .95rem;
   background:
     radial-gradient(circle at right, rgba(255, 55, 74, .12), transparent 55%),
     rgba(255,255,255,.025);
 }
 
 .combat-prep-master-tip p {
+  max-width: 96ch;
   color: rgba(230, 238, 255, .86);
   line-height: 1.45;
   font-size: .82rem;
@@ -1500,6 +1515,11 @@
     padding: .65rem;
   }
 
+  .combat-prep-level-metric,
+  .combat-prep-danger-metric {
+    grid-column: span 1;
+  }
+
   .combat-prep-danger-core {
     grid-column: span 2;
   }
@@ -1566,6 +1586,11 @@
 
   .combat-prep-danger-board {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .combat-prep-level-metric,
+  .combat-prep-danger-metric {
+    grid-column: span 1;
   }
 
   .combat-prep-danger-core,

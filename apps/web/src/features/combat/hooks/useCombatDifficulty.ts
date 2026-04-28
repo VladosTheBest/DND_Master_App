@@ -76,6 +76,8 @@ export const useCombatDifficulty = ({
   draftEncounterBaseXp,
   combatThresholds
 }: UseCombatDifficultyParams): UseCombatDifficultyResult => {
+  const lockedPartyLevelsToPlayers = combatSetupOpen && !hasActiveCombatEntries && draftPreparedCombatPlayerLevels.length > 0;
+
   const combatThresholdPartySize =
     combatSetupOpen && !hasActiveCombatEntries
       ? draftPreparedCombatPartyCount > 0
@@ -94,9 +96,14 @@ export const useCombatDifficulty = ({
     return formatPartyLevelText(campaignPreparedCombatPartyLevel);
   }, [campaignPreparedCombatPartyLevel, draftPreparedCombatPlayerLevels]);
 
-  const resolvedCombatPartyLevelsText = combatPartyLevelsText.trim() || fallbackCombatPartyLevelsText;
+  const resolvedCombatPartyLevelsText = lockedPartyLevelsToPlayers
+    ? fallbackCombatPartyLevelsText
+    : combatPartyLevelsText.trim() || fallbackCombatPartyLevelsText;
 
   const persistedCombatPartyLevel = useMemo(() => {
+    if (lockedPartyLevelsToPlayers) {
+      return undefined;
+    }
     if (combatPartyLevelsText.trim()) {
       return parseStoredPartyLevel(combatPartyLevelsText);
     }
@@ -104,24 +111,26 @@ export const useCombatDifficulty = ({
       return undefined;
     }
     return parseStoredPartyLevel(resolvedCombatPartyLevelsText);
-  }, [combatPartyLevelsText, draftPreparedCombatPlayerLevels.length, resolvedCombatPartyLevelsText]);
-
-  const enteredPartyLevel = useMemo(
-    () => parseStoredPartyLevel(resolvedCombatPartyLevelsText),
-    [resolvedCombatPartyLevelsText]
-  );
-
-  const hasMultipleEnteredPartyLevels = useMemo(
-    () => resolvedCombatPartyLevelsText.split(/[\s,;]+/u).filter(Boolean).length > 1,
-    [resolvedCombatPartyLevelsText]
-  );
+  }, [combatPartyLevelsText, draftPreparedCombatPlayerLevels.length, lockedPartyLevelsToPlayers, resolvedCombatPartyLevelsText]);
 
   const effectivePartyLevels = useMemo(
     () => derivePartyLevels(resolvedCombatPartyLevelsText, combatThresholdPartySize),
     [combatThresholdPartySize, resolvedCombatPartyLevelsText]
   );
 
-  const hasExplicitPartyLevels = Boolean(resolvedCombatPartyLevelsText.trim()) && effectivePartyLevels.length > 0;
+  const enteredPartyLevel = useMemo(() => {
+    if (!effectivePartyLevels.length) {
+      return undefined;
+    }
+    return effectivePartyLevels.every((level) => level === effectivePartyLevels[0]) ? effectivePartyLevels[0] : undefined;
+  }, [effectivePartyLevels]);
+
+  const hasMultipleEnteredPartyLevels = useMemo(
+    () => effectivePartyLevels.length > 1 && effectivePartyLevels.some((level) => level !== effectivePartyLevels[0]),
+    [effectivePartyLevels]
+  );
+
+  const hasExplicitPartyLevels = effectivePartyLevels.length > 0;
   const effectivePartySize = hasExplicitPartyLevels ? effectivePartyLevels.length : combatThresholdPartySize;
 
   const effectiveCombatThresholds = useMemo(
@@ -140,13 +149,15 @@ export const useCombatDifficulty = ({
 
   const combatThresholdSummary = `${effectiveCombatThresholds.easy} / ${effectiveCombatThresholds.medium} / ${effectiveCombatThresholds.hard} / ${effectiveCombatThresholds.deadly}`;
 
-  const combatPartySummary = hasExplicitPartyLevels
-    ? hasMultipleEnteredPartyLevels
-      ? combatPartyLevelsText.trim()
+  const combatPartySummary = !hasExplicitPartyLevels
+    ? `Заполни уровни в карточках игроков, чтобы расчёт сложности стал точным. Пока используются пороги ${combatThresholdSummary} для ${effectivePartySize} ${formatPartyCountLabel(effectivePartySize)}.`
+    : lockedPartyLevelsToPlayers
+      ? hasMultipleEnteredPartyLevels
+        ? `Уровни взяты из карточек игроков: ${effectivePartyLevels.join(", ")}.`
+        : `Уровень группы взят из карточек игроков: ${enteredPartyLevel} для ${effectivePartySize} ${formatPartyCountLabel(effectivePartySize)}.`
+      : hasMultipleEnteredPartyLevels
         ? `Сейчас считается партия из ${effectivePartySize} ${formatPartyCountLabel(effectivePartySize)}: ${effectivePartyLevels.join(", ")} уровни.`
-        : `Уровни подтянуты из карточек игроков: ${effectivePartyLevels.join(", ")}.`
-      : `Уровень ${enteredPartyLevel} применяется ко всем ${effectivePartySize} ${formatPartyCountLabel(effectivePartySize)} в сцене.`
-    : `Уровень партии не указан, поэтому бой будет использовать текущие пороги сложности ${combatThresholdSummary} для ${effectivePartySize} ${formatPartyCountLabel(effectivePartySize)}.`;
+        : `Уровень ${enteredPartyLevel} применяется ко всем ${effectivePartySize} ${formatPartyCountLabel(effectivePartySize)} в сцене.`;
 
   const draftEncounterMultiplier =
     draftEncounterMonsterCount > 0 ? encounterMultiplier(draftEncounterMonsterCount, Math.max(effectivePartySize, 1)) : 1;
