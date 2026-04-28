@@ -14,8 +14,9 @@ export function RelatedRules({
   }
 
   return (
-    <section className="card mini rules-related-section">
-      <div className="row">
+    <section className="rules-related-section">
+      <div className="rules-section-title">
+        <span className="rules-section-icon" aria-hidden="true">↔</span>
         <strong>Связанные правила</strong>
         <span className="eyebrow">{rules.length}</span>
       </div>

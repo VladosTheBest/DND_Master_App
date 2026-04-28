@@ -9,6 +9,18 @@ type RuleCategoryTabsProps = {
   onSelectCategory: (category: RuleCategoryFilter) => void;
 };
 
+const categoryIcons: Partial<Record<RuleCategoryFilter, string>> = {
+  all: "✦",
+  combat: "⚔",
+  movement: "➤",
+  conditions: "◈",
+  spellcasting: "✦",
+  death: "☠",
+  checks: "⚖",
+  exploration: "⌖",
+  equipment: "▣"
+};
+
 export function RuleCategoryTabs({
   onSelectCategory,
   selectedCategory
@@ -27,6 +39,7 @@ export function RuleCategoryTabs({
             role="tab"
             type="button"
           >
+            <span aria-hidden="true">{categoryIcons[category] ?? "•"}</span>
             {label}
           </button>
         );

@@ -2,14 +2,18 @@ type RuleSearchPanelProps = {
   query: string;
   resultCount: number;
   totalCount: number;
+  quickQueries?: string[];
   onChangeQuery: (value: string) => void;
   onClear: () => void;
+  onQuickQuery?: (value: string) => void;
 };
 
 export function RuleSearchPanel({
   onChangeQuery,
   onClear,
+  onQuickQuery,
   query,
+  quickQueries = [],
   resultCount,
   totalCount
 }: RuleSearchPanelProps) {
@@ -21,22 +25,38 @@ export function RuleSearchPanel({
           <strong>{query.trim() ? `${resultCount} совпадений` : `${totalCount} правил в справочнике`}</strong>
         </div>
         {query.trim() ? (
-          <button className="ghost" onClick={onClear} type="button">
+          <button className="ghost rules-clear-button" onClick={onClear} type="button">
             Сбросить
           </button>
         ) : null}
       </div>
 
-      <label className="field field-full">
-        <span>Поиск правила</span>
+      <label className="rules-search-field">
+        <span className="rules-search-icon" aria-hidden="true">⌕</span>
         <input
-          className="input"
+          className="input rules-search-input"
           onChange={(event) => onChangeQuery(event.target.value)}
           placeholder="Например: прыжок, концентрация, стабилизация, 0 хп"
           type="search"
           value={query}
         />
+        <kbd>Ctrl K</kbd>
       </label>
+
+      {quickQueries.length ? (
+        <div className="rules-quick-row" aria-label="Быстрые запросы">
+          {quickQueries.map((quickQuery) => (
+            <button
+              key={quickQuery}
+              className="rules-quick-chip"
+              onClick={() => onQuickQuery?.(quickQuery)}
+              type="button"
+            >
+              {quickQuery}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </section>
   );
 }
