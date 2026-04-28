@@ -8,6 +8,7 @@ type EntityEditorModalProps = {
   campaign: CampaignData | null;
   controller: EntityEditorController;
   entityGenerationSteps: string[];
+  error: string;
   generating: boolean;
   onClose: () => void;
   onContentContextMenu: (field: EntityTextField, event: React.MouseEvent<HTMLTextAreaElement>) => void;
@@ -18,6 +19,7 @@ export function EntityEditorModal({
   campaign,
   controller,
   entityGenerationSteps,
+  error,
   generating,
   onClose,
   onContentContextMenu,
@@ -59,6 +61,7 @@ export function EntityEditorModal({
           <span>Описание для AI</span>
           <textarea
             className="input textarea"
+            disabled={generating}
             onChange={(event) => setDraftPrompt(event.target.value)}
             placeholder="Опиши город, НПС, монстра или квест. AI заполнит форму, а ты потом отредактируешь её вручную."
             value={draftPrompt}
@@ -70,6 +73,13 @@ export function EntityEditorModal({
             {generating ? "Генерирую..." : "Сгенерировать и заполнить"}
           </button>
         </div>
+
+        {error ? (
+          <div className="card mini form-error" role="status">
+            <strong>Не удалось собрать AI-черновик</strong>
+            <p>{error}</p>
+          </div>
+        ) : null}
 
         {generating ? (
           <DndGenerationProgress
@@ -89,11 +99,11 @@ export function EntityEditorModal({
 
         <div className="actions">
           {isEditingEntity ? (
-            <button className="ghost danger-action" disabled={saving} onClick={() => void deleteEntity()} type="button">
+            <button className="ghost danger-action" disabled={saving || generating} onClick={() => void deleteEntity()} type="button">
               Удалить
             </button>
           ) : null}
-          <button className="primary" disabled={saving || entityFormImageUploading} onClick={() => void submitEntity()} type="button">
+          <button className="primary" disabled={saving || generating || entityFormImageUploading} onClick={() => void submitEntity()} type="button">
             {saving ? "Сохраняю..." : entitySubmitLabel}
           </button>
         </div>

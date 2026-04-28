@@ -269,9 +269,9 @@ const moduleByKind: Record<EntityKind, ModuleId> = {
   lore: "lore"
 };
 
-const entityGenerationSteps = ["Р РЋР С•Р В±Р С‘РЎР‚Р В°РЎР‹ Р С”Р С•Р Р…РЎвЂљР ВµР С”РЎРѓРЎвЂљ Р С”Р В°Р СР С—Р В°Р Р…Р С‘Р С‘", "Р вЂ”Р С•Р Р†РЎС“ Р С•РЎР‚Р В°Р С”РЎС“Р В»Р В°", "Р вЂ™Р С—Р С‘РЎРѓРЎвЂ№Р Р†Р В°РЎР‹ РЎвЂЎР ВµРЎР‚Р Р…Р С•Р Р†Р С‘Р С” Р Р† РЎвЂћР С•РЎР‚Р СРЎС“"];
+const entityGenerationSteps = ["Собираю контекст кампании", "Зову оракула", "Заполняю черновик и форму"];
 const combatGenerationSteps = ["Считаю силу партии", "Подбираю противников", "Собираю бой для стола"];
-const randomEventGenerationSteps = ["Р В§Р С‘РЎвЂљР В°РЎР‹ Р С”Р С•Р Р…РЎвЂљР ВµР С”РЎРѓРЎвЂљ Р В»Р С•Р С”Р В°РЎвЂ Р С‘Р С‘", "Р СџР В»Р ВµРЎвЂљРЎС“ Р СР В°Р В»Р ВµР Р…РЎРЉР С”РЎС“РЎР‹ РЎРѓРЎвЂ Р ВµР Р…РЎС“", "Р РЋР С•Р В±Р С‘РЎР‚Р В°РЎР‹ РЎР‚Р ВµР С—Р В»Р С‘Р С”Р С‘ Р С‘ Р В»РЎС“РЎвЂљ"];
+const randomEventGenerationSteps = ["Читаю контекст локации", "Плету маленькую сцену", "Собираю реплики и лут"];
 
 const emptyWorldEventInput = (): WorldEventInput => ({
   title: "",
@@ -1542,6 +1542,7 @@ export default function App() {
     resetEntityLinkState: () => entityLinkController.resetEntityLinkState(),
     serializeEntityForm,
     setBootError,
+    setGenerating,
     setSaving,
     uploadCampaignImage: (file) => uploadCampaignImage(file)
   });
@@ -4922,6 +4923,7 @@ export default function App() {
         campaign={campaign}
         controller={entityEditor}
         entityGenerationSteps={entityGenerationSteps}
+        error={bootError}
         generating={generating}
         onClose={requestEntityModalClose}
         onContentContextMenu={entityLinkController.handleEntityContentContextMenu}

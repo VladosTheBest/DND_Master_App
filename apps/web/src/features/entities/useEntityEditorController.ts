@@ -64,6 +64,7 @@ type UseEntityEditorControllerParams = {
   resetEntityLinkState: () => void;
   serializeEntityForm: (form: CreateEntityInput) => CreateEntityInput;
   setBootError: (value: string) => void;
+  setGenerating: (value: boolean) => void;
   setSaving: (value: boolean) => void;
   uploadCampaignImage: (file: File) => Promise<{ url: string }>;
 };
@@ -81,6 +82,7 @@ export function useEntityEditorController({
   resetEntityLinkState,
   serializeEntityForm,
   setBootError,
+  setGenerating,
   setSaving,
   uploadCampaignImage
 }: UseEntityEditorControllerParams) {
@@ -102,6 +104,8 @@ export function useEntityEditorController({
   const playerCardImportInputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   const openEntityModal = (kind: EntityKind = defaultCreateKind) => {
+    setBootError("");
+    setGenerating(false);
     setEntityModalMode("create");
     setEditingEntityId("");
     setEntityModalSourceNpcId("");
@@ -120,6 +124,8 @@ export function useEntityEditorController({
       return;
     }
 
+    setBootError("");
+    setGenerating(false);
     setEntityModalMode("edit");
     setEditingEntityId(entityId);
     setEntityModalSourceNpcId("");
@@ -133,6 +139,8 @@ export function useEntityEditorController({
   };
 
   const openNpcQuestModal = (npc: NpcEntity) => {
+    setBootError("");
+    setGenerating(false);
     setEntityModalMode("create");
     setEditingEntityId("");
     setEntityModalSourceNpcId(npc.id);
@@ -158,6 +166,8 @@ export function useEntityEditorController({
   };
 
   const closeEntityModal = () => {
+    setBootError("");
+    setGenerating(false);
     setEntityModalOpen(false);
     setEntityModalMode("create");
     setEditingEntityId("");
@@ -576,6 +586,9 @@ export function useEntityEditorController({
     }
 
     try {
+      setBootError("");
+      setDraftNotes([]);
+      setGenerating(true);
       const result: GenerateEntityDraftResult = await api.generateEntityDraft(activeCampaignId, {
         kind: entityForm.kind,
         prompt: draftPrompt,
@@ -593,6 +606,8 @@ export function useEntityEditorController({
       setGeneratedQuestIssuerNote(generatedIssuer?.note ?? "");
     } catch (error) {
       setBootError(error instanceof Error ? error.message : "Не удалось сгенерировать AI-черновик.");
+    } finally {
+      setGenerating(false);
     }
   };
 
