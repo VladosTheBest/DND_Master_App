@@ -201,11 +201,13 @@ function CombatFactListCard({
 function StatEntriesSection({
   title,
   hint,
-  entries
+  entries,
+  defaultCollapsed = true
 }: {
   title: string;
   hint: string;
   entries: StatBlockEntry[];
+  defaultCollapsed?: boolean;
 }) {
   if (!entries.length) {
     return null;
@@ -214,7 +216,7 @@ function StatEntriesSection({
   return (
     <CollapsibleSection
       className="npc-section"
-      defaultCollapsed
+      defaultCollapsed={defaultCollapsed}
       hint={hint}
       summary={<p className="copy">{entries.length} записей в сокращённом виде.</p>}
       title={title}
@@ -270,12 +272,33 @@ function StatEntriesSection({
   );
 }
 
-export function CombatEntityStatSheet({ entity }: { entity: CombatProfileEntity }) {
+export function CombatEntityStatSheet({
+  entity,
+  action,
+  defaultCollapsed = true,
+  expandSections = false,
+  onOpenPortraitGallery,
+  portraitOverride
+}: {
+  entity: CombatProfileEntity;
+  action?: ReactNode;
+  defaultCollapsed?: boolean;
+  expandSections?: boolean;
+  onOpenPortraitGallery?: () => void;
+  portraitOverride?: {
+    alt?: string;
+    caption?: string;
+    url: string;
+  };
+}) {
   if (!entity.statBlock) {
     return null;
   }
 
   const { statBlock } = entity;
+  const portraitSource = portraitOverride?.url ?? createPortraitSource(entity);
+  const portraitAlt = portraitOverride?.alt ?? entity.art?.alt ?? entity.title;
+  const portraitCaption = portraitOverride?.caption ?? entity.art?.caption ?? "Добавь art.url, чтобы заменить заглушку реальным артом.";
   const headerLabel = entity.kind === "monster" ? "Боевой профиль" : "Статы и способности";
   const detailRows = [
     { label: "Спасброски", value: statBlock.savingThrows },
@@ -289,8 +312,9 @@ export function CombatEntityStatSheet({ entity }: { entity: CombatProfileEntity 
 
   return (
     <CollapsibleSection
+      action={action}
       className="npc-sheet"
-      defaultCollapsed
+      defaultCollapsed={defaultCollapsed}
       hint={entity.kind === "monster" ? "Полный боевой профиль угрозы" : "Полный боевой и ролевой профиль"}
       summary={
         <div className="preview-stat-grid">
@@ -312,8 +336,21 @@ export function CombatEntityStatSheet({ entity }: { entity: CombatProfileEntity 
     >
       <div className="npc-top">
         <figure className="npc-portrait-frame">
-          <img alt={entity.art?.alt ?? entity.title} className="npc-portrait" src={createPortraitSource(entity)} />
-          <figcaption>{entity.art?.caption ?? "Добавь art.url, чтобы заменить заглушку реальным артом."}</figcaption>
+          {onOpenPortraitGallery ? (
+            <button
+              className="npc-portrait-button"
+              onClick={onOpenPortraitGallery}
+              type="button"
+            >
+              <img alt={portraitAlt} className="npc-portrait" src={portraitSource} />
+            </button>
+          ) : (
+            <img alt={portraitAlt} className="npc-portrait" src={portraitSource} />
+          )}
+          <figcaption>
+            <span>{portraitCaption}</span>
+            {onOpenPortraitGallery ? <span className="npc-portrait-note">Нажми на портрет, чтобы открыть альбом.</span> : null}
+          </figcaption>
         </figure>
 
         <div className="npc-overview">
@@ -380,7 +417,7 @@ export function CombatEntityStatSheet({ entity }: { entity: CombatProfileEntity 
       {statBlock.spellcasting ? (
         <CollapsibleSection
           className="npc-section"
-          defaultCollapsed
+          defaultCollapsed={!expandSections}
           hint="Магия, СЛ спасброска и подготовленные заклинания"
           summary={
             <p className="copy">
@@ -427,10 +464,10 @@ export function CombatEntityStatSheet({ entity }: { entity: CombatProfileEntity 
         </CollapsibleSection>
       ) : null}
 
-      <StatEntriesSection entries={statBlock.traits} hint="Пассивные особенности" title="Способности" />
-      <StatEntriesSection entries={statBlock.actions} hint="Действия и атаки" title="Действия" />
-      <StatEntriesSection entries={statBlock.bonusActions ?? []} hint="Дополнительные действия" title="Бонусные действия" />
-      <StatEntriesSection entries={statBlock.reactions ?? []} hint="Реакции" title="Реакции" />
+      <StatEntriesSection defaultCollapsed={!expandSections} entries={statBlock.traits} hint="Пассивные особенности" title="Способности" />
+      <StatEntriesSection defaultCollapsed={!expandSections} entries={statBlock.actions} hint="Действия и атаки" title="Действия" />
+      <StatEntriesSection defaultCollapsed={!expandSections} entries={statBlock.bonusActions ?? []} hint="Дополнительные действия" title="Бонусные действия" />
+      <StatEntriesSection defaultCollapsed={!expandSections} entries={statBlock.reactions ?? []} hint="Реакции" title="Реакции" />
     </CollapsibleSection>
   );
 }

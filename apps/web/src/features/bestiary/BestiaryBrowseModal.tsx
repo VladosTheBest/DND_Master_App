@@ -1,14 +1,16 @@
-import { badge, createHeroPanelStyle, gradients, sigil, toneClass } from "../../app-shared";
-import { CombatEntityStatSheet, RewardSection } from "../../combat-ui";
+import type { GalleryImage } from "@shadow-edge/shared-types";
 import type { BestiaryMonsterDetail, BestiaryMonsterSummary } from "@shadow-edge/shared-types";
-import { BestiaryImportModal } from "./BestiaryImportModal";
+import { buildEntityGalleryAlbum } from "../../app-shared";
+import { CombatEntityStatSheet, RewardSection } from "../../combat-ui";
 import { splitBestiaryContent } from "./bestiary.utils";
 
 type BestiaryBrowseModalProps = {
   imported: boolean;
   importing: boolean;
   monster: BestiaryMonsterDetail;
+  onBack: () => void;
   onImport: () => void;
+  onOpenGalleryAlbum: (ownerId: string, ownerTitle: string, items: GalleryImage[], index: number) => void;
   onOpenSource: () => void;
   summary: BestiaryMonsterSummary | null;
 };
@@ -17,43 +19,63 @@ export function BestiaryBrowseModal({
   imported,
   importing,
   monster,
+  onBack,
   onImport,
+  onOpenGalleryAlbum,
   onOpenSource,
   summary
 }: BestiaryBrowseModalProps) {
+  const album = buildEntityGalleryAlbum(monster.monster);
+  const openAlbum = () => {
+    if (!album.length) {
+      return;
+    }
+
+    onOpenGalleryAlbum(monster.monster.id, monster.monster.title, album, 0);
+  };
+
   return (
-    <>
-      <section className="card hero" style={createHeroPanelStyle(gradients.monster, monster.summary.imageUrl ?? monster.monster.art?.url)}>
-        <div className="hero-head">
-          <span className="sigil big" style={{ backgroundImage: gradients.monster }}>
-            {sigil(monster.monster.title)}
-          </span>
-          <div className="hero-copy-block">
-            <div className="hero-tags">
-              <span className={badge("accent")}>dnd.su</span>
-              {summary?.challenge ? <span className={badge()}>{summary.challenge}</span> : null}
-              {summary?.creatureTypeLabel ? <span className={badge()}>{summary.creatureTypeLabel}</span> : null}
-              {summary?.source ? <span className={badge()}>{summary.source}</span> : null}
-            </div>
-            <h1>{monster.monster.title}</h1>
-            <p className="hero-subtitle">{monster.monster.subtitle}</p>
-            <p className="copy">{monster.monster.summary}</p>
+    <div className="stack wide">
+      <CombatEntityStatSheet
+        action={
+          <div className="npc-sheet-toolbar">
+            <button className="ghost" onClick={onBack} type="button">
+              К каталогу
+            </button>
+            {album.length ? (
+              <button className="ghost" onClick={openAlbum} type="button">
+                Альбом ({album.length})
+              </button>
+            ) : null}
+            <button className="ghost" onClick={onOpenSource} type="button">
+              Открыть dnd.su
+            </button>
+            <button className="primary" disabled={importing} onClick={onImport} type="button">
+              {importing ? "Импорт..." : imported ? "Импортировать ещё раз" : "Импортировать в кампанию"}
+            </button>
           </div>
-        </div>
+        }
+        defaultCollapsed={false}
+        entity={monster.monster}
+        expandSections
+        onOpenPortraitGallery={album.length ? openAlbum : undefined}
+        portraitOverride={
+          album[0]
+            ? {
+                alt: album[0].caption ?? album[0].title,
+                caption: album[0].caption,
+                url: album[0].url
+              }
+            : summary?.imageUrl
+              ? {
+                  alt: monster.monster.title,
+                  caption: monster.monster.summary,
+                  url: summary.imageUrl
+                }
+              : undefined
+        }
+      />
 
-        <BestiaryImportModal compact={false} imported={imported} importing={importing} onImport={onImport} onOpenSource={onOpenSource} />
-      </section>
-
-      <div className="facts">
-        {monster.monster.quickFacts.map((fact) => (
-          <article key={fact.label} className="card mini fact-box">
-            <small>{fact.label}</small>
-            <strong className={`fact-value ${toneClass[fact.tone ?? "default"]}`}>{fact.value}</strong>
-          </article>
-        ))}
-      </div>
-
-      <CombatEntityStatSheet entity={monster.monster} />
       <RewardSection kind="monster" rewardProfile={monster.monster.rewardProfile} />
 
       <article className="card section-card">
@@ -67,6 +89,6 @@ export function BestiaryBrowseModal({
           ))}
         </div>
       </article>
-    </>
+    </div>
   );
 }

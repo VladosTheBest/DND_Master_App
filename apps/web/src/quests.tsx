@@ -138,24 +138,36 @@ export type PreparedCombatCardView = {
 
 export function PlayerFacingCardStrip({
   cards,
+  cardBadgeLabel = "Player-safe",
+  cardBadgeTone = "success",
+  contextMenuLabel = "Карточка игроков",
   createDescription,
+  countLabel,
   description,
   emptyDescription,
+  emptyStateTitle = "Карточек пока нет",
   entityId,
   onCreateCard,
   onDeleteCard,
   onEditCard,
-  onOpenCard
+  onOpenCard,
+  title = "Игроки видят"
 }: {
   cards: PlayerFacingCard[];
+  cardBadgeLabel?: string;
+  cardBadgeTone?: QuickFactTone;
+  contextMenuLabel?: string;
   createDescription: string;
+  countLabel?: string;
   description: string;
   emptyDescription: string;
+  emptyStateTitle?: string;
   entityId: string;
   onCreateCard: () => void;
   onDeleteCard: (card: PlayerFacingCard, index: number) => void;
   onEditCard: (card: PlayerFacingCard, index: number) => void;
   onOpenCard: (card: PlayerFacingCard, index: number) => void;
+  title?: string;
 }) {
   const [contextMenu, setContextMenu] = useState<{ index: number; x: number; y: number } | null>(null);
 
@@ -182,7 +194,7 @@ export function PlayerFacingCardStrip({
   return (
     <>
       <CollapsibleSection
-      action={<span className={badge(cards.length ? "success" : "default")}>{cards.length ? `${cards.length} карточек` : "Черновик нужен"}</span>}
+      action={<span className={badge(cards.length ? cardBadgeTone : "default")}>{countLabel ?? (cards.length ? `${cards.length} карточек` : "Черновик нужен")}</span>}
       className="entity-player-facing-stack entity-player-facing-collapsible"
       hint={description}
       summary={
@@ -192,7 +204,7 @@ export function PlayerFacingCardStrip({
             : "Секция скрыта. Карточек пока нет."}
         </p>
       }
-      title="Игроки видят"
+      title={title}
     >
       <div className="entity-player-facing-grid">
         {cards.length ? (
@@ -218,7 +230,7 @@ export function PlayerFacingCardStrip({
               >
                 <div className="quest-story-head">
                   <strong>{card.title}</strong>
-                  <span className={badge("success")}>Player-safe</span>
+                  <span className={badge(cardBadgeTone)}>{cardBadgeLabel}</span>
                 </div>
 
                 <div className="entity-player-facing-preview">
@@ -252,7 +264,7 @@ export function PlayerFacingCardStrip({
         ) : (
           <article className="card entity-player-facing-panel entity-player-facing-panel-compact">
             <div className="quest-story-head">
-              <strong>Карточек пока нет</strong>
+              <strong>{emptyStateTitle}</strong>
               <span className={badge("default")}>0</span>
             </div>
             <p className="copy">{emptyDescription}</p>
@@ -279,7 +291,7 @@ export function PlayerFacingCardStrip({
             style={{ left: contextMenu.x, top: contextMenu.y }}
           >
             <div className="entity-action-menu-label">
-              <small>Карточка игроков</small>
+              <small>{contextMenuLabel}</small>
               <strong>{contextMenuCard.title}</strong>
             </div>
             <button

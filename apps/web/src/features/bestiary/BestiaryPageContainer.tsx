@@ -1,5 +1,6 @@
 import type { MouseEvent as ReactMouseEvent } from "react";
 import type {
+  GalleryImage,
   KnowledgeEntity,
   MonsterEntity,
   QuickFactTone,
@@ -7,20 +8,13 @@ import type {
 } from "@shadow-edge/shared-types";
 import {
   CollapsibleSection,
-  EntityVisual,
   badge,
-  createHeroPanelStyle,
-  gradients,
-  hasVisibleArt,
-  isRewardableEntity,
-  kindTitle,
-  sigil,
-  toneClass
+  buildEntityGalleryAlbum,
+  isRewardableEntity
 } from "../../app-shared";
-import { GallerySection, PlaylistSection } from "../../media";
+import { CombatEntityStatSheet, RewardSection } from "../../combat-ui";
 import { RichParagraphs } from "../../rich-text";
 import { PlayerFacingCardStrip } from "../../quests";
-import { CombatEntityStatSheet, RewardSection } from "../../combat-ui";
 import { normalizePlayerFacingCardsForClient, type PlayerFacingCardsController } from "../player-facing/usePlayerFacingCards";
 import { BestiaryBrowseModal } from "./BestiaryBrowseModal";
 import { BestiaryFilters } from "./BestiaryFilters";
@@ -45,6 +39,7 @@ type BestiaryPageContainerProps = {
   onOpenEntity: (entityId: string) => void;
   onOpenEntityActionMenu: (entity: MonsterEntity, event: ReactMouseEvent<HTMLElement>) => void;
   onOpenGallery: (entity: MonsterEntity) => void;
+  onOpenGalleryAlbum: (ownerId: string, ownerTitle: string, items: GalleryImage[], index: number) => void;
   onOpenGalleryViewer: (entity: MonsterEntity, index: number) => void;
   onOpenPlaylist: (entity: MonsterEntity) => void;
   onOpenPreview: (entityId: string) => void;
@@ -61,31 +56,35 @@ export function BestiaryPageContainer({
   activeMonster,
   activeMonsterPinned,
   activeTab,
-  composeVisibleQuickFacts,
   controller,
-  currentPlaybackTrackLabel,
-  currentPlaybackTrackUrl,
   entityByTitle,
-  isEntityPlaylistActive,
   onContentContextMenu,
-  onCopyImageLink,
   onEditEntity,
   onOpenDirectory,
   onOpenEntity,
   onOpenEntityActionMenu,
   onOpenGallery,
-  onOpenGalleryViewer,
-  onOpenPlaylist,
+  onOpenGalleryAlbum,
   onOpenPreview,
-  onOpenRelatedEntity,
-  onPlayNextPlaylistTrack,
-  onPlayPlaylist,
-  onResolveRelatedEntity,
-  onStopPlayback,
   onTogglePin,
   playerFacing
 }: BestiaryPageContainerProps) {
   if (controller.isBrowseMode) {
+    if (controller.selectedBestiaryMonster) {
+      return (
+        <BestiaryBrowseModal
+          imported={controller.selectedBestiaryImported}
+          importing={controller.importingBestiary}
+          monster={controller.selectedBestiaryMonster}
+          onBack={() => controller.setSelectedBestiaryId("")}
+          onImport={() => void controller.importSelectedBestiaryMonster()}
+          onOpenGalleryAlbum={onOpenGalleryAlbum}
+          onOpenSource={() => window.open(controller.selectedBestiaryMonster?.sourceUrl, "_blank", "noopener,noreferrer")}
+          summary={controller.selectedBestiarySummary}
+        />
+      );
+    }
+
     return (
       <div className="stack wide">
         <BestiaryFilters
@@ -102,218 +101,109 @@ export function BestiaryPageContainer({
           variant="browse"
         />
 
-        {controller.selectedBestiaryMonster ? (
-          <BestiaryBrowseModal
-            imported={controller.selectedBestiaryImported}
-            importing={controller.importingBestiary}
-            monster={controller.selectedBestiaryMonster}
-            onImport={() => void controller.importSelectedBestiaryMonster()}
-            onOpenSource={() => window.open(controller.selectedBestiaryMonster?.sourceUrl, "_blank", "noopener,noreferrer")}
-            summary={controller.selectedBestiarySummary}
-          />
-        ) : (
-          <section className="card section-card directory-screen">
-            <div className="directory-head">
-              <div>
-                <p className="eyebrow">Bestiary Browser</p>
-                <h2>{controller.bestiaryDetailLoading ? "Открываю карточку..." : "Каталог монстров"}</h2>
-                <p className="copy">Сначала выбери запись из списка, а уже потом откроется полная карточка монстра.</p>
-              </div>
-              <span className={badge("accent")}>{controller.bestiary?.total ?? 0}</span>
+        <section className="card section-card directory-screen">
+          <div className="directory-head">
+            <div>
+              <p className="eyebrow">Bestiary Browser</p>
+              <h2>{controller.bestiaryDetailLoading ? "Открываю карточку..." : "Каталог монстров"}</h2>
+              <p className="copy">Сначала выбери запись из списка, а уже потом откроется полная карточка монстра.</p>
             </div>
+            <span className={badge("accent")}>{controller.bestiary?.total ?? 0}</span>
+          </div>
 
-            <BestiarySearchResults
-              emptyDescription="По текущему фильтру dnd.su ничего не нашлось."
-              emptyTitle="Каталог пока пуст"
-              items={controller.bestiary?.items ?? []}
-              onSelect={controller.setSelectedBestiaryId}
-              variant="browse"
-            />
-          </section>
-        )}
+          <BestiarySearchResults
+            emptyDescription="По текущему фильтру dnd.su ничего не нашлось."
+            emptyTitle="Каталог пока пуст"
+            items={controller.bestiary?.items ?? []}
+            onSelect={controller.setSelectedBestiaryId}
+            variant="browse"
+          />
+        </section>
       </div>
     );
   }
 
   if (activeMonster) {
     const monsterPlayerCards = normalizePlayerFacingCardsForClient(activeMonster.kind, activeMonster.playerCards, activeMonster.playerContent);
-    const visibleFacts = composeVisibleQuickFacts(activeMonster);
+    const monsterGalleryAlbum = buildEntityGalleryAlbum(activeMonster);
+    const openMonsterAlbum = () => {
+      if (monsterGalleryAlbum.length) {
+        onOpenGalleryAlbum(activeMonster.id, activeMonster.title, monsterGalleryAlbum, 0);
+        return;
+      }
+
+      onOpenGallery(activeMonster);
+    };
 
     return (
       <div className="stack wide">
-        <BestiaryFilters
-          count={controller.filteredImportedMonsters.length}
-          onChallengeChange={controller.setImportedMonsterChallenge}
-          onSearchChange={controller.setImportedMonsterSearch}
-          search={controller.importedMonsterSearch}
-          value={controller.importedMonsterChallenge}
-          variant="imported"
-        />
-
-        <section
-          className="card hero"
-          onContextMenu={(event) => onOpenEntityActionMenu(activeMonster, event)}
-          style={createHeroPanelStyle(gradients[activeMonster.kind], activeMonster.art?.url)}
-        >
-          <div className="hero-head">
-            <EntityVisual entity={activeMonster} variant="hero" />
-            <div className="hero-copy-block">
-              <div className="hero-tags">
-                <span className={badge("accent")}>{kindTitle[activeMonster.kind]}</span>
-                {activeMonster.tags.map((tag) => (
-                  <span key={tag} className={badge()}>
-                    {tag}
-                  </span>
-                ))}
+        <div onContextMenu={(event) => onOpenEntityActionMenu(activeMonster, event)}>
+          <CombatEntityStatSheet
+            action={
+              <div className="npc-sheet-toolbar">
+                <button className="ghost" onClick={openMonsterAlbum} type="button">
+                  {monsterGalleryAlbum.length ? `Альбом (${monsterGalleryAlbum.length})` : "Добавить арт"}
+                </button>
+                <button className="ghost" onClick={() => onOpenGallery(activeMonster)} type="button">
+                  {monsterGalleryAlbum.length ? "Изменить альбом" : "Галерея"}
+                </button>
+                <button className="ghost" onClick={() => onEditEntity(activeMonster.id)} type="button">
+                  Редактировать
+                </button>
+                <button className="ghost" onClick={() => onTogglePin(activeMonster.id)} type="button">
+                  {activeMonsterPinned ? "Unpin" : "Pin"}
+                </button>
+                <button className="primary" onClick={() => onOpenPreview(activeMonster.id)} type="button">
+                  Открыть в preview
+                </button>
               </div>
-              <h1>{activeMonster.title}</h1>
-              <p className="hero-subtitle">{activeMonster.subtitle}</p>
-              <p className="copy">{activeMonster.summary}</p>
-            </div>
-          </div>
-
-          <div className="actions">
-            {activeMonster.playlist?.length ? (
-              <button className="ghost" onClick={() => onPlayPlaylist(activeMonster)} type="button">
-                {isEntityPlaylistActive(activeMonster.id) ? "Следующий трек" : "Случайный трек"}
-              </button>
-            ) : null}
-            <button className="ghost" onClick={() => onEditEntity(activeMonster.id)} type="button">
-              Редактировать
-            </button>
-            <button className="ghost" onClick={() => onTogglePin(activeMonster.id)} type="button">
-              {activeMonsterPinned ? "Unpin" : "Pin"}
-            </button>
-            <button className="primary" onClick={() => onOpenPreview(activeMonster.id)} type="button">
-              Открыть в preview
-            </button>
-          </div>
-        </section>
+            }
+            defaultCollapsed={false}
+            entity={activeMonster}
+            expandSections
+            onOpenPortraitGallery={openMonsterAlbum}
+            portraitOverride={
+              monsterGalleryAlbum[0]
+                ? {
+                    alt: monsterGalleryAlbum[0].caption ?? monsterGalleryAlbum[0].title,
+                    caption: monsterGalleryAlbum[0].caption,
+                    url: monsterGalleryAlbum[0].url
+                  }
+                : undefined
+            }
+          />
+        </div>
 
         <PlayerFacingCardStrip
           cards={monsterPlayerCards}
-          createDescription="Отдельная сцена, handout или короткая заметка для игроков. Откроется сразу в режиме редактирования."
-          description="Храни здесь player-safe описания, речи, handout-карточки и любые отдельные тексты, которые удобно открывать по одной."
-          emptyDescription="Пока карточек нет. Создай первую, и она сразу появится в отдельном удобном просмотре для зачитывания игрокам."
+          cardBadgeLabel="GM-only"
+          cardBadgeTone="warning"
+          contextMenuLabel="Заметка мастера"
+          countLabel={monsterPlayerCards.length ? `${monsterPlayerCards.length} заметок` : "Заметки нужны"}
+          createDescription="Короткая тактическая шпаргалка, скрытая заметка или подсказка для мастера. Откроется сразу в режиме редактирования."
+          description="Храни здесь заметки мастера: тактику, фазы боя, скрытые триггеры и любые рабочие карточки, которые удобно открывать по одной."
+          emptyDescription="Пока заметок нет. Создай первую карточку, чтобы быстро открывать подсказки мастера прямо во время сцены."
+          emptyStateTitle="Заметок пока нет"
           entityId={activeMonster.id}
           onCreateCard={() => playerFacing.openNewPlayerFacingEditor(activeMonster)}
           onDeleteCard={(card, index) => playerFacing.requestPlayerFacingCardDeletion(activeMonster, card, index)}
           onEditCard={(card, index) => playerFacing.openPlayerFacingEditor(activeMonster, card, index)}
           onOpenCard={(card, index) => playerFacing.openPlayerFacingView(activeMonster, card, { cardIndex: index })}
-        />
-
-        {visibleFacts.length ? (
-          <CollapsibleSection
-            key={`${activeMonster.id}-facts`}
-            hint="Ключевые данные, которые стоит держать перед глазами"
-            summary={
-              <p className="copy">
-                {visibleFacts
-                  .slice(0, 3)
-                  .map((fact) => `${fact.label}: ${fact.value}`)
-                  .join(" • ")}
-              </p>
-            }
-            title="Быстрая сводка"
-          >
-            <div className="facts">
-              {visibleFacts.map((fact) => (
-                <article key={fact.label} className="card mini fact-box">
-                  <small>{fact.label}</small>
-                  <strong className={`fact-value ${toneClass[fact.tone ?? "default"]}`}>{fact.value}</strong>
-                </article>
-              ))}
-            </div>
-          </CollapsibleSection>
-        ) : null}
-
-        <PlaylistSection
-          action={
-            <button className="ghost" onClick={() => onOpenPlaylist(activeMonster)} type="button">
-              Настроить
-            </button>
-          }
-          activeTrackLabel={currentPlaybackTrackLabel}
-          activeTrackUrl={currentPlaybackTrackUrl}
-          defaultCollapsed={!(activeMonster.playlist ?? []).length}
-          hint="Запусти случайный трек для этой сцены или выбери конкретную композицию вручную"
-          isActive={isEntityPlaylistActive(activeMonster.id)}
-          onNextRandom={onPlayNextPlaylistTrack}
-          onPlayRandom={() => onPlayPlaylist(activeMonster)}
-          onPlayTrack={(index) => onPlayPlaylist(activeMonster, index, false)}
-          onStop={onStopPlayback}
-          title="Плейлист сцены"
-          tracks={activeMonster.playlist ?? []}
-        />
-
-        <GallerySection
-          action={
-            <button className="ghost" onClick={() => onOpenGallery(activeMonster)} type="button">
-              Настроить
-            </button>
-          }
-          defaultCollapsed={!(activeMonster.gallery ?? []).length}
-          hint="Карты, письма, handout-арты и любые изображения, которые можно быстро показать игрокам"
-          items={activeMonster.gallery ?? []}
-          onCopyLink={onCopyImageLink}
-          onOpenFullscreen={(index) => onOpenGalleryViewer(activeMonster, index)}
-          title="Галерея"
+          title="Заметки мастера"
         />
 
         {isRewardableEntity(activeMonster) ? <RewardSection kind={activeMonster.kind} rewardProfile={activeMonster.rewardProfile} /> : null}
 
         <CollapsibleSection
           key={`${activeMonster.id}-knowledge`}
-          hint="Полная версия для мастера: скрытые детали, связи, последствия и служебные заметки"
+          hint="Полное описание монстра, поведенческие заметки и любые служебные пояснения мастера."
           summary={<p className="copy">{activeMonster.summary || activeMonster.content.slice(0, 180)}</p>}
-          title="Информация для мастера"
+          title="Описание"
         >
           <div onContextMenu={(event) => onContentContextMenu(activeMonster, event)}>
             <RichParagraphs content={activeMonster.content} entityByTitle={entityByTitle} onMentionClick={onOpenPreview} />
           </div>
         </CollapsibleSection>
-
-        <CollapsibleSection
-          key={`${activeMonster.id}-related`}
-          hint="Быстрые переходы без перегруза интерфейса"
-          summary={
-            <p className="copy">
-              {activeMonster.related.length ? `${activeMonster.related.length} связанных сущностей` : "Связей пока не добавлено."}
-            </p>
-          }
-          title="Связанные сущности"
-        >
-          {activeMonster.related.length ? (
-            <div className="grid">
-              {activeMonster.related.map((item) => {
-                const linkedEntity = onResolveRelatedEntity(item);
-                return (
-                  <button
-                    key={`${item.id}-${item.label}`}
-                    className="card mini fill relation-card relation-card-with-visual"
-                    onClick={() => onOpenRelatedEntity(item)}
-                    type="button"
-                  >
-                    {linkedEntity ? (
-                      <EntityVisual entity={linkedEntity} variant="relation" />
-                    ) : (
-                      <span className="sigil" style={{ backgroundImage: gradients[item.kind] }}>
-                        {sigil(item.label)}
-                      </span>
-                    )}
-                    <span className={badge()}>{kindTitle[item.kind]}</span>
-                    <strong>{item.label}</strong>
-                    <p>{item.reason}</p>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="copy">Пока здесь пусто. Связи можно добавлять через редактор или wiki-ссылки в тексте.</p>
-          )}
-        </CollapsibleSection>
-
-        <CombatEntityStatSheet entity={activeMonster} />
       </div>
     );
   }

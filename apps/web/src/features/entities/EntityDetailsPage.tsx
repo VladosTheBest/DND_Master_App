@@ -1,5 +1,6 @@
 import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import type {
+  GalleryImage,
   KnowledgeEntity,
   PlayerFacingCard,
   QuickFactTone,
@@ -8,8 +9,9 @@ import type {
 } from "@shadow-edge/shared-types";
 import {
   CollapsibleSection,
-  EntityVisual,
   badge,
+  buildEntityGalleryAlbum,
+  EntityVisual,
   createHeroPanelStyle,
   gradients,
   isRewardableEntity,
@@ -41,6 +43,7 @@ type EntityDetailsPageProps = {
   onEditPlayerFacingCard: (card: PlayerFacingCard, index: number) => void;
   onOpenEntityActionMenu: (event: ReactMouseEvent<HTMLElement>) => void;
   onOpenGallery: () => void;
+  onOpenGalleryAlbum: (ownerId: string, ownerTitle: string, items: GalleryImage[], index: number) => void;
   onOpenGalleryViewer: (index: number) => void;
   onOpenNpcQuestModal: () => void;
   onOpenPlayerFacingCard: (card: PlayerFacingCard, index: number) => void;
@@ -74,6 +77,7 @@ export function EntityDetailsPage({
   onEditPlayerFacingCard,
   onOpenEntityActionMenu,
   onOpenGallery,
+  onOpenGalleryAlbum,
   onOpenGalleryViewer,
   onOpenNpcQuestModal,
   onOpenPlayerFacingCard,
@@ -90,6 +94,90 @@ export function EntityDetailsPage({
   const visibleFacts = composeVisibleQuickFacts(activeEntity);
   const combatProfileEntity =
     activeEntity.kind === "player" || activeEntity.kind === "npc" || activeEntity.kind === "monster" ? activeEntity : null;
+  const monsterGalleryAlbum = activeEntity.kind === "monster" ? buildEntityGalleryAlbum(activeEntity) : [];
+
+  if (activeEntity.kind === "monster" && combatProfileEntity) {
+    const openMonsterAlbum = () => {
+      if (monsterGalleryAlbum.length) {
+        onOpenGalleryAlbum(activeEntity.id, activeEntity.title, monsterGalleryAlbum, 0);
+        return;
+      }
+
+      onOpenGallery();
+    };
+
+    return (
+      <div className="stack wide">
+        <div onContextMenu={onOpenEntityActionMenu}>
+          <CombatEntityStatSheet
+            action={
+              <div className="npc-sheet-toolbar">
+                <button className="ghost" onClick={openMonsterAlbum} type="button">
+                  {monsterGalleryAlbum.length ? `Альбом (${monsterGalleryAlbum.length})` : "Добавить арт"}
+                </button>
+                <button className="ghost" onClick={onOpenGallery} type="button">
+                  {monsterGalleryAlbum.length ? "Изменить альбом" : "Галерея"}
+                </button>
+                <button className="ghost" onClick={onEditEntity} type="button">
+                  Редактировать
+                </button>
+                <button className="ghost" onClick={onTogglePin} type="button">
+                  {activeEntityPinned ? "Unpin" : "Pin"}
+                </button>
+                <button className="primary" onClick={onOpenPreview} type="button">
+                  Открыть в preview
+                </button>
+              </div>
+            }
+            defaultCollapsed={false}
+            entity={combatProfileEntity}
+            expandSections
+            onOpenPortraitGallery={openMonsterAlbum}
+            portraitOverride={
+              monsterGalleryAlbum[0]
+                ? {
+                    alt: monsterGalleryAlbum[0].caption ?? monsterGalleryAlbum[0].title,
+                    caption: monsterGalleryAlbum[0].caption,
+                    url: monsterGalleryAlbum[0].url
+                  }
+                : undefined
+            }
+          />
+        </div>
+
+        <PlayerFacingCardStrip
+          cards={activeEntityPlayerCards}
+          cardBadgeLabel="GM-only"
+          cardBadgeTone="warning"
+          contextMenuLabel="Заметка мастера"
+          countLabel={activeEntityPlayerCards.length ? `${activeEntityPlayerCards.length} заметок` : "Заметки нужны"}
+          createDescription="Короткая тактическая шпаргалка, скрытая заметка или подсказка для мастера. Откроется сразу в режиме редактирования."
+          description="Храни здесь заметки мастера: тактику, фазы боя, скрытые триггеры и любые рабочие карточки, которые удобно открывать по одной."
+          emptyDescription="Пока заметок нет. Создай первую карточку, чтобы быстро открывать подсказки мастера прямо во время сцены."
+          emptyStateTitle="Заметок пока нет"
+          entityId={activeEntity.id}
+          onCreateCard={onCreatePlayerFacingCard}
+          onDeleteCard={onDeletePlayerFacingCard}
+          onEditCard={onEditPlayerFacingCard}
+          onOpenCard={onOpenPlayerFacingCard}
+          title="Заметки мастера"
+        />
+
+        {isRewardableEntity(activeEntity) ? <RewardSection kind={activeEntity.kind} rewardProfile={activeEntity.rewardProfile} /> : null}
+
+        <CollapsibleSection
+          key={`${activeEntity.id}-knowledge`}
+          hint="Полное описание монстра, поведенческие заметки и любые служебные пояснения мастера."
+          summary={<p className="copy">{activeEntity.summary || activeEntity.content.slice(0, 180)}</p>}
+          title="Описание"
+        >
+          <div onContextMenu={onContentContextMenu}>
+            <RichParagraphs content={activeEntity.content} entityByTitle={entityByTitle} onMentionClick={onOpenPreview} />
+          </div>
+        </CollapsibleSection>
+      </div>
+    );
+  }
 
   return (
     <div className="stack wide">

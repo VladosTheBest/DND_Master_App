@@ -4348,6 +4348,7 @@ export default function App() {
                     onOpenEntity={openEntity}
                     onOpenEntityActionMenu={openEntityActionMenu}
                     onOpenGallery={openEntityGalleryModal}
+                    onOpenGalleryAlbum={openGalleryViewer}
                     onOpenGalleryViewer={openEntityGalleryViewer}
                     onOpenPlaylist={openEntityPlaylistModal}
                     onOpenPreview={openPreview}
@@ -4416,6 +4417,7 @@ export default function App() {
                 onEditPlayerFacingCard={(card, index) => openPlayerFacingEditor(activeEntity, card, index)}
                 onOpenEntityActionMenu={(event) => openEntityActionMenu(activeEntity, event)}
                 onOpenGallery={() => openEntityGalleryModal(activeEntity)}
+                onOpenGalleryAlbum={openGalleryViewer}
                 onOpenGalleryViewer={(index) => openEntityGalleryViewer(activeEntity, index)}
                 onOpenNpcQuestModal={() => {
                   if (activeEntity.kind === "npc") {

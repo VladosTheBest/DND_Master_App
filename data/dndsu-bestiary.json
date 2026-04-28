@@ -1,12 +1,12 @@
 {
-  "updatedAt": "2026-04-28T13:56:40Z",
+  "updatedAt": "2026-04-28T14:32:37Z",
   "sync": {
     "state": "ready",
     "total": 2874,
     "hydrated": 2874,
     "lastStartedAt": "2026-04-24T11:51:03Z",
     "lastFinishedAt": "2026-04-24T11:51:03Z",
-    "updatedAt": "2026-04-28T13:56:40Z"
+    "updatedAt": "2026-04-28T14:32:37Z"
   },
   "entries": [
     {
@@ -1951,8 +1951,8 @@
       "slug": "archdruid",
       "title": "Архидруид",
       "englishTitle": "Archdruid",
-      "subtitle": "Archdruid • 12",
-      "summary": "Официальный монстр dnd.su. Детальная карточка подтянется в кэш при синхронизации или при первом открытии.",
+      "subtitle": "Archdruid • Mordenkainen Presents: Monsters of the Multiverse",
+      "summary": "«Архидруид (Archdruid)» - средний гуманоид D\u0026D 5-й редакции с показателем опасности 12.",
       "challenge": "12",
       "challengeSort": 12,
       "creatureType": "? гуманоид (друид)",
@@ -1964,7 +1964,7 @@
       "searchText": "Архидруид,Archdruid, Архидруид Archdruid 12",
       "classic": true,
       "imageUrl": "https://dnd.su/gallery/bestiary/627_1_1541841625_s.jpg",
-      "lastSyncedAt": "2026-04-22T12:52:23Z"
+      "lastSyncedAt": "2026-04-28T14:32:37Z"
     },
     {
       "id": "419",

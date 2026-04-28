@@ -227,6 +227,39 @@ export const createBestiaryPortraitSource = (monster: Pick<BestiaryMonsterSummar
 export const playlistTrackTitle = (track: PlaylistTrack, index: number) => track.title.trim() || `Трек ${index + 1}`;
 export const galleryImageTitle = (item: GalleryImage, index: number) => item.title.trim() || `Изображение ${index + 1}`;
 
+export const buildEntityGalleryAlbum = (entity: Pick<KnowledgeEntity, "title" | "art" | "gallery">): GalleryImage[] => {
+  const seen = new Set<string>();
+  const album: GalleryImage[] = [];
+
+  const pushImage = (item?: GalleryImage | null) => {
+    const url = item?.url?.trim();
+    if (!url || seen.has(url)) {
+      return;
+    }
+
+    seen.add(url);
+    album.push({
+      title: item?.title?.trim() || entity.title,
+      url,
+      caption: item?.caption?.trim() || undefined
+    });
+  };
+
+  if (entity.art?.url?.trim()) {
+    pushImage({
+      title: entity.art.alt?.trim() || entity.title,
+      url: entity.art.url,
+      caption: entity.art.caption
+    });
+  }
+
+  for (const item of entity.gallery ?? []) {
+    pushImage(item);
+  }
+
+  return album;
+};
+
 export const playlistTrackHost = (url: string) => {
   try {
     return new URL(url).hostname.replace(/^www\./, "");
