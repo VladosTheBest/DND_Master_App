@@ -1,12 +1,12 @@
 {
-  "updatedAt": "2026-04-28T11:15:38Z",
+  "updatedAt": "2026-04-28T13:54:52Z",
   "sync": {
     "state": "ready",
     "total": 1131,
     "hydrated": 225,
     "lastStartedAt": "2026-04-28T10:27:56Z",
     "lastFinishedAt": "2026-04-28T10:27:56Z",
-    "updatedAt": "2026-04-28T11:15:38Z"
+    "updatedAt": "2026-04-28T13:54:52Z"
   },
   "entries": [
     {
@@ -26,7 +26,7 @@
       "sellPriceGp": 10,
       "sellPriceLabel": "10 зм",
       "url": "https://next.dnd.su/equipment/11-halberd",
-      "lastSyncedAt": "2026-04-28T10:56:50Z"
+      "lastSyncedAt": "2026-04-28T13:54:52Z"
     },
     {
       "id": "dndsu-equipment-202",
@@ -145,7 +145,7 @@
       "sellPriceGp": 7.5,
       "sellPriceLabel": "7 зм 5 см",
       "url": "https://next.dnd.su/equipment/12-warhammer",
-      "lastSyncedAt": "2026-04-28T10:56:53Z"
+      "lastSyncedAt": "2026-04-28T13:54:51Z"
     },
     {
       "id": "dndsu-equipment-1",
@@ -164,7 +164,7 @@
       "sellPriceGp": 0.1,
       "sellPriceLabel": "1 см",
       "url": "https://next.dnd.su/equipment/1-quarterstaff",
-      "lastSyncedAt": "2026-04-28T10:56:53Z"
+      "lastSyncedAt": "2026-04-28T13:54:51Z"
     },
     {
       "id": "dndsu-equipment-13",
@@ -183,7 +183,7 @@
       "sellPriceGp": 5,
       "sellPriceLabel": "5 зм",
       "url": "https://next.dnd.su/equipment/13-battleaxe",
-      "lastSyncedAt": "2026-04-28T10:56:53Z"
+      "lastSyncedAt": "2026-04-28T13:54:51Z"
     },
     {
       "id": "dndsu-equipment-203",
@@ -218,7 +218,7 @@
       "sellPriceGp": 0.5,
       "sellPriceLabel": "5 см",
       "url": "https://next.dnd.su/equipment/39-crossbow-bolts",
-      "lastSyncedAt": "2026-04-28T10:56:54Z"
+      "lastSyncedAt": "2026-04-28T13:54:51Z"
     },
     {
       "id": "dndsu-equipment-208",
@@ -257,7 +257,7 @@
       "sellPriceGp": 2.5,
       "sellPriceLabel": "2 зм 5 см",
       "url": "https://next.dnd.su/equipment/2-mace",
-      "lastSyncedAt": "2026-04-28T10:56:54Z"
+      "lastSyncedAt": "2026-04-28T13:54:51Z"
     },
     {
       "id": "dndsu-equipment-250",
@@ -432,7 +432,7 @@
       "sellPriceGp": 12.5,
       "sellPriceLabel": "12 зм 5 см",
       "url": "https://next.dnd.su/equipment/14379-thieves-tools",
-      "lastSyncedAt": "2026-04-28T10:56:59Z"
+      "lastSyncedAt": "2026-04-28T13:54:52Z"
     },
     {
       "id": "dndsu-equipment-14",
@@ -451,7 +451,7 @@
       "sellPriceGp": 10,
       "sellPriceLabel": "10 зм",
       "url": "https://next.dnd.su/equipment/14-glaive",
-      "lastSyncedAt": "2026-04-28T10:57:00Z"
+      "lastSyncedAt": "2026-04-28T13:54:51Z"
     },
     {
       "id": "dndsu-equipment-15",
@@ -518,7 +518,7 @@
       "sellPriceGp": 7.5,
       "sellPriceLabel": "7 зм 5 см",
       "url": "https://next.dnd.su/equipment/16-longsword",
-      "lastSyncedAt": "2026-04-28T10:57:04Z"
+      "lastSyncedAt": "2026-04-28T13:54:51Z"
     },
     {
       "id": "dndsu-equipment-225",
@@ -565,7 +565,7 @@
       "sellPriceGp": 0.025,
       "sellPriceLabel": "3 мм",
       "url": "https://next.dnd.su/equipment/29-dart",
-      "lastSyncedAt": "2026-04-28T10:57:05Z"
+      "lastSyncedAt": "2026-04-28T13:54:51Z"
     },
     {
       "id": "dndsu-equipment-229",
@@ -3386,7 +3386,7 @@
       "sellPriceLabel": "25 зм-50 зм",
       "reference": "Xanathar's Guide to Everything",
       "url": "https://dnd.su/items/392-dark-shard-amulet/",
-      "lastSyncedAt": "2026-04-28T10:56:51Z"
+      "lastSyncedAt": "2026-04-28T13:54:52Z"
     },
     {
       "id": "dndsu-magic-2344",
@@ -7965,7 +7965,7 @@
       "sellPriceLabel": "25 зм-50 зм",
       "reference": "Ghosts of Saltmarsh",
       "url": "https://dnd.su/items/2365-pressure-capsule/",
-      "lastSyncedAt": "2026-04-28T10:58:05Z"
+      "lastSyncedAt": "2026-04-28T13:54:52Z"
     },
     {
       "id": "dndsu-magic-7253",

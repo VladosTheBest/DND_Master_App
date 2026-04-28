@@ -16,6 +16,7 @@ import {
   sigil,
   truncateInlineText
 } from "../app-shared";
+import { usePageSearchHotkey } from "./hooks/usePageSearchHotkey";
 import { resolveQuestSceneArtwork, questStatusTone, type QuestCombatEntrySummary } from "../quests";
 
 type EntityDirectoryScreenProps = {
@@ -51,6 +52,8 @@ export function EntityDirectoryScreen({
   resolveQuestLocation,
   resolveQuestPreparedCombatEntries
 }: EntityDirectoryScreenProps) {
+  const searchInputRef = usePageSearchHotkey<HTMLInputElement>();
+
   return (
     <div className="stack wide">
       <section className="card section-card directory-screen">
@@ -76,6 +79,7 @@ export function EntityDirectoryScreen({
           <span>Поиск</span>
           <input
             className="input"
+            ref={searchInputRef}
             onChange={(event) => onChangeSearch(event.target.value)}
             placeholder={`Поиск по разделу «${activeSectionLabel}»`}
             value={moduleEntitySearch}

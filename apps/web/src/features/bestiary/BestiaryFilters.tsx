@@ -1,4 +1,5 @@
 import type { BestiaryBrowseResult } from "@shadow-edge/shared-types";
+import { usePageSearchHotkey } from "../../app/hooks/usePageSearchHotkey";
 import { challengeFilterOptions } from "../combat/combat.utils";
 
 type BrowseFiltersProps = {
@@ -28,6 +29,8 @@ type ImportedFiltersProps = {
 type BestiaryFiltersProps = BrowseFiltersProps | ImportedFiltersProps;
 
 export function BestiaryFilters(props: BestiaryFiltersProps) {
+  const searchInputRef = usePageSearchHotkey<HTMLInputElement>();
+
   if (props.variant === "browse") {
     return (
       <section className="card section-card bestiary-toolbar">
@@ -43,6 +46,7 @@ export function BestiaryFilters(props: BestiaryFiltersProps) {
             <span>Поиск по названию</span>
             <input
               className="input"
+              ref={searchInputRef}
               onChange={(event) => props.onSearchChange(event.target.value)}
               placeholder="Например: giant spider, дракон, нежить"
               value={props.search}
@@ -89,6 +93,7 @@ export function BestiaryFilters(props: BestiaryFiltersProps) {
           <span>Поиск по названию</span>
           <input
             className="input"
+            ref={searchInputRef}
             onChange={(event) => props.onSearchChange(event.target.value)}
             placeholder="Например: волк, паук, капитан"
             value={props.search}
@@ -121,6 +126,7 @@ export function BestiaryFilters(props: BestiaryFiltersProps) {
           <span>Поиск по названию</span>
           <input
             className="input"
+            ref={searchInputRef}
             onChange={(event) => props.onSearchChange(event.target.value)}
             placeholder="Ищи монстра по имени или краткому описанию"
             value={props.search}

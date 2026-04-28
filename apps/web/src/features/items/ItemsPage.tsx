@@ -1,5 +1,6 @@
 import "./items.css";
 import builtInItemsRaw from "../../../../../dnd_items_150_ru_official_basic_rules_2014.json";
+import { usePageSearchHotkey } from "../../app/hooks/usePageSearchHotkey";
 import {
   startTransition,
   useDeferredValue,
@@ -1005,7 +1006,7 @@ function ItemDetailModal({
     <div className="overlay items-modal-overlay" onClick={onClose} role="presentation">
       <div
         aria-modal="true"
-        className="panel palette items-detail-modal"
+        className="panel items-detail-modal"
         onClick={(event) => event.stopPropagation()}
         ref={modalRef}
         role="dialog"
@@ -1042,19 +1043,14 @@ function ItemDetailModal({
             </div>
           </section>
 
-          <div className="items-modal-overview">
-            <div className="preview-stat-grid items-preview-stat-grid items-modal-stat-grid">
-              {primaryMetrics.map((metric) => (
-                <ItemStatCard key={`${item.id}-${metric.label}`} label={metric.label} tone={metric.tone} value={metric.value} />
-              ))}
-            </div>
+          <div className="items-modal-primary-row">
+            {primaryMetrics.map((metric) => (
+              <ItemStatCard key={`${item.id}-${metric.label}`} label={metric.label} tone={metric.tone} value={metric.value} />
+            ))}
 
-            <div className="items-modal-price-stack">
               <ItemPricePill label="Покупка" value={resolveBuyPriceLabel(item)} emphasize />
               <ItemPricePill label="Продажа" value={resolveSellPriceLabel(item)} />
             </div>
-          </div>
-
           {item.source === "custom" ? (
             <div className="actions items-detail-actions">
               <button className="ghost" onClick={onEdit} type="button">
@@ -1351,6 +1347,7 @@ type ItemsPageProps = {
 };
 
 export function ItemsPage({ campaignId }: ItemsPageProps) {
+  const searchInputRef = usePageSearchHotkey<HTMLInputElement>();
   const [customItems, setCustomItems] = useState<Item[]>([]);
   const [storageHydrated, setStorageHydrated] = useState(false);
   const [activeTab, setActiveTab] = useState<ItemTab>("all");
@@ -1704,6 +1701,7 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
             <span>Поиск</span>
             <input
               className="input"
+              ref={searchInputRef}
               onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Кольчуга, меч, тяжёлая броня, зелье..."
               value={searchQuery}

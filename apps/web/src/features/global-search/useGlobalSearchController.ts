@@ -8,6 +8,7 @@ import {
   useState
 } from "react";
 import { api } from "../../app/api";
+import { requestPageSearchFocus } from "../../app/hooks/usePageSearchHotkey";
 import { searchRules } from "../rules/rulesSearch";
 import { rulesEntries } from "../rules/rules.utils";
 import type { UseGlobalSearchControllerArgs } from "./globalSearch.types";
@@ -40,8 +41,21 @@ export function useGlobalSearchController({
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+      const isSearchHotkey =
+        (event.ctrlKey || event.metaKey) &&
+        (event.code === "KeyK" || event.key.toLowerCase() === "k");
+
+      if (isSearchHotkey) {
         event.preventDefault();
+        if (paletteOpen) {
+          return;
+        }
+
+        if (requestPageSearchFocus()) {
+          setPaletteOpen(false);
+          return;
+        }
+
         setPaletteOpen(true);
       }
 
@@ -52,7 +66,7 @@ export function useGlobalSearchController({
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [paletteOpen]);
 
   useEffect(() => {
     let active = true;

@@ -429,9 +429,11 @@
 
 .items-detail-modal {
   position: relative;
-  width: min(76rem, calc(100vw - 2rem));
-  max-height: min(92vh, 62rem);
-  padding: 1.05rem;
+  width: min(96rem, calc(100vw - 1rem));
+  min-width: min(72rem, calc(100vw - 1rem));
+  max-width: none;
+  max-height: min(94vh, 72rem);
+  padding: clamp(.9rem, 1.2vw, 1.35rem);
   overflow: auto;
   border-color: rgba(192, 160, 110, .26);
   background:
@@ -486,11 +488,11 @@
 }
 
 .items-modal-hero {
-  min-height: 19rem;
+  min-height: 21rem;
   display: grid;
-  grid-template-columns: minmax(0, 1.5fr) minmax(240px, .9fr);
-  gap: 1rem;
-  padding: 1.45rem;
+  grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr);
+  gap: 1.15rem;
+  padding: clamp(1.1rem, 1.7vw, 1.6rem);
   border-color: rgba(224, 191, 132, .18);
 }
 
@@ -587,7 +589,7 @@
 }
 
 .items-modal-summary {
-  max-width: 36rem;
+  max-width: 52rem;
   color: rgba(238, 241, 255, .82);
   font-size: 1.08rem;
   line-height: 1.55;
@@ -619,7 +621,7 @@
 
 .items-modal-hero-glyph {
   position: relative;
-  width: min(15rem, 88%);
+  width: min(18rem, 88%);
   aspect-ratio: 1;
   display: grid;
   place-items: center;
@@ -637,9 +639,26 @@
 
 .items-modal-overview {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 258px);
+  grid-template-columns: minmax(0, 1.18fr) minmax(260px, 320px);
   gap: 1rem;
   align-items: start;
+}
+
+.items-modal-primary-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .85rem;
+  align-items: stretch;
+}
+
+.items-modal-primary-row > .items-stat-card,
+.items-modal-primary-row > .items-price-pill {
+  flex: 1 1 12rem;
+  min-width: min(100%, 10.75rem);
+}
+
+.items-modal-primary-row > .items-price-pill {
+  flex-basis: 13.5rem;
 }
 
 .items-modal-stat-grid {
@@ -650,6 +669,33 @@
   display: grid;
   gap: .7rem;
   align-content: start;
+}
+
+.items-modal-primary-row .items-price-pill,
+.items-modal-price-stack .items-price-pill {
+  min-height: 4.1rem;
+}
+
+.items-modal-primary-row .items-price-copy,
+.items-modal-price-stack .items-price-copy {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: .55rem;
+  width: 100%;
+}
+
+.items-modal-primary-row .items-price-copy small,
+.items-modal-primary-row .items-price-copy strong,
+.items-modal-price-stack .items-price-copy small,
+.items-modal-price-stack .items-price-copy strong {
+  white-space: nowrap;
+}
+
+.items-modal-primary-row .items-price-copy strong,
+.items-modal-price-stack .items-price-copy strong {
+  margin-left: auto;
+  text-align: right;
 }
 
 .items-detail-actions {
@@ -702,6 +748,110 @@
 .items-detail-meta strong {
   font-size: .88rem;
   line-height: 1.4;
+}
+
+@media (max-width: 1280px) {
+  .items-detail-modal {
+    width: min(88rem, calc(100vw - 1rem));
+    min-width: min(62rem, calc(100vw - 1rem));
+  }
+
+  .items-modal-hero {
+    grid-template-columns: minmax(0, 1.45fr) minmax(250px, .9fr);
+  }
+
+  .items-modal-overview {
+    grid-template-columns: minmax(0, 1fr) minmax(230px, 280px);
+  }
+}
+
+@media (max-width: 1040px) {
+  .items-detail-modal {
+    width: min(100%, calc(100vw - 1rem));
+    min-width: 0;
+    max-height: min(96vh, 72rem);
+  }
+
+  .items-modal-hero {
+    min-height: auto;
+    grid-template-columns: 1fr;
+  }
+
+  .items-modal-hero-copy {
+    align-content: start;
+  }
+
+  .items-modal-hero-art {
+    min-height: 13rem;
+  }
+
+  .items-modal-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .items-modal-price-stack {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .items-detail-modal {
+    width: calc(100vw - .5rem);
+    max-height: calc(100vh - .5rem);
+    padding: .78rem;
+  }
+
+  .items-modal-close {
+    top: .78rem;
+    right: .78rem;
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .items-modal-stack {
+    gap: .82rem;
+  }
+
+  .items-modal-hero {
+    padding: 1rem;
+  }
+
+  .items-modal-title strong {
+    max-width: none;
+    font-size: clamp(1.7rem, 8vw, 2.4rem);
+  }
+
+  .items-modal-summary {
+    max-width: none;
+    font-size: .98rem;
+  }
+
+  .items-modal-stat-grid,
+  .items-preview-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .items-modal-primary-row > .items-stat-card,
+  .items-modal-primary-row > .items-price-pill {
+    flex-basis: 100%;
+  }
+
+  .items-modal-price-stack,
+  .items-detail-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .items-modal-primary-row .items-price-copy,
+  .items-modal-price-stack .items-price-copy {
+    display: grid;
+    justify-content: start;
+  }
+
+  .items-modal-primary-row .items-price-copy strong,
+  .items-modal-price-stack .items-price-copy strong {
+    margin-left: 0;
+    text-align: left;
+  }
 }
 
 .items-property-list {

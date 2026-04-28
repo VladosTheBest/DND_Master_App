@@ -1,3 +1,5 @@
+import { usePageSearchHotkey } from "../../app/hooks/usePageSearchHotkey";
+
 type RuleSearchPanelProps = {
   query: string;
   resultCount: number;
@@ -17,6 +19,8 @@ export function RuleSearchPanel({
   resultCount,
   totalCount
 }: RuleSearchPanelProps) {
+  const searchInputRef = usePageSearchHotkey<HTMLInputElement>();
+
   return (
     <section className="card rules-search-panel">
       <div className="rules-search-meta">
@@ -35,6 +39,7 @@ export function RuleSearchPanel({
         <span className="rules-search-icon" aria-hidden="true">⌕</span>
         <input
           className="input rules-search-input"
+          ref={searchInputRef}
           onChange={(event) => onChangeQuery(event.target.value)}
           placeholder="Например: прыжок, концентрация, стабилизация, 0 хп"
           type="search"

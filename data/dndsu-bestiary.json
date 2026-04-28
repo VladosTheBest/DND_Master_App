@@ -1,12 +1,12 @@
 {
-  "updatedAt": "2026-04-27T14:37:27Z",
+  "updatedAt": "2026-04-28T13:56:40Z",
   "sync": {
     "state": "ready",
     "total": 2874,
     "hydrated": 2874,
     "lastStartedAt": "2026-04-24T11:51:03Z",
     "lastFinishedAt": "2026-04-24T11:51:03Z",
-    "updatedAt": "2026-04-27T14:37:27Z"
+    "updatedAt": "2026-04-28T13:56:40Z"
   },
   "entries": [
     {
@@ -403,8 +403,8 @@
       "slug": "hell-hound",
       "title": "Адская гончая",
       "englishTitle": "Hell hound",
-      "subtitle": "Hell hound • 3",
-      "summary": "Официальный монстр dnd.su. Детальная карточка подтянется в кэш при синхронизации или при первом открытии.",
+      "subtitle": "Hell hound • Monster Manual",
+      "summary": "«Адская гончая (Hell hound)» - среднее исчадие D\u0026D 5-й редакции с показателем опасности 3.",
       "challenge": "3",
       "challengeSort": 3,
       "creatureType": "? исчадие",
@@ -415,7 +415,7 @@
       "url": "https://dnd.su/bestiary/197-hell-hound/",
       "searchText": "Адская гончая,Hell hound, Адская гончая Hell hound 3",
       "imageUrl": "https://dnd.su/gallery/bestiary/197_1510945663_s.jpg",
-      "lastSyncedAt": "2026-04-22T12:52:17Z"
+      "lastSyncedAt": "2026-04-28T13:56:40Z"
     },
     {
       "id": "6401",
