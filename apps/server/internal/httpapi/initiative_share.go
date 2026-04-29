@@ -1535,7 +1535,7 @@ var playerDisplayViewerTemplate = template.Must(template.New("player-display-vie
     </main>
 
     <script>
-      const token = {{ printf "%q" .Token }};
+      const token = "{{ .Token }}";
       const emptyStateNode = document.getElementById("empty-state");
       const assetNode = document.getElementById("asset");
       const imageNode = document.getElementById("asset-image");
