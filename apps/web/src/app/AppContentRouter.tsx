@@ -47,11 +47,14 @@ export function AppContentRouter({
   onOpenDirectory,
   onOpenEntity,
   onOpenEventGenerator,
+  onOpenGallery,
+  onOpenGalleryViewer,
   onOpenPlaylist,
   onOpenPreview,
   onOpenQuest,
   onPlayNextPlaylistTrack,
   onPlayPlaylist,
+  onCopyImageLink,
   onTogglePin,
   pinned,
   playerFacing,
@@ -88,11 +91,14 @@ export function AppContentRouter({
   onOpenDirectory: () => void;
   onOpenEntity: (entityId: string) => void;
   onOpenEventGenerator: (suggestions?: { locationId?: string; type?: WorldEventInput["type"] }) => void;
+  onOpenGallery: (quest: QuestEntity) => void;
+  onOpenGalleryViewer: (quest: QuestEntity, index: number) => void;
   onOpenPlaylist: (quest: QuestEntity) => void;
   onOpenPreview: (entityId: string) => void;
   onOpenQuest: (questId: string) => void;
   onPlayNextPlaylistTrack: () => void;
   onPlayPlaylist: (quest: QuestEntity) => void;
+  onCopyImageLink: (url: string) => Promise<void>;
   onTogglePin: (entityId: string) => void;
   pinned: boolean;
   playerFacing: PlayerFacingCardsController;
@@ -165,9 +171,12 @@ export function AppContentRouter({
         currentPlaybackTrackLabel={currentPlaybackTrackLabel}
         entityMap={entityMap}
         isEntityPlaylistActive={isEntityPlaylistActive}
+        onCopyImageLink={onCopyImageLink}
         onEditEntity={onEditEntity}
         onOpenDirectory={onOpenDirectory}
         onOpenEntity={onOpenPreview}
+        onOpenGallery={onOpenGallery}
+        onOpenGalleryViewer={onOpenGalleryViewer}
         onOpenPlaylist={onOpenPlaylist}
         onOpenQuest={onOpenQuest}
         onPlayNextPlaylistTrack={onPlayNextPlaylistTrack}

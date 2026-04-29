@@ -1729,6 +1729,7 @@ export default function App() {
   } = entityEditor;
 
   const {
+    addProjectImagesToEntityGalleryDraft,
     addEntityGalleryDraftItem,
     addEntityPlaylistDraftTrack,
     closeEntityGalleryModal,
@@ -1737,6 +1738,7 @@ export default function App() {
     entityGalleryModalOpen,
     entityGalleryModalUploading,
     entityGalleryTarget,
+    projectGalleryImages,
     entityPlaylistDraft,
     entityPlaylistModalOpen,
     entityPlaylistTarget,
@@ -4402,11 +4404,14 @@ export default function App() {
                 onOpenDirectory={() => openModuleDirectory("quests")}
                 onOpenEntity={openEntity}
                 onOpenEventGenerator={openRandomEventModal}
+                onOpenGallery={openEntityGalleryModal}
+                onOpenGalleryViewer={openEntityGalleryViewer}
                 onOpenPlaylist={openEntityPlaylistModal}
                 onOpenPreview={openPreview}
                 onOpenQuest={openQuestFocus}
                 onPlayNextPlaylistTrack={playNextRandomTrack}
                 onPlayPlaylist={playEntityPlaylist}
+                onCopyImageLink={handleCopyImageLink}
                 onTogglePin={togglePin}
                 pinned={activeEntityPinned}
                 playerFacing={playerFacing}
@@ -4610,12 +4615,14 @@ export default function App() {
       <EntityGalleryModal
         items={entityGalleryDraft}
         onAdd={addEntityGalleryDraftItem}
+        onAddProjectImages={addProjectImagesToEntityGalleryDraft}
         onChange={updateEntityGalleryDraftItem}
         onClose={requestEntityGalleryModalClose}
         onRemove={removeEntityGalleryDraftItem}
         onSave={saveEntityGallery}
         onUpload={uploadEntityGalleryDraftFile}
         open={entityGalleryModalOpen}
+        projectImages={projectGalleryImages}
         saving={saving}
         target={entityGalleryTarget}
         uploadDisabled={entityGalleryModalUploading}

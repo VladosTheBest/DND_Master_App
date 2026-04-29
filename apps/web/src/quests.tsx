@@ -20,6 +20,7 @@ import {
   rewardSummaryText,
   truncateInlineText
 } from "./app-shared";
+import { GallerySection } from "./media";
 import {
   extractPlainTextFromPlayerFacingHTML,
   playerFacingPlainTextToHTML,
@@ -947,9 +948,12 @@ export function QuestWorkspace({
   onEdit,
   onEditPlayerCard,
   onTogglePin,
+  onCopyImageLink,
   onOpenDirectory,
   onOpenPlayerCard,
   onOpenEntity,
+  onOpenGallery,
+  onOpenGalleryViewer,
   onOpenPlaylist,
   onPlayNextPlaylistTrack,
   onPlayPlaylist,
@@ -973,9 +977,12 @@ export function QuestWorkspace({
   onEdit: (id: string) => void;
   onEditPlayerCard: (card: PlayerFacingCard, index: number) => void;
   onTogglePin: (id: string) => void;
+  onCopyImageLink: (url: string) => Promise<void>;
   onOpenDirectory: () => void;
   onOpenPlayerCard: (card: PlayerFacingCard, index: number) => void;
   onOpenEntity: (id: string) => void;
+  onOpenGallery: (quest: QuestEntity) => void;
+  onOpenGalleryViewer: (index: number) => void;
   onOpenPlaylist: (quest: QuestEntity) => void;
   onPlayNextPlaylistTrack: () => void;
   onPlayPlaylist: () => void;
@@ -1130,6 +1137,20 @@ export function QuestWorkspace({
       />
 
       {preparedCombatSection}
+
+      <GallerySection
+        action={
+          <button className="ghost" onClick={() => onOpenGallery(quest)} type="button">
+            Настроить
+          </button>
+        }
+        defaultCollapsed={!(quest.gallery ?? []).length}
+        hint="Карты, письма, портреты, улики и любые handout-изображения для этого квеста."
+        items={quest.gallery ?? []}
+        onCopyLink={onCopyImageLink}
+        onOpenFullscreen={onOpenGalleryViewer}
+        title="Галерея квеста"
+      />
 
       <div className="quest-story-grid">
         <article className="card quest-story-card quest-story-card-hidden">

@@ -14,6 +14,14 @@ import {
   createEmptyPlaylistTrack,
   imageTitleFromFileName
 } from "./entity.utils";
+import { kindTitle } from "../../app-shared";
+
+export type ProjectGalleryImageOption = GalleryImage & {
+  key: string;
+  sourceEntityId: string;
+  sourceEntityTitle: string;
+  sourceLabel: string;
+};
 
 type UseEntityMediaControllerParams = {
   activeCampaignId: string;
@@ -61,6 +69,48 @@ export function useEntityMediaController({
     () => (entityGalleryEntityId && entityMap.has(entityGalleryEntityId) ? entityMap.get(entityGalleryEntityId) ?? null : null),
     [entityGalleryEntityId, entityMap]
   );
+  const projectGalleryImages = useMemo(() => {
+    const items: ProjectGalleryImageOption[] = [];
+    const seen = new Set<string>();
+
+    const pushImage = (image: GalleryImage, sourceEntity: KnowledgeEntity, sourceLabel: string) => {
+      const url = image.url.trim();
+      if (!url || seen.has(url)) {
+        return;
+      }
+
+      seen.add(url);
+      items.push({
+        caption: image.caption?.trim() ?? "",
+        key: `${sourceEntity.id}:${sourceLabel}:${url}`,
+        sourceEntityId: sourceEntity.id,
+        sourceEntityTitle: sourceEntity.title,
+        sourceLabel,
+        title: image.title.trim() || sourceEntity.title,
+        url
+      });
+    };
+
+    entityMap.forEach((entity) => {
+      if (entity.art?.url?.trim()) {
+        pushImage(
+          {
+            caption: entity.art.caption?.trim() ?? "",
+            title: entity.title,
+            url: entity.art.url.trim()
+          },
+          entity,
+          `${kindTitle[entity.kind]} • арт`
+        );
+      }
+
+      (entity.gallery ?? []).forEach((image) => {
+        pushImage(image, entity, `${kindTitle[entity.kind]} • галерея`);
+      });
+    });
+
+    return items;
+  }, [entityMap]);
 
   const entityGalleryModalUploading = galleryUploadKey.startsWith("entity-gallery:");
 
@@ -155,6 +205,29 @@ export function useEntityMediaController({
     setEntityGalleryDraft((current) => current.filter((_, itemIndex) => itemIndex !== index));
   };
 
+  const addProjectImagesToEntityGalleryDraft = (images: GalleryImage[]) => {
+    setEntityGalleryDraft((current) => {
+      const seen = new Set(current.map((item) => item.url.trim()).filter(Boolean));
+      const nextGallery = [...current];
+
+      images.forEach((image) => {
+        const url = image.url.trim();
+        if (!url || seen.has(url)) {
+          return;
+        }
+
+        seen.add(url);
+        nextGallery.push({
+          caption: image.caption?.trim() ?? "",
+          title: image.title.trim() || `Изображение ${nextGallery.length + 1}`,
+          url
+        });
+      });
+
+      return nextGallery;
+    });
+  };
+
   const saveEntityGallery = async () => {
     if (!activeCampaignId || !entityGalleryTarget) {
       return;
@@ -175,6 +248,7 @@ export function useEntityMediaController({
   };
 
   return {
+    addProjectImagesToEntityGalleryDraft,
     addEntityGalleryDraftItem,
     addEntityPlaylistDraftTrack,
     closeEntityGalleryModal,
@@ -183,6 +257,7 @@ export function useEntityMediaController({
     entityGalleryModalOpen,
     entityGalleryModalUploading,
     entityGalleryTarget,
+    projectGalleryImages,
     entityPlaylistDraft,
     entityPlaylistModalOpen,
     entityPlaylistTarget,

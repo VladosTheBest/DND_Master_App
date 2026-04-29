@@ -22,9 +22,12 @@ export function QuestPageContainer({
   currentPlaybackTrackLabel,
   entityMap,
   isEntityPlaylistActive,
+  onCopyImageLink,
   onEditEntity,
   onOpenDirectory,
   onOpenEntity,
+  onOpenGallery,
+  onOpenGalleryViewer,
   onOpenPlaylist,
   onOpenQuest,
   onPlayNextPlaylistTrack,
@@ -41,9 +44,12 @@ export function QuestPageContainer({
   currentPlaybackTrackLabel: string;
   entityMap: Map<string, KnowledgeEntity>;
   isEntityPlaylistActive: (entityId?: string) => boolean;
+  onCopyImageLink: (url: string) => Promise<void>;
   onEditEntity: (entityId: string) => void;
   onOpenDirectory: () => void;
   onOpenEntity: (entityId: string) => void;
+  onOpenGallery: (quest: QuestEntity) => void;
+  onOpenGalleryViewer: (quest: QuestEntity, index: number) => void;
   onOpenPlaylist: (quest: QuestEntity) => void;
   onOpenQuest: (questId: string) => void;
   onPlayNextPlaylistTrack: () => void;
@@ -158,12 +164,15 @@ export function QuestPageContainer({
       linkedEntities={linkedEntities}
       location={activeQuestLocation}
       nextQuest={nextQuest}
+      onCopyImageLink={onCopyImageLink}
       onCreatePlayerCard={() => playerFacing.openNewPlayerFacingEditor(quest)}
       onDeletePlayerCard={(card, index) => playerFacing.requestPlayerFacingCardDeletion(quest, card, index)}
       onEdit={onEditEntity}
       onEditPlayerCard={(card, index) => playerFacing.openPlayerFacingEditor(quest, card, index)}
       onOpenDirectory={onOpenDirectory}
       onOpenEntity={onOpenEntity}
+      onOpenGallery={onOpenGallery}
+      onOpenGalleryViewer={(index) => onOpenGalleryViewer(quest, index)}
       onOpenPlayerCard={(card, index) => playerFacing.openPlayerFacingView(quest, card, { cardIndex: index })}
       onOpenPlaylist={onOpenPlaylist}
       onOpenQuest={onOpenQuest}

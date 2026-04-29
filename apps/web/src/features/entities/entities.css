@@ -202,3 +202,64 @@
 .slot-remove {
   min-height: 3rem;
 }
+.project-gallery-picker {
+  display: grid;
+  gap: .72rem;
+}
+.project-gallery-picker-head {
+  align-items: start;
+}
+.project-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: .6rem;
+  max-height: 360px;
+  overflow: auto;
+}
+.project-gallery-card {
+  display: grid;
+  gap: .45rem;
+  padding: .55rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: rgba(255,255,255,.025);
+  text-align: left;
+  transition: border-color .18s ease, transform .18s ease, box-shadow .18s ease;
+}
+.project-gallery-card:hover,
+.project-gallery-card:focus-visible {
+  border-color: rgba(140, 112, 255, .34);
+  transform: translateY(-1px);
+}
+.project-gallery-card.selected {
+  border-color: rgba(140, 112, 255, .62);
+  background: rgba(109, 76, 219, .12);
+  box-shadow: 0 12px 28px rgba(14, 9, 33, .22);
+}
+.project-gallery-card-image {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-radius: calc(var(--radius-md) - 2px);
+  border: 1px solid rgba(255,255,255,.06);
+  background: rgba(255,255,255,.03);
+}
+.project-gallery-card-copy {
+  display: grid;
+  gap: .16rem;
+  min-width: 0;
+}
+.project-gallery-card-copy strong,
+.project-gallery-card-copy small,
+.project-gallery-card-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.project-gallery-card-copy small {
+  color: var(--text-soft);
+}
+.project-gallery-card-copy span {
+  color: var(--text-muted);
+  font-size: .72rem;
+}
