@@ -1475,6 +1475,7 @@ export default function App() {
   const [booting, setBooting] = useState(true);
   const [saving, setSaving] = useState(false);
   const [initiativeShareBusy, setInitiativeShareBusy] = useState(false);
+  const [playerDisplayBusy, setPlayerDisplayBusy] = useState(false);
   const [combatStateBusy, setCombatStateBusy] = useState(false);
   const [initiativePublishNotice, setInitiativePublishNotice] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -2699,6 +2700,39 @@ export default function App() {
     } catch (error) {
       setBootError(error instanceof Error ? error.message : "Не удалось скопировать ссылку на изображение.");
       throw error;
+    }
+  };
+
+  const showGalleryImageToPlayers = async (item: GalleryImage) => {
+    if (!activeCampaignId || typeof window === "undefined") {
+      return;
+    }
+
+    const popup = window.open("", "shadow-edge-player-display");
+    setPlayerDisplayBusy(true);
+    try {
+      const share = await api.showPlayerDisplayImage(activeCampaignId, {
+        alt: item.caption?.trim() || item.title.trim() || "Изображение для игроков",
+        caption: item.caption?.trim() || undefined,
+        title: item.title.trim() || undefined,
+        url: item.url
+      });
+
+      if (popup && !popup.closed) {
+        popup.location.href = share.url;
+        popup.focus();
+      } else {
+        window.open(share.url, "shadow-edge-player-display");
+      }
+
+      setBootError("");
+    } catch (error) {
+      if (popup && !popup.closed) {
+        popup.close();
+      }
+      setBootError(error instanceof Error ? error.message : "Не удалось показать изображение игрокам.");
+    } finally {
+      setPlayerDisplayBusy(false);
     }
   };
 
@@ -4509,6 +4543,8 @@ export default function App() {
         onClose={closeGalleryViewer}
         onCopyLink={handleCopyImageLink}
         onSelect={selectGalleryViewerIndex}
+        onShowToPlayers={showGalleryImageToPlayers}
+        showToPlayersBusy={playerDisplayBusy}
         viewer={galleryViewer}
       />
 

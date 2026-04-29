@@ -704,6 +704,15 @@ export interface InitiativeShareResult {
   publishedAt?: string;
 }
 
+export type PlayerDisplayShareResult = InitiativeShareResult;
+
+export interface PlayerDisplayImageInput {
+  url: string;
+  title?: string;
+  alt?: string;
+  caption?: string;
+}
+
 export interface AuthSessionResult {
   authenticated: boolean;
   username?: string;
@@ -755,5 +764,6 @@ export interface ApiClient {
   generateCombat(campaignId: string, input: GenerateCombatInput): Promise<GenerateCombatResult>;
   createInitiativeShare(campaignId: string): Promise<InitiativeShareResult>;
   publishInitiativeShare(campaignId: string): Promise<InitiativeShareResult>;
+  showPlayerDisplayImage(campaignId: string, input: PlayerDisplayImageInput): Promise<PlayerDisplayShareResult>;
   search(campaignId: string, query: string): Promise<SearchResult[]>;
 }

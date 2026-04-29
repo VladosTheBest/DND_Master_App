@@ -24,6 +24,8 @@ import type {
   GenerateWorldEventResult,
   InitiativeShareResult,
   LoginInput,
+  PlayerDisplayImageInput,
+  PlayerDisplayShareResult,
   SearchResult,
   StartCombatInput,
   UploadImageResult,
@@ -279,6 +281,12 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
   async publishInitiativeShare(campaignId) {
     return requestJson<InitiativeShareResult>(`${baseUrl}/api/campaigns/${campaignId}/initiative-share/publish`, {
       method: "POST"
+    });
+  },
+  async showPlayerDisplayImage(campaignId, input) {
+    return requestJson<PlayerDisplayShareResult>(`${baseUrl}/api/campaigns/${campaignId}/player-display`, {
+      method: "POST",
+      body: JSON.stringify(input satisfies PlayerDisplayImageInput)
     });
   },
   async generateCombat(campaignId, input) {

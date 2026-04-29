@@ -185,7 +185,9 @@ export function GallerySection({
   displayLimit,
   action,
   onOpenFullscreen,
-  onCopyLink
+  onCopyLink,
+  onShowToPlayers,
+  showToPlayersBusy = false
 }: {
   title: string;
   hint: string;
@@ -196,6 +198,8 @@ export function GallerySection({
   action?: ReactNode;
   onOpenFullscreen: (index: number) => void;
   onCopyLink: (url: string) => Promise<void> | void;
+  onShowToPlayers?: (item: GalleryImage) => Promise<void> | void;
+  showToPlayersBusy?: boolean;
 }) {
   const visibleItems = typeof displayLimit === "number" ? items.slice(0, displayLimit) : items;
 
@@ -226,6 +230,18 @@ export function GallerySection({
                 <small>{item.caption?.trim() || "Открывается на весь экран, ссылку можно копировать отдельно."}</small>
               </div>
               <div className="actions gallery-card-actions">
+                {onShowToPlayers ? (
+                  <button
+                    className="ghost"
+                    disabled={showToPlayersBusy}
+                    onClick={() => {
+                      void onShowToPlayers(item);
+                    }}
+                    type="button"
+                  >
+                    {showToPlayersBusy ? "Показываю..." : "Показать игрокам"}
+                  </button>
+                ) : null}
                 <button
                   className="ghost"
                   onClick={() => {
@@ -366,12 +382,16 @@ export function GalleryLightbox({
   viewer,
   onClose,
   onSelect,
-  onCopyLink
+  onCopyLink,
+  onShowToPlayers,
+  showToPlayersBusy = false
 }: {
   viewer: GalleryViewerState;
   onClose: () => void;
   onSelect: (index: number) => void;
   onCopyLink: (url: string) => Promise<void>;
+  onShowToPlayers?: (item: GalleryImage) => Promise<void> | void;
+  showToPlayersBusy?: boolean;
 }) {
   const item = viewer.items[viewer.currentIndex];
   const [copied, setCopied] = useState(false);

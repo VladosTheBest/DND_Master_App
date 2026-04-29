@@ -82,6 +82,9 @@ func NewServer(options Options) (http.Handler, error) {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", srv.handleHealth)
+	mux.HandleFunc("/display/", srv.shares.handlePublicDisplayPage)
+	mux.HandleFunc("/api/display-meta/", srv.shares.handlePublicDisplayMeta)
+	mux.HandleFunc("/api/display/", srv.shares.handlePublicDisplayAPI)
 	mux.HandleFunc("/initiative/", srv.shares.handlePublicInitiativePage)
 	mux.HandleFunc("/api/initiative-meta/", srv.shares.handlePublicInitiativeMeta)
 	mux.HandleFunc("/api/initiative/", srv.shares.handlePublicInitiativeAPI)
@@ -122,7 +125,11 @@ func NewServer(options Options) (http.Handler, error) {
 }
 
 func isServerManagedPath(path string) bool {
-	return path == "/healthz" || strings.HasPrefix(path, "/api/") || strings.HasPrefix(path, "/initiative/") || strings.HasPrefix(path, "/uploads/")
+	return path == "/healthz" ||
+		strings.HasPrefix(path, "/api/") ||
+		strings.HasPrefix(path, "/initiative/") ||
+		strings.HasPrefix(path, "/display/") ||
+		strings.HasPrefix(path, "/uploads/")
 }
 
 func (srv *server) handleHealth(writer http.ResponseWriter, _ *http.Request) {
@@ -201,6 +208,8 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 		srv.handleInitiativeShare(writer, request, campaignID)
 	case len(segments) == 3 && segments[1] == "initiative-share" && segments[2] == "publish":
 		srv.handleInitiativeSharePublish(writer, request, campaignID)
+	case len(segments) == 2 && segments[1] == "player-display":
+		srv.handlePlayerDisplay(writer, request, campaignID)
 	case len(segments) == 2 && segments[1] == "events":
 		switch request.Method {
 		case http.MethodPost:

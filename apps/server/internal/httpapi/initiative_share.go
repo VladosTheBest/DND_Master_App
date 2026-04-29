@@ -29,6 +29,7 @@ type initiativeShareManager struct {
 	tokenToCampaign map[string]string
 	campaignToToken map[string]string
 	published       map[string]publicInitiativeSnapshot
+	displayPublished map[string]publicDisplaySnapshot
 	configuredBase  string
 	publicServer    *http.Server
 	publicListener  net.Listener
@@ -60,6 +61,35 @@ type publicInitiativeMeta struct {
 	CampaignID string `json:"campaignId"`
 	Version    int64  `json:"version"`
 	UpdatedAt  string `json:"updatedAt"`
+}
+
+type playerDisplayImageInput struct {
+	URL     string `json:"url"`
+	Title   string `json:"title"`
+	Alt     string `json:"alt"`
+	Caption string `json:"caption"`
+}
+
+type publicDisplayImage struct {
+	URL     string `json:"url"`
+	Title   string `json:"title,omitempty"`
+	Alt     string `json:"alt,omitempty"`
+	Caption string `json:"caption,omitempty"`
+}
+
+type publicDisplaySnapshot struct {
+	CampaignID    string              `json:"campaignId"`
+	CampaignTitle string              `json:"campaignTitle"`
+	Image         *publicDisplayImage `json:"image,omitempty"`
+	Version       int64               `json:"version"`
+	UpdatedAt     string              `json:"updatedAt"`
+}
+
+type publicDisplayMeta struct {
+	CampaignID string `json:"campaignId"`
+	Version    int64  `json:"version"`
+	UpdatedAt  string `json:"updatedAt"`
+	HasImage   bool   `json:"hasImage"`
 }
 
 type publicInitiativeCombat struct {
@@ -112,6 +142,11 @@ type publicInitiativeEntry struct {
 }
 
 type initiativeViewerPageData struct {
+	Token         string
+	CampaignTitle string
+}
+
+type publicDisplayPageData struct {
 	Token         string
 	CampaignTitle string
 }
@@ -1345,13 +1380,271 @@ var (
 </html>`))
 )
 
+var playerDisplayViewerTemplate = template.Must(template.New("player-display-viewer").Parse(`<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ .CampaignTitle }} - Экран для игроков</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: #05070c;
+        color: #f4ead9;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; background: #05070c; }
+      body {
+        min-height: 100vh;
+        overflow: hidden;
+        background:
+          radial-gradient(circle at top, rgba(114, 82, 211, 0.18), transparent 28%),
+          radial-gradient(circle at bottom, rgba(224, 161, 94, 0.14), transparent 24%),
+          linear-gradient(180deg, #06080d, #04060a);
+      }
+      .viewer-shell {
+        position: relative;
+        min-height: 100vh;
+        width: 100vw;
+        display: grid;
+        place-items: center;
+        padding: 1.5rem;
+      }
+      .viewer-stage {
+        position: relative;
+        width: 100%;
+        height: 100%;
+        min-height: calc(100vh - 3rem);
+        border-radius: 1.5rem;
+        border: 1px solid rgba(124, 96, 197, 0.28);
+        background: rgba(9, 12, 18, 0.72);
+        overflow: hidden;
+        box-shadow: 0 24px 80px rgba(0, 0, 0, 0.46);
+      }
+      .viewer-empty,
+      .viewer-asset {
+        position: absolute;
+        inset: 0;
+      }
+      .viewer-empty {
+        display: grid;
+        place-items: center;
+        padding: 2rem;
+        text-align: center;
+      }
+      .viewer-empty-copy {
+        max-width: 36rem;
+        display: grid;
+        gap: 0.75rem;
+      }
+      .viewer-empty-copy h1 {
+        margin: 0;
+        font-size: clamp(2rem, 3vw, 3rem);
+        font-family: Georgia, "Times New Roman", serif;
+        color: #f2e6d3;
+      }
+      .viewer-empty-copy p,
+      .viewer-meta {
+        margin: 0;
+        color: rgba(244, 234, 217, 0.72);
+      }
+      .viewer-asset {
+        display: none;
+        align-items: center;
+        justify-content: center;
+      }
+      .viewer-asset.active {
+        display: flex;
+      }
+      .viewer-image {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        object-position: center;
+        background:
+          radial-gradient(circle at center, rgba(255, 255, 255, 0.03), transparent 50%),
+          linear-gradient(180deg, rgba(8, 10, 16, 0.2), rgba(8, 10, 16, 0.5));
+      }
+      .viewer-overlay {
+        position: absolute;
+        left: 1.5rem;
+        right: 1.5rem;
+        bottom: 1.5rem;
+        display: grid;
+        gap: 0.45rem;
+        padding: 1rem 1.15rem;
+        border-radius: 1rem;
+        background: linear-gradient(180deg, rgba(8, 10, 16, 0.78), rgba(8, 10, 16, 0.92));
+        border: 1px solid rgba(122, 94, 198, 0.24);
+        backdrop-filter: blur(18px);
+      }
+      .viewer-overlay[hidden] {
+        display: none;
+      }
+      .viewer-title {
+        margin: 0;
+        font-size: clamp(1.15rem, 2vw, 1.55rem);
+        color: #fff2df;
+      }
+      .viewer-caption {
+        margin: 0;
+        font-size: 1rem;
+        line-height: 1.55;
+        color: rgba(244, 234, 217, 0.86);
+      }
+      .viewer-status {
+        position: absolute;
+        top: 1.25rem;
+        right: 1.25rem;
+        padding: 0.55rem 0.8rem;
+        border-radius: 999px;
+        background: rgba(11, 14, 22, 0.78);
+        border: 1px solid rgba(122, 94, 198, 0.22);
+        font-size: 0.9rem;
+        color: rgba(244, 234, 217, 0.72);
+      }
+      @media (max-width: 900px) {
+        .viewer-shell { padding: 0.75rem; }
+        .viewer-stage { min-height: calc(100vh - 1.5rem); border-radius: 1rem; }
+        .viewer-overlay { left: 0.9rem; right: 0.9rem; bottom: 0.9rem; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="viewer-shell">
+      <section class="viewer-stage">
+        <div class="viewer-empty" id="empty-state">
+          <div class="viewer-empty-copy">
+            <p class="viewer-meta">Экран игроков</p>
+            <h1>{{ .CampaignTitle }}</h1>
+            <p>Пока мастер не вывел картинку на экран. Как только он нажмёт «Показать игрокам», изображение появится здесь автоматически.</p>
+          </div>
+        </div>
+
+        <figure class="viewer-asset" id="asset">
+          <img class="viewer-image" id="asset-image" alt="" />
+          <figcaption class="viewer-overlay" id="asset-overlay" hidden>
+            <h2 class="viewer-title" id="asset-title"></h2>
+            <p class="viewer-caption" id="asset-caption"></p>
+          </figcaption>
+        </figure>
+
+        <div class="viewer-status" id="status">Ожидание изображения...</div>
+      </section>
+    </main>
+
+    <script>
+      const token = {{ printf "%q" .Token }};
+      const emptyStateNode = document.getElementById("empty-state");
+      const assetNode = document.getElementById("asset");
+      const imageNode = document.getElementById("asset-image");
+      const overlayNode = document.getElementById("asset-overlay");
+      const titleNode = document.getElementById("asset-title");
+      const captionNode = document.getElementById("asset-caption");
+      const statusNode = document.getElementById("status");
+      let currentVersion = 0;
+
+      const setWaitingState = () => {
+        emptyStateNode.hidden = false;
+        assetNode.classList.remove("active");
+      };
+
+      const setImageState = (image) => {
+        if (!image || !image.url) {
+          setWaitingState();
+          return;
+        }
+
+        emptyStateNode.hidden = true;
+        assetNode.classList.add("active");
+        imageNode.src = image.url;
+        imageNode.alt = image.alt || image.title || "Изображение для игроков";
+
+        const title = (image.title || "").trim();
+        const caption = (image.caption || "").trim();
+        if (!title && !caption) {
+          overlayNode.hidden = true;
+          titleNode.textContent = "";
+          captionNode.textContent = "";
+          return;
+        }
+
+        overlayNode.hidden = false;
+        titleNode.textContent = title;
+        captionNode.textContent = caption;
+      };
+
+      const applySnapshot = (snapshot) => {
+        currentVersion = Number(snapshot?.version || 0) || 0;
+        setImageState(snapshot?.image || null);
+        if (snapshot?.updatedAt) {
+          statusNode.textContent = "Обновлено: " + new Date(snapshot.updatedAt).toLocaleTimeString();
+        } else {
+          statusNode.textContent = snapshot?.image?.url ? "Показано игрокам" : "Ожидание изображения...";
+        }
+      };
+
+      const fetchSnapshot = async (force) => {
+        const response = await fetch("/api/display/" + encodeURIComponent(token), {
+          cache: "no-store",
+          headers: { Accept: "application/json" }
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.error?.message || "Не удалось обновить экран игроков.");
+        }
+        const snapshot = payload?.data ?? payload;
+        const nextVersion = Number(snapshot?.version || 0) || 0;
+        if (!force && currentVersion && nextVersion === currentVersion) {
+          if (snapshot?.updatedAt) {
+            statusNode.textContent = "Обновлено: " + new Date(snapshot.updatedAt).toLocaleTimeString();
+          }
+          return;
+        }
+        applySnapshot(snapshot);
+      };
+
+      const checkForUpdates = async () => {
+        const response = await fetch("/api/display-meta/" + encodeURIComponent(token), {
+          cache: "no-store",
+          headers: { Accept: "application/json" }
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload?.error?.message || "Не удалось проверить обновления экрана игроков.");
+        }
+        const meta = payload?.data ?? payload;
+        const nextVersion = Number(meta?.version || 0) || 0;
+        if (!currentVersion || nextVersion !== currentVersion) {
+          await fetchSnapshot(true);
+          return;
+        }
+        statusNode.textContent = meta?.updatedAt ? "Обновлено: " + new Date(meta.updatedAt).toLocaleTimeString() : "Ожидание изображения...";
+      };
+
+      void fetchSnapshot(true).catch((error) => {
+        setWaitingState();
+        statusNode.textContent = error instanceof Error ? error.message : "Не удалось обновить экран игроков.";
+      });
+
+      window.setInterval(() => {
+        void checkForUpdates().catch((error) => {
+          statusNode.textContent = error instanceof Error ? error.message : "Не удалось проверить обновления экрана игроков.";
+        });
+      }, 1400);
+    </script>
+  </body>
+</html>`))
+
 func newInitiativeShareManager(store *campaignStore, publicBaseURL string) *initiativeShareManager {
 	return &initiativeShareManager{
-		store:           store,
-		tokenToCampaign: map[string]string{},
-		campaignToToken: map[string]string{},
-		published:       map[string]publicInitiativeSnapshot{},
-		configuredBase:  strings.TrimRight(strings.TrimSpace(publicBaseURL), "/"),
+		store:            store,
+		tokenToCampaign:  map[string]string{},
+		campaignToToken:  map[string]string{},
+		published:        map[string]publicInitiativeSnapshot{},
+		displayPublished: map[string]publicDisplaySnapshot{},
+		configuredBase:   strings.TrimRight(strings.TrimSpace(publicBaseURL), "/"),
 	}
 }
 
@@ -1455,6 +1748,37 @@ func (srv *server) handleInitiativeSharePublish(writer http.ResponseWriter, requ
 	writeJSON(writer, http.StatusOK, result)
 }
 
+func (srv *server) handlePlayerDisplay(writer http.ResponseWriter, request *http.Request, campaignID string) {
+	if request.Method != http.MethodPost {
+		writeError(writer, http.StatusMethodNotAllowed, "method_not_allowed", "Only POST is supported")
+		return
+	}
+
+	if _, err := srv.store.getCampaign(campaignID); err != nil {
+		writeError(writer, http.StatusNotFound, "not_found", err.Error())
+		return
+	}
+
+	var input playerDisplayImageInput
+	if err := readJSON(request, &input); err != nil {
+		writeError(writer, http.StatusBadRequest, "bad_request", err.Error())
+		return
+	}
+
+	if strings.TrimSpace(input.URL) == "" {
+		writeError(writer, http.StatusBadRequest, "player_display_missing_url", "Нужно передать URL изображения.")
+		return
+	}
+
+	result, err := srv.shares.showPlayerDisplayImage(campaignID, request, input)
+	if err != nil {
+		writeError(writer, http.StatusInternalServerError, "player_display_failed", err.Error())
+		return
+	}
+
+	writeJSON(writer, http.StatusOK, result)
+}
+
 func (manager *initiativeShareManager) ensureShare(campaignID string, request *http.Request) (initiativeShareResponse, error) {
 	campaign, err := manager.store.getCampaign(campaignID)
 	if err != nil {
@@ -1483,6 +1807,41 @@ func (manager *initiativeShareManager) publishShare(campaignID string, request *
 	return manager.ensureShare(campaignID, request)
 }
 
+func (manager *initiativeShareManager) showPlayerDisplayImage(
+	campaignID string,
+	request *http.Request,
+	input playerDisplayImageInput,
+) (initiativeShareResponse, error) {
+	campaign, err := manager.store.getCampaign(campaignID)
+	if err != nil {
+		return initiativeShareResponse{}, err
+	}
+
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+
+	token := manager.campaignToToken[campaignID]
+	if token == "" {
+		token = newInitiativeShareToken()
+		manager.campaignToToken[campaignID] = token
+		manager.tokenToCampaign[token] = campaignID
+	}
+
+	baseURL, provider, err := manager.resolvePublicBaseURLLocked(request)
+	if err != nil {
+		return initiativeShareResponse{}, err
+	}
+
+	snapshot := manager.currentDisplaySnapshotLocked(campaign, &publicDisplayImage{
+		URL:     resolvePublicDisplayAssetURL(strings.TrimSpace(input.URL), baseURL),
+		Title:   strings.TrimSpace(input.Title),
+		Alt:     strings.TrimSpace(input.Alt),
+		Caption: strings.TrimSpace(input.Caption),
+	})
+
+	return manager.displayShareResponseLocked(campaignID, token, snapshot, baseURL, provider), nil
+}
+
 func (manager *initiativeShareManager) shareResponseLocked(
 	campaignID string,
 	token string,
@@ -1494,6 +1853,23 @@ func (manager *initiativeShareManager) shareResponseLocked(
 		CampaignID:       campaignID,
 		Token:            token,
 		URL:              fmt.Sprintf("%s/initiative/%s", strings.TrimRight(baseURL, "/"), url.PathEscape(token)),
+		Provider:         provider,
+		PublishedVersion: snapshot.Version,
+		PublishedAt:      snapshot.UpdatedAt,
+	}
+}
+
+func (manager *initiativeShareManager) displayShareResponseLocked(
+	campaignID string,
+	token string,
+	snapshot publicDisplaySnapshot,
+	baseURL string,
+	provider string,
+) initiativeShareResponse {
+	return initiativeShareResponse{
+		CampaignID:       campaignID,
+		Token:            token,
+		URL:              fmt.Sprintf("%s/display/%s", strings.TrimRight(baseURL, "/"), url.PathEscape(token)),
 		Provider:         provider,
 		PublishedVersion: snapshot.Version,
 		PublishedAt:      snapshot.UpdatedAt,
@@ -1516,6 +1892,36 @@ func (manager *initiativeShareManager) currentSnapshotLocked(campaign campaignDa
 	}
 
 	manager.published[campaign.ID] = snapshot
+	return snapshot
+}
+
+func (manager *initiativeShareManager) currentDisplaySnapshotLocked(
+	campaign campaignData,
+	nextImage *publicDisplayImage,
+) publicDisplaySnapshot {
+	previous := manager.displayPublished[campaign.ID]
+	snapshot := publicDisplaySnapshot{
+		CampaignID:    campaign.ID,
+		CampaignTitle: campaign.Title,
+		Image:         previous.Image,
+	}
+
+	if nextImage != nil {
+		snapshot.Image = sanitizePublicDisplayImage(*nextImage)
+	}
+
+	if previous.CampaignID != "" && publicDisplaySnapshotFingerprint(previous) == publicDisplaySnapshotFingerprint(snapshot) {
+		snapshot.Version = previous.Version
+		snapshot.UpdatedAt = previous.UpdatedAt
+	} else {
+		snapshot.Version = previous.Version + 1
+		if snapshot.Version <= 0 {
+			snapshot.Version = 1
+		}
+		snapshot.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	}
+
+	manager.displayPublished[campaign.ID] = snapshot
 	return snapshot
 }
 
@@ -1608,6 +2014,65 @@ func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 	return builder.String()
 }
 
+func publicDisplaySnapshotFingerprint(snapshot publicDisplaySnapshot) string {
+	var builder strings.Builder
+	fmt.Fprintf(&builder, "%s|%s|", snapshot.CampaignID, snapshot.CampaignTitle)
+	if snapshot.Image == nil {
+		builder.WriteString("empty")
+		return builder.String()
+	}
+
+	fmt.Fprintf(
+		&builder,
+		"%s|%s|%s|%s|",
+		snapshot.Image.URL,
+		snapshot.Image.Title,
+		snapshot.Image.Alt,
+		snapshot.Image.Caption,
+	)
+	return builder.String()
+}
+
+func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
+	url := strings.TrimSpace(image.URL)
+	if url == "" {
+		return nil
+	}
+
+	return &publicDisplayImage{
+		URL:     url,
+		Title:   strings.TrimSpace(image.Title),
+		Alt:     strings.TrimSpace(image.Alt),
+		Caption: strings.TrimSpace(image.Caption),
+	}
+}
+
+func resolvePublicDisplayAssetURL(raw string, baseURL string) string {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return ""
+	}
+
+	lower := strings.ToLower(trimmed)
+	if strings.HasPrefix(lower, "http://") ||
+		strings.HasPrefix(lower, "https://") ||
+		strings.HasPrefix(lower, "data:") ||
+		strings.HasPrefix(lower, "blob:") {
+		return trimmed
+	}
+
+	base := strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	if base == "" {
+		return trimmed
+	}
+
+	if strings.HasPrefix(trimmed, "/") {
+		return base + trimmed
+	}
+
+	return base + "/" + strings.TrimLeft(trimmed, "/")
+}
+
 func (manager *initiativeShareManager) resolvePublicBaseURLLocked(request *http.Request) (string, string, error) {
 	if manager.configuredBase != "" {
 		return manager.configuredBase, "public", nil
@@ -1662,6 +2127,9 @@ func (manager *initiativeShareManager) ensurePublicServerLocked() (string, error
 		writeJSON(writer, http.StatusOK, map[string]string{"status": "ok"})
 	})
 	mux.HandleFunc(publicVictoryBloodOverlayPath, manager.handlePublicInitiativeBloodOverlay)
+	mux.HandleFunc("/display/", manager.handlePublicDisplayPage)
+	mux.HandleFunc("/api/display-meta/", manager.handlePublicDisplayMeta)
+	mux.HandleFunc("/api/display/", manager.handlePublicDisplayAPI)
 	mux.HandleFunc("/initiative/", manager.handlePublicInitiativePage)
 	mux.HandleFunc("/api/initiative-meta/", manager.handlePublicInitiativeMeta)
 	mux.HandleFunc("/api/initiative/", manager.handlePublicInitiativeAPI)
@@ -2003,6 +2471,28 @@ func (manager *initiativeShareManager) handlePublicInitiativePage(writer http.Re
 	}
 }
 
+func (manager *initiativeShareManager) handlePublicDisplayPage(writer http.ResponseWriter, request *http.Request) {
+	token := initiativeTokenFromPath(request.URL.Path, "/display/")
+	if token == "" {
+		http.NotFound(writer, request)
+		return
+	}
+
+	snapshot, err := manager.displaySnapshotForToken(token)
+	if err != nil {
+		http.NotFound(writer, request)
+		return
+	}
+
+	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := playerDisplayViewerTemplate.Execute(writer, publicDisplayPageData{
+		Token:         token,
+		CampaignTitle: snapshot.CampaignTitle,
+	}); err != nil {
+		http.Error(writer, "player display render failed", http.StatusInternalServerError)
+	}
+}
+
 func (manager *initiativeShareManager) handlePublicInitiativeBloodOverlay(writer http.ResponseWriter, request *http.Request) {
 	if request.Method != http.MethodGet && request.Method != http.MethodHead {
 		http.Error(writer, "method not allowed", http.StatusMethodNotAllowed)
@@ -2062,6 +2552,53 @@ func (manager *initiativeShareManager) handlePublicInitiativeMeta(writer http.Re
 	})
 }
 
+func (manager *initiativeShareManager) handlePublicDisplayAPI(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodGet {
+		writeError(writer, http.StatusMethodNotAllowed, "method_not_allowed", "Only GET is supported")
+		return
+	}
+
+	token := initiativeTokenFromPath(request.URL.Path, "/api/display/")
+	if token == "" {
+		writeError(writer, http.StatusNotFound, "not_found", "Player display not found")
+		return
+	}
+
+	snapshot, err := manager.displaySnapshotForToken(token)
+	if err != nil {
+		writeError(writer, http.StatusNotFound, "not_found", err.Error())
+		return
+	}
+
+	writeJSON(writer, http.StatusOK, snapshot)
+}
+
+func (manager *initiativeShareManager) handlePublicDisplayMeta(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodGet {
+		writeError(writer, http.StatusMethodNotAllowed, "method_not_allowed", "Only GET is supported")
+		return
+	}
+
+	token := initiativeTokenFromPath(request.URL.Path, "/api/display-meta/")
+	if token == "" {
+		writeError(writer, http.StatusNotFound, "not_found", "Player display not found")
+		return
+	}
+
+	snapshot, err := manager.displaySnapshotForToken(token)
+	if err != nil {
+		writeError(writer, http.StatusNotFound, "not_found", err.Error())
+		return
+	}
+
+	writeJSON(writer, http.StatusOK, publicDisplayMeta{
+		CampaignID: snapshot.CampaignID,
+		Version:    snapshot.Version,
+		UpdatedAt:  snapshot.UpdatedAt,
+		HasImage:   snapshot.Image != nil,
+	})
+}
+
 func (manager *initiativeShareManager) snapshotForToken(token string) (publicInitiativeSnapshot, error) {
 	manager.mu.RLock()
 	campaignID := manager.tokenToCampaign[token]
@@ -2078,6 +2615,24 @@ func (manager *initiativeShareManager) snapshotForToken(token string) (publicIni
 	manager.mu.Lock()
 	defer manager.mu.Unlock()
 	return manager.currentSnapshotLocked(campaign), nil
+}
+
+func (manager *initiativeShareManager) displaySnapshotForToken(token string) (publicDisplaySnapshot, error) {
+	manager.mu.RLock()
+	campaignID := manager.tokenToCampaign[token]
+	manager.mu.RUnlock()
+	if campaignID == "" {
+		return publicDisplaySnapshot{}, fmt.Errorf("player display %q not found", token)
+	}
+
+	campaign, err := manager.store.getCampaign(campaignID)
+	if err != nil {
+		return publicDisplaySnapshot{}, err
+	}
+
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+	return manager.currentDisplaySnapshotLocked(campaign, nil), nil
 }
 
 func buildPublicInitiativeSnapshot(campaign campaignData) publicInitiativeSnapshot {
