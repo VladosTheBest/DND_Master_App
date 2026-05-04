@@ -295,7 +295,7 @@ const emptyWorldEventInput = (): WorldEventInput => ({
 
 
 type ResizeKey = "rail" | "list" | "preview";
-type RailAlias = "items" | "events" | "notes";
+type RailAlias = "items" | "events" | "notes" | "shops";
 type RailNavKey = "dashboard" | "locations" | "players" | "npcs" | "monsters" | "quests" | "rules" | RailAlias;
 
 type PlayerFacingViewState = {
@@ -892,7 +892,7 @@ const serializeEntityForm = (form: CreateEntityInput): CreateEntityInput => {
 const getModuleTitle = (campaign: CampaignData, moduleId: ModuleId) =>
   moduleId === "rules" ? "Правила" : campaign.modules.find((module) => module.id === moduleId)?.label ?? moduleId;
 
-const railAliasTitle: Record<RailAlias, string> = {
+const railAliasTitle: Partial<Record<RailAlias, string>> = {
   items: "Предметы",
   events: "События",
   notes: "Заметки"
@@ -919,7 +919,7 @@ const preserveRailAliasForModule = (current: RailAlias | null, moduleId: ModuleI
 };
 
 const railSectionTitle = (campaign: CampaignData, moduleId: ModuleId, alias: RailAlias | null) =>
-  alias ? railAliasTitle[alias] : moduleId === "lore" ? railAliasTitle.notes : getModuleTitle(campaign, moduleId);
+  alias ? railAliasTitle[alias] ?? alias : moduleId === "lore" ? railAliasTitle.notes ?? "Notes" : getModuleTitle(campaign, moduleId);
 
 const formatDateTime = (value: string) => {
   const date = new Date(value);
@@ -3834,7 +3834,8 @@ export default function App() {
   const isCombatScreen = activeModule === "combat";
   const isCombatPrepScreen = isCombatScreen && combatSetupOpen && !activeCombat?.entries.length;
   const isItemsRail = activeRailAlias === "items";
-  const hasFeatureOwnedDetailsPanel = isItemsRail || activeModule === "rules";
+  const isShopsRail = activeRailAlias === "shops";
+  const hasFeatureOwnedDetailsPanel = isItemsRail || isShopsRail || activeModule === "rules";
   const latestCombatSummary =
     campaign?.lastCombatSummary ??
     (combatReport
@@ -3858,9 +3859,10 @@ export default function App() {
     { key: "npcs", label: "NPC", icon: "npc", onClick: () => switchModule("npcs") },
     { key: "monsters", label: "Монстры", icon: "monster", onClick: () => switchModule("monsters") },
     { key: "rules", label: "Правила", icon: "rule", onClick: () => openRulesCompendium() },
-    { key: "items", label: railAliasTitle.items, icon: "item", onClick: () => openRailAlias("items") },
-    { key: "events", label: railAliasTitle.events, icon: "event", onClick: () => openRailAlias("events") },
-    { key: "notes", label: railAliasTitle.notes, icon: "note", onClick: () => openRailAlias("notes") }
+    { key: "items", label: railAliasTitle.items ?? "Items", icon: "item", onClick: () => openRailAlias("items") },
+    { key: "shops", label: "Магазин", icon: "shop", onClick: () => openRailAlias("shops") },
+    { key: "events", label: railAliasTitle.events ?? "Events", icon: "event", onClick: () => openRailAlias("events") },
+    { key: "notes", label: railAliasTitle.notes ?? "Notes", icon: "note", onClick: () => openRailAlias("notes") }
   ];
   const combatSetupHostEntity =
     entityCombatSetupTarget && isPreparedCombatHostEntity(entityCombatSetupTarget) ? entityCombatSetupTarget : null;
@@ -4091,7 +4093,7 @@ export default function App() {
   return (
     <>
       <div
-        className={`shell ${isCombatScreen ? "combat-layout" : ""} ${isCombatPrepScreen ? "combat-prep-shell" : ""} ${isItemsRail ? "items-shell" : ""} ${hasFeatureOwnedDetailsPanel ? "feature-owned-details-shell" : ""}`.trim()}
+        className={`shell ${isCombatScreen ? "combat-layout" : ""} ${isCombatPrepScreen ? "combat-prep-shell" : ""} ${isItemsRail || isShopsRail ? "items-shell" : ""} ${hasFeatureOwnedDetailsPanel ? "feature-owned-details-shell" : ""}`.trim()}
         style={shellStyle}
       >
         {!isCombatScreen ? (
@@ -4181,7 +4183,7 @@ export default function App() {
                 variant="default"
               />
 
-              {!isItemsRail && activeModule !== "rules" ? (
+              {!hasFeatureOwnedDetailsPanel ? (
                 <div className="panel tabs">
                   {tabs[activeModule].map((tab) => (
                     <button
@@ -4347,6 +4349,7 @@ export default function App() {
             ) : activeModule === "monsters" ||
               activeModule === "rules" ||
               activeRailAlias === "items" ||
+              activeRailAlias === "shops" ||
               activeRailAlias === "events" ||
               activeModule === "lore" ||
               (activeEntity?.kind === "quest" && activeModule === "quests") ? (

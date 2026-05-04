@@ -14,13 +14,14 @@ import type {
   RefObject
 } from "react";
 import { ItemsPage } from "../features/items/ItemsPage";
+import { ShopsPage } from "../features/shops/ShopsPage";
 import { EventsPageContainer } from "../features/events/EventsPageContainer";
 import { NotesPageContainer } from "../features/notes/NotesPageContainer";
 import { QuestPageContainer } from "../features/quests/QuestPageContainer";
 import { RulesPage } from "../features/rules/RulesPage";
 import type { PlayerFacingCardsController } from "../features/player-facing/usePlayerFacingCards";
 
-type RailAlias = "items" | "events" | "notes";
+type RailAlias = "items" | "events" | "notes" | "shops";
 type ModuleId = "dashboard" | "combat" | "locations" | "players" | "npcs" | "monsters" | "quests" | "lore" | "rules";
 
 export function AppContentRouter({
@@ -126,6 +127,10 @@ export function AppContentRouter({
 
   if (activeRailAlias === "items") {
     return <ItemsPage campaignId={campaign.id} />;
+  }
+
+  if (activeRailAlias === "shops") {
+    return <ShopsPage campaign={campaign} hydrateCampaign={hydrateCampaign} />;
   }
 
   if (activeRailAlias === "events") {

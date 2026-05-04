@@ -243,6 +243,9 @@ func (store *campaignStore) updateCampaign(campaignID string, input updateCampai
 		if input.CombatPlaylist != nil {
 			campaign.CombatPlaylist = sanitizePlaylistTracks(input.CombatPlaylist)
 		}
+		if input.Shops != nil {
+			campaign.Shops = ensureCampaignShops(input.Shops, campaign.Locations)
+		}
 		if input.UpdatePreparedCombat {
 			campaign.PreparedCombat = normalizeCampaignPreparedCombat(input.PreparedCombat)
 		}

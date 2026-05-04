@@ -204,6 +204,29 @@ type sessionPrepItem struct {
 	Focus    string `json:"focus"`
 }
 
+type shopInventoryItem struct {
+	ID             string   `json:"id"`
+	ItemID         string   `json:"itemId"`
+	ItemName       string   `json:"itemName"`
+	ItemSource     string   `json:"itemSource,omitempty"`
+	Category       string   `json:"category,omitempty"`
+	PriceMode      string   `json:"priceMode"`
+	ManualPriceGP  *float64 `json:"manualPriceGp,omitempty"`
+	ItemPriceGP    *float64 `json:"itemPriceGp,omitempty"`
+	ItemPriceLabel string   `json:"itemPriceLabel,omitempty"`
+	Quantity       *int     `json:"quantity,omitempty"`
+	Note           string   `json:"note,omitempty"`
+}
+
+type campaignShop struct {
+	ID            string              `json:"id"`
+	Name          string              `json:"name"`
+	LocationID    string              `json:"locationId,omitempty"`
+	LocationLabel string              `json:"locationLabel,omitempty"`
+	Description   string              `json:"description,omitempty"`
+	Inventory     []shopInventoryItem `json:"inventory"`
+}
+
 type combatThresholds struct {
 	Easy   int `json:"easy"`
 	Medium int `json:"medium"`
@@ -279,6 +302,7 @@ type campaignData struct {
 	Lore              []knowledgeEntity       `json:"lore"`
 	Events            []worldEvent            `json:"events"`
 	SessionPrep       []sessionPrepItem       `json:"sessionPrep"`
+	Shops             []campaignShop          `json:"shops"`
 	CombatPlaylist    []playlistTrack         `json:"combatPlaylist"`
 	PreparedCombat    *campaignPreparedCombat `json:"preparedCombat,omitempty"`
 	ActiveCombat      *activeCombat           `json:"activeCombat,omitempty"`
@@ -318,6 +342,7 @@ type createCampaignInput struct {
 
 type updateCampaignInput struct {
 	CombatPlaylist       []playlistTrack         `json:"combatPlaylist"`
+	Shops                []campaignShop          `json:"shops"`
 	PreparedCombat       *campaignPreparedCombat `json:"preparedCombat"`
 	UpdatePreparedCombat bool                    `json:"updatePreparedCombat,omitempty"`
 }

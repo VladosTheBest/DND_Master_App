@@ -42,6 +42,7 @@ func ensureCampaignShape(campaign campaignData) campaignData {
 	if campaign.SessionPrep == nil {
 		campaign.SessionPrep = []sessionPrepItem{}
 	}
+	campaign.Shops = ensureCampaignShops(campaign.Shops, campaign.Locations)
 	campaign.CombatPlaylist = sanitizePlaylistTracks(campaign.CombatPlaylist)
 	campaign.PreparedCombat = normalizeCampaignPreparedCombat(campaign.PreparedCombat)
 	if campaign.ActiveCombat != nil {
@@ -51,6 +52,61 @@ func ensureCampaignShape(campaign campaignData) campaignData {
 	campaign.LastCombatSummary = normalizeLastCombatSummary(campaign.LastCombatSummary)
 	campaign.DashboardCards = rebuildDashboardCards(campaign)
 	return campaign
+}
+
+func ensureCampaignShops(shops []campaignShop, locations []knowledgeEntity) []campaignShop {
+	if shops == nil {
+		return []campaignShop{}
+	}
+
+	result := make([]campaignShop, 0, len(shops))
+	for _, shop := range shops {
+		shop.ID = strings.TrimSpace(shop.ID)
+		if shop.ID == "" {
+			shop.ID = newID("shop")
+		}
+		shop.Name = firstNonEmpty(strings.TrimSpace(shop.Name), "Новый магазин")
+		shop.LocationID = strings.TrimSpace(shop.LocationID)
+		shop.LocationLabel = firstNonEmpty(strings.TrimSpace(shop.LocationLabel), lookupLocationLabel(locations, shop.LocationID))
+		shop.Description = strings.TrimSpace(shop.Description)
+		shop.Inventory = ensureShopInventory(shop.Inventory)
+		result = append(result, shop)
+	}
+
+	return result
+}
+
+func ensureShopInventory(items []shopInventoryItem) []shopInventoryItem {
+	if items == nil {
+		return []shopInventoryItem{}
+	}
+
+	result := make([]shopInventoryItem, 0, len(items))
+	for _, item := range items {
+		item.ID = strings.TrimSpace(item.ID)
+		item.ItemID = strings.TrimSpace(item.ItemID)
+		item.ItemName = strings.TrimSpace(item.ItemName)
+		if item.ItemID == "" || item.ItemName == "" {
+			continue
+		}
+		if item.ID == "" {
+			item.ID = newID("stock")
+		}
+		item.ItemSource = strings.TrimSpace(item.ItemSource)
+		item.Category = strings.TrimSpace(item.Category)
+		if item.PriceMode != "manual" {
+			item.PriceMode = "item"
+		}
+		item.ItemPriceLabel = strings.TrimSpace(item.ItemPriceLabel)
+		item.Note = strings.TrimSpace(item.Note)
+		if item.Quantity != nil && *item.Quantity < 0 {
+			zero := 0
+			item.Quantity = &zero
+		}
+		result = append(result, item)
+	}
+
+	return result
 }
 
 func ensureKnowledgeEntities(entities []knowledgeEntity) []knowledgeEntity {

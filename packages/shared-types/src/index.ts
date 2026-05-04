@@ -446,6 +446,29 @@ export interface SessionPrepItem {
   focus: string;
 }
 
+export interface ShopInventoryItem {
+  id: string;
+  itemId: string;
+  itemName: string;
+  itemSource?: ItemCatalogSource | "builtin" | "custom";
+  category?: ItemCatalogCategory;
+  priceMode: "item" | "manual";
+  manualPriceGp?: number | null;
+  itemPriceGp?: number | null;
+  itemPriceLabel?: string | null;
+  quantity?: number | null;
+  note?: string;
+}
+
+export interface CampaignShop {
+  id: string;
+  name: string;
+  locationId?: string;
+  locationLabel?: string;
+  description?: string;
+  inventory: ShopInventoryItem[];
+}
+
 export interface CampaignData {
   id: string;
   title: string;
@@ -463,6 +486,7 @@ export interface CampaignData {
   lore: LoreEntity[];
   events: WorldEvent[];
   sessionPrep: SessionPrepItem[];
+  shops: CampaignShop[];
   combatPlaylist: PlaylistTrack[];
   preparedCombat?: CampaignPreparedCombat | null;
   activeCombat?: ActiveCombat | null;
@@ -488,6 +512,7 @@ export interface CreateCampaignInput {
 
 export interface UpdateCampaignInput {
   combatPlaylist?: PlaylistTrack[];
+  shops?: CampaignShop[];
   preparedCombat?: CampaignPreparedCombat | null;
   updatePreparedCombat?: boolean;
 }
