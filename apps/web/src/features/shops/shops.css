@@ -46,9 +46,12 @@
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, .03);
 }
 
-.shops-directory-panel,
-.shops-catalog-panel {
+.shops-directory-panel {
   grid-template-rows: auto auto minmax(0, 1fr) auto;
+}
+
+.shops-catalog-panel {
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
 }
 
 .shops-editor-panel {
@@ -113,7 +116,7 @@
 .shops-secondary-action,
 .shops-select-pill,
 .shops-category-chip,
-.shops-manage-catalog,
+.shops-catalog-foot,
 .shops-picker-add,
 .shops-quantity-cell button,
 .shops-delete-stock {
@@ -137,7 +140,6 @@
 .shops-primary-action,
 .shops-secondary-action,
 .shops-icon-button,
-.shops-manage-catalog,
 .shops-category-chip,
 .shops-delete-shop {
   border: 1px solid var(--shops-line);
@@ -149,7 +151,6 @@
 .shops-primary-action:hover,
 .shops-secondary-action:hover,
 .shops-icon-button:hover,
-.shops-manage-catalog:hover,
 .shops-category-chip:hover,
 .shops-delete-shop:hover,
 .shops-list-card:hover,
@@ -651,23 +652,13 @@
   cursor: pointer;
 }
 
-.shops-add-stock-strip {
-  min-height: 74px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  border: 1px dashed rgba(158, 100, 255, .75);
-  border-radius: 8px;
-  background: rgba(109, 65, 204, .07);
-  color: #b98dff;
-  cursor: pointer;
-  font-weight: 800;
-}
-
-.shops-add-stock-strip .shops-icon-svg {
-  width: 20px;
-  height: 20px;
+.shops-stock-section.drop-active .shops-stock-table,
+.shops-empty-state.drop-active {
+  border-color: rgba(201, 164, 255, .96);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(153, 108, 255, .18), transparent 60%),
+    rgba(109, 65, 204, .13);
+  box-shadow: 0 0 0 1px rgba(154, 108, 255, .18), 0 18px 36px rgba(80, 45, 160, .16);
 }
 
 .shops-delete-shop {
@@ -683,7 +674,9 @@
 .shops-category-row {
   display: flex;
   flex-wrap: wrap;
+  align-content: start;
   gap: 8px;
+  min-height: 0;
 }
 
 .shops-category-chip {
@@ -705,16 +698,16 @@
 .shops-picker-item {
   min-width: 0;
   display: grid;
-  grid-template-columns: 58px minmax(0, 1fr) 32px;
+  grid-template-columns: 52px minmax(0, 1fr) 30px;
   align-items: center;
   gap: 12px;
-  min-height: 78px;
+  min-height: 70px;
   padding: 9px;
   border: 1px solid var(--shops-line);
   border-radius: 8px;
   background: rgba(255, 255, 255, .035);
   color: var(--text);
-  cursor: pointer;
+  cursor: grab;
   text-align: left;
   transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
 }
@@ -724,30 +717,51 @@
   background: rgba(115, 76, 184, .12);
 }
 
+.shops-picker-item:active {
+  cursor: grabbing;
+}
+
+.shops-picker-item.dragging {
+  opacity: .56;
+  border-color: rgba(185, 141, 255, .62);
+  background: rgba(132, 82, 220, .18);
+}
+
 .shops-picker-copy {
   display: grid;
   gap: 5px;
+  min-width: 0;
+}
+
+.shops-picker-copy strong,
+.shops-picker-copy small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.shops-picker-copy strong {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.shops-picker-copy small {
+  white-space: nowrap;
 }
 
 .shops-picker-add {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 999px;
   background: linear-gradient(180deg, rgba(135, 82, 220, .88), rgba(88, 50, 157, .92));
   color: #fff;
 }
 
-.shops-manage-catalog {
-  gap: 10px;
-  min-height: 46px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, .035);
-  font-weight: 700;
-}
-
-.shops-manage-catalog .shops-icon-svg {
-  width: 18px;
-  height: 18px;
+.shops-catalog-foot {
+  min-height: 38px;
+  color: var(--text-muted);
+  font-size: .82rem;
 }
 
 .shops-empty-state {

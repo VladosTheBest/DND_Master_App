@@ -4,7 +4,13 @@ import { api } from "../../app/api";
 import { buildBuiltInItemLookup, enrichRemoteItemWithBuiltInMetrics } from "../items/items.utils";
 import type { Item } from "../items/items.types";
 import { useItemsCatalogController } from "../items/useItemsCatalogController";
-import { startTransition, useEffect, useMemo, useState } from "react";
+import {
+  startTransition,
+  useEffect,
+  useMemo,
+  useState,
+  type DragEvent
+} from "react";
 import type {
   CampaignData,
   CampaignShop,
@@ -328,6 +334,8 @@ export function ShopsPage({
   const [shopQuery, setShopQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<CatalogCategoryFilter>("all");
   const [sortMode, setSortMode] = useState<SortMode>("default");
+  const [draggingItemId, setDraggingItemId] = useState("");
+  const [stockDropActive, setStockDropActive] = useState(false);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -463,6 +471,34 @@ export function ShopsPage({
     }));
     setNotice("");
     setError("");
+  };
+
+  const handleCatalogDragStart = (event: DragEvent<HTMLButtonElement>, item: Item) => {
+    setDraggingItemId(item.id);
+    event.dataTransfer.effectAllowed = "copy";
+    event.dataTransfer.setData("text/plain", item.id);
+  };
+
+  const handleCatalogDragEnd = () => {
+    setDraggingItemId("");
+    setStockDropActive(false);
+  };
+
+  const handleStockDragOver = (event: DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    setStockDropActive(true);
+  };
+
+  const handleStockDrop = (event: DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    const itemId = event.dataTransfer.getData("text/plain") || draggingItemId;
+    const item = itemById.get(itemId);
+    if (item) {
+      handleAddItem(item);
+    }
+    setDraggingItemId("");
+    setStockDropActive(false);
   };
 
   const handleSave = async () => {
@@ -642,7 +678,12 @@ export function ShopsPage({
           </div>
         </div>
 
-        <section className="shops-stock-section">
+        <section
+          className={`shops-stock-section ${stockDropActive ? "drop-active" : ""}`}
+          onDragLeave={() => setStockDropActive(false)}
+          onDragOver={handleStockDragOver}
+          onDrop={handleStockDrop}
+        >
           <div className="shops-stock-head">
             <h2>Ассортимент</h2>
             <span className="shops-head-line" />
@@ -724,17 +765,12 @@ export function ShopsPage({
                 );
               })
             ) : (
-              <div className="shops-empty-state">
+              <div className={`shops-empty-state ${stockDropActive ? "drop-active" : ""}`}>
                 <strong>Витрина пуста</strong>
-                <span>Добавь товары из каталога справа.</span>
+                <span>Нажми плюс у товара справа или перетащи предмет сюда.</span>
               </div>
             )}
           </div>
-
-          <button className="shops-add-stock-strip" onClick={() => setItemQuery("")} type="button">
-            <ShopIcon name="plus" />
-            <span>Добавить товары</span>
-          </button>
 
           {selectedShop ? (
             <button className="shops-delete-shop" disabled={saving} onClick={() => void handleDeleteShop()} type="button">
@@ -774,7 +810,15 @@ export function ShopsPage({
 
         <div className="shops-picker-list">
           {filteredItems.map((item) => (
-            <button className="shops-picker-item" key={item.id} onClick={() => handleAddItem(item)} type="button">
+            <button
+              className={`shops-picker-item ${draggingItemId === item.id ? "dragging" : ""}`}
+              draggable
+              key={item.id}
+              onClick={() => handleAddItem(item)}
+              onDragEnd={handleCatalogDragEnd}
+              onDragStart={(event) => handleCatalogDragStart(event, item)}
+              type="button"
+            >
               <ItemThumb item={item} />
               <span className="shops-picker-copy">
                 <strong>{item.name}</strong>
@@ -787,10 +831,7 @@ export function ShopsPage({
           ))}
         </div>
 
-        <button className="shops-manage-catalog" type="button">
-          <ShopIcon name="sliders" />
-          <span>{catalogLoading ? "Каталог загружается..." : "Управление каталогом"}</span>
-        </button>
+        <div className="shops-catalog-foot">{catalogLoading ? "Каталог загружается..." : `Показано ${filteredItems.length} товаров`}</div>
       </aside>
     </div>
   );

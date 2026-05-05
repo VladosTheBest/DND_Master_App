@@ -1,12 +1,12 @@
 {
-  "updatedAt": "2026-04-28T13:54:52Z",
+  "updatedAt": "2026-05-05T00:28:54Z",
   "sync": {
     "state": "ready",
     "total": 1131,
     "hydrated": 225,
     "lastStartedAt": "2026-04-28T10:27:56Z",
     "lastFinishedAt": "2026-04-28T10:27:56Z",
-    "updatedAt": "2026-04-28T13:54:52Z"
+    "updatedAt": "2026-05-05T00:28:54Z"
   },
   "entries": [
     {
@@ -26,7 +26,7 @@
       "sellPriceGp": 10,
       "sellPriceLabel": "10 зм",
       "url": "https://next.dnd.su/equipment/11-halberd",
-      "lastSyncedAt": "2026-04-28T13:54:52Z"
+      "lastSyncedAt": "2026-05-05T00:28:53Z"
     },
     {
       "id": "dndsu-equipment-202",
@@ -145,7 +145,7 @@
       "sellPriceGp": 7.5,
       "sellPriceLabel": "7 зм 5 см",
       "url": "https://next.dnd.su/equipment/12-warhammer",
-      "lastSyncedAt": "2026-04-28T13:54:51Z"
+      "lastSyncedAt": "2026-05-05T00:28:53Z"
     },
     {
       "id": "dndsu-equipment-1",
@@ -164,7 +164,7 @@
       "sellPriceGp": 0.1,
       "sellPriceLabel": "1 см",
       "url": "https://next.dnd.su/equipment/1-quarterstaff",
-      "lastSyncedAt": "2026-04-28T13:54:51Z"
+      "lastSyncedAt": "2026-05-05T00:28:53Z"
     },
     {
       "id": "dndsu-equipment-13",
@@ -3044,7 +3044,7 @@
       "searchText": "адская машина лума безумного,the infernal machine of lum the mad, чудесный предмет адская машина лума безумного",
       "reference": "Infernal Machine Rebuild",
       "url": "https://dnd.su/items/3961-the-infernal-machine-of-lum-the-mad/",
-      "lastSyncedAt": "2026-04-28T10:56:50Z"
+      "lastSyncedAt": "2026-05-05T00:28:53Z"
     },
     {
       "id": "dndsu-magic-2242",
@@ -3105,7 +3105,7 @@
       "sellPriceLabel": "250 зм 5 см-2 500 зм",
       "reference": "Tasha's Cauldron of Everything",
       "url": "https://dnd.su/items/2125-alchemical-compendium/",
-      "lastSyncedAt": "2026-04-28T10:56:50Z"
+      "lastSyncedAt": "2026-05-05T00:28:53Z"
     },
     {
       "id": "dndsu-magic-2",
@@ -3386,7 +3386,7 @@
       "sellPriceLabel": "25 зм-50 зм",
       "reference": "Xanathar's Guide to Everything",
       "url": "https://dnd.su/items/392-dark-shard-amulet/",
-      "lastSyncedAt": "2026-04-28T13:54:52Z"
+      "lastSyncedAt": "2026-05-05T00:28:53Z"
     },
     {
       "id": "dndsu-magic-2344",
@@ -3486,7 +3486,7 @@
       "sellPriceLabel": "250 зм 5 см-2 500 зм",
       "reference": "The Book of Many Things",
       "url": "https://dnd.su/items/7259-starshot-crossbow/",
-      "lastSyncedAt": "2026-04-28T10:56:52Z"
+      "lastSyncedAt": "2026-05-05T00:28:53Z"
     },
     {
       "id": "dndsu-magic-9041",
@@ -3565,7 +3565,7 @@
       "sellPriceLabel": "250 зм 5 см-2 500 зм",
       "reference": "Tasha's Cauldron of Everything",
       "url": "https://dnd.su/items/2127-astromancy-archive/",
-      "lastSyncedAt": "2026-04-28T10:56:52Z"
+      "lastSyncedAt": "2026-05-05T00:28:53Z"
     },
     {
       "id": "dndsu-magic-2128",
@@ -3608,7 +3608,7 @@
       "sellPriceLabel": "250 зм 5 см-2 500 зм",
       "reference": "Tasha's Cauldron of Everything",
       "url": "https://dnd.su/items/2129-atlas-of-endless-horizons/",
-      "lastSyncedAt": "2026-04-28T10:56:52Z"
+      "lastSyncedAt": "2026-05-05T00:28:53Z"
     },
     {
       "id": "dndsu-magic-9047",
@@ -3722,7 +3722,7 @@
       "searchText": "бесконечный гримуар,grimoire infinitus, чудесный предмет бесконечный гримуар",
       "reference": "Explorer's Guide to Wildemount",
       "url": "https://dnd.su/items/2308-grimoire-infinitus/",
-      "lastSyncedAt": "2026-04-28T10:56:53Z"
+      "lastSyncedAt": "2026-05-05T00:28:53Z"
     },
     {
       "id": "dndsu-magic-6445",
@@ -3739,7 +3739,7 @@
       "searchText": "благотворный браслет бигби,bigby’s beneficent bracelet, чудесный предмет благотворный браслет бигби",
       "reference": "Bigby Presents: Glory of the Giants",
       "url": "https://dnd.su/items/6445-bigbys-beneficent-bracelet/",
-      "lastSyncedAt": "2026-04-28T10:56:53Z"
+      "lastSyncedAt": "2026-05-05T00:28:53Z"
     },
     {
       "id": "dndsu-magic-2346",
@@ -3756,7 +3756,7 @@
       "searchText": "боб,bob, оружие не имеет редкости боб",
       "reference": "Tomb of Annihilation",
       "url": "https://dnd.su/items/2346-bob/",
-      "lastSyncedAt": "2026-04-28T10:56:53Z"
+      "lastSyncedAt": "2026-05-05T00:28:54Z"
     },
     {
       "id": "dndsu-magic-7168",
