@@ -1,16 +1,10 @@
 import "./shops.css";
 import builtInItemsRaw from "../../../../../dnd_items_150_ru_official_basic_rules_2014.json";
 import { api } from "../../app/api";
-import { useItemsCatalogController } from "../items/useItemsCatalogController";
+import { buildBuiltInItemLookup, enrichRemoteItemWithBuiltInMetrics } from "../items/items.utils";
 import type { Item } from "../items/items.types";
-import { enrichRemoteItemWithBuiltInMetrics, buildBuiltInItemLookup } from "../items/items.utils";
-import {
-  startTransition,
-  useEffect,
-  useMemo,
-  useState,
-  type ChangeEvent
-} from "react";
+import { useItemsCatalogController } from "../items/useItemsCatalogController";
+import { startTransition, useEffect, useMemo, useState } from "react";
 import type {
   CampaignData,
   CampaignShop,
@@ -40,24 +34,48 @@ type ShopDraft = {
   inventory: ShopInventoryItem[];
 };
 
+type CatalogCategoryFilter = "all" | Item["category"];
+type SortMode = "default" | "name" | "price";
+type ShopIconName =
+  | "shop"
+  | "plus"
+  | "search"
+  | "sliders"
+  | "location"
+  | "coin"
+  | "box"
+  | "more"
+  | "trash"
+  | "shield"
+  | "sword";
+
 const customItemsStorageVersion = "v1";
 const customItemsStorageKey = (campaignId: string) => `shadow-edge.items.custom.${customItemsStorageVersion}.${campaignId}`;
 
 const itemCategoryLabels: Record<string, string> = {
-  armor: "Броня",
+  armor: "Доспехи",
   weapon: "Оружие",
-  potion: "Зелье",
-  poison: "Яд",
-  staff: "Посох",
-  ring: "Кольцо",
-  scroll: "Свиток",
-  wand: "Палочка",
-  tool: "Инструмент",
+  potion: "Алхимия",
+  poison: "Яды",
+  staff: "Посохи",
+  ring: "Кольца",
+  scroll: "Свитки",
+  wand: "Палочки",
+  tool: "Инструменты",
   gear: "Снаряжение",
-  focus: "Фокус",
+  focus: "Фокусы",
   clothing: "Одежда",
-  other: "Другое"
+  other: "Разное"
 };
+
+const categoryFilters: Array<{ value: CatalogCategoryFilter; label: string }> = [
+  { value: "all", label: "Все" },
+  { value: "weapon", label: "Оружие" },
+  { value: "armor", label: "Доспехи" },
+  { value: "gear", label: "Снаряжение" },
+  { value: "potion", label: "Алхимия" },
+  { value: "other", label: "Разное" }
+];
 
 const normalizeSearch = (value: string) =>
   value
@@ -95,8 +113,8 @@ const normalizeBuiltInCategory = (value?: string | null): Item["category"] => {
   return "other";
 };
 
-const builtInItems: Item[] = ((builtInItemsRaw as RawBuiltInItem[]) ?? []).map((raw) => ({
-  id: `builtin-${raw.id ?? raw.name_en ?? raw.name_ru ?? crypto.randomUUID()}`,
+const builtInItems: Item[] = ((builtInItemsRaw as RawBuiltInItem[]) ?? []).map((raw, index) => ({
+  id: `builtin-${raw.id ?? raw.name_en ?? raw.name_ru ?? index}`,
   source: "builtin",
   name: normalizeOptionalText(raw.name_ru) ?? normalizeOptionalText(raw.name_en) ?? "Без названия",
   category: normalizeBuiltInCategory(raw.category),
@@ -179,6 +197,123 @@ const draftToShop = (draft: ShopDraft, locations: LocationEntity[]): CampaignSho
   };
 };
 
+const itemVisualName = (category?: string): ShopIconName => (category === "armor" ? "shield" : category === "weapon" ? "sword" : "box");
+
+const itemSubtypeLabel = (item?: Item | null, fallbackCategory?: string) => {
+  const category = item?.category ?? fallbackCategory ?? "other";
+  const base = itemCategoryLabels[category] ?? "Предмет";
+  return item?.subcategory ? `${base} (${item.subcategory})` : base;
+};
+
+function ShopIcon({ name }: { name: ShopIconName }) {
+  const common = {
+    fill: "none",
+    stroke: "currentColor",
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    strokeWidth: 1.8
+  };
+
+  switch (name) {
+    case "shop":
+      return (
+        <svg className="shops-icon-svg" viewBox="0 0 20 20">
+          <path {...common} d="M4.2 8.2h11.6l-1-3.5H5.2l-1 3.5Z" />
+          <path {...common} d="M5.4 8.2v7.1h9.2V8.2" />
+          <path {...common} d="M7.2 15.3v-4h2.2v4M11.2 11.3h1.9" />
+        </svg>
+      );
+    case "plus":
+      return (
+        <svg className="shops-icon-svg" viewBox="0 0 20 20">
+          <path {...common} d="M10 4.5v11M4.5 10h11" />
+        </svg>
+      );
+    case "search":
+      return (
+        <svg className="shops-icon-svg" viewBox="0 0 20 20">
+          <circle {...common} cx="8.8" cy="8.8" r="4.8" />
+          <path {...common} d="m12.4 12.4 3.3 3.3" />
+        </svg>
+      );
+    case "sliders":
+      return (
+        <svg className="shops-icon-svg" viewBox="0 0 20 20">
+          <path {...common} d="M4 6.2h5.2M12.4 6.2H16M4 13.8h3.4M10.6 13.8H16" />
+          <circle {...common} cx="10.8" cy="6.2" r="1.6" />
+          <circle {...common} cx="9" cy="13.8" r="1.6" />
+        </svg>
+      );
+    case "location":
+      return (
+        <svg className="shops-icon-svg" viewBox="0 0 20 20">
+          <path {...common} d="M10 17s4.3-4.6 4.3-8A4.3 4.3 0 0 0 10 4.7 4.3 4.3 0 0 0 5.7 9c0 3.4 4.3 8 4.3 8Z" />
+          <circle {...common} cx="10" cy="9" r="1.5" />
+        </svg>
+      );
+    case "coin":
+      return (
+        <svg className="shops-icon-svg" viewBox="0 0 20 20">
+          <ellipse {...common} cx="10" cy="5.8" rx="5.2" ry="2.4" />
+          <path {...common} d="M4.8 5.8v5.8c0 1.3 2.3 2.4 5.2 2.4s5.2-1.1 5.2-2.4V5.8M4.8 8.7c0 1.3 2.3 2.4 5.2 2.4s5.2-1.1 5.2-2.4" />
+        </svg>
+      );
+    case "box":
+      return (
+        <svg className="shops-icon-svg" viewBox="0 0 20 20">
+          <path {...common} d="m10 3.8 5.4 3v6.4l-5.4 3-5.4-3V6.8l5.4-3Z" />
+          <path {...common} d="m4.8 7 5.2 3 5.2-3M10 10v5.9" />
+        </svg>
+      );
+    case "more":
+      return (
+        <svg className="shops-icon-svg" viewBox="0 0 20 20">
+          <circle cx="5.6" cy="10" r="1.1" fill="currentColor" />
+          <circle cx="10" cy="10" r="1.1" fill="currentColor" />
+          <circle cx="14.4" cy="10" r="1.1" fill="currentColor" />
+        </svg>
+      );
+    case "trash":
+      return (
+        <svg className="shops-icon-svg" viewBox="0 0 20 20">
+          <path {...common} d="M5.2 6.4h9.6M8.3 6.4V4.8h3.4v1.6M6.5 8.2l.5 7h6l.5-7M8.8 9.7v3.8M11.2 9.7v3.8" />
+        </svg>
+      );
+    case "shield":
+      return (
+        <svg className="shops-icon-svg" viewBox="0 0 20 20">
+          <path {...common} d="M10 3.4 15 5v4.2c0 3.1-1.9 5.6-5 7.4-3.1-1.8-5-4.3-5-7.4V5l5-1.6Z" />
+          <path {...common} d="M10 5.6v8.1M7.2 8.4h5.6" />
+        </svg>
+      );
+    case "sword":
+      return (
+        <svg className="shops-icon-svg" viewBox="0 0 20 20">
+          <path {...common} d="M13.9 3.8 7.8 9.9M5.3 12.4l2.3-2.3 2.3 2.3-2.3 2.3-2.3-2.3Z" />
+          <path {...common} d="m4.2 15.8 2-2M6.1 8.9l5 5" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
+function ShopThumb({ seed, active }: { seed: string; active?: boolean }) {
+  return (
+    <span className={`shops-thumb ${active ? "active" : ""}`} data-seed={seed.length % 6}>
+      <ShopIcon name="shop" />
+    </span>
+  );
+}
+
+function ItemThumb({ item, category }: { item?: Item | null; category?: string }) {
+  return (
+    <span className="shops-item-thumb" data-category={item?.category ?? category ?? "other"}>
+      <ShopIcon name={itemVisualName(item?.category ?? category)} />
+    </span>
+  );
+}
+
 export function ShopsPage({
   campaign,
   hydrateCampaign
@@ -190,6 +325,9 @@ export function ShopsPage({
   const [draft, setDraft] = useState<ShopDraft>(() => shopToDraft(campaign.shops[0]));
   const [customItems, setCustomItems] = useState<Item[]>(() => loadCustomItems(campaign.id));
   const [itemQuery, setItemQuery] = useState("");
+  const [shopQuery, setShopQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<CatalogCategoryFilter>("all");
+  const [sortMode, setSortMode] = useState<SortMode>("default");
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -216,24 +354,57 @@ export function ShopsPage({
 
   const itemById = useMemo(() => new Map(allItems.map((item) => [item.id, item])), [allItems]);
 
+  const filteredShops = useMemo(() => {
+    const query = normalizeSearch(shopQuery);
+    if (!query) {
+      return campaign.shops;
+    }
+    return campaign.shops.filter((shop) =>
+      normalizeSearch([shop.name, shop.locationLabel, shop.description].filter(Boolean).join(" ")).includes(query)
+    );
+  }, [campaign.shops, shopQuery]);
+
   const filteredItems = useMemo(() => {
     const query = normalizeSearch(itemQuery);
-    return allItems
-      .filter((item) => {
-        if (!query) {
-          return true;
-        }
-        return normalizeSearch([item.name, item.description, item.rarity, item.subcategory, item.reference].filter(Boolean).join(" ")).includes(query);
-      })
-      .slice(0, 30);
-  }, [allItems, itemQuery]);
+    return allItems.filter((item) => {
+      if (categoryFilter !== "all" && item.category !== categoryFilter) {
+        return false;
+      }
+      if (!query) {
+        return true;
+      }
+      return normalizeSearch([item.name, item.description, item.rarity, item.subcategory, item.reference].filter(Boolean).join(" ")).includes(query);
+    }).slice(0, 36);
+  }, [allItems, categoryFilter, itemQuery]);
 
   const selectedShop = campaign.shops.find((shop) => shop.id === selectedShopId) ?? null;
+  const selectedLocation = campaign.locations.find((location) => location.id === draft.locationId) ?? null;
   const totalPrice = draft.inventory.reduce((sum, entry) => {
     const liveItem = itemById.get(entry.itemId);
     const price = entry.priceMode === "manual" ? entry.manualPriceGp : liveItem ? itemPrice(liveItem) : entry.itemPriceGp;
     return price == null ? sum : sum + price * (entry.quantity ?? 1);
   }, 0);
+
+  const sortedInventory = useMemo(() => {
+    const inventory = [...draft.inventory];
+    if (sortMode === "name") {
+      inventory.sort((left, right) => {
+        const leftItem = itemById.get(left.itemId);
+        const rightItem = itemById.get(right.itemId);
+        return (leftItem?.name ?? left.itemName).localeCompare(rightItem?.name ?? right.itemName, "ru");
+      });
+    }
+    if (sortMode === "price") {
+      inventory.sort((left, right) => {
+        const leftItem = itemById.get(left.itemId);
+        const rightItem = itemById.get(right.itemId);
+        const leftPrice = left.priceMode === "manual" ? left.manualPriceGp : leftItem ? itemPrice(leftItem) : left.itemPriceGp;
+        const rightPrice = right.priceMode === "manual" ? right.manualPriceGp : rightItem ? itemPrice(rightItem) : right.itemPriceGp;
+        return (leftPrice ?? Number.MAX_SAFE_INTEGER) - (rightPrice ?? Number.MAX_SAFE_INTEGER);
+      });
+    }
+    return inventory;
+  }, [draft.inventory, itemById, sortMode]);
 
   const updateDraft = <Key extends keyof ShopDraft>(key: Key, value: ShopDraft[Key]) => {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -262,6 +433,12 @@ export function ShopsPage({
     const shop = campaign.shops.find((entry) => entry.id === shopId) ?? null;
     setSelectedShopId(shop?.id ?? "");
     setDraft(shopToDraft(shop));
+    setNotice("");
+    setError("");
+  };
+
+  const handleResetDraft = () => {
+    setDraft(shopToDraft(selectedShop));
     setNotice("");
     setError("");
   };
@@ -337,175 +514,284 @@ export function ShopsPage({
 
   return (
     <div className="shops-workspace">
-      <section className="card shops-head">
-        <div className="notes-workspace-copy">
-          <p className="eyebrow">Магазины</p>
-          <h1>Магазины</h1>
-          <p className="copy">Создавай лавки, привязывай их к локациям и собирай ассортимент из предметов кампании и каталога.</p>
-        </div>
-        <div className="actions">
-          <button className="ghost" disabled={saving} onClick={handleCreateShop} type="button">
-            Новый магазин
-          </button>
-          <button className="primary" disabled={saving} onClick={() => void handleSave()} type="button">
-            {saving ? "Сохраняю..." : "Сохранить"}
-          </button>
-        </div>
-      </section>
-
-      {notice ? <div className="notes-status notes-status-success">{notice}</div> : null}
-      {error ? <div className="notes-status notes-status-error">{error}</div> : null}
-      {catalogError ? <div className="notes-status notes-status-error">Каталог предметов недоступен: {catalogError}</div> : null}
-
-      <div className="shops-grid">
-        <aside className="card shops-list-panel">
-          <div className="row muted">
-            <span>Магазины</span>
-            <strong>{campaign.shops.length}</strong>
+      <aside className="shops-panel shops-directory-panel">
+        <div className="shops-panel-header">
+          <div className="shops-title-row">
+            <span className="shops-title-icon">
+              <ShopIcon name="shop" />
+            </span>
+            <h1>Магазины</h1>
           </div>
-          <div className="shops-list">
-            {campaign.shops.length ? (
-              campaign.shops.map((shop) => (
-                <button
-                  key={shop.id}
-                  className={`shops-list-item ${shop.id === selectedShopId ? "active" : ""}`}
-                  onClick={() => handleSelectShop(shop.id)}
-                  type="button"
-                >
+          <button className="shops-primary-action" disabled={saving} onClick={handleCreateShop} type="button">
+            <ShopIcon name="plus" />
+            <span>Новый магазин</span>
+          </button>
+        </div>
+
+        <div className="shops-search-row">
+          <label className="shops-search-box">
+            <ShopIcon name="search" />
+            <input onChange={(event) => setShopQuery(event.target.value)} placeholder="Поиск магазинов..." value={shopQuery} />
+          </label>
+          <button className="shops-icon-button" title="Фильтры магазинов" type="button">
+            <ShopIcon name="sliders" />
+          </button>
+        </div>
+
+        <div className="shops-list">
+          {filteredShops.length ? (
+            filteredShops.map((shop) => (
+              <button
+                key={shop.id}
+                className={`shops-list-card ${shop.id === selectedShopId ? "active" : ""}`}
+                onClick={() => handleSelectShop(shop.id)}
+                type="button"
+              >
+                <ShopThumb active={shop.id === selectedShopId} seed={shop.name} />
+                <span className="shops-list-copy">
                   <strong>{shop.name}</strong>
-                  <small>{shop.locationLabel || "Без локации"} · {shop.inventory.length} товаров</small>
-                </button>
-              ))
-            ) : (
-              <p className="copy">Пока нет магазинов. Создай первую лавку и добавь товары справа.</p>
-            )}
-          </div>
-        </aside>
+                  <small>{shop.locationLabel || "Без локации"}</small>
+                  <small>{shop.inventory.length} товаров</small>
+                </span>
+                <span className="shops-more-icon">
+                  <ShopIcon name="more" />
+                </span>
+              </button>
+            ))
+          ) : (
+            <div className="shops-empty-state compact">
+              <strong>Магазины не найдены</strong>
+              <span>Смени поиск или создай новую лавку.</span>
+            </div>
+          )}
+        </div>
 
-        <section className="card shops-editor-panel">
-          <div className="shops-editor-top">
-            <label className="field field-full">
-              <span>Название магазина</span>
-              <input className="input" onChange={(event) => updateDraft("name", event.target.value)} placeholder="Лавка редкостей Элвина" value={draft.name} />
-            </label>
-            <label className="field">
-              <span>Локация</span>
-              <select className="input" onChange={(event) => updateDraft("locationId", event.target.value)} value={draft.locationId}>
-                <option value="">Без локации</option>
-                {campaign.locations.map((location) => (
-                  <option key={location.id} value={location.id}>
-                    {location.title}
-                  </option>
-                ))}
+        <div className="shops-directory-foot">Показано {filteredShops.length} из {campaign.shops.length} магазинов</div>
+      </aside>
+
+      <main className="shops-panel shops-editor-panel">
+        <div className="shops-editor-hero">
+          <ShopThumb active seed={draft.name || "shop"} />
+          <div className="shops-editor-title">
+            <input
+              className="shops-name-input"
+              onChange={(event) => updateDraft("name", event.target.value)}
+              placeholder="Название магазина"
+              value={draft.name}
+            />
+            <div className="shops-editor-meta">
+              <label className="shops-select-pill">
+                <ShopIcon name="location" />
+                <select onChange={(event) => updateDraft("locationId", event.target.value)} value={draft.locationId}>
+                  <option value="">Без локации</option>
+                  {campaign.locations.map((location) => (
+                    <option key={location.id} value={location.id}>
+                      {location.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="shops-select-pill">
+                <ShopIcon name="box" />
+                <select value={draft.inventory.length ? "stock" : "empty"} onChange={() => undefined}>
+                  <option value="stock">Ассортимент</option>
+                  <option value="empty">Пустая витрина</option>
+                </select>
+              </label>
+            </div>
+          </div>
+          <div className="shops-hero-actions">
+            <button className="shops-icon-button" title="Дополнительно" type="button">
+              <ShopIcon name="more" />
+            </button>
+            <button className="shops-secondary-action" disabled={saving} onClick={handleResetDraft} type="button">
+              Отмена
+            </button>
+            <button className="shops-primary-action" disabled={saving} onClick={() => void handleSave()} type="button">
+              {saving ? "Сохраняю..." : "Сохранить"}
+            </button>
+          </div>
+        </div>
+
+        {notice || error || catalogError ? (
+          <div className="shops-status-stack">
+            {notice ? <div className="notes-status notes-status-success">{notice}</div> : null}
+            {error ? <div className="notes-status notes-status-error">{error}</div> : null}
+            {catalogError ? <div className="notes-status notes-status-error">Каталог предметов недоступен: {catalogError}</div> : null}
+          </div>
+        ) : null}
+
+        <div className="shops-overview-grid">
+          <label className="shops-description-card">
+            <textarea
+              onChange={(event) => updateDraft("description", event.target.value)}
+              placeholder="Описание, владелец, условия торговли, скрытые товары..."
+              value={draft.description}
+            />
+            <span className="shops-edit-mark">✎</span>
+          </label>
+          <div className="shops-stat-card">
+            <ShopIcon name="box" />
+            <strong>{draft.inventory.length}</strong>
+            <span>товаров</span>
+          </div>
+          <div className="shops-stat-card">
+            <ShopIcon name="coin" />
+            <strong>{formatGold(totalPrice)}</strong>
+            <span>примерная стоимость</span>
+          </div>
+        </div>
+
+        <section className="shops-stock-section">
+          <div className="shops-stock-head">
+            <h2>Ассортимент</h2>
+            <span className="shops-head-line" />
+            <label className="shops-sort-select">
+              <span>Сортировка:</span>
+              <select onChange={(event) => setSortMode(event.target.value as SortMode)} value={sortMode}>
+                <option value="default">По умолчанию</option>
+                <option value="name">По названию</option>
+                <option value="price">По цене</option>
               </select>
             </label>
-            <label className="field field-full">
-              <span>Заметка для мастера</span>
-              <textarea className="input textarea" onChange={(event) => updateDraft("description", event.target.value)} placeholder="Хозяин, репутация, скидки, что спрятано под прилавком..." value={draft.description} />
-            </label>
           </div>
 
-          <div className="shops-summary-strip">
-            <span>{draft.inventory.length} товаров</span>
-            <span>Оценка витрины: {formatGold(totalPrice)}</span>
-            {selectedShop ? (
-              <button className="ghost danger" disabled={saving} onClick={() => void handleDeleteShop()} type="button">
-                Удалить магазин
-              </button>
-            ) : null}
-          </div>
-
-          <div className="shops-inventory">
-            <div className="shops-section-head">
-              <div>
-                <p className="eyebrow">Ассортимент</p>
-                <strong>Товары в продаже</strong>
-              </div>
+          <div className="shops-stock-table">
+            <div className="shops-stock-header">
+              <span>Товар</span>
+              <span>Категория</span>
+              <span>Заметки</span>
+              <span>Цена</span>
+              <span>Кол-во</span>
             </div>
-            {draft.inventory.length ? (
-              draft.inventory.map((entry) => {
+
+            {sortedInventory.length ? (
+              sortedInventory.map((entry) => {
                 const liveItem = itemById.get(entry.itemId);
                 const effectivePrice = entry.priceMode === "manual" ? entry.manualPriceGp : liveItem ? itemPrice(liveItem) : entry.itemPriceGp;
                 return (
                   <article className="shops-stock-row" key={entry.id}>
-                    <div className="shops-stock-main">
+                    <span className="shops-drag-handle">::</span>
+                    <div className="shops-stock-product">
+                      <ItemThumb category={entry.category} item={liveItem} />
                       <strong>{liveItem?.name ?? entry.itemName}</strong>
-                      <small>{itemCategoryLabels[liveItem?.category ?? entry.category ?? "other"] ?? "Предмет"} · {entry.priceMode === "manual" ? "ручная цена" : "цена предмета"}</small>
                     </div>
-                    <label className="field shops-price-mode">
-                      <span>Цена</span>
-                      <select className="input" onChange={(event) => updateInventoryItem(entry.id, { priceMode: event.target.value as "item" | "manual" })} value={entry.priceMode}>
-                        <option value="item">Из предмета</option>
-                        <option value="manual">Вручную</option>
+                    <span className="shops-stock-category">{itemSubtypeLabel(liveItem, entry.category)}</span>
+                    <input
+                      className="shops-note-input"
+                      onChange={(event) => updateInventoryItem(entry.id, { note: event.target.value })}
+                      placeholder="Заметка..."
+                      value={entry.note ?? ""}
+                    />
+                    <div className="shops-price-cell">
+                      <select onChange={(event) => updateInventoryItem(entry.id, { priceMode: event.target.value as "item" | "manual" })} value={entry.priceMode}>
+                        <option value="item">Продажа</option>
+                        <option value="manual">Своя цена</option>
                       </select>
-                    </label>
-                    <label className="field shops-price-input">
-                      <span>{entry.priceMode === "manual" ? "Зм" : "Текущая"}</span>
                       <input
-                        className="input"
                         disabled={entry.priceMode !== "manual"}
                         min={0}
-                        onChange={(event: ChangeEvent<HTMLInputElement>) => updateInventoryItem(entry.id, { manualPriceGp: normalizeOptionalNumber(event.target.value) })}
-                        placeholder={formatGold(effectivePrice)}
+                        onChange={(event) => updateInventoryItem(entry.id, { manualPriceGp: normalizeOptionalNumber(event.target.value) })}
+                        placeholder={effectivePrice == null ? "—" : String(effectivePrice)}
                         type="number"
                         value={entry.priceMode === "manual" && entry.manualPriceGp != null ? String(entry.manualPriceGp) : ""}
                       />
-                    </label>
-                    <label className="field shops-qty-input">
-                      <span>Кол-во</span>
+                      <span>зм</span>
+                    </div>
+                    <div className="shops-quantity-cell">
+                      <button onClick={() => updateInventoryItem(entry.id, { quantity: Math.max(0, (entry.quantity ?? 1) - 1) })} type="button">
+                        −
+                      </button>
                       <input
-                        className="input"
                         min={0}
                         onChange={(event) => updateInventoryItem(entry.id, { quantity: Math.max(0, Number.parseInt(event.target.value, 10) || 0) })}
                         type="number"
                         value={entry.quantity ?? 1}
                       />
-                    </label>
-                    <input
-                      className="input shops-note-input"
-                      onChange={(event) => updateInventoryItem(entry.id, { note: event.target.value })}
-                      placeholder="Заметка: под заказ, проклят, торг уместен..."
-                      value={entry.note ?? ""}
-                    />
-                    <button className="ghost shops-remove-btn" onClick={() => updateDraft("inventory", draft.inventory.filter((item) => item.id !== entry.id))} type="button">
-                      Убрать
+                      <button onClick={() => updateInventoryItem(entry.id, { quantity: (entry.quantity ?? 1) + 1 })} type="button">
+                        +
+                      </button>
+                    </div>
+                    <button
+                      className="shops-delete-stock"
+                      onClick={() => updateDraft("inventory", draft.inventory.filter((item) => item.id !== entry.id))}
+                      title="Убрать товар"
+                      type="button"
+                    >
+                      <ShopIcon name="trash" />
                     </button>
                   </article>
                 );
               })
             ) : (
-              <div className="shops-empty">
-                <h3>Витрина пуста</h3>
-                <p className="copy">Найди предмет ниже и добавь его в магазин. Цена подтянется автоматически, но её можно переопределить.</p>
+              <div className="shops-empty-state">
+                <strong>Витрина пуста</strong>
+                <span>Добавь товары из каталога справа.</span>
               </div>
             )}
           </div>
-        </section>
 
-        <aside className="card shops-picker-panel">
-          <div className="shops-section-head">
-            <div>
-              <p className="eyebrow">Каталог</p>
-              <strong>{catalogLoading ? "Загружаю предметы..." : "Добавить товар"}</strong>
-            </div>
+          <button className="shops-add-stock-strip" onClick={() => setItemQuery("")} type="button">
+            <ShopIcon name="plus" />
+            <span>Добавить товары</span>
+          </button>
+
+          {selectedShop ? (
+            <button className="shops-delete-shop" disabled={saving} onClick={() => void handleDeleteShop()} type="button">
+              Удалить магазин
+            </button>
+          ) : null}
+        </section>
+      </main>
+
+      <aside className="shops-panel shops-catalog-panel">
+        <div className="shops-catalog-head">
+          <div className="shops-title-row">
+            <span className="shops-title-icon">
+              <ShopIcon name="box" />
+            </span>
+            <h2>Каталог товаров</h2>
           </div>
-          <label className="field field-full">
-            <span>Поиск предмета</span>
-            <input className="input" onChange={(event) => setItemQuery(event.target.value)} placeholder="меч, зелье, кольцо, armor..." value={itemQuery} />
-          </label>
-          <div className="shops-picker-list">
-            {filteredItems.map((item) => (
-              <button className="shops-picker-item" key={item.id} onClick={() => handleAddItem(item)} type="button">
-                <span>
-                  <strong>{item.name}</strong>
-                  <small>{itemCategoryLabels[item.category] ?? "Предмет"} · {item.reference ?? item.source}</small>
-                </span>
-                <em>{itemPriceLabel(item)}</em>
-              </button>
-            ))}
-          </div>
-        </aside>
-      </div>
+        </div>
+
+        <label className="shops-search-box">
+          <ShopIcon name="search" />
+          <input onChange={(event) => setItemQuery(event.target.value)} placeholder="Поиск в каталоге..." value={itemQuery} />
+        </label>
+
+        <div className="shops-category-row">
+          {categoryFilters.map((filter) => (
+            <button
+              key={filter.value}
+              className={`shops-category-chip ${categoryFilter === filter.value ? "active" : ""}`}
+              onClick={() => setCategoryFilter(filter.value)}
+              type="button"
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="shops-picker-list">
+          {filteredItems.map((item) => (
+            <button className="shops-picker-item" key={item.id} onClick={() => handleAddItem(item)} type="button">
+              <ItemThumb item={item} />
+              <span className="shops-picker-copy">
+                <strong>{item.name}</strong>
+                <small>{itemSubtypeLabel(item)}</small>
+              </span>
+              <span className="shops-picker-add">
+                <ShopIcon name="plus" />
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <button className="shops-manage-catalog" type="button">
+          <ShopIcon name="sliders" />
+          <span>{catalogLoading ? "Каталог загружается..." : "Управление каталогом"}</span>
+        </button>
+      </aside>
     </div>
   );
 }

@@ -1,194 +1,853 @@
+.shops-shell .topbar {
+  display: none;
+}
+
+.shops-shell .center {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.shops-shell .content {
+  padding: 0;
+  overflow: hidden;
+}
+
 .shops-workspace {
+  --shops-bg: rgba(9, 13, 22, .94);
+  --shops-bg-soft: rgba(20, 27, 42, .84);
+  --shops-bg-card: rgba(18, 25, 38, .9);
+  --shops-line: rgba(152, 170, 210, .16);
+  --shops-line-strong: rgba(171, 133, 255, .52);
+  --shops-purple: #9a6cff;
+  --shops-purple-soft: rgba(130, 78, 232, .32);
+  --shops-gold: #d9aa64;
   display: grid;
-  gap: 18px;
+  grid-template-columns: minmax(260px, 330px) minmax(560px, 1fr) minmax(300px, 360px);
   min-height: 100%;
+  height: 100%;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .06);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(120, 89, 232, .14), transparent 30%),
+    radial-gradient(circle at 100% 12%, rgba(69, 121, 190, .12), transparent 28%),
+    #070a11;
 }
 
-.shops-head {
-  align-items: center;
-  display: flex;
-  gap: 18px;
-  justify-content: space-between;
-}
-
-.shops-grid {
-  align-items: start;
-  display: grid;
-  gap: 18px;
-  grid-template-columns: minmax(220px, 280px) minmax(420px, 1fr) minmax(300px, 360px);
-}
-
-.shops-list-panel,
-.shops-editor-panel,
-.shops-picker-panel {
+.shops-panel {
+  min-width: 0;
+  min-height: 0;
   display: grid;
   gap: 16px;
+  padding: 28px;
+  background:
+    linear-gradient(180deg, rgba(17, 24, 38, .94), rgba(8, 12, 21, .95)),
+    var(--shops-bg);
+  border-right: 1px solid var(--shops-line);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .03);
 }
 
-.shops-list {
-  display: grid;
-  gap: 10px;
+.shops-directory-panel,
+.shops-catalog-panel {
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
 }
 
-.shops-list-item,
-.shops-picker-item {
-  background: rgba(255, 255, 255, .045);
-  border: 1px solid rgba(255, 255, 255, .09);
-  border-radius: 8px;
-  color: inherit;
+.shops-editor-panel {
+  grid-template-rows: auto auto auto minmax(0, 1fr);
+  overflow: auto;
+  scrollbar-gutter: stable;
+}
+
+.shops-catalog-panel {
+  border-right: 0;
+  border-left: 1px solid rgba(180, 196, 230, .12);
+}
+
+.shops-panel-header,
+.shops-catalog-head,
+.shops-editor-hero,
+.shops-stock-head,
+.shops-title-row,
+.shops-hero-actions,
+.shops-editor-meta,
+.shops-search-row,
+.shops-status-stack {
+  min-width: 0;
+}
+
+.shops-panel-header,
+.shops-editor-hero,
+.shops-stock-head {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+
+.shops-title-row {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+}
+
+.shops-title-row h1,
+.shops-title-row h2,
+.shops-stock-head h2 {
+  margin: 0;
+  color: var(--text);
+  font-family: Georgia, "Times New Roman", serif;
+  letter-spacing: 0;
+}
+
+.shops-title-row h1 {
+  font-size: clamp(1.35rem, 2vw, 1.7rem);
+}
+
+.shops-title-row h2,
+.shops-stock-head h2 {
+  font-size: 1.22rem;
+}
+
+.shops-title-icon,
+.shops-icon-button,
+.shops-primary-action,
+.shops-secondary-action,
+.shops-select-pill,
+.shops-category-chip,
+.shops-manage-catalog,
+.shops-picker-add,
+.shops-quantity-cell button,
+.shops-delete-stock {
+  align-items: center;
+  display: inline-flex;
+  justify-content: center;
+}
+
+.shops-title-icon {
+  width: 30px;
+  height: 30px;
+  color: #f3efff;
+}
+
+.shops-icon-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.shops-primary-action,
+.shops-secondary-action,
+.shops-icon-button,
+.shops-manage-catalog,
+.shops-category-chip,
+.shops-delete-shop {
+  border: 1px solid var(--shops-line);
+  color: var(--text);
   cursor: pointer;
-  display: flex;
-  gap: 12px;
-  justify-content: space-between;
-  padding: 12px;
-  text-align: left;
+  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
 }
 
-.shops-list-item {
-  display: grid;
+.shops-primary-action:hover,
+.shops-secondary-action:hover,
+.shops-icon-button:hover,
+.shops-manage-catalog:hover,
+.shops-category-chip:hover,
+.shops-delete-shop:hover,
+.shops-list-card:hover,
+.shops-picker-item:hover {
+  transform: translateY(-1px);
 }
 
-.shops-list-item:hover,
-.shops-picker-item:hover,
-.shops-list-item.active {
-  background: rgba(126, 160, 255, .12);
-  border-color: rgba(145, 174, 255, .34);
-}
-
-.shops-list-item strong,
-.shops-picker-item strong {
-  font-size: .95rem;
-}
-
-.shops-list-item small,
-.shops-picker-item small,
-.shops-stock-main small {
-  color: var(--muted);
-  line-height: 1.35;
-}
-
-.shops-editor-top {
-  display: grid;
-  gap: 14px;
-  grid-template-columns: minmax(240px, 1fr) minmax(200px, 280px);
-}
-
-.shops-summary-strip {
-  align-items: center;
-  background: rgba(255, 255, 255, .045);
-  border: 1px solid rgba(255, 255, 255, .08);
+.shops-primary-action {
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 16px;
+  border-color: rgba(177, 129, 255, .6);
   border-radius: 8px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  justify-content: space-between;
-  padding: 10px 12px;
-}
-
-.shops-summary-strip span {
-  color: var(--muted);
-  font-size: .9rem;
-}
-
-.shops-section-head {
-  align-items: center;
-  display: flex;
-  justify-content: space-between;
-}
-
-.shops-inventory,
-.shops-picker-list {
-  display: grid;
-  gap: 12px;
-}
-
-.shops-stock-row {
-  align-items: end;
-  background: rgba(255, 255, 255, .04);
-  border: 1px solid rgba(255, 255, 255, .08);
-  border-radius: 8px;
-  display: grid;
-  gap: 10px;
-  grid-template-columns: minmax(180px, 1fr) 130px 110px 80px;
-  padding: 12px;
-}
-
-.shops-stock-main {
-  align-self: center;
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.shops-stock-main strong {
-  overflow-wrap: anywhere;
-}
-
-.shops-note-input {
-  grid-column: 1 / -2;
-}
-
-.shops-remove-btn {
-  min-height: 38px;
-}
-
-.shops-picker-item {
-  align-items: center;
-}
-
-.shops-picker-item span {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.shops-picker-item em {
-  color: var(--accent);
-  flex: 0 0 auto;
-  font-style: normal;
+  background:
+    linear-gradient(180deg, rgba(143, 83, 238, .88), rgba(93, 52, 168, .9));
+  box-shadow: 0 12px 28px rgba(98, 53, 183, .28), inset 0 1px 0 rgba(255, 255, 255, .14);
   font-weight: 700;
 }
 
-.shops-empty {
-  border: 1px dashed rgba(255, 255, 255, .18);
+.shops-primary-action .shops-icon-svg {
+  width: 18px;
+  height: 18px;
+}
+
+.shops-secondary-action,
+.shops-icon-button {
+  min-height: 40px;
   border-radius: 8px;
-  padding: 24px;
+  background: rgba(255, 255, 255, .035);
+}
+
+.shops-secondary-action {
+  padding: 0 16px;
+  font-weight: 700;
+}
+
+.shops-icon-button {
+  width: 42px;
+  color: var(--text-muted);
+}
+
+.shops-icon-button .shops-icon-svg,
+.shops-delete-stock .shops-icon-svg,
+.shops-picker-add .shops-icon-svg {
+  width: 18px;
+  height: 18px;
+}
+
+.shops-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  gap: 10px;
+}
+
+.shops-search-box {
+  align-items: center;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--shops-line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .035);
+  color: var(--text-soft);
+}
+
+.shops-search-box input,
+.shops-name-input,
+.shops-description-card textarea,
+.shops-select-pill select,
+.shops-sort-select select,
+.shops-stock-row input,
+.shops-stock-row select {
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+}
+
+.shops-search-box input::placeholder,
+.shops-name-input::placeholder,
+.shops-description-card textarea::placeholder,
+.shops-note-input::placeholder {
+  color: var(--text-soft);
+}
+
+.shops-list,
+.shops-picker-list {
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.shops-list-card {
+  position: relative;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) 22px;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--shops-line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .035);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease, box-shadow 140ms ease;
+}
+
+.shops-list-card.active {
+  border-color: var(--shops-line-strong);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(145, 86, 255, .32), transparent 48%),
+    rgba(37, 28, 56, .65);
+  box-shadow: 0 0 0 1px rgba(138, 80, 236, .24), 0 18px 38px rgba(74, 39, 148, .22);
+}
+
+.shops-thumb,
+.shops-item-thumb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  overflow: hidden;
+  color: #f7efe0;
+  border: 1px solid rgba(255, 217, 156, .18);
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 218, 144, .28), transparent 28%),
+    linear-gradient(145deg, rgba(93, 66, 45, .95), rgba(24, 25, 32, .96));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .04), 0 12px 26px rgba(0, 0, 0, .32);
+}
+
+.shops-thumb {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+}
+
+.shops-thumb.active {
+  color: #f4edff;
+  border-color: rgba(171, 133, 255, .42);
+  background:
+    radial-gradient(circle at 34% 24%, rgba(178, 134, 255, .35), transparent 30%),
+    linear-gradient(145deg, rgba(81, 62, 128, .98), rgba(26, 28, 38, .98));
+}
+
+.shops-thumb .shops-icon-svg {
+  width: 40px;
+  height: 40px;
+  filter: drop-shadow(0 8px 12px rgba(0, 0, 0, .28));
+}
+
+.shops-list-copy,
+.shops-picker-copy,
+.shops-stock-product {
+  min-width: 0;
+}
+
+.shops-list-copy {
+  display: grid;
+  gap: 5px;
+}
+
+.shops-list-copy strong,
+.shops-picker-copy strong,
+.shops-stock-product strong {
+  overflow-wrap: anywhere;
+  line-height: 1.22;
+}
+
+.shops-list-copy small,
+.shops-picker-copy small,
+.shops-directory-foot,
+.shops-stock-category,
+.shops-stat-card span,
+.shops-sort-select,
+.shops-empty-state span {
+  color: var(--text-muted);
+  font-size: .82rem;
+  line-height: 1.35;
+}
+
+.shops-more-icon {
+  width: 22px;
+  height: 22px;
+  color: var(--text-soft);
+}
+
+.shops-directory-foot {
   text-align: center;
 }
 
-.ghost.danger {
+.shops-editor-hero {
+  align-items: start;
+}
+
+.shops-editor-title {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+  flex: 1;
+}
+
+.shops-name-input {
+  width: 100%;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.75rem, 3vw, 2.45rem);
+  line-height: 1.05;
+  letter-spacing: 0;
+  font-weight: 700;
+}
+
+.shops-editor-meta,
+.shops-hero-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.shops-hero-actions {
+  justify-content: flex-end;
+}
+
+.shops-select-pill {
+  gap: 9px;
+  min-height: 42px;
+  padding: 0 13px;
+  border: 1px solid var(--shops-line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .035);
+  color: var(--text-muted);
+}
+
+.shops-select-pill .shops-icon-svg {
+  width: 17px;
+  height: 17px;
+}
+
+.shops-select-pill select,
+.shops-sort-select select {
+  cursor: pointer;
+  color-scheme: dark;
+}
+
+.shops-status-stack {
+  display: grid;
+  gap: 8px;
+}
+
+.shops-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) 210px 250px;
+  gap: 18px;
+}
+
+.shops-description-card,
+.shops-stat-card {
+  min-height: 118px;
+  border: 1px solid var(--shops-line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .035);
+}
+
+.shops-description-card {
+  position: relative;
+  display: block;
+}
+
+.shops-description-card textarea {
+  width: 100%;
+  height: 100%;
+  min-height: 118px;
+  padding: 18px 52px 18px 18px;
+  resize: vertical;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.shops-edit-mark {
+  position: absolute;
+  right: 18px;
+  bottom: 16px;
+  color: var(--text-muted);
+  font-size: 1.1rem;
+}
+
+.shops-stat-card {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  align-content: center;
+  gap: 8px 14px;
+  padding: 20px;
+}
+
+.shops-stat-card .shops-icon-svg {
+  width: 24px;
+  height: 24px;
+  color: #d8c8ff;
+}
+
+.shops-stat-card strong {
+  color: var(--text);
+  font-size: 1.08rem;
+  line-height: 1.15;
+}
+
+.shops-stat-card span {
+  grid-column: 2;
+}
+
+.shops-stock-section {
+  min-height: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.shops-head-line {
+  height: 1px;
+  min-width: 60px;
+  flex: 1;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, .18), transparent),
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, .1), transparent);
+}
+
+.shops-sort-select {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.shops-sort-select select {
+  color: var(--text-muted);
+}
+
+.shops-stock-table {
+  display: grid;
+  gap: 8px;
+}
+
+.shops-stock-header,
+.shops-stock-row {
+  display: grid;
+  grid-template-columns: 16px minmax(170px, 1.2fr) minmax(120px, .62fr) minmax(160px, .9fr) minmax(210px, 1fr) minmax(110px, .55fr) 28px;
+  align-items: center;
+  gap: 12px;
+}
+
+.shops-stock-header {
+  padding: 0 18px 4px 46px;
+  color: var(--text-soft);
+  font-size: .78rem;
+}
+
+.shops-stock-header span:nth-child(1) {
+  grid-column: 2;
+}
+
+.shops-stock-row {
+  min-height: 78px;
+  padding: 10px 12px;
+  border: 1px solid var(--shops-line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .035);
+}
+
+.shops-drag-handle {
+  color: var(--text-soft);
+  letter-spacing: -2px;
+  transform: rotate(90deg);
+}
+
+.shops-stock-product {
+  align-items: center;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 12px;
+}
+
+.shops-item-thumb {
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+}
+
+.shops-item-thumb .shops-icon-svg {
+  width: 31px;
+  height: 31px;
+}
+
+.shops-item-thumb[data-category="weapon"] {
+  color: #ffe1ae;
+  background:
+    radial-gradient(circle at 34% 26%, rgba(255, 184, 91, .34), transparent 30%),
+    linear-gradient(145deg, rgba(74, 49, 30, .96), rgba(21, 24, 31, .96));
+}
+
+.shops-item-thumb[data-category="armor"] {
+  color: #f0f5ff;
+  background:
+    radial-gradient(circle at 30% 24%, rgba(193, 205, 224, .34), transparent 30%),
+    linear-gradient(145deg, rgba(55, 60, 69, .96), rgba(18, 23, 32, .96));
+}
+
+.shops-item-thumb[data-category="potion"],
+.shops-item-thumb[data-category="poison"] {
+  color: #cbffbf;
+  background:
+    radial-gradient(circle at 34% 28%, rgba(88, 223, 120, .32), transparent 30%),
+    linear-gradient(145deg, rgba(31, 76, 41, .96), rgba(18, 23, 32, .96));
+}
+
+.shops-stock-category {
+  color: #a9bcff;
+}
+
+.shops-note-input {
+  width: 100%;
+  min-height: 38px;
+  color: var(--text-muted);
+}
+
+.shops-price-cell,
+.shops-quantity-cell {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+}
+
+.shops-price-cell {
+  grid-template-columns: minmax(86px, 1fr) minmax(70px, .8fr) 22px;
+}
+
+.shops-price-cell select,
+.shops-price-cell input,
+.shops-quantity-cell {
+  min-height: 38px;
+  border: 1px solid var(--shops-line);
+  border-radius: 8px;
+  background: rgba(4, 8, 16, .34);
+}
+
+.shops-price-cell select,
+.shops-price-cell input {
+  padding: 0 11px;
+}
+
+.shops-price-cell span {
+  color: var(--text-muted);
+  font-size: .82rem;
+}
+
+.shops-quantity-cell {
+  grid-template-columns: 30px minmax(34px, 1fr) 30px;
+  overflow: hidden;
+}
+
+.shops-quantity-cell button,
+.shops-quantity-cell input {
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: center;
+}
+
+.shops-quantity-cell button {
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 1rem;
+}
+
+.shops-quantity-cell input {
+  appearance: textfield;
+}
+
+.shops-quantity-cell input::-webkit-outer-spin-button,
+.shops-quantity-cell input::-webkit-inner-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.shops-delete-stock {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: var(--danger);
+  cursor: pointer;
+}
+
+.shops-add-stock-strip {
+  min-height: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px dashed rgba(158, 100, 255, .75);
+  border-radius: 8px;
+  background: rgba(109, 65, 204, .07);
+  color: #b98dff;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.shops-add-stock-strip .shops-icon-svg {
+  width: 20px;
+  height: 20px;
+}
+
+.shops-delete-shop {
+  justify-self: start;
+  min-height: 38px;
+  padding: 0 13px;
+  border-color: rgba(242, 138, 138, .24);
+  border-radius: 8px;
+  background: rgba(111, 40, 48, .15);
   color: var(--danger);
 }
 
-@media (max-width: 1280px) {
-  .shops-grid {
-    grid-template-columns: minmax(220px, 280px) minmax(420px, 1fr);
+.shops-category-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.shops-category-chip {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .035);
+  color: var(--text-muted);
+  font-size: .82rem;
+}
+
+.shops-category-chip.active {
+  border-color: rgba(180, 134, 255, .58);
+  background: linear-gradient(180deg, rgba(144, 82, 238, .78), rgba(95, 54, 174, .78));
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(102, 56, 184, .25);
+}
+
+.shops-picker-item {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) 32px;
+  align-items: center;
+  gap: 12px;
+  min-height: 78px;
+  padding: 9px;
+  border: 1px solid var(--shops-line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .035);
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.shops-picker-item:hover {
+  border-color: rgba(177, 129, 255, .38);
+  background: rgba(115, 76, 184, .12);
+}
+
+.shops-picker-copy {
+  display: grid;
+  gap: 5px;
+}
+
+.shops-picker-add {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(135, 82, 220, .88), rgba(88, 50, 157, .92));
+  color: #fff;
+}
+
+.shops-manage-catalog {
+  gap: 10px;
+  min-height: 46px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, .035);
+  font-weight: 700;
+}
+
+.shops-manage-catalog .shops-icon-svg {
+  width: 18px;
+  height: 18px;
+}
+
+.shops-empty-state {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  min-height: 150px;
+  padding: 22px;
+  border: 1px dashed rgba(165, 184, 222, .18);
+  border-radius: 8px;
+  color: var(--text);
+  text-align: center;
+}
+
+.shops-empty-state.compact {
+  min-height: 120px;
+}
+
+@media (max-width: 1500px) {
+  .shops-workspace {
+    grid-template-columns: minmax(250px, 310px) minmax(520px, 1fr) minmax(280px, 330px);
   }
 
-  .shops-picker-panel {
+  .shops-panel {
+    padding: 22px;
+  }
+
+  .shops-stock-header,
+  .shops-stock-row {
+    grid-template-columns: 14px minmax(160px, 1.1fr) minmax(110px, .62fr) minmax(130px, .76fr) minmax(180px, .95fr) minmax(100px, .55fr) 28px;
+  }
+}
+
+@media (max-width: 1220px) {
+  .shops-workspace {
+    grid-template-columns: minmax(240px, 300px) minmax(520px, 1fr);
+  }
+
+  .shops-catalog-panel {
     grid-column: 1 / -1;
+    min-height: 420px;
+    border-top: 1px solid var(--shops-line);
+    border-left: 0;
+  }
+
+  .shops-overview-grid {
+    grid-template-columns: minmax(280px, 1fr) repeat(2, minmax(160px, 220px));
   }
 }
 
 @media (max-width: 920px) {
-  .shops-head,
-  .shops-summary-strip {
+  .shops-shell .content {
+    overflow: auto;
+  }
+
+  .shops-workspace {
+    height: auto;
+    overflow: visible;
+    grid-template-columns: 1fr;
+  }
+
+  .shops-panel {
+    border-right: 0;
+    border-bottom: 1px solid var(--shops-line);
+  }
+
+  .shops-editor-hero,
+  .shops-panel-header,
+  .shops-stock-head {
     align-items: stretch;
     flex-direction: column;
   }
 
-  .shops-grid,
-  .shops-editor-top {
+  .shops-hero-actions,
+  .shops-editor-meta {
+    justify-content: flex-start;
+  }
+
+  .shops-overview-grid {
     grid-template-columns: 1fr;
   }
 
-  .shops-stock-row {
-    grid-template-columns: 1fr 1fr;
+  .shops-stock-header {
+    display: none;
   }
 
-  .shops-stock-main,
+  .shops-stock-row {
+    grid-template-columns: 16px minmax(0, 1fr) 28px;
+  }
+
+  .shops-stock-product,
+  .shops-stock-category,
   .shops-note-input,
-  .shops-remove-btn {
-    grid-column: 1 / -1;
+  .shops-price-cell,
+  .shops-quantity-cell {
+    grid-column: 2 / -1;
+  }
+
+  .shops-delete-stock {
+    grid-column: 3;
+    grid-row: 1;
   }
 }

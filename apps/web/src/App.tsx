@@ -4093,7 +4093,7 @@ export default function App() {
   return (
     <>
       <div
-        className={`shell ${isCombatScreen ? "combat-layout" : ""} ${isCombatPrepScreen ? "combat-prep-shell" : ""} ${isItemsRail || isShopsRail ? "items-shell" : ""} ${hasFeatureOwnedDetailsPanel ? "feature-owned-details-shell" : ""}`.trim()}
+        className={`shell ${isCombatScreen ? "combat-layout" : ""} ${isCombatPrepScreen ? "combat-prep-shell" : ""} ${isItemsRail || isShopsRail ? "items-shell" : ""} ${isShopsRail ? "shops-shell" : ""} ${hasFeatureOwnedDetailsPanel ? "feature-owned-details-shell" : ""}`.trim()}
         style={shellStyle}
       >
         {!isCombatScreen ? (
