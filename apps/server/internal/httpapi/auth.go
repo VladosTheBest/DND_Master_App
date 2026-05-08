@@ -4,14 +4,19 @@ import (
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
-	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf8"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthOptions struct {
@@ -21,21 +26,28 @@ type AuthOptions struct {
 }
 
 type authManager struct {
-	username   string
-	password   string
-	cookieName string
-	sessionTTL time.Duration
+	store             *campaignStore
+	cookieName        string
+	sessionTTL        time.Duration
+	sessionSigningKey []byte
 
 	mu       sync.Mutex
 	sessions map[string]authSession
 }
 
+type authUser struct {
+	ID       string
+	Username string
+}
+
 type authSession struct {
+	UserID    string
 	Username  string
 	ExpiresAt time.Time
 }
 
 type signedSessionPayload struct {
+	UserID    string `json:"userId"`
 	Username  string `json:"username"`
 	ExpiresAt int64  `json:"expiresAt"`
 }
@@ -45,32 +57,52 @@ type loginInput struct {
 	Password string `json:"password"`
 }
 
-type authSessionResult struct {
-	Authenticated bool   `json:"authenticated"`
-	Username      string `json:"username,omitempty"`
+type registerInput struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
 }
 
-func newAuthManager(options AuthOptions) *authManager {
+type authSessionResult struct {
+	Authenticated       bool   `json:"authenticated"`
+	UserID              string `json:"userId,omitempty"`
+	Username            string `json:"username,omitempty"`
+	RegistrationEnabled bool   `json:"registrationEnabled"`
+}
+
+func newAuthManager(options AuthOptions, store *campaignStore) (*authManager, error) {
+	if store == nil {
+		return nil, fmt.Errorf("auth store is required")
+	}
+
+	if err := store.bootstrapLegacyUser(options.Username, options.Password); err != nil {
+		return nil, err
+	}
+
+	secret := strings.TrimSpace(store.authSecret())
+	if secret == "" {
+		return nil, fmt.Errorf("auth secret is not initialized")
+	}
+
 	ttl := options.SessionTTL
 	if ttl <= 0 {
 		ttl = 7 * 24 * time.Hour
 	}
 
 	return &authManager{
-		username:   strings.TrimSpace(options.Username),
-		password:   options.Password,
-		cookieName: "shadow_edge_session",
-		sessionTTL: ttl,
-		sessions:   make(map[string]authSession),
-	}
+		store:             store,
+		cookieName:        "shadow_edge_session",
+		sessionTTL:        ttl,
+		sessionSigningKey: []byte(secret),
+		sessions:          make(map[string]authSession),
+	}, nil
 }
 
 func (manager *authManager) enabled() bool {
-	return manager.username != "" && manager.password != ""
+	return manager != nil && manager.store != nil
 }
 
 func (manager *authManager) shouldProtect(path string) bool {
-	if !manager.enabled() {
+	if manager == nil || !manager.enabled() {
 		return false
 	}
 
@@ -89,32 +121,34 @@ func (manager *authManager) shouldProtect(path string) bool {
 	return true
 }
 
-func (manager *authManager) currentUser(request *http.Request) (string, bool) {
-	if !manager.enabled() {
-		return "gm", true
+func (manager *authManager) currentUser(request *http.Request) (authUser, bool) {
+	if manager == nil || !manager.enabled() {
+		return authUser{}, false
 	}
 
 	cookie, err := request.Cookie(manager.cookieName)
 	if err != nil || strings.TrimSpace(cookie.Value) == "" {
-		return "", false
+		return authUser{}, false
 	}
 
 	manager.mu.Lock()
-	defer manager.mu.Unlock()
 	manager.cleanupExpiredLocked(time.Now())
-
 	session, ok := manager.sessions[cookie.Value]
+	manager.mu.Unlock()
 	if ok {
-		return session.Username, true
+		return authUser{ID: session.UserID, Username: session.Username}, true
 	}
 
 	session, ok = manager.sessionFromToken(cookie.Value)
 	if !ok {
-		return "", false
+		return authUser{}, false
 	}
 
+	manager.mu.Lock()
 	manager.sessions[cookie.Value] = session
-	return session.Username, true
+	manager.mu.Unlock()
+
+	return authUser{ID: session.UserID, Username: session.Username}, true
 }
 
 func (manager *authManager) handleSession(writer http.ResponseWriter, request *http.Request) {
@@ -123,21 +157,25 @@ func (manager *authManager) handleSession(writer http.ResponseWriter, request *h
 		return
 	}
 
-	username, ok := manager.currentUser(request)
+	user, ok := manager.currentUser(request)
 	if !ok {
-		writeJSON(writer, http.StatusOK, authSessionResult{Authenticated: false})
+		writeJSON(writer, http.StatusOK, authSessionResult{
+			Authenticated:       false,
+			RegistrationEnabled: true,
+		})
 		return
 	}
 
 	if cookie, err := request.Cookie(manager.cookieName); err == nil && strings.TrimSpace(cookie.Value) != "" {
 		expiresAt := time.Now().Add(manager.sessionTTL)
-		token, tokenErr := manager.issueSessionToken(username, expiresAt)
+		token, tokenErr := manager.issueSessionToken(user, expiresAt)
 		if tokenErr == nil {
 			manager.mu.Lock()
 			manager.cleanupExpiredLocked(time.Now())
 			delete(manager.sessions, cookie.Value)
 			manager.sessions[token] = authSession{
-				Username:  username,
+				UserID:    user.ID,
+				Username:  user.Username,
 				ExpiresAt: expiresAt,
 			}
 			manager.mu.Unlock()
@@ -146,8 +184,10 @@ func (manager *authManager) handleSession(writer http.ResponseWriter, request *h
 	}
 
 	writeJSON(writer, http.StatusOK, authSessionResult{
-		Authenticated: true,
-		Username:      username,
+		Authenticated:       true,
+		UserID:              user.ID,
+		Username:            user.Username,
+		RegistrationEnabled: true,
 	})
 }
 
@@ -157,49 +197,71 @@ func (manager *authManager) handleLogin(writer http.ResponseWriter, request *htt
 		return
 	}
 
-	if !manager.enabled() {
-		writeJSON(writer, http.StatusOK, authSessionResult{
-			Authenticated: true,
-			Username:      "gm",
-		})
-		return
-	}
-
 	var input loginInput
 	if err := readJSON(request, &input); err != nil {
 		writeError(writer, http.StatusBadRequest, "bad_request", err.Error())
 		return
 	}
 
-	if subtle.ConstantTimeCompare([]byte(strings.TrimSpace(input.Username)), []byte(manager.username)) != 1 ||
-		subtle.ConstantTimeCompare([]byte(input.Password), []byte(manager.password)) != 1 {
+	user, ok := manager.store.findUserByUsername(input.Username)
+	if !ok || !verifyPassword(user.PasswordHash, input.Password) {
 		writeError(writer, http.StatusUnauthorized, "invalid_credentials", "Неверный логин или пароль.")
 		return
 	}
 
-	token, err := manager.issueSessionToken(manager.username, time.Now().Add(manager.sessionTTL))
+	manager.writeAuthenticatedSession(writer, request, authUser{ID: user.ID, Username: user.Username})
+}
+
+func (manager *authManager) handleRegister(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodPost {
+		writeError(writer, http.StatusMethodNotAllowed, "method_not_allowed", "Only POST is supported")
+		return
+	}
+
+	var input registerInput
+	if err := readJSON(request, &input); err != nil {
+		writeError(writer, http.StatusBadRequest, "bad_request", err.Error())
+		return
+	}
+
+	user, err := manager.store.createUser(input.Username, input.Password)
+	if err != nil {
+		switch {
+		case errors.Is(err, errUsernameTaken):
+			writeError(writer, http.StatusConflict, "username_taken", "Такой логин уже занят.")
+		default:
+			writeError(writer, http.StatusBadRequest, "registration_failed", err.Error())
+		}
+		return
+	}
+
+	manager.writeAuthenticatedSession(writer, request, authUser{ID: user.ID, Username: user.Username})
+}
+
+func (manager *authManager) writeAuthenticatedSession(writer http.ResponseWriter, request *http.Request, user authUser) {
+	expiresAt := time.Now().Add(manager.sessionTTL)
+	token, err := manager.issueSessionToken(user, expiresAt)
 	if err != nil {
 		writeError(writer, http.StatusInternalServerError, "session_create_failed", "Не удалось создать сессию.")
 		return
 	}
 
-	session, ok := manager.sessionFromToken(token)
-	if !ok {
-		writeError(writer, http.StatusInternalServerError, "session_create_failed", "Не удалось создать сессию.")
-		return
-	}
-	expiresAt := session.ExpiresAt
-
 	manager.mu.Lock()
 	manager.cleanupExpiredLocked(time.Now())
-	manager.sessions[token] = session
+	manager.sessions[token] = authSession{
+		UserID:    user.ID,
+		Username:  user.Username,
+		ExpiresAt: expiresAt,
+	}
 	manager.mu.Unlock()
 
 	manager.writeSessionCookie(writer, token, expiresAt, requestIsSecure(request))
 
 	writeJSON(writer, http.StatusOK, authSessionResult{
-		Authenticated: true,
-		Username:      manager.username,
+		Authenticated:       true,
+		UserID:              user.ID,
+		Username:            user.Username,
+		RegistrationEnabled: true,
 	})
 }
 
@@ -216,7 +278,10 @@ func (manager *authManager) handleLogout(writer http.ResponseWriter, request *ht
 	}
 
 	manager.clearSessionCookie(writer, requestIsSecure(request))
-	writeJSON(writer, http.StatusOK, authSessionResult{Authenticated: false})
+	writeJSON(writer, http.StatusOK, authSessionResult{
+		Authenticated:       false,
+		RegistrationEnabled: true,
+	})
 }
 
 func (manager *authManager) writeSessionCookie(writer http.ResponseWriter, token string, expiresAt time.Time, secure bool) {
@@ -270,9 +335,10 @@ func (manager *authManager) cleanupExpiredLocked(now time.Time) {
 	}
 }
 
-func (manager *authManager) issueSessionToken(username string, expiresAt time.Time) (string, error) {
+func (manager *authManager) issueSessionToken(user authUser, expiresAt time.Time) (string, error) {
 	payloadBytes, err := json.Marshal(signedSessionPayload{
-		Username:  username,
+		UserID:    user.ID,
+		Username:  user.Username,
 		ExpiresAt: expiresAt.Unix(),
 	})
 	if err != nil {
@@ -309,25 +375,74 @@ func (manager *authManager) sessionFromToken(token string) (authSession, bool) {
 	}
 
 	expiresAt := time.Unix(payload.ExpiresAt, 0)
-	if time.Now().After(expiresAt) || strings.TrimSpace(payload.Username) == "" {
+	if time.Now().After(expiresAt) || strings.TrimSpace(payload.UserID) == "" {
+		return authSession{}, false
+	}
+
+	user, ok := manager.store.getUserByID(payload.UserID)
+	if !ok {
 		return authSession{}, false
 	}
 
 	return authSession{
-		Username:  payload.Username,
+		UserID:    user.ID,
+		Username:  user.Username,
 		ExpiresAt: expiresAt,
 	}, true
 }
 
 func (manager *authManager) signSessionPayload(payload []byte) []byte {
-	mac := hmac.New(sha256.New, manager.sessionSigningKey())
+	mac := hmac.New(sha256.New, manager.sessionSigningKey)
 	mac.Write(payload)
 	return mac.Sum(nil)
 }
 
-func (manager *authManager) sessionSigningKey() []byte {
-	sum := sha256.Sum256([]byte(manager.username + "\x00" + manager.password))
-	return sum[:]
+func normalizeAccountUsername(value string) (string, string, error) {
+	username := strings.TrimSpace(value)
+	length := utf8.RuneCountInString(username)
+	if length < 3 {
+		return "", "", fmt.Errorf("Логин должен быть не короче 3 символов.")
+	}
+	if length > 48 {
+		return "", "", fmt.Errorf("Логин должен быть не длиннее 48 символов.")
+	}
+	for _, char := range username {
+		if unicode.IsControl(char) {
+			return "", "", fmt.Errorf("Логин не должен содержать управляющие символы.")
+		}
+	}
+
+	usernameKey := normalizeUsernameKey(username)
+	if usernameKey == "" {
+		return "", "", fmt.Errorf("Укажи логин.")
+	}
+
+	return username, usernameKey, nil
+}
+
+func normalizeUsernameKey(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
+}
+
+func validateAccountPassword(password string) error {
+	if utf8.RuneCountInString(password) < 8 {
+		return fmt.Errorf("Пароль должен быть не короче 8 символов.")
+	}
+
+	return nil
+}
+
+func hashPassword(password string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+
+	return string(hash), nil
+}
+
+func verifyPassword(passwordHash string, password string) bool {
+	return bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(password)) == nil
 }
 
 func randomAuthToken() (string, error) {

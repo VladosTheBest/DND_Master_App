@@ -285,8 +285,17 @@ type combatRewardShare struct {
 	Experience int    `json:"experience"`
 }
 
+type userAccount struct {
+	ID           string `json:"id"`
+	Username     string `json:"username"`
+	UsernameKey  string `json:"usernameKey"`
+	PasswordHash string `json:"passwordHash"`
+	CreatedAt    string `json:"createdAt"`
+}
+
 type campaignData struct {
 	ID                string                  `json:"id"`
+	OwnerID           string                  `json:"ownerId,omitempty"`
 	Title             string                  `json:"title"`
 	System            string                  `json:"system"`
 	SettingName       string                  `json:"settingName"`
@@ -328,8 +337,10 @@ type searchResult struct {
 }
 
 type storageState struct {
-	Campaigns []campaignData `json:"campaigns"`
-	UpdatedAt string         `json:"updatedAt"`
+	AuthSecret string         `json:"authSecret,omitempty"`
+	Users      []userAccount  `json:"users,omitempty"`
+	Campaigns  []campaignData `json:"campaigns"`
+	UpdatedAt  string         `json:"updatedAt"`
 }
 
 type createCampaignInput struct {

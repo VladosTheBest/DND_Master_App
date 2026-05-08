@@ -117,23 +117,31 @@ function LoginFieldGlyph({ kind }: { kind: "user" | "lock" | "eye" | "eye-off" |
 export function LoginScreen({
   username,
   password,
+  passwordConfirm,
   onUsernameChange,
   onPasswordChange,
+  onPasswordConfirmChange,
   onSubmit,
   busy,
   error
 }: {
   username: string;
   password: string;
+  passwordConfirm: string;
   onUsernameChange: (value: string) => void;
   onPasswordChange: (value: string) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onPasswordConfirmChange: (value: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>, mode: "login" | "register") => void;
   busy: boolean;
   error: string;
 }) {
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [ritualMode, setRitualMode] = useState(false);
+  const isRegistering = authMode === "register";
+  const submitLabel = busy ? (isRegistering ? "Создаю аккаунт..." : "Открываю кабинет...") : isRegistering ? "Зарегистрироваться" : "Войти в кабинет";
   const loginFeatures: Array<{ title: string; detail: string; icon: RailIconName }> = [
     { title: "Квесты", detail: "Веди истории и кампании", icon: "quest" },
     { title: "Инициатива", detail: "Удобные боевые сцены", icon: "player" },
@@ -160,7 +168,7 @@ export function LoginScreen({
         window.localStorage.removeItem("shadow_edge_login_username");
       }
     }
-    onSubmit(event);
+    onSubmit(event, authMode);
   };
 
   return (
@@ -244,10 +252,33 @@ export function LoginScreen({
                 <span />
               </div>
 
-              <h2>Войти в Shadow Edge</h2>
+              <h2>{isRegistering ? "Создать аккаунт" : "Войти в Shadow Edge"}</h2>
               <p className="copy">
-                Один логин открывает кабинет мастера, а публичный трекер инициативы остаётся отдельной ссылкой для игроков.
+                {isRegistering
+                  ? "Зарегистрируй отдельный кабинет мастера. Кампании и заметки будут видны только этому аккаунту."
+                  : "Один логин открывает кабинет мастера, а публичный экран для игроков остаётся отдельной ссылкой."}
               </p>
+
+              <div className="login-auth-switch" role="tablist" aria-label="Режим входа">
+                <button
+                  aria-selected={!isRegistering}
+                  className={!isRegistering ? "active" : ""}
+                  onClick={() => setAuthMode("login")}
+                  role="tab"
+                  type="button"
+                >
+                  Войти
+                </button>
+                <button
+                  aria-selected={isRegistering}
+                  className={isRegistering ? "active" : ""}
+                  onClick={() => setAuthMode("register")}
+                  role="tab"
+                  type="button"
+                >
+                  Зарегистрироваться
+                </button>
+              </div>
 
               <label className="field login-field">
                 <span>Логин</span>
@@ -277,10 +308,10 @@ export function LoginScreen({
                     <LoginFieldGlyph kind="lock" />
                   </span>
                   <input
-                    autoComplete="current-password"
+                    autoComplete={isRegistering ? "new-password" : "current-password"}
                     className="input login-input"
                     onChange={(event) => onPasswordChange(event.target.value)}
-                    placeholder="Введите пароль"
+                    placeholder={isRegistering ? "Минимум 8 символов" : "Введите пароль"}
                     type={showPassword ? "text" : "password"}
                     value={password}
                   />
@@ -290,21 +321,43 @@ export function LoginScreen({
                 </div>
               </label>
 
+              {isRegistering ? (
+                <label className="field login-field">
+                  <span>Повтор пароля</span>
+                  <div className="login-input-shell">
+                    <span className="login-input-icon" aria-hidden="true">
+                      <LoginFieldGlyph kind="lock" />
+                    </span>
+                    <input
+                      autoComplete="new-password"
+                      className="input login-input"
+                      onChange={(event) => onPasswordConfirmChange(event.target.value)}
+                      placeholder="Повторите пароль"
+                      type={showPasswordConfirm ? "text" : "password"}
+                      value={passwordConfirm}
+                    />
+                    <button className="login-input-action" onClick={() => setShowPasswordConfirm((current) => !current)} type="button">
+                      <LoginFieldGlyph kind={showPasswordConfirm ? "eye-off" : "eye"} />
+                    </button>
+                  </div>
+                </label>
+              ) : null}
+
               <div className="login-meta-row">
                 <label className="login-remember">
                   <input checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} type="checkbox" />
                   <span className="login-checkbox" aria-hidden="true" />
                   <span>Запомнить меня</span>
                 </label>
-                <button className="login-link" onClick={() => onPasswordChange("")} type="button">
-                  Забыли пароль?
+                <button className="login-link" onClick={() => setAuthMode(isRegistering ? "login" : "register")} type="button">
+                  {isRegistering ? "Уже есть аккаунт?" : "Создать аккаунт"}
                 </button>
               </div>
 
               {error ? <p className="login-error">{error}</p> : null}
 
               <button className="primary login-submit" disabled={busy} type="submit">
-                <span>{busy ? "Открываю кабинет..." : "Войти в кабинет"}</span>
+                <span>{submitLabel}</span>
                 <span aria-hidden="true">→</span>
               </button>
 
@@ -329,4 +382,3 @@ export function LoginScreen({
     </div>
   );
 }
-

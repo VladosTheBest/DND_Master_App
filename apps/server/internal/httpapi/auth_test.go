@@ -3,13 +3,30 @@ package httpapi
 import (
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 )
 
+func newTestAuthManager(t *testing.T, options AuthOptions) (*authManager, *campaignStore) {
+	t.Helper()
+
+	store, err := newCampaignStore(filepath.Join(t.TempDir(), "store.json"))
+	if err != nil {
+		t.Fatalf("newCampaignStore() error = %v", err)
+	}
+
+	manager, err := newAuthManager(options, store)
+	if err != nil {
+		t.Fatalf("newAuthManager() error = %v", err)
+	}
+
+	return manager, store
+}
+
 func TestAuthLoginSessionFlow(t *testing.T) {
-	manager := newAuthManager(AuthOptions{
+	manager, _ := newTestAuthManager(t, AuthOptions{
 		Username:   "vladyur4ik",
 		Password:   "secret",
 		SessionTTL: time.Hour,
@@ -45,16 +62,69 @@ func TestAuthLoginSessionFlow(t *testing.T) {
 	}
 }
 
-func TestHandleSessionRenewsCookieExpiry(t *testing.T) {
-	manager := newAuthManager(AuthOptions{
+func TestAuthRegisterCreatesSessionAndRejectsDuplicateUsername(t *testing.T) {
+	manager, _ := newTestAuthManager(t, AuthOptions{SessionTTL: time.Hour})
+
+	registerRequest := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(`{"username":"new-gm","password":"secret123"}`))
+	registerRequest.Header.Set("Content-Type", "application/json")
+	registerRecorder := httptest.NewRecorder()
+
+	manager.handleRegister(registerRecorder, registerRequest)
+
+	if registerRecorder.Code != http.StatusOK {
+		t.Fatalf("expected register status 200, got %d: %s", registerRecorder.Code, registerRecorder.Body.String())
+	}
+	if !strings.Contains(registerRecorder.Body.String(), `"authenticated":true`) {
+		t.Fatalf("expected authenticated register payload, got %s", registerRecorder.Body.String())
+	}
+	if len(registerRecorder.Result().Cookies()) == 0 {
+		t.Fatal("expected register to set a session cookie")
+	}
+
+	duplicateRequest := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(`{"username":"NEW-GM","password":"secret123"}`))
+	duplicateRequest.Header.Set("Content-Type", "application/json")
+	duplicateRecorder := httptest.NewRecorder()
+
+	manager.handleRegister(duplicateRecorder, duplicateRequest)
+
+	if duplicateRecorder.Code != http.StatusConflict {
+		t.Fatalf("expected duplicate register status 409, got %d", duplicateRecorder.Code)
+	}
+}
+
+func TestAuthLoginRejectsWrongPassword(t *testing.T) {
+	manager, _ := newTestAuthManager(t, AuthOptions{
 		Username:   "vladyur4ik",
 		Password:   "secret",
 		SessionTTL: time.Hour,
 	})
 
+	request := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"username":"vladyur4ik","password":"wrong-password"}`))
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+
+	manager.handleLogin(recorder, request)
+
+	if recorder.Code != http.StatusUnauthorized {
+		t.Fatalf("expected login status 401, got %d", recorder.Code)
+	}
+}
+
+func TestHandleSessionRenewsCookieExpiry(t *testing.T) {
+	manager, store := newTestAuthManager(t, AuthOptions{
+		Username:   "vladyur4ik",
+		Password:   "secret",
+		SessionTTL: time.Hour,
+	})
+	user, ok := store.findUserByUsername("vladyur4ik")
+	if !ok {
+		t.Fatal("expected bootstrap user")
+	}
+
 	token := "session-token"
 	initialExpiry := time.Now().Add(5 * time.Minute)
 	manager.sessions[token] = authSession{
+		UserID:    user.ID,
 		Username:  "vladyur4ik",
 		ExpiresAt: initialExpiry,
 	}
@@ -88,13 +158,17 @@ func TestHandleSessionRenewsCookieExpiry(t *testing.T) {
 }
 
 func TestCurrentUserRecoversFromSignedCookieWithoutInMemorySession(t *testing.T) {
-	manager := newAuthManager(AuthOptions{
+	manager, store := newTestAuthManager(t, AuthOptions{
 		Username:   "vladyur4ik",
 		Password:   "secret",
 		SessionTTL: time.Hour,
 	})
+	user, ok := store.findUserByUsername("vladyur4ik")
+	if !ok {
+		t.Fatal("expected bootstrap user")
+	}
 
-	token, err := manager.issueSessionToken("vladyur4ik", time.Now().Add(time.Hour))
+	token, err := manager.issueSessionToken(authUser{ID: user.ID, Username: user.Username}, time.Now().Add(time.Hour))
 	if err != nil {
 		t.Fatalf("expected token creation to succeed, got %v", err)
 	}
@@ -105,13 +179,16 @@ func TestCurrentUserRecoversFromSignedCookieWithoutInMemorySession(t *testing.T)
 		Value: token,
 	})
 
-	username, ok := manager.currentUser(request)
+	currentUser, ok := manager.currentUser(request)
 	if !ok {
 		t.Fatal("expected currentUser to recover a valid signed cookie")
 	}
 
-	if username != "vladyur4ik" {
-		t.Fatalf("expected username %q, got %q", "vladyur4ik", username)
+	if currentUser.Username != "vladyur4ik" {
+		t.Fatalf("expected username %q, got %q", "vladyur4ik", currentUser.Username)
+	}
+	if currentUser.ID != user.ID {
+		t.Fatalf("expected user ID %q, got %q", user.ID, currentUser.ID)
 	}
 
 	if _, exists := manager.sessions[token]; !exists {

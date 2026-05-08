@@ -740,7 +740,9 @@ export interface PlayerDisplayImageInput {
 
 export interface AuthSessionResult {
   authenticated: boolean;
+  userId?: string;
   username?: string;
+  registrationEnabled?: boolean;
 }
 
 export interface LoginInput {
@@ -748,9 +750,15 @@ export interface LoginInput {
   password: string;
 }
 
+export interface RegisterInput {
+  username: string;
+  password: string;
+}
+
 export interface ApiClient {
   getSession(): Promise<AuthSessionResult>;
   login(input: LoginInput): Promise<AuthSessionResult>;
+  register(input: RegisterInput): Promise<AuthSessionResult>;
   logout(): Promise<AuthSessionResult>;
   listCampaigns(): Promise<CampaignSummary[]>;
   getCampaign(campaignId: string): Promise<CampaignData>;

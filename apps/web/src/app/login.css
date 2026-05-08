@@ -323,6 +323,32 @@
   font-size: 1rem;
 }
 
+.login-auth-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .35rem;
+  padding: .28rem;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 1rem;
+  background: rgba(255,255,255,.03);
+}
+
+.login-auth-switch button {
+  min-height: 2.45rem;
+  padding-inline: .75rem;
+  border: 0;
+  border-radius: .78rem;
+  background: transparent;
+  color: rgba(236, 226, 206, .72);
+  font-weight: 700;
+}
+
+.login-auth-switch button.active {
+  background: rgba(174, 153, 255, .16);
+  color: #fff1dc;
+  box-shadow: inset 0 0 0 1px rgba(174, 153, 255, .24);
+}
+
 .login-card-ornament {
   display: flex;
   align-items: center;

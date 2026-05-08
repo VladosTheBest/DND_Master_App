@@ -1500,8 +1500,9 @@ export default function App() {
   );
   const [authState, setAuthState] = useState<"checking" | "authenticated" | "unauthenticated">("checking");
   const [authUsername, setAuthUsername] = useState("");
-  const [loginUsername, setLoginUsername] = useState("vladyur4ik");
+  const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState("");
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
@@ -1880,9 +1881,11 @@ export default function App() {
   const handleProtectedActionError = (error: unknown, fallbackMessage: string) => {
     if (isUnauthorizedError(error)) {
       setAuthError("Р РЋР ВµРЎРѓРЎРѓР С‘РЎРЏ Р С‘РЎРѓРЎвЂљР ВµР С”Р В»Р В° Р С‘Р В»Р С‘ Р Р†РЎвЂ¦Р С•Р Т‘ Р Р…Р Вµ Р С—Р С•Р Т‘РЎвЂљР Р†Р ВµРЎР‚Р В¶Р Т‘РЎвЂР Р…. Р вЂ™Р С•Р в„–Р Т‘Р С‘ РЎРѓР Р…Р С•Р Р†Р В°.");
+      setAuthError("Сессия истекла или вход не подтвержден. Войди снова.");
       setAuthState("unauthenticated");
       setAuthUsername("");
       setLoginPassword("");
+      setRegisterPasswordConfirm("");
       setBooting(false);
       resetCampaignState();
       return;
@@ -1902,26 +1905,34 @@ export default function App() {
     setAuthState("unauthenticated");
     setAuthUsername("");
     setLoginPassword("");
+    setRegisterPasswordConfirm("");
     resetCampaignState();
   };
 
-  const submitLogin = async (event: FormEvent<HTMLFormElement>) => {
+  const submitAuth = async (event: FormEvent<HTMLFormElement>, mode: "login" | "register") => {
     event.preventDefault();
+
+    if (mode === "register" && loginPassword !== registerPasswordConfirm) {
+      setAuthError("Пароли не совпадают.");
+      return;
+    }
 
     try {
       setAuthBusy(true);
       setAuthError("");
       setBooting(true);
-      const session = await api.login({
+      const credentials = {
         username: loginUsername.trim(),
         password: loginPassword
-      });
+      };
+      const session = mode === "register" ? await api.register(credentials) : await api.login(credentials);
       applyAuthSession(session);
       setLoginPassword("");
+      setRegisterPasswordConfirm("");
     } catch (error) {
       setAuthState("unauthenticated");
       setBooting(false);
-      setAuthError(error instanceof Error ? error.message : "Не удалось выполнить вход.");
+      setAuthError(error instanceof Error ? error.message : mode === "register" ? "Не удалось зарегистрироваться." : "Не удалось выполнить вход.");
     } finally {
       setAuthBusy(false);
     }
@@ -1938,6 +1949,7 @@ export default function App() {
       setAuthState("unauthenticated");
       setAuthUsername("");
       setLoginPassword("");
+      setRegisterPasswordConfirm("");
       resetCampaignState();
       setBooting(false);
     }
@@ -2938,7 +2950,7 @@ export default function App() {
     trackerUrl.hash = buildInitiativeHash(activeCampaignId);
     const opened = window.open(trackerUrl.toString(), "_blank", "noopener,noreferrer");
     if (!opened) {
-      setBootError("Р вЂРЎР‚Р В°РЎС“Р В·Р ВµРЎР‚ Р В·Р В°Р В±Р В»Р С•Р С”Р С‘РЎР‚Р С•Р Р†Р В°Р В» Р Р…Р С•Р Р†РЎС“РЎР‹ Р Р†Р С”Р В»Р В°Р Т‘Р С”РЎС“ РЎРѓ РЎвЂљРЎР‚Р ВµР С”Р ВµРЎР‚Р С•Р С. Р В Р В°Р В·РЎР‚Р ВµРЎв‚¬Р С‘ pop-up Р Т‘Р В»РЎРЏ РЎРѓР В°Р в„–РЎвЂљР В° Р С‘ Р С—Р С•Р С—РЎР‚Р С•Р В±РЎС“Р в„– Р ВµРЎвЂ°РЎвЂ РЎР‚Р В°Р В·.");
+      setBootError("Браузер заблокировал новую вкладку с трекером. Разреши pop-up для сайта и попробуй еще раз.");
       return;
     }
     setBootError("");
@@ -2976,9 +2988,9 @@ export default function App() {
       return;
     }
 
-    const popup = window.open("", "_blank");
+    const popup = window.open("", "shadow-edge-player-display");
     if (!popup) {
-      setBootError("Р вЂРЎР‚Р В°РЎС“Р В·Р ВµРЎР‚ Р В·Р В°Р В±Р В»Р С•Р С”Р С‘РЎР‚Р С•Р Р†Р В°Р В» Р Р…Р С•Р Р†РЎС“РЎР‹ Р Р†Р С”Р В»Р В°Р Т‘Р С”РЎС“. Р В Р В°Р В·РЎР‚Р ВµРЎв‚¬Р С‘ pop-up Р Т‘Р В»РЎРЏ РЎРѓР В°Р в„–РЎвЂљР В° Р С‘Р В»Р С‘ Р С‘РЎРѓР С—Р С•Р В»РЎРЉР В·РЎС“Р в„– Р С”Р Р…Р С•Р С—Р С”РЎС“ Р С”Р С•Р С—Р С‘РЎР‚Р С•Р Р†Р В°Р Р…Р С‘РЎРЏ РЎРѓРЎРѓРЎвЂ№Р В»Р С”Р С‘.");
+      setBootError("Браузер заблокировал новую вкладку. Разреши pop-up для сайта или используй кнопку копирования ссылки.");
       return;
     }
 
@@ -4151,9 +4163,11 @@ export default function App() {
         busy={authBusy}
         error={authError}
         onPasswordChange={setLoginPassword}
-        onSubmit={submitLogin}
+        onPasswordConfirmChange={setRegisterPasswordConfirm}
+        onSubmit={submitAuth}
         onUsernameChange={setLoginUsername}
         password={loginPassword}
+        passwordConfirm={registerPasswordConfirm}
         username={loginUsername}
       />
     );

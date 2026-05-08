@@ -62,7 +62,7 @@ func newUploadsHandler(uploadDir string) (http.Handler, error) {
 	}), nil
 }
 
-func (srv *server) handleCampaignUpload(writer http.ResponseWriter, request *http.Request, campaignID string) {
+func (srv *server) handleCampaignUpload(writer http.ResponseWriter, request *http.Request, userID string, campaignID string) {
 	if request.Method != http.MethodPost {
 		writeError(writer, http.StatusMethodNotAllowed, "method_not_allowed", "Only POST is supported")
 		return
@@ -73,7 +73,7 @@ func (srv *server) handleCampaignUpload(writer http.ResponseWriter, request *htt
 		return
 	}
 
-	if _, err := srv.store.getCampaign(campaignID); err != nil {
+	if _, err := srv.store.getCampaignForUser(userID, campaignID); err != nil {
 		writeError(writer, http.StatusNotFound, "not_found", err.Error())
 		return
 	}
@@ -105,7 +105,9 @@ func (srv *server) handleCampaignUpload(writer http.ResponseWriter, request *htt
 		return
 	}
 
-	campaignDir := filepath.Join(srv.uploadDir, sanitizeUploadPathSegment(campaignID))
+	userSegment := sanitizeUploadPathSegment(userID)
+	campaignSegment := sanitizeUploadPathSegment(campaignID)
+	campaignDir := filepath.Join(srv.uploadDir, userSegment, campaignSegment)
 	if err := os.MkdirAll(campaignDir, 0o755); err != nil {
 		writeError(writer, http.StatusInternalServerError, "upload_prepare_failed", "Не удалось подготовить директорию для загрузки.")
 		return
@@ -127,7 +129,7 @@ func (srv *server) handleCampaignUpload(writer http.ResponseWriter, request *htt
 		return
 	}
 
-	publicPath := path.Join("/uploads", sanitizeUploadPathSegment(campaignID), fileName)
+	publicPath := path.Join("/uploads", userSegment, campaignSegment, fileName)
 	baseURL := strings.TrimRight(publicBaseURLFromRequest(request), "/")
 	if baseURL != "" {
 		publicPath = baseURL + publicPath

@@ -26,6 +26,7 @@ import type {
   LoginInput,
   PlayerDisplayImageInput,
   PlayerDisplayShareResult,
+  RegisterInput,
   SearchResult,
   StartCombatInput,
   UploadImageResult,
@@ -134,6 +135,12 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
     return requestJson<AuthSessionResult>(`${baseUrl}/api/auth/login`, {
       method: "POST",
       body: JSON.stringify(input satisfies LoginInput)
+    });
+  },
+  async register(input) {
+    return requestJson<AuthSessionResult>(`${baseUrl}/api/auth/register`, {
+      method: "POST",
+      body: JSON.stringify(input satisfies RegisterInput)
     });
   },
   async logout() {

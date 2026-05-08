@@ -25,18 +25,18 @@ import (
 type initiativeShareManager struct {
 	store *campaignStore
 
-	mu              sync.RWMutex
-	tokenToCampaign map[string]string
-	campaignToToken map[string]string
-	published       map[string]publicInitiativeSnapshot
+	mu               sync.RWMutex
+	tokenToCampaign  map[string]string
+	campaignToToken  map[string]string
+	published        map[string]publicInitiativeSnapshot
 	displayPublished map[string]publicDisplaySnapshot
-	configuredBase  string
-	publicServer    *http.Server
-	publicListener  net.Listener
-	publicOrigin    string
-	publicBaseURL   string
-	publicProvider  string
-	tunnelCmd       *exec.Cmd
+	configuredBase   string
+	publicServer     *http.Server
+	publicListener   net.Listener
+	publicOrigin     string
+	publicBaseURL    string
+	publicProvider   string
+	tunnelCmd        *exec.Cmd
 }
 
 type initiativeShareResponse struct {
@@ -51,16 +51,20 @@ type initiativeShareResponse struct {
 type publicInitiativeSnapshot struct {
 	CampaignID    string                  `json:"campaignId"`
 	CampaignTitle string                  `json:"campaignTitle"`
+	Mode          string                  `json:"mode"`
 	Combat        *publicInitiativeCombat `json:"combat"`
 	Result        *publicInitiativeResult `json:"result,omitempty"`
+	Image         *publicDisplayImage     `json:"image,omitempty"`
 	Version       int64                   `json:"version"`
 	UpdatedAt     string                  `json:"updatedAt"`
 }
 
 type publicInitiativeMeta struct {
 	CampaignID string `json:"campaignId"`
+	Mode       string `json:"mode"`
 	Version    int64  `json:"version"`
 	UpdatedAt  string `json:"updatedAt"`
+	HasImage   bool   `json:"hasImage"`
 }
 
 type playerDisplayImageInput struct {
@@ -87,6 +91,7 @@ type publicDisplaySnapshot struct {
 
 type publicDisplayMeta struct {
 	CampaignID string `json:"campaignId"`
+	Mode       string `json:"mode"`
 	Version    int64  `json:"version"`
 	UpdatedAt  string `json:"updatedAt"`
 	HasImage   bool   `json:"hasImage"`
@@ -150,6 +155,13 @@ type publicDisplayPageData struct {
 	Token         string
 	CampaignTitle string
 }
+
+const (
+	publicScreenModeInitiative = "initiative"
+	publicScreenModeImage      = "image"
+	publicScreenModeResult     = "result"
+	publicScreenModeWaiting    = "waiting"
+)
 
 var (
 	tunnelURLPattern         = regexp.MustCompile(`https://[A-Za-z0-9._-]+(?:\.[A-Za-z0-9._-]+)*(?:trycloudflare\.com|loca\.lt|localtunnel\.me)(?:/[^\s"'<>]*)?`)
@@ -526,6 +538,53 @@ var (
         gap: 0.8rem 1.5rem;
         color: #b9a58b;
         font-size: 0.95rem;
+      }
+      .image-state {
+        position: relative;
+        width: min(100%, 92rem);
+        height: min(76vh, 58rem);
+        min-height: 28rem;
+        overflow: hidden;
+        border-radius: 1.2rem;
+        border: 1px solid rgba(124, 96, 197, 0.28);
+        background:
+          radial-gradient(circle at center, rgba(255, 255, 255, 0.04), transparent 48%),
+          linear-gradient(180deg, rgba(9, 12, 18, 0.86), rgba(5, 7, 12, 0.96));
+        box-shadow:
+          0 0 0 1px rgba(255, 255, 255, 0.04) inset,
+          0 24px 72px rgba(0, 0, 0, 0.46);
+      }
+      .image-state img {
+        width: 100%;
+        height: 100%;
+        display: block;
+        object-fit: contain;
+        object-position: center;
+      }
+      .image-overlay {
+        position: absolute;
+        left: 1.25rem;
+        right: 1.25rem;
+        bottom: 1.25rem;
+        display: grid;
+        gap: 0.42rem;
+        padding: 0.95rem 1.08rem;
+        border-radius: 0.95rem;
+        border: 1px solid rgba(122, 94, 198, 0.24);
+        background: linear-gradient(180deg, rgba(8, 10, 16, 0.76), rgba(8, 10, 16, 0.92));
+        backdrop-filter: blur(18px);
+      }
+      .image-overlay[hidden] {
+        display: none;
+      }
+      .image-overlay strong {
+        color: #fff2df;
+        font-size: clamp(1.15rem, 2vw, 1.55rem);
+      }
+      .image-overlay p {
+        margin: 0;
+        color: rgba(244, 234, 217, 0.86);
+        line-height: 1.55;
       }
       .empty-state {
         width: min(100%, 46rem);
@@ -945,6 +1004,16 @@ var (
           min-height: 21rem;
           padding: 1.35rem 0.8rem 0.95rem;
         }
+        .image-state {
+          height: min(72vh, 44rem);
+          min-height: 22rem;
+          border-radius: 0.95rem;
+        }
+        .image-overlay {
+          left: 0.8rem;
+          right: 0.8rem;
+          bottom: 0.8rem;
+        }
         .card-copy span {
           font-size: 1.8rem;
         }
@@ -1018,6 +1087,8 @@ var (
         waitingCombat: "\u0418\u043d\u0438\u0446\u0438\u0430\u0442\u0438\u0432\u0430 \u0436\u0434\u0451\u0442 \u0431\u043e\u0439",
         waitingCombatCopy:
           "\u2014 \u043a\u0430\u043a \u0442\u043e\u043b\u044c\u043a\u043e \u043c\u0430\u0441\u0442\u0435\u0440 \u043d\u0430\u0447\u043d\u0451\u0442 \u0431\u043e\u0439, \u0437\u0434\u0435\u0441\u044c \u043f\u043e\u044f\u0432\u0438\u0442\u0441\u044f \u0436\u0438\u0432\u043e\u0439 \u0442\u0440\u0435\u043a\u0435\u0440 \u0438\u043d\u0438\u0446\u0438\u0430\u0442\u0438\u0432\u044b.",
+        imageMode: "\u042d\u043a\u0440\u0430\u043d \u0438\u0433\u0440\u043e\u043a\u043e\u0432",
+        imageAlt: "\u0418\u0437\u043e\u0431\u0440\u0430\u0436\u0435\u043d\u0438\u0435 \u0434\u043b\u044f \u0438\u0433\u0440\u043e\u043a\u043e\u0432",
         emptyTitle: "\u0411\u043e\u0439 \u043f\u043e\u043a\u0430 \u043d\u0435 \u0437\u0430\u043f\u0443\u0449\u0435\u043d",
         emptyBody:
           "\u041e\u0442\u043a\u0440\u043e\u0439 \u0431\u043e\u0435\u0432\u0443\u044e \u0441\u0446\u0435\u043d\u0443 \u0443 \u043c\u0430\u0441\u0442\u0435\u0440\u0430 \u0438 \u043d\u0430\u0447\u043d\u0438 \u0431\u043e\u0439. \u042d\u0442\u0430 \u0441\u0441\u044b\u043b\u043a\u0430 \u0437\u0430\u043f\u043e\u043b\u043d\u0438\u0442\u0441\u044f \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u0438.",
@@ -1072,15 +1143,52 @@ var (
         statusNode.textContent = UI.updated + formatUpdatedAt(updatedAt);
       };
 
+      const renderImage = (snapshot, image) => {
+        roundBannerNode.hidden = false;
+        roundTitleNode.textContent = UI.imageMode;
+        subcopyNode.textContent = snapshot?.campaignTitle ?? UI.campaign;
+        progressRailNode.hidden = true;
+        progressDotsNode.innerHTML = "";
+        metaNode.textContent = "";
+
+        const title = String(image?.title || "").trim();
+        const caption = String(image?.caption || "").trim();
+        const overlay = title || caption
+          ? '<figcaption class="image-overlay"><strong>' +
+            escapeHtml(title || UI.imageMode) +
+            '</strong>' +
+            (caption ? '<p>' + escapeHtml(caption) + '</p>' : "") +
+            '</figcaption>'
+          : "";
+        trackNode.innerHTML =
+          '<figure class="image-state"><img alt="' +
+          escapeHtml(image?.alt || title || UI.imageAlt) +
+          '" src="' +
+          escapeHtml(image?.url || "") +
+          '">' +
+          overlay +
+          '</figure>';
+        setPublishedStatus(snapshot?.updatedAt);
+      };
+
       const victoryBloodOverlay = "/initiative/assets/victory-blood-overlay.png";
 
       const render = (snapshot) => {
         const combat = snapshot?.combat ?? null;
         const result = snapshot?.result ?? null;
+        const image = snapshot?.image ?? null;
+        const mode = snapshot?.mode || (combat ? "initiative" : result ? "result" : image ? "image" : "waiting");
         currentVersion = Number(snapshot?.version ?? 0) || 0;
         document.title = combat
           ? combat.title + " - Трекер инициативы"
-          : (snapshot?.campaignTitle ?? "Shadow Edge GM") + " - Initiative";
+          : mode === "image"
+            ? (snapshot?.campaignTitle ?? "Shadow Edge GM") + " - Player Display"
+            : (snapshot?.campaignTitle ?? "Shadow Edge GM") + " - Initiative";
+
+        if (mode === "image" && image?.url) {
+          renderImage(snapshot, image);
+          return;
+        }
 
         if (result && !combat) {
           const victoryEntries = result.entries || [];
@@ -1832,14 +1940,15 @@ func (manager *initiativeShareManager) showPlayerDisplayImage(
 		return initiativeShareResponse{}, err
 	}
 
-	snapshot := manager.currentDisplaySnapshotLocked(campaign, &publicDisplayImage{
+	manager.currentDisplaySnapshotLocked(campaign, &publicDisplayImage{
 		URL:     resolvePublicDisplayAssetURL(strings.TrimSpace(input.URL), baseURL),
 		Title:   strings.TrimSpace(input.Title),
 		Alt:     strings.TrimSpace(input.Alt),
 		Caption: strings.TrimSpace(input.Caption),
 	})
 
-	return manager.displayShareResponseLocked(campaignID, token, snapshot, baseURL, provider), nil
+	publicSnapshot := manager.currentSnapshotLocked(campaign)
+	return manager.shareResponseLocked(campaignID, token, publicSnapshot, baseURL, provider), nil
 }
 
 func (manager *initiativeShareManager) shareResponseLocked(
@@ -1878,7 +1987,7 @@ func (manager *initiativeShareManager) displayShareResponseLocked(
 
 func (manager *initiativeShareManager) currentSnapshotLocked(campaign campaignData) publicInitiativeSnapshot {
 	previous := manager.published[campaign.ID]
-	snapshot := buildPublicInitiativeSnapshot(campaign)
+	snapshot := manager.buildPublicScreenSnapshotLocked(campaign)
 
 	if previous.CampaignID != "" && publicSnapshotFingerprint(previous) == publicSnapshotFingerprint(snapshot) {
 		snapshot.Version = previous.Version
@@ -1892,6 +2001,23 @@ func (manager *initiativeShareManager) currentSnapshotLocked(campaign campaignDa
 	}
 
 	manager.published[campaign.ID] = snapshot
+	return snapshot
+}
+
+func (manager *initiativeShareManager) buildPublicScreenSnapshotLocked(campaign campaignData) publicInitiativeSnapshot {
+	snapshot := buildPublicInitiativeSnapshot(campaign)
+	display := manager.displayPublished[campaign.ID]
+
+	if shouldShowPublicDisplayImage(campaign, display) {
+		snapshot.Mode = publicScreenModeImage
+		snapshot.Combat = nil
+		snapshot.Result = nil
+		snapshot.Image = display.Image
+		return snapshot
+	}
+
+	snapshot.Mode = publicInitiativeSnapshotMode(snapshot)
+	snapshot.Image = nil
 	return snapshot
 }
 
@@ -1925,9 +2051,60 @@ func (manager *initiativeShareManager) currentDisplaySnapshotLocked(
 	return snapshot
 }
 
+func publicInitiativeSnapshotMode(snapshot publicInitiativeSnapshot) string {
+	if snapshot.Combat != nil {
+		return publicScreenModeInitiative
+	}
+	if snapshot.Result != nil {
+		return publicScreenModeResult
+	}
+	if snapshot.Image != nil {
+		return publicScreenModeImage
+	}
+	return publicScreenModeWaiting
+}
+
+func shouldShowPublicDisplayImage(campaign campaignData, display publicDisplaySnapshot) bool {
+	if display.Image == nil {
+		return false
+	}
+	if campaign.ActiveCombat != nil {
+		return false
+	}
+	if campaign.LastCombatSummary == nil {
+		return true
+	}
+
+	return publicTimeAfter(display.UpdatedAt, campaign.LastCombatSummary.FinishedAt)
+}
+
+func publicTimeAfter(left string, right string) bool {
+	leftTime, leftErr := time.Parse(time.RFC3339, strings.TrimSpace(left))
+	rightTime, rightErr := time.Parse(time.RFC3339, strings.TrimSpace(right))
+	if leftErr != nil || rightErr != nil {
+		return false
+	}
+	return leftTime.After(rightTime)
+}
+
 func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 	var builder strings.Builder
-	fmt.Fprintf(&builder, "%s|%s|", snapshot.CampaignID, snapshot.CampaignTitle)
+	mode := snapshot.Mode
+	if mode == "" {
+		mode = publicInitiativeSnapshotMode(snapshot)
+	}
+	fmt.Fprintf(&builder, "%s|%s|%s|", snapshot.CampaignID, snapshot.CampaignTitle, mode)
+	if mode == publicScreenModeImage && snapshot.Image != nil {
+		fmt.Fprintf(
+			&builder,
+			"image|%s|%s|%s|%s|",
+			snapshot.Image.URL,
+			snapshot.Image.Title,
+			snapshot.Image.Alt,
+			snapshot.Image.Caption,
+		)
+		return builder.String()
+	}
 	if snapshot.Combat == nil {
 		if snapshot.Result != nil {
 			fmt.Fprintf(
@@ -2478,14 +2655,14 @@ func (manager *initiativeShareManager) handlePublicDisplayPage(writer http.Respo
 		return
 	}
 
-	snapshot, err := manager.displaySnapshotForToken(token)
+	snapshot, err := manager.snapshotForToken(token)
 	if err != nil {
 		http.NotFound(writer, request)
 		return
 	}
 
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := playerDisplayViewerTemplate.Execute(writer, publicDisplayPageData{
+	if err := initiativeViewerTemplate.Execute(writer, initiativeViewerPageData{
 		Token:         token,
 		CampaignTitle: snapshot.CampaignTitle,
 	}); err != nil {
@@ -2547,8 +2724,10 @@ func (manager *initiativeShareManager) handlePublicInitiativeMeta(writer http.Re
 
 	writeJSON(writer, http.StatusOK, publicInitiativeMeta{
 		CampaignID: snapshot.CampaignID,
+		Mode:       snapshot.Mode,
 		Version:    snapshot.Version,
 		UpdatedAt:  snapshot.UpdatedAt,
+		HasImage:   snapshot.Image != nil,
 	})
 }
 
@@ -2564,7 +2743,7 @@ func (manager *initiativeShareManager) handlePublicDisplayAPI(writer http.Respon
 		return
 	}
 
-	snapshot, err := manager.displaySnapshotForToken(token)
+	snapshot, err := manager.snapshotForToken(token)
 	if err != nil {
 		writeError(writer, http.StatusNotFound, "not_found", err.Error())
 		return
@@ -2585,7 +2764,7 @@ func (manager *initiativeShareManager) handlePublicDisplayMeta(writer http.Respo
 		return
 	}
 
-	snapshot, err := manager.displaySnapshotForToken(token)
+	snapshot, err := manager.snapshotForToken(token)
 	if err != nil {
 		writeError(writer, http.StatusNotFound, "not_found", err.Error())
 		return
@@ -2593,6 +2772,7 @@ func (manager *initiativeShareManager) handlePublicDisplayMeta(writer http.Respo
 
 	writeJSON(writer, http.StatusOK, publicDisplayMeta{
 		CampaignID: snapshot.CampaignID,
+		Mode:       snapshot.Mode,
 		Version:    snapshot.Version,
 		UpdatedAt:  snapshot.UpdatedAt,
 		HasImage:   snapshot.Image != nil,
@@ -2656,6 +2836,7 @@ func buildPublicInitiativeSnapshot(campaign campaignData) publicInitiativeSnapsh
 				FinishedAt:          campaign.LastCombatSummary.FinishedAt,
 			}
 		}
+		snapshot.Mode = publicInitiativeSnapshotMode(snapshot)
 		return snapshot
 	}
 
@@ -2682,6 +2863,7 @@ func buildPublicInitiativeSnapshot(campaign campaignData) publicInitiativeSnapsh
 			Entries:             buildPublicInitiativeEntries(campaign, campaign.ActiveCombat.Entries, campaign.ActiveCombat.CurrentTurnEntryID, true),
 			PlayerRewards:       buildPublicInitiativeRewards(playerRewards),
 		}
+		snapshot.Mode = publicInitiativeSnapshotMode(snapshot)
 		return snapshot
 	}
 
@@ -2695,6 +2877,7 @@ func buildPublicInitiativeSnapshot(campaign campaignData) publicInitiativeSnapsh
 		Entries:            buildPublicInitiativeEntries(campaign, campaign.ActiveCombat.Entries, campaign.ActiveCombat.CurrentTurnEntryID, false),
 	}
 
+	snapshot.Mode = publicInitiativeSnapshotMode(snapshot)
 	return snapshot
 }
 

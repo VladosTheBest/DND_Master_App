@@ -68,13 +68,18 @@ func NewServer(options Options) (http.Handler, error) {
 		return nil, err
 	}
 
+	auth, err := newAuthManager(options.Auth, store)
+	if err != nil {
+		return nil, err
+	}
+
 	srv := &server{
 		store:     store,
 		bestiary:  bestiary,
 		items:     items,
 		generator: newEntityGenerator(options.AI),
 		shares:    newInitiativeShareManager(store, options.PublicBaseURL),
-		auth:      newAuthManager(options.Auth),
+		auth:      auth,
 		web:       webHandler,
 		uploads:   uploadHandler,
 		uploadDir: options.UploadDir,
@@ -90,6 +95,7 @@ func NewServer(options Options) (http.Handler, error) {
 	mux.HandleFunc("/api/initiative/", srv.shares.handlePublicInitiativeAPI)
 	mux.HandleFunc("/api/auth/session", srv.auth.handleSession)
 	mux.HandleFunc("/api/auth/login", srv.auth.handleLogin)
+	mux.HandleFunc("/api/auth/register", srv.auth.handleRegister)
 	mux.HandleFunc("/api/auth/logout", srv.auth.handleLogout)
 	mux.HandleFunc("/api/campaigns", srv.handleCampaigns)
 	mux.HandleFunc("/api/campaigns/", srv.handleCampaignByPath)
@@ -136,10 +142,35 @@ func (srv *server) handleHealth(writer http.ResponseWriter, _ *http.Request) {
 	writeJSON(writer, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+func (srv *server) requireAuthUser(writer http.ResponseWriter, request *http.Request) (authUser, bool) {
+	user, ok := srv.auth.currentUser(request)
+	if !ok {
+		writeError(writer, http.StatusUnauthorized, "auth_required", "Нужен вход в кабинет мастера.")
+		return authUser{}, false
+	}
+
+	return user, true
+}
+
+func (srv *server) requireOwnedCampaign(writer http.ResponseWriter, user authUser, campaignID string) (campaignData, bool) {
+	campaign, err := srv.store.getCampaignForUser(user.ID, campaignID)
+	if err != nil {
+		writeError(writer, http.StatusNotFound, "not_found", err.Error())
+		return campaignData{}, false
+	}
+
+	return campaign, true
+}
+
 func (srv *server) handleCampaigns(writer http.ResponseWriter, request *http.Request) {
+	user, ok := srv.requireAuthUser(writer, request)
+	if !ok {
+		return
+	}
+
 	switch request.Method {
 	case http.MethodGet:
-		writeJSON(writer, http.StatusOK, srv.store.listCampaigns())
+		writeJSON(writer, http.StatusOK, srv.store.listCampaignsForUser(user.ID))
 	case http.MethodPost:
 		var input createCampaignInput
 		if err := readJSON(request, &input); err != nil {
@@ -147,7 +178,7 @@ func (srv *server) handleCampaigns(writer http.ResponseWriter, request *http.Req
 			return
 		}
 
-		campaign, err := srv.store.createCampaign(input)
+		campaign, err := srv.store.createCampaignForUser(user.ID, input)
 		if err != nil {
 			writeError(writer, http.StatusInternalServerError, "create_campaign_failed", err.Error())
 			return
@@ -168,16 +199,18 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 
 	segments := strings.Split(path, "/")
 	campaignID := segments[0]
+	user, ok := srv.requireAuthUser(writer, request)
+	if !ok {
+		return
+	}
+	campaign, ok := srv.requireOwnedCampaign(writer, user, campaignID)
+	if !ok {
+		return
+	}
 
 	if len(segments) == 1 {
 		switch request.Method {
 		case http.MethodGet:
-			campaign, err := srv.store.getCampaign(campaignID)
-			if err != nil {
-				writeError(writer, http.StatusNotFound, "not_found", err.Error())
-				return
-			}
-
 			writeJSON(writer, http.StatusOK, campaign)
 		case http.MethodPut, http.MethodPatch:
 			var input updateCampaignInput
@@ -236,12 +269,6 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 	case len(segments) == 3 && segments[1] == "events" && segments[2] == "generate":
 		if request.Method != http.MethodPost {
 			writeError(writer, http.StatusMethodNotAllowed, "method_not_allowed", "Only POST is supported")
-			return
-		}
-
-		campaign, err := srv.store.getCampaign(campaignID)
-		if err != nil {
-			writeError(writer, http.StatusNotFound, "not_found", err.Error())
 			return
 		}
 
@@ -333,7 +360,7 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 
 		writeJSON(writer, http.StatusOK, results)
 	case len(segments) == 2 && segments[1] == "uploads":
-		srv.handleCampaignUpload(writer, request, campaignID)
+		srv.handleCampaignUpload(writer, request, user.ID, campaignID)
 	case len(segments) == 2 && segments[1] == "entities":
 		if request.Method != http.MethodPost {
 			writeError(writer, http.StatusMethodNotAllowed, "method_not_allowed", "Only POST is supported")
@@ -403,12 +430,6 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 			return
 		}
 
-		campaign, err := srv.store.getCampaign(campaignID)
-		if err != nil {
-			writeError(writer, http.StatusNotFound, "not_found", err.Error())
-			return
-		}
-
 		var input generateEntityDraftInput
 		if err := readJSON(request, &input); err != nil {
 			writeError(writer, http.StatusBadRequest, "bad_request", err.Error())
@@ -425,12 +446,6 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 	case len(segments) == 4 && segments[1] == "ai" && segments[2] == "player-facing" && segments[3] == "format":
 		if request.Method != http.MethodPost {
 			writeError(writer, http.StatusMethodNotAllowed, "method_not_allowed", "Only POST is supported")
-			return
-		}
-
-		campaign, err := srv.store.getCampaign(campaignID)
-		if err != nil {
-			writeError(writer, http.StatusNotFound, "not_found", err.Error())
 			return
 		}
 

@@ -16,6 +16,8 @@ import (
 
 var idSequence uint64
 
+var errUsernameTaken = errors.New("username already exists")
+
 type campaignStore struct {
 	mu   sync.RWMutex
 	path string
@@ -43,21 +45,66 @@ func (store *campaignStore) load() error {
 	store.data = state
 
 	repairedEncoding := repairStorageEncoding(&store.data)
+	needsSave := repairedFromBackup || repairedEncoding
 
 	if len(store.data.Campaigns) == 0 {
+		users := store.data.Users
+		authSecret := store.data.AuthSecret
 		store.data = starterState()
-		return store.saveLocked()
+		store.data.Users = users
+		store.data.AuthSecret = authSecret
+		needsSave = true
 	}
 
 	for index := range store.data.Campaigns {
 		store.data.Campaigns[index] = ensureCampaignShape(store.data.Campaigns[index])
 	}
 
-	if repairedFromBackup || repairedEncoding {
+	if changed, err := store.ensureAuthStorageLocked(); err != nil {
+		return err
+	} else if changed {
+		needsSave = true
+	}
+
+	if len(store.data.Users) > 0 && store.assignUnownedCampaignsLocked(store.data.Users[0].ID) {
+		needsSave = true
+	}
+
+	if needsSave {
 		return store.saveLocked()
 	}
 
 	return nil
+}
+
+func (store *campaignStore) ensureAuthStorageLocked() (bool, error) {
+	changed := false
+	if strings.TrimSpace(store.data.AuthSecret) == "" {
+		secret, err := randomAuthToken()
+		if err != nil {
+			return false, err
+		}
+		store.data.AuthSecret = secret
+		changed = true
+	}
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	for index := range store.data.Users {
+		if strings.TrimSpace(store.data.Users[index].ID) == "" {
+			store.data.Users[index].ID = newID("user")
+			changed = true
+		}
+		if strings.TrimSpace(store.data.Users[index].UsernameKey) == "" {
+			store.data.Users[index].UsernameKey = normalizeUsernameKey(store.data.Users[index].Username)
+			changed = true
+		}
+		if strings.TrimSpace(store.data.Users[index].CreatedAt) == "" {
+			store.data.Users[index].CreatedAt = now
+			changed = true
+		}
+	}
+
+	return changed, nil
 }
 
 func (store *campaignStore) saveLocked() error {
@@ -84,6 +131,147 @@ func (store *campaignStore) saveLocked() error {
 
 func (store *campaignStore) backupPath() string {
 	return store.path + ".bak"
+}
+
+func (store *campaignStore) authSecret() string {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+
+	return store.data.AuthSecret
+}
+
+func (store *campaignStore) bootstrapLegacyUser(username string, password string) error {
+	username = strings.TrimSpace(username)
+	if username == "" || password == "" {
+		return nil
+	}
+
+	normalizedUsername, usernameKey, err := normalizeAccountUsername(username)
+	if err != nil {
+		return err
+	}
+
+	passwordHash, err := hashPassword(password)
+	if err != nil {
+		return err
+	}
+
+	store.mu.Lock()
+	defer store.mu.Unlock()
+
+	if len(store.data.Users) > 0 {
+		if store.assignUnownedCampaignsLocked(store.data.Users[0].ID) {
+			return store.saveLocked()
+		}
+		return nil
+	}
+
+	user := userAccount{
+		ID:           newID("user"),
+		Username:     normalizedUsername,
+		UsernameKey:  usernameKey,
+		PasswordHash: passwordHash,
+		CreatedAt:    time.Now().UTC().Format(time.RFC3339),
+	}
+	store.data.Users = append(store.data.Users, user)
+	store.assignUnownedCampaignsLocked(user.ID)
+	return store.saveLocked()
+}
+
+func (store *campaignStore) createUser(username string, password string) (userAccount, error) {
+	normalizedUsername, usernameKey, err := normalizeAccountUsername(username)
+	if err != nil {
+		return userAccount{}, err
+	}
+	if err := validateAccountPassword(password); err != nil {
+		return userAccount{}, err
+	}
+
+	passwordHash, err := hashPassword(password)
+	if err != nil {
+		return userAccount{}, err
+	}
+
+	store.mu.Lock()
+	defer store.mu.Unlock()
+
+	for _, existing := range store.data.Users {
+		if existing.UsernameKey == usernameKey {
+			return userAccount{}, errUsernameTaken
+		}
+	}
+
+	user := userAccount{
+		ID:           newID("user"),
+		Username:     normalizedUsername,
+		UsernameKey:  usernameKey,
+		PasswordHash: passwordHash,
+		CreatedAt:    time.Now().UTC().Format(time.RFC3339),
+	}
+	store.data.Users = append(store.data.Users, user)
+	if len(store.data.Users) == 1 {
+		store.assignUnownedCampaignsLocked(user.ID)
+	}
+
+	if err := store.saveLocked(); err != nil {
+		return userAccount{}, err
+	}
+
+	return user, nil
+}
+
+func (store *campaignStore) findUserByUsername(username string) (userAccount, bool) {
+	usernameKey := normalizeUsernameKey(username)
+	if usernameKey == "" {
+		return userAccount{}, false
+	}
+
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+
+	for _, user := range store.data.Users {
+		if user.UsernameKey == usernameKey {
+			return user, true
+		}
+	}
+
+	return userAccount{}, false
+}
+
+func (store *campaignStore) getUserByID(userID string) (userAccount, bool) {
+	userID = strings.TrimSpace(userID)
+	if userID == "" {
+		return userAccount{}, false
+	}
+
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+
+	for _, user := range store.data.Users {
+		if user.ID == userID {
+			return user, true
+		}
+	}
+
+	return userAccount{}, false
+}
+
+func (store *campaignStore) assignUnownedCampaignsLocked(ownerID string) bool {
+	ownerID = strings.TrimSpace(ownerID)
+	if ownerID == "" {
+		return false
+	}
+
+	changed := false
+	for index := range store.data.Campaigns {
+		if strings.TrimSpace(store.data.Campaigns[index].OwnerID) != "" {
+			continue
+		}
+		store.data.Campaigns[index].OwnerID = ownerID
+		changed = true
+	}
+
+	return changed
 }
 
 func (store *campaignStore) loadBestAvailableState() (storageState, bool, error) {
@@ -196,6 +384,21 @@ func (store *campaignStore) listCampaigns() []campaignSummary {
 	return items
 }
 
+func (store *campaignStore) listCampaignsForUser(userID string) []campaignSummary {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+
+	items := make([]campaignSummary, 0, len(store.data.Campaigns))
+	for _, campaign := range store.data.Campaigns {
+		if campaign.OwnerID != userID {
+			continue
+		}
+		items = append(items, campaignSummaryFromData(campaign))
+	}
+
+	return items
+}
+
 func (store *campaignStore) getCampaign(id string) (campaignData, error) {
 	store.mu.RLock()
 	defer store.mu.RUnlock()
@@ -209,12 +412,30 @@ func (store *campaignStore) getCampaign(id string) (campaignData, error) {
 	return campaignData{}, fmt.Errorf("campaign %q not found", id)
 }
 
+func (store *campaignStore) getCampaignForUser(userID string, id string) (campaignData, error) {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+
+	for _, campaign := range store.data.Campaigns {
+		if campaign.ID == id && campaign.OwnerID == userID {
+			return ensureCampaignShape(campaign), nil
+		}
+	}
+
+	return campaignData{}, fmt.Errorf("campaign %q not found", id)
+}
+
 func (store *campaignStore) createCampaign(input createCampaignInput) (campaignData, error) {
+	return store.createCampaignForUser("", input)
+}
+
+func (store *campaignStore) createCampaignForUser(userID string, input createCampaignInput) (campaignData, error) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
 	campaign := ensureCampaignShape(campaignData{
 		ID:          newID("campaign"),
+		OwnerID:     strings.TrimSpace(userID),
 		Title:       firstNonEmpty(input.Title, "Новая кампания"),
 		System:      firstNonEmpty(input.System, "D&D 5e"),
 		SettingName: firstNonEmpty(input.SettingName, "Новый мир"),
