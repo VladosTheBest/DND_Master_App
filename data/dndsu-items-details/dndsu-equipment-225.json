@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-225",
+  "remoteId": "225",
+  "slug": "225-travelers-clothes",
+  "title": "Дорожная одежда",
+  "englishTitle": "Traveler",
+  "source": "dndsu-equipment",
+  "category": "clothing",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Дорожная одежда — это одеяния из крепкой ткани, предназначенные для путешествий в различных условиях.",
+  "searchText": "дорожная одежда,traveler equipment предмет снаряжения предмет снаряжения дорожная одежда",
+  "buyPriceGp": 2,
+  "buyPriceLabel": "2 ЗМ",
+  "sellPriceGp": 1,
+  "sellPriceLabel": "1 зм",
+  "url": "https://next.dnd.su/equipment/225-travelers-clothes",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:03:16Z",
+  "description": "Дорожная одежда — это одеяния из крепкой ткани, предназначенные для путешествий в различных условиях.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tДорожная одежда — это одеяния из крепкой ткани, предназначенные для путешествий в различных условиях.\n\t\u003c/p\u003e",
+  "weightLb": 4
+}

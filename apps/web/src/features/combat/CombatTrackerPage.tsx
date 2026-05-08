@@ -96,6 +96,8 @@ export function CombatTrackerPage({
   const [checklistOverrides, setChecklistOverrides] = useState<Record<string, boolean>>({});
   const [clockNow, setClockNow] = useState(() => Date.now());
   const combatStartedAtRef = useRef<{ id: string; startedAt: number } | null>(null);
+  const [damageBursts, setDamageBursts] = useState<Record<string, { amount: number; token: number }>>({});
+  const damageBurstTimersRef = useRef<Record<string, number>>({});
   const orderedEntries = useMemo(() => sortCombatEntriesByInitiative(activeCombat.entries), [activeCombat.entries]);
   const currentTurnEntry =
     (activeCombat.currentTurnEntryId ? orderedEntries.find((entry) => entry.id === activeCombat.currentTurnEntryId) ?? null : null) ??
@@ -172,6 +174,9 @@ export function CombatTrackerPage({
         startedAt: Date.now() - Math.max(activeCombat.round - 1, 0) * 45_000
       };
       setChecklistOverrides({});
+      setDamageBursts({});
+      Object.values(damageBurstTimersRef.current).forEach((timer) => window.clearTimeout(timer));
+      damageBurstTimersRef.current = {};
     }
   }, [activeCombat.id, activeCombat.round]);
 
@@ -188,6 +193,60 @@ export function CombatTrackerPage({
       window.clearInterval(timer);
     };
   }, []);
+
+  useEffect(
+    () => () => {
+      Object.values(damageBurstTimersRef.current).forEach((timer) => window.clearTimeout(timer));
+      damageBurstTimersRef.current = {};
+    },
+    []
+  );
+
+  const triggerDamageBurst = (entryId: string, amount: number) => {
+    const visibleAmount = Math.max(0, Math.floor(amount));
+    if (visibleAmount <= 0) {
+      return;
+    }
+
+    const token = Date.now() + Math.random();
+    setDamageBursts((current) => ({
+      ...current,
+      [entryId]: { amount: visibleAmount, token }
+    }));
+
+    const existingTimer = damageBurstTimersRef.current[entryId];
+    if (existingTimer) {
+      window.clearTimeout(existingTimer);
+    }
+
+    damageBurstTimersRef.current[entryId] = window.setTimeout(() => {
+      setDamageBursts((current) => {
+        if (current[entryId]?.token !== token) {
+          return current;
+        }
+
+        const { [entryId]: _removedBurst, ...next } = current;
+        return next;
+      });
+      delete damageBurstTimersRef.current[entryId];
+    }, 2800);
+  };
+
+  const handleApplyDamage = (entry: CombatEntry, damageAmount: number) => {
+    const normalizedDamage = Math.max(0, Math.floor(damageAmount));
+    if (normalizedDamage <= 0 || entry.maxHitPoints <= 0) {
+      return;
+    }
+
+    const nextHitPoints = Math.max(0, Math.min(entry.maxHitPoints, entry.currentHitPoints - normalizedDamage));
+    const removedHitPoints = Math.max(0, entry.currentHitPoints - nextHitPoints);
+    if (removedHitPoints <= 0) {
+      return;
+    }
+
+    triggerDamageBurst(entry.id, removedHitPoints);
+    onChangeHitPoints(entry, nextHitPoints);
+  };
 
   const combatDurationLabel = formatPlaybackTime(
     Math.max(0, (clockNow - (combatStartedAtRef.current?.startedAt ?? clockNow)) / 1000)
@@ -327,6 +386,7 @@ export function CombatTrackerPage({
               <CombatEntryTile
                 key={`roster-${entry.id}`}
                 currentTurn={currentTurnEntry?.id === entry.id}
+                damageFlash={damageBursts[entry.id]}
                 entry={entry}
                 linkedEntity={entityMap.get(entry.entityId) ?? null}
                 onSelect={() => onSelectEntry(entry.id)}
@@ -348,6 +408,7 @@ export function CombatTrackerPage({
               currentTurnEntryId={currentTurnEntry?.id}
               entry={selectedEntryResolved}
               linkedEntity={selectedEntityResolved}
+              onApplyDamage={handleApplyDamage}
               onChangeHitPoints={onChangeHitPoints}
               onChangeInitiative={onChangeInitiative}
               onNextTurn={onNextTurn}

@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-206",
+  "remoteId": "206",
+  "slug": "206-backpack",
+  "title": "Рюкзак",
+  "englishTitle": "Backpack",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Рюкзак вмещает груз объёмом до 1 кубического фута и весом до 30 фунтов. Он также может служить седельной сумкой.",
+  "searchText": "рюкзак,backpack, equipment предмет снаряжения предмет снаряжения рюкзак",
+  "buyPriceGp": 2,
+  "buyPriceLabel": "2 ЗМ",
+  "sellPriceGp": 1,
+  "sellPriceLabel": "1 зм",
+  "url": "https://next.dnd.su/equipment/206-backpack",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:17Z",
+  "description": "Рюкзак вмещает груз объёмом до 1 кубического фута и весом до 30 фунтов. Он также может служить седельной сумкой.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tРюкзак вмещает груз объёмом до 1 кубического фута и весом до 30 фунтов. Он также может служить седельной сумкой.\n\t\u003c/p\u003e",
+  "weightLb": 5
+}

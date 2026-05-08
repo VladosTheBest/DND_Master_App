@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-258",
+  "remoteId": "258",
+  "slug": "258-quiver",
+  "title": "Колчан",
+  "englishTitle": "Quiver",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Колчан вмещает до 20 Стрел .",
+  "searchText": "колчан,quiver, equipment предмет снаряжения предмет снаряжения колчан",
+  "buyPriceGp": 1,
+  "buyPriceLabel": "1 ЗМ",
+  "sellPriceGp": 0.5,
+  "sellPriceLabel": "5 см",
+  "url": "https://next.dnd.su/equipment/258-quiver",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:04:14Z",
+  "description": "Колчан вмещает до 20 Стрел .",
+  "descriptionHtml": "\u003cp\u003e\n\t\tКолчан вмещает до 20 Стрел.\n\t\u003c/p\u003e",
+  "weightLb": 1
+}

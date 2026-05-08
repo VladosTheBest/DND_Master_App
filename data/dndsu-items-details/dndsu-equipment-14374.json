@@ -1,0 +1,22 @@
+{
+  "id": "dndsu-equipment-14374",
+  "remoteId": "14374",
+  "slug": "14374-playing-cards",
+  "title": "Игральные карты",
+  "englishTitle": "Playing cards",
+  "source": "dndsu-equipment",
+  "category": "tool",
+  "subcategory": "Инструмент",
+  "typeLabel": "Инструмент",
+  "summary": "Вариант Игрового набора . Каждый вариант инструмента требует отдельного владения.",
+  "searchText": "игральные карты,playing cards, toolkit инструмент инструмент игральные карты",
+  "buyPriceGp": 0.5,
+  "buyPriceLabel": "5 СМ",
+  "sellPriceGp": 0.25,
+  "sellPriceLabel": "2 см 5 мм",
+  "url": "https://next.dnd.su/equipment/14374-playing-cards",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:03:38Z",
+  "description": "Вариант Игрового набора . Каждый вариант инструмента требует отдельного владения.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tВариант Игрового набора. Каждый вариант инструмента требует отдельного владения.\n\t\u003c/p\u003e"
+}

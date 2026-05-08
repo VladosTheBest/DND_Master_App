@@ -134,7 +134,7 @@ export function AppHeader(props: AppHeaderProps) {
         ))}
         {props.activeModule === "quests" && !props.isCombatScreen ? (
           <button className="ghost" onClick={props.onOpenRandomEvent} type="button">
-            Случайное событие
+            Сцена для зачитки
           </button>
         ) : null}
         <button className="ghost" disabled={props.authBusy} onClick={props.onLogout} type="button">

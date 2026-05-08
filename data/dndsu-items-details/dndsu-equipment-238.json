@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-238",
+  "remoteId": "238",
+  "slug": "238-jug",
+  "title": "Кувшин",
+  "englishTitle": "Jug",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Объём Кувшина равен 1 галлону.",
+  "searchText": "кувшин,jug, equipment предмет снаряжения предмет снаряжения кувшин",
+  "buyPriceGp": 0.02,
+  "buyPriceLabel": "2 ММ",
+  "sellPriceGp": 0.01,
+  "sellPriceLabel": "1 мм",
+  "url": "https://next.dnd.su/equipment/238-jug",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:04:18Z",
+  "description": "Объём Кувшина равен 1 галлону.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tОбъём Кувшина равен 1 галлону.\n\t\u003c/p\u003e",
+  "weightLb": 4
+}

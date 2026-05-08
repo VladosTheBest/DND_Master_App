@@ -58,6 +58,7 @@ export type UsePreparedCombatControllerArgs = {
   onCloseCombatSetupModal: () => void;
   onEntityToForm: (entity: KnowledgeEntity) => CreateEntityInput;
   onHandleProtectedActionError: (error: unknown, fallbackMessage: string) => void;
+  onRememberCombatReturnTarget: (combatId: string, questId?: string) => void;
   onOpenCombatScreen: () => void;
   onOpenEntityPreparedCombatSetup: (
     entity: PreparedCombatHostEntity,

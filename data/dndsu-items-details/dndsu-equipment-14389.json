@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-14389",
+  "remoteId": "14389",
+  "slug": "14389-dulcimer",
+  "title": "Дульцимер",
+  "englishTitle": "Dulcimer",
+  "source": "dndsu-equipment",
+  "category": "tool",
+  "subcategory": "Инструмент",
+  "typeLabel": "Инструмент",
+  "summary": "Вариант Музыкального инструмента . Каждый вариант инструмента требует отдельного владения.",
+  "searchText": "дульцимер,dulcimer, toolkit инструмент инструмент дульцимер",
+  "buyPriceGp": 25,
+  "buyPriceLabel": "25 ЗМ",
+  "sellPriceGp": 12.5,
+  "sellPriceLabel": "12 зм 5 см",
+  "url": "https://next.dnd.su/equipment/14389-dulcimer",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:03:40Z",
+  "description": "Вариант Музыкального инструмента . Каждый вариант инструмента требует отдельного владения.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tВариант Музыкального инструмента. Каждый вариант инструмента требует отдельного владения.\n\t\u003c/p\u003e",
+  "weightLb": 10
+}

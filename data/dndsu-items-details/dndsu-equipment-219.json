@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-219",
+  "remoteId": "219",
+  "slug": "219-crossbow-bolt-case",
+  "title": "Футляр для арбалетных болтов",
+  "englishTitle": "Crossbow Bolt Case",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Футляр для арбалетных болтов вмещает до 20 Болтов .",
+  "searchText": "футляр для арбалетных болтов,crossbow bolt case, equipment предмет снаряжения предмет снаряжения футляр для арбалетных болтов",
+  "buyPriceGp": 1,
+  "buyPriceLabel": "1 ЗМ",
+  "sellPriceGp": 0.5,
+  "sellPriceLabel": "5 см",
+  "url": "https://next.dnd.su/equipment/219-crossbow-bolt-case",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:49Z",
+  "description": "Футляр для арбалетных болтов вмещает до 20 Болтов .",
+  "descriptionHtml": "\u003cp\u003e\n\t\tФутляр для арбалетных болтов вмещает до 20 Болтов.\n\t\u003c/p\u003e",
+  "weightLb": 1
+}

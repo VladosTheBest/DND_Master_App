@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-220",
+  "remoteId": "220",
+  "slug": "220-map-or-scroll-case",
+  "title": "Тубус для карт и свитков",
+  "englishTitle": "Map or Scroll Case",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Тубус для карт и свитков вмещает до 10 листов Бумаги или 5 листов Пергамента .",
+  "searchText": "тубус для карт и свитков,map or scroll case, equipment предмет снаряжения предмет снаряжения тубус для карт и свитков",
+  "buyPriceGp": 1,
+  "buyPriceLabel": "1 ЗМ",
+  "sellPriceGp": 0.5,
+  "sellPriceLabel": "5 см",
+  "url": "https://next.dnd.su/equipment/220-map-or-scroll-case",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:44Z",
+  "description": "Тубус для карт и свитков вмещает до 10 листов Бумаги или 5 листов Пергамента .",
+  "descriptionHtml": "\u003cp\u003e\n\t\tТубус для карт и свитков вмещает до 10 листов Бумаги или 5 листов Пергамента.\n\t\u003c/p\u003e",
+  "weightLb": 1
+}

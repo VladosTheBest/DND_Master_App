@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-240",
+  "remoteId": "240",
+  "slug": "240-lamp",
+  "title": "Лампа",
+  "englishTitle": "Lamp",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Лампа заправляется Маслом и при горении испускает Яркий свет в радиусе 15 футов и Тусклый свет ещё на 30 футов.",
+  "searchText": "лампа,lamp, equipment предмет снаряжения предмет снаряжения лампа",
+  "buyPriceGp": 0.5,
+  "buyPriceLabel": "5 СМ",
+  "sellPriceGp": 0.25,
+  "sellPriceLabel": "2 см 5 мм",
+  "url": "https://next.dnd.su/equipment/240-lamp",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:04:23Z",
+  "description": "Лампа заправляется Маслом и при горении испускает Яркий свет в радиусе 15 футов и Тусклый свет ещё на 30 футов.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tЛампа заправляется Маслом и при горении испускает Яркий свет в радиусе 15 футов и Тусклый свет ещё на 30 футов.\n\t\u003c/p\u003e",
+  "weightLb": 1
+}

@@ -656,6 +656,7 @@ export function CombatEntryCard({
   revealEnemyMeta = false,
   busy,
   onChangeHitPoints,
+  onApplyDamage,
   onChangeInitiative,
   onSetCurrentTurn,
   onNextTurn
@@ -666,6 +667,7 @@ export function CombatEntryCard({
   revealEnemyMeta?: boolean;
   busy: boolean;
   onChangeHitPoints: (entry: CombatEntry, nextHp: number) => void;
+  onApplyDamage?: (entry: CombatEntry, damageAmount: number) => void;
   onChangeInitiative: (entry: CombatEntry, nextInitiative: number) => void;
   onSetCurrentTurn: (entryId: string) => void;
   onNextTurn: () => void;
@@ -675,10 +677,13 @@ export function CombatEntryCard({
   const [activeTab, setActiveTab] = useState<CombatFocusTab>("overview");
   const [initiativeDraft, setInitiativeDraft] = useState(() => String(combatEntryInitiative(entry)));
   const [hitPointsDraft, setHitPointsDraft] = useState(() => String(entry.currentHitPoints));
+  const [damageDraft, setDamageDraft] = useState("1");
   const parsedHitPointsDraft = Number.parseInt(hitPointsDraft, 10);
   const effectiveDraftHitPoints = Number.isFinite(parsedHitPointsDraft)
     ? clamp(parsedHitPointsDraft, 0, Math.max(entry.maxHitPoints, 0))
     : entry.currentHitPoints;
+  const parsedDamageDraft = Number.parseInt(damageDraft, 10);
+  const effectiveDamageDraft = Number.isFinite(parsedDamageDraft) ? Math.max(0, Math.floor(parsedDamageDraft)) : 0;
   const isCurrentTurn = currentTurnEntryId === entry.id;
   const portraitSource = linkedEntity
     ? createPortraitSource(linkedEntity)
@@ -721,6 +726,7 @@ export function CombatEntryCard({
 
   useEffect(() => {
     setActiveTab("overview");
+    setDamageDraft("1");
   }, [entry.id]);
 
   const commitInitiativeDraft = () => {
@@ -736,6 +742,15 @@ export function CombatEntryCard({
     const clampedValue = clamp(nextValue, 0, Math.max(entry.maxHitPoints, 0));
     setHitPointsDraft(String(clampedValue));
     onChangeHitPoints(entry, clampedValue);
+  };
+
+  const applyDamageDraft = () => {
+    if (!onApplyDamage || effectiveDamageDraft <= 0 || entry.maxHitPoints <= 0) {
+      return;
+    }
+
+    setHitPointsDraft(String(Math.max(0, entry.currentHitPoints - effectiveDamageDraft)));
+    onApplyDamage(entry, effectiveDamageDraft);
   };
 
   const renderStatEntries = (entries: StatBlockEntry[], emptyLabel: string) =>
@@ -850,6 +865,36 @@ export function CombatEntryCard({
                       / Max
                     </button>
                   </div>
+                  {onApplyDamage ? (
+                    <div className="combat-focus-damage-form">
+                      <label className="field combat-damage-field">
+                        <span>Урон</span>
+                        <input
+                          aria-label="Количество урона"
+                          className="input combatant-damage-input"
+                          inputMode="numeric"
+                          min={1}
+                          onChange={(event) => setDamageDraft(event.target.value)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter") {
+                              event.preventDefault();
+                              applyDamageDraft();
+                            }
+                          }}
+                          type="number"
+                          value={damageDraft}
+                        />
+                      </label>
+                      <button
+                        className="primary danger-action combat-damage-button"
+                        disabled={busy || effectiveDamageDraft <= 0 || entry.currentHitPoints <= 0}
+                        onClick={applyDamageDraft}
+                        type="button"
+                      >
+                        Урон
+                      </button>
+                    </div>
+                  ) : null}
                   <div className="combat-focus-health-form">
                     <input
                       className="input combatant-health-input"
@@ -1063,6 +1108,7 @@ export function CombatEntryTile({
   entry,
   linkedEntity,
   revealEnemyMeta = false,
+  damageFlash,
   selected,
   currentTurn,
   onSelect
@@ -1070,6 +1116,7 @@ export function CombatEntryTile({
   entry: CombatEntry;
   linkedEntity: KnowledgeEntity | null;
   revealEnemyMeta?: boolean;
+  damageFlash?: { amount: number; token: number };
   selected: boolean;
   currentTurn: boolean;
   onSelect: () => void;
@@ -1088,6 +1135,11 @@ export function CombatEntryTile({
       onClick={onSelect}
       type="button"
     >
+      {damageFlash ? (
+        <span key={damageFlash.token} className="combat-roster-damage-burst" aria-live="polite">
+          -{damageFlash.amount}
+        </span>
+      ) : null}
       <span className={`combat-roster-initiative ${entry.side === "player" ? "player" : "enemy"}`}>{combatEntryInitiative(entry)}</span>
       <div className={`combat-roster-portrait-shell ${isCombatEntryBloodied(entry) ? "combat-bloodied-shell" : ""}`}>
         <img alt={linkedEntity?.art?.alt ?? entry.title} className="combat-roster-portrait" loading="lazy" src={portraitSource} />

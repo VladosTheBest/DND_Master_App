@@ -1,0 +1,22 @@
+{
+  "id": "dndsu-equipment-268",
+  "remoteId": "268",
+  "slug": "268-string",
+  "title": "Леска",
+  "englishTitle": "String",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Леска имеет длину 10 футов. Действием Использование вы можете завязать на ней узел.",
+  "searchText": "леска,string, equipment предмет снаряжения предмет снаряжения леска",
+  "buyPriceGp": 0.1,
+  "buyPriceLabel": "1 СМ",
+  "sellPriceGp": 0.05,
+  "sellPriceLabel": "5 мм",
+  "url": "https://next.dnd.su/equipment/268-string",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:04:34Z",
+  "description": "Леска имеет длину 10 футов. Действием Использование вы можете завязать на ней узел.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tЛеска имеет длину 10 футов. Действием Использование вы можете завязать на ней узел.\n\t\u003c/p\u003e"
+}

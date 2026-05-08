@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-230",
+  "remoteId": "230",
+  "slug": "230-flask",
+  "title": "Фляга",
+  "englishTitle": "Flask",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Фляга вмещает до 1 пинты (~500 мл).",
+  "searchText": "фляга,flask, equipment предмет снаряжения предмет снаряжения фляга",
+  "buyPriceGp": 0.02,
+  "buyPriceLabel": "2 ММ",
+  "sellPriceGp": 0.01,
+  "sellPriceLabel": "1 мм",
+  "url": "https://next.dnd.su/equipment/230-flask",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:41Z",
+  "description": "Фляга вмещает до 1 пинты (~500 мл).",
+  "descriptionHtml": "\u003cp\u003e\n\t\tФляга вмещает до 1 пинты (~500 мл).\n\t\u003c/p\u003e",
+  "weightLb": 1
+}

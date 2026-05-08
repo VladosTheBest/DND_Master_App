@@ -976,16 +976,18 @@ function ItemListCard({
   );
 }
 
-function ItemDetailModal({
+export function ItemDetailModal({
   item,
+  isLoadingDetail,
   onClose,
   onEdit,
   onDelete
 }: {
   item: Item;
+  isLoadingDetail?: boolean;
   onClose: () => void;
-  onEdit: () => void;
-  onDelete: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }) {
   const modalRef = useRef<HTMLDivElement | null>(null);
   const metrics = filterVisibleMetrics(getItemMetrics(item));
@@ -994,6 +996,12 @@ function ItemDetailModal({
   const detailLine =
     [item.armorType ? armorTypeLabels[item.armorType] : "", item.rarity ?? ""].filter(Boolean).join(" • ") ||
     "Справочная карточка для стола";
+  const descriptionPending = isRemoteItem(item) && !item.detailLoaded;
+  const descriptionText = isLoadingDetail
+    ? "Загружаю полное описание из каталога..."
+    : descriptionPending
+      ? "Полное описание пока не загружено."
+      : item.description.trim() || "Описание отсутствует.";
 
   useEffect(() => {
     if (!modalRef.current) {
@@ -1032,7 +1040,9 @@ function ItemDetailModal({
                 <small>{detailLine}</small>
               </div>
 
-              <p className="items-modal-summary">{item.description}</p>
+              <p className={`items-modal-summary ${descriptionPending || isLoadingDetail ? "is-loading" : ""}`}>
+                {descriptionText}
+              </p>
             </div>
 
             <div aria-hidden="true" className="items-modal-hero-art">
@@ -1051,7 +1061,7 @@ function ItemDetailModal({
               <ItemPricePill label="Покупка" value={resolveBuyPriceLabel(item)} emphasize />
               <ItemPricePill label="Продажа" value={resolveSellPriceLabel(item)} />
             </div>
-          {item.source === "custom" ? (
+          {item.source === "custom" && onEdit && onDelete ? (
             <div className="actions items-detail-actions">
               <button className="ghost" onClick={onEdit} type="button">
                 Редактировать
@@ -1075,15 +1085,6 @@ function ItemDetailModal({
               </div>
             </section>
           ) : null}
-
-          <section className="card mini items-detail-section">
-            <strong>Описание</strong>
-            {item.descriptionHtml ? (
-              <div className="copy items-description-rich" dangerouslySetInnerHTML={{ __html: item.descriptionHtml }} />
-            ) : (
-              <p className="copy">{item.description}</p>
-            )}
-          </section>
 
           {item.properties?.length ? (
             <section className="card mini items-detail-section">
@@ -1130,7 +1131,9 @@ function ItemEditorPanel({
   onCancel,
   onCategoryChange,
   onFieldChange,
-  onSave
+  onSave,
+  titleId,
+  validationError
 }: {
   mode: Exclude<ItemEditorMode, "closed">;
   draft: ItemDraft;
@@ -1138,6 +1141,8 @@ function ItemEditorPanel({
   onCategoryChange: (category: ItemCategory) => void;
   onFieldChange: <Key extends keyof ItemDraft>(field: Key, value: ItemDraft[Key]) => void;
   onSave: () => void;
+  titleId?: string;
+  validationError?: string;
 }) {
   const isArmor = draft.category === "armor";
   const isWeapon = draft.category === "weapon";
@@ -1147,15 +1152,18 @@ function ItemEditorPanel({
       <div className="row">
         <div className="stack tight">
           <p className="eyebrow">{mode === "create" ? "Создание" : "Редактирование"}</p>
-          <strong>{mode === "create" ? "Создать предмет" : "Редактировать предмет"}</strong>
+          <strong id={titleId}>{mode === "create" ? "Создать предмет" : "Редактировать предмет"}</strong>
         </div>
         <ItemBadge label={mode === "create" ? "Новый" : "Custom"} tone={mode === "create" ? "accent" : "success"} />
       </div>
+
+      {validationError ? <div className="notes-status notes-status-error">{validationError}</div> : null}
 
       <div className="form-grid items-editor-grid">
         <label className="field field-full">
           <span>Название</span>
           <input
+            autoFocus
             className="input"
             onChange={(event) => onFieldChange("name", event.target.value)}
             placeholder="Например: Кольчуга из мифрила"
@@ -1342,6 +1350,59 @@ function ItemEditorPanel({
   );
 }
 
+function ItemEditorModal({
+  mode,
+  draft,
+  onCancel,
+  onCategoryChange,
+  onFieldChange,
+  onSave,
+  validationError
+}: {
+  mode: Exclude<ItemEditorMode, "closed">;
+  draft: ItemDraft;
+  onCancel: () => void;
+  onCategoryChange: (category: ItemCategory) => void;
+  onFieldChange: <Key extends keyof ItemDraft>(field: Key, value: ItemDraft[Key]) => void;
+  onSave: () => void;
+  validationError?: string;
+}) {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onCancel();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onCancel]);
+
+  const titleId = "items-editor-modal-title";
+  const modal = (
+    <div className="overlay items-modal-overlay items-editor-modal-overlay" role="presentation">
+      <div aria-labelledby={titleId} aria-modal="true" className="panel items-editor-panel items-editor-modal" role="dialog">
+        <button aria-label="Закрыть форму предмета" className="items-modal-close items-editor-modal-close" onClick={onCancel} type="button">
+          <CloseIcon />
+        </button>
+
+        <ItemEditorPanel
+          draft={draft}
+          mode={mode}
+          onCancel={onCancel}
+          onCategoryChange={onCategoryChange}
+          onFieldChange={onFieldChange}
+          onSave={onSave}
+          titleId={titleId}
+          validationError={validationError}
+        />
+      </div>
+    </div>
+  );
+
+  return createPortal(modal, document.body);
+}
+
 type ItemsPageProps = {
   campaignId: string;
 };
@@ -1368,6 +1429,7 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
     catalogItems,
     catalogLoading,
     catalogError,
+    loadingCatalogItemIds,
     ensureCatalogItemDetail
   } = useItemsCatalogController({ campaignId });
 
@@ -1832,7 +1894,7 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
 
         <section className="card items-catalog-panel">
           {notice ? <div className="notes-status notes-status-success">{notice}</div> : null}
-          {error ? <div className="notes-status notes-status-error">{error}</div> : null}
+          {error && editorMode === "closed" ? <div className="notes-status notes-status-error">{error}</div> : null}
 
           <div className="items-catalog-header">
             <div className="stack tight">
@@ -1848,20 +1910,19 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
           </div>
 
           {editorMode === "create" || editorMode === "edit" ? (
-            <section className="card mini items-editor-panel">
-              <ItemEditorPanel
-                draft={editorDraft}
-                mode={editorMode}
-                onCancel={() => {
-                  clearMessages();
-                  setEditorMode("closed");
-                  setEditingItemId("");
-                }}
-                onCategoryChange={updateDraftCategory}
-                onFieldChange={updateDraftField}
-                onSave={handleSaveItem}
-              />
-            </section>
+            <ItemEditorModal
+              draft={editorDraft}
+              mode={editorMode}
+              onCancel={() => {
+                clearMessages();
+                setEditorMode("closed");
+                setEditingItemId("");
+              }}
+              onCategoryChange={updateDraftCategory}
+              onFieldChange={updateDraftField}
+              onSave={handleSaveItem}
+              validationError={error}
+            />
           ) : null}
 
           {filteredItems.length ? (
@@ -1886,6 +1947,7 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
           {editorMode === "closed" && selectedItem ? (
             <ItemDetailModal
               item={selectedItem}
+              isLoadingDetail={loadingCatalogItemIds.includes(selectedItem.id)}
               onClose={handleCloseItemModal}
               onDelete={() => handleDeleteItem(selectedItem)}
               onEdit={() => handleEditItem(selectedItem)}

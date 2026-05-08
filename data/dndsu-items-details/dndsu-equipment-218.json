@@ -1,0 +1,22 @@
+{
+  "id": "dndsu-equipment-218",
+  "remoteId": "218",
+  "slug": "218-candle",
+  "title": "Свеча",
+  "englishTitle": "Candle",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Зажжённая Свеча в течение 1 часа испускает Яркий свет в радиусе 5 футов и Тусклый свет ещё на 5 футов.",
+  "searchText": "свеча,candle, equipment предмет снаряжения предмет снаряжения свеча",
+  "buyPriceGp": 0.01,
+  "buyPriceLabel": "1 ММ",
+  "sellPriceGp": 0.005,
+  "sellPriceLabel": "1 мм",
+  "url": "https://next.dnd.su/equipment/218-candle",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:29Z",
+  "description": "Зажжённая Свеча в течение 1 часа испускает Яркий свет в радиусе 5 футов и Тусклый свет ещё на 5 футов.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tЗажжённая Свеча в течение 1 часа испускает Яркий свет в радиусе 5 футов и Тусклый свет ещё на 5 футов.\n\t\u003c/p\u003e"
+}

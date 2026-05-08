@@ -1,0 +1,22 @@
+{
+  "id": "dndsu-equipment-265",
+  "remoteId": "265",
+  "slug": "265-signal-whistle",
+  "title": "Сигнальный свисток",
+  "englishTitle": "Signal Whistle",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Действием Использование можно подуть в Сигнальный свисток, издавая звук, слышный на расстоянии до 600 футов.",
+  "searchText": "сигнальный свисток,signal whistle, equipment предмет снаряжения предмет снаряжения сигнальный свисток",
+  "buyPriceGp": 0.05,
+  "buyPriceLabel": "5 ММ",
+  "sellPriceGp": 0.025,
+  "sellPriceLabel": "3 мм",
+  "url": "https://next.dnd.su/equipment/265-signal-whistle",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:23Z",
+  "description": "Действием Использование можно подуть в Сигнальный свисток, издавая звук, слышный на расстоянии до 600 футов.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tДействием Использование можно подуть в Сигнальный свисток, издавая звук, слышный на расстоянии до 600 футов.\n\t\u003c/p\u003e"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "dndsu-equipment-237",
+  "remoteId": "237",
+  "slug": "237-ink-pen",
+  "title": "Писчее перо",
+  "englishTitle": "Ink Pen",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Писчее перо используется с Чернилами для письма или рисования.",
+  "searchText": "писчее перо,ink pen, equipment предмет снаряжения предмет снаряжения писчее перо",
+  "buyPriceGp": 0.02,
+  "buyPriceLabel": "2 ММ",
+  "sellPriceGp": 0.01,
+  "sellPriceLabel": "1 мм",
+  "url": "https://next.dnd.su/equipment/237-ink-pen",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:04Z",
+  "description": "Писчее перо используется с Чернилами для письма или рисования.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tПисчее перо используется с Чернилами для письма или рисования.\n\t\u003c/p\u003e"
+}

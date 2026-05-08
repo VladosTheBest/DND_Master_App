@@ -1,0 +1,27 @@
+{
+  "id": "dndsu-magic-171",
+  "remoteId": "171",
+  "slug": "171-cloak-of-protection",
+  "title": "Плащ защиты",
+  "englishTitle": "Cloak of protection",
+  "source": "dndsu-magic",
+  "category": "clothing",
+  "subcategory": "Чудесный предмет, необычный (требуется настройка)",
+  "rarity": "Необычный",
+  "typeLabel": "Чудесный предмет, необычный (требуется настройка)",
+  "summary": "Вы получаете бонус +1 к КД и к спасброскам, пока носите этот плащ.",
+  "searchText": "плащ защиты,cloak of protection, чудесный предмет плащ защиты",
+  "buyPriceGp": 300.5,
+  "buyPriceLabel": "101-500 зм",
+  "sellPriceGp": 150.25,
+  "sellPriceLabel": "50 зм 5 см-250 зм",
+  "reference": "Dungeon Master's Guide",
+  "url": "https://dnd.su/items/171-cloak-of-protection/",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:00Z",
+  "description": "Вы получаете бонус +1 к КД и к спасброскам, пока носите этот плащ.",
+  "descriptionHtml": "\u003cp\u003eВы получаете бонус +1 к КД и к спасброскам, пока носите этот плащ.\u003c/p\u003e",
+  "properties": [
+    "Требуется настройка"
+  ]
+}

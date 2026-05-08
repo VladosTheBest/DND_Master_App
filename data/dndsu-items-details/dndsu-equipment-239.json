@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-239",
+  "remoteId": "239",
+  "slug": "239-ladder",
+  "title": "Лестница",
+  "englishTitle": "Ladder",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Высота лестницы составляет 10 футов. Передвижение по ней вверх или вниз считается лазанием .",
+  "searchText": "лестница,ladder, equipment предмет снаряжения предмет снаряжения лестница",
+  "buyPriceGp": 0.1,
+  "buyPriceLabel": "1 СМ",
+  "sellPriceGp": 0.05,
+  "sellPriceLabel": "5 мм",
+  "url": "https://next.dnd.su/equipment/239-ladder",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:04:19Z",
+  "description": "Высота лестницы составляет 10 футов. Передвижение по ней вверх или вниз считается лазанием .",
+  "descriptionHtml": "\u003cp\u003e\n\t\tВысота лестницы составляет 10 футов. Передвижение по ней вверх или вниз считается лазанием.\n\t\u003c/p\u003e",
+  "weightLb": 25
+}

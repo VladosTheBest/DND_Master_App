@@ -110,7 +110,7 @@ export const catalogSummaryToItem = (summary: ItemCatalogSummary): Item => ({
   reference: summary.reference ?? null,
   referenceUrl: summary.url,
   searchText: [summary.englishTitle ?? "", summary.typeLabel, summary.sourceLabel].join(" ").trim(),
-  detailLoaded: Boolean(summary.descriptionLoaded)
+  detailLoaded: false
 });
 
 export const applyCatalogDetailToItem = (item: Item, detail: ItemCatalogDetail): Item => ({

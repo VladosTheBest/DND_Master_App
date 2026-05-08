@@ -1,0 +1,26 @@
+{
+  "id": "dndsu-magic-2463",
+  "remoteId": "2463",
+  "slug": "2463-horned-ring",
+  "title": "Рогатое кольцо",
+  "englishTitle": "Horned Ring",
+  "source": "dndsu-magic",
+  "category": "ring",
+  "subcategory": "Кольцо",
+  "typeLabel": "Кольцо, очень редкое (требуется настройка)",
+  "summary": "Позволяет настроенному на него владельцу игнорировать ограничения в магии Подгорья.",
+  "searchText": "рогатое кольцо,horned ring, кольцо рогатое кольцо",
+  "buyPriceGp": 27500.5,
+  "buyPriceLabel": "5 001-50 000 зм",
+  "sellPriceGp": 13750.25,
+  "sellPriceLabel": "2 500 зм 5 см-25 000 зм",
+  "reference": "Waterdeep: Dungeon of the Mad Mage",
+  "url": "https://dnd.su/items/2463-horned-ring/",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:14Z",
+  "description": "Позволяет настроенному на него владельцу игнорировать ограничения в магии Подгорья.",
+  "descriptionHtml": "\u003cp\u003eПозволяет настроенному на него владельцу игнорировать ограничения в магии Подгорья.\u003c/p\u003e",
+  "properties": [
+    "Требуется настройка"
+  ]
+}

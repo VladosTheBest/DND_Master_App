@@ -1,0 +1,22 @@
+{
+  "id": "dndsu-equipment-211",
+  "remoteId": "211",
+  "slug": "211-bell",
+  "title": "Колокольчик",
+  "englishTitle": "Bell",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Действием Использование можно позвонить в Колокольчик, издавая звук, слышный на расстоянии до 60 футов.",
+  "searchText": "колокольчик,bell, equipment предмет снаряжения предмет снаряжения колокольчик",
+  "buyPriceGp": 1,
+  "buyPriceLabel": "1 ЗМ",
+  "sellPriceGp": 0.5,
+  "sellPriceLabel": "5 см",
+  "url": "https://next.dnd.su/equipment/211-bell",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:03:59Z",
+  "description": "Действием Использование можно позвонить в Колокольчик, издавая звук, слышный на расстоянии до 60 футов.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tДействием Использование можно позвонить в Колокольчик, издавая звук, слышный на расстоянии до 60 футов.\n\t\u003c/p\u003e"
+}

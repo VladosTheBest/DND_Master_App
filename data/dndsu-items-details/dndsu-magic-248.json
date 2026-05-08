@@ -1,0 +1,27 @@
+{
+  "id": "dndsu-magic-248",
+  "remoteId": "248",
+  "slug": "248-hat-of-disguise",
+  "title": "Шапка маскировки",
+  "englishTitle": "Hat of disguise",
+  "source": "dndsu-magic",
+  "category": "clothing",
+  "subcategory": "Чудесный предмет, необычный (требуется настройка)",
+  "rarity": "Необычный",
+  "typeLabel": "Чудесный предмет, необычный (требуется настройка)",
+  "summary": "Пока вы носите эту шапку, вы можете неограниченно действием накладывать ей заклинание маскировка [disguise self] . Это заклинание оканчивается, если снять шапку.",
+  "searchText": "шапка маскировки,hat of disguise, чудесный предмет шапка маскировки",
+  "buyPriceGp": 300.5,
+  "buyPriceLabel": "101-500 зм",
+  "sellPriceGp": 150.25,
+  "sellPriceLabel": "50 зм 5 см-250 зм",
+  "reference": "Dungeon Master's Guide",
+  "url": "https://dnd.su/items/248-hat-of-disguise/",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:49Z",
+  "description": "Пока вы носите эту шапку, вы можете неограниченно действием накладывать ей заклинание маскировка [disguise self] . Это заклинание оканчивается, если снять шапку.",
+  "descriptionHtml": "\u003cp\u003eПока вы носите эту шапку, вы можете неограниченно действием накладывать ей заклинание маскировка [disguise self]. Это заклинание оканчивается, если снять шапку.\u003c/p\u003e",
+  "properties": [
+    "Требуется настройка"
+  ]
+}

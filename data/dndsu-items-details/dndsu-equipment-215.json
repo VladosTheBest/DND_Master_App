@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-215",
+  "remoteId": "215",
+  "slug": "215-glass-bottle",
+  "title": "Стеклянная бутылка",
+  "englishTitle": "Glass Bottle",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Стеклянная бутылка вмещает до 1.5 пинты (~700 мл).",
+  "searchText": "стеклянная бутылка,glass bottle, equipment предмет снаряжения предмет снаряжения стеклянная бутылка",
+  "buyPriceGp": 2,
+  "buyPriceLabel": "2 ЗМ",
+  "sellPriceGp": 1,
+  "sellPriceLabel": "1 зм",
+  "url": "https://next.dnd.su/equipment/215-glass-bottle",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:35Z",
+  "description": "Стеклянная бутылка вмещает до 1.5 пинты (~700 мл).",
+  "descriptionHtml": "\u003cp\u003e\n\t\tСтеклянная бутылка вмещает до 1.5 пинты (~700 мл).\n\t\u003c/p\u003e",
+  "weightLb": 2
+}

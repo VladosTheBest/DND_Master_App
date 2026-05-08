@@ -1,0 +1,22 @@
+{
+  "id": "dndsu-equipment-263",
+  "remoteId": "263",
+  "slug": "263-sack",
+  "title": "Мешок",
+  "englishTitle": "Sack",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Мешок вмещает груз объёмом до 1 кубического фута и весом до 30 фунтов.",
+  "searchText": "мешок,sack, equipment предмет снаряжения предмет снаряжения мешок",
+  "buyPriceGp": 0.01,
+  "buyPriceLabel": "1 ММ",
+  "sellPriceGp": 0.005,
+  "sellPriceLabel": "1 мм",
+  "url": "https://next.dnd.su/equipment/263-sack",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:04:31Z",
+  "description": "Мешок вмещает груз объёмом до 1 кубического фута и весом до 30 фунтов.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tМешок вмещает груз объёмом до 1 кубического фута и весом до 30 фунтов.\n\t\u003c/p\u003e"
+}

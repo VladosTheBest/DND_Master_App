@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-222",
+  "remoteId": "222",
+  "slug": "222-chest",
+  "title": "Сундук",
+  "englishTitle": "Chest",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Сундук вмещает до 12 кубических футов содержимого.",
+  "searchText": "сундук,chest, equipment предмет снаряжения предмет снаряжения сундук",
+  "buyPriceGp": 5,
+  "buyPriceLabel": "5 ЗМ",
+  "sellPriceGp": 2.5,
+  "sellPriceLabel": "2 зм 5 см",
+  "url": "https://next.dnd.su/equipment/222-chest",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:46Z",
+  "description": "Сундук вмещает до 12 кубических футов содержимого.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tСундук вмещает до 12 кубических футов содержимого.\n\t\u003c/p\u003e",
+  "weightLb": 25
+}

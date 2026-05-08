@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-14385",
+  "remoteId": "14385",
+  "slug": "14385-lute",
+  "title": "Лютня",
+  "englishTitle": "Lute",
+  "source": "dndsu-equipment",
+  "category": "tool",
+  "subcategory": "Инструмент",
+  "typeLabel": "Инструмент",
+  "summary": "Вариант Музыкального инструмента . Каждый вариант инструмента требует отдельного владения.",
+  "searchText": "лютня,lute, toolkit инструмент инструмент лютня",
+  "buyPriceGp": 35,
+  "buyPriceLabel": "35 ЗМ",
+  "sellPriceGp": 17.5,
+  "sellPriceLabel": "17 зм 5 см",
+  "url": "https://next.dnd.su/equipment/14385-lute",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:04:35Z",
+  "description": "Вариант Музыкального инструмента . Каждый вариант инструмента требует отдельного владения.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tВариант Музыкального инструмента. Каждый вариант инструмента требует отдельного владения.\n\t\u003c/p\u003e",
+  "weightLb": 2
+}

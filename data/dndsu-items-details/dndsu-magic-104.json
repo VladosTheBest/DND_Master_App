@@ -1,0 +1,26 @@
+{
+  "id": "dndsu-magic-104",
+  "remoteId": "104",
+  "slug": "104-ring-of-jumping",
+  "title": "Кольцо прыжков",
+  "englishTitle": "Ring of jumping",
+  "source": "dndsu-magic",
+  "category": "ring",
+  "subcategory": "Кольцо",
+  "typeLabel": "Кольцо, необычное (требуется настройка)",
+  "summary": "Нося это кольцо, вы можете бонусным действием накладывать заклинание прыжок [jump] , но нацеливаясь при этом только на себя.",
+  "searchText": "кольцо прыжков,ring of jumping, кольцо кольцо прыжков",
+  "buyPriceGp": 300.5,
+  "buyPriceLabel": "101-500 зм",
+  "sellPriceGp": 150.25,
+  "sellPriceLabel": "50 зм 5 см-250 зм",
+  "reference": "Dungeon Master's Guide",
+  "url": "https://dnd.su/items/104-ring-of-jumping/",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:04:00Z",
+  "description": "Нося это кольцо, вы можете бонусным действием накладывать заклинание прыжок [jump] , но нацеливаясь при этом только на себя.",
+  "descriptionHtml": "\u003cp\u003eНося это кольцо, вы можете бонусным действием накладывать заклинание прыжок [jump], но нацеливаясь при этом только на себя.\u003c/p\u003e",
+  "properties": [
+    "Требуется настройка"
+  ]
+}

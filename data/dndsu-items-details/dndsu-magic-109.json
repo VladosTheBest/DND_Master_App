@@ -1,0 +1,26 @@
+{
+  "id": "dndsu-magic-109",
+  "remoteId": "109",
+  "slug": "109-ring-of-telekinesis",
+  "title": "Кольцо телекинеза",
+  "englishTitle": "Ring of telekinesis",
+  "source": "dndsu-magic",
+  "category": "ring",
+  "subcategory": "Кольцо",
+  "typeLabel": "Кольцо, очень редкое (требуется настройка)",
+  "summary": "Нося это кольцо, вы можете неограниченно накладывать заклинание телекинез [telekinesis] , но нацеливаясь только на предметы, которые никто не несёт и не носит.",
+  "searchText": "кольцо телекинеза,ring of telekinesis, кольцо кольцо телекинеза",
+  "buyPriceGp": 27500.5,
+  "buyPriceLabel": "5 001-50 000 зм",
+  "sellPriceGp": 13750.25,
+  "sellPriceLabel": "2 500 зм 5 см-25 000 зм",
+  "reference": "Dungeon Master's Guide",
+  "url": "https://dnd.su/items/109-ring-of-telekinesis/",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:04:00Z",
+  "description": "Нося это кольцо, вы можете неограниченно накладывать заклинание телекинез [telekinesis] , но нацеливаясь только на предметы, которые никто не несёт и не носит.",
+  "descriptionHtml": "\u003cp\u003eНося это кольцо, вы можете неограниченно накладывать заклинание телекинез [telekinesis], но нацеливаясь только на предметы, которые никто не несёт и не носит.\u003c/p\u003e",
+  "properties": [
+    "Требуется настройка"
+  ]
+}

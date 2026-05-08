@@ -271,7 +271,7 @@ const moduleByKind: Record<EntityKind, ModuleId> = {
 
 const entityGenerationSteps = ["Собираю контекст кампании", "Зову оракула", "Заполняю черновик и форму"];
 const combatGenerationSteps = ["Считаю силу партии", "Подбираю противников", "Собираю бой для стола"];
-const randomEventGenerationSteps = ["Читаю контекст локации", "Плету маленькую сцену", "Собираю реплики и лут"];
+const randomEventGenerationSteps = ["Читаю, где находится партия", "Придумываю встречу и поворот", "Собираю текст для зачитки"];
 
 const emptyWorldEventInput = (): WorldEventInput => ({
   title: "",
@@ -322,7 +322,61 @@ type EntityCombatSetupState = {
   planIndex: number;
   isNew: boolean;
 };
+type CombatReturnTarget = {
+  campaignId: string;
+  questId?: string;
+  startedAt: number;
+};
 type CombatPrepIconName = "players" | "enemy" | "initiative" | "round" | "conditions" | "notes" | "swords";
+
+const combatReturnTargetsStorageKey = "shadow-edge:combat-return-targets";
+
+const isCombatReturnTarget = (value: unknown): value is CombatReturnTarget => {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const target = value as Partial<CombatReturnTarget>;
+  return (
+    typeof target.campaignId === "string" &&
+    typeof target.startedAt === "number" &&
+    (target.questId === undefined || typeof target.questId === "string")
+  );
+};
+
+const readCombatReturnTargets = (): Record<string, CombatReturnTarget> => {
+  if (typeof window === "undefined") {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(combatReturnTargetsStorageKey) ?? "{}") as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return {};
+    }
+
+    return Object.entries(parsed).reduce<Record<string, CombatReturnTarget>>((accumulator, [combatId, value]) => {
+      if (combatId && isCombatReturnTarget(value)) {
+        accumulator[combatId] = value;
+      }
+      return accumulator;
+    }, {});
+  } catch {
+    return {};
+  }
+};
+
+const writeCombatReturnTargets = (targets: Record<string, CombatReturnTarget>) => {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(combatReturnTargetsStorageKey, JSON.stringify(targets));
+  } catch {
+    // Navigation still works in the current session even if localStorage is unavailable.
+  }
+};
 
 function CombatPrepIcon({ name }: { name: CombatPrepIconName }) {
   const common = {
@@ -1222,7 +1276,7 @@ function CombatWorkbench({
               Копировать ссылку
             </button>
             <button className="ghost" onClick={onOpenRandomEventModal} type="button">
-              Случайное событие
+              Сцена для зачитки
             </button>
             <button className="ghost" disabled={combatStateBusy || saving} onClick={onDeclarePlayersVictory} type="button">
               Победа игроков
@@ -1458,6 +1512,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("Snapshot");
   const [activeEntityId, setActiveEntityId] = useState("");
   const [previewEntityId, setPreviewEntityId] = useState("");
+  const [focusedShopId, setFocusedShopId] = useState("");
   const [pinnedIds, setPinnedIds] = useState<string[]>([]);
   const [combatPlaylistModalOpen, setCombatPlaylistModalOpen] = useState(false);
   const [entityCombatSetupState, setEntityCombatSetupState] = useState<EntityCombatSetupState | null>(null);
@@ -2254,11 +2309,10 @@ export default function App() {
   const randomEventController = useRandomEventController({
     activeCampaignId,
     activeEntity,
-    activeWorldEvent,
     campaign,
-    emptyWorldEventInput,
-    onHydrateCampaign: (nextCampaign) => hydrateCampaign(nextCampaign),
-    serializeWorldEventInput,
+    entityToForm,
+    onHydrateCampaign: (nextCampaign, preferredEntityId) => hydrateCampaign(nextCampaign, preferredEntityId),
+    serializeEntityForm,
     setActiveEntityId,
     setActiveModule,
     setActiveRailAlias: (value) => setActiveRailAlias(value),
@@ -3020,6 +3074,11 @@ export default function App() {
     requestAnimationFrame(scrollContentToTop);
   };
 
+  const openShopFromLocation = (shopId: string) => {
+    setFocusedShopId(shopId);
+    openRailAlias("shops");
+  };
+
   const togglePin = (id: string) => {
     setPinnedIds((current) =>
       current.includes(id) ? current.filter((currentId) => currentId !== id) : [id, ...current]
@@ -3415,6 +3474,72 @@ export default function App() {
     focusCombatTurnFromState(result.combat);
   };
 
+  const rememberCombatReturnTarget = (combatId: string, questId?: string) => {
+    if (!activeCampaignId || !combatId) {
+      return;
+    }
+
+    const now = Date.now();
+    const recentTargets = Object.entries(readCombatReturnTargets()).reduce<Record<string, CombatReturnTarget>>(
+      (accumulator, [storedCombatId, target]) => {
+        if (now - target.startedAt < 30 * 24 * 60 * 60 * 1000) {
+          accumulator[storedCombatId] = target;
+        }
+        return accumulator;
+      },
+      {}
+    );
+
+    recentTargets[combatId] = {
+      campaignId: activeCampaignId,
+      questId,
+      startedAt: now
+    };
+    writeCombatReturnTargets(recentTargets);
+  };
+
+  const consumeCombatReturnTarget = (combatId: string) => {
+    const targets = readCombatReturnTargets();
+    const target = targets[combatId];
+    if (target) {
+      delete targets[combatId];
+      writeCombatReturnTargets(targets);
+    }
+    return target;
+  };
+
+  const openQuestList = () => {
+    startTransition(() => {
+      setActiveModule("quests");
+      setActiveRailAlias(null);
+      setActiveTab("All");
+      setActiveEntityId("");
+    });
+    setSelectedWorldEventId("");
+    setPreviewEntityId("");
+    requestAnimationFrame(scrollContentToTop);
+  };
+
+  const navigateAfterCombatFinish = (nextCampaign: CampaignData, target?: CombatReturnTarget) => {
+    const questId = target?.campaignId === nextCampaign.id ? target.questId : undefined;
+    const quest = questId ? nextCampaign.quests.find((item) => item.id === questId) ?? null : null;
+
+    if (!quest) {
+      openQuestList();
+      return;
+    }
+
+    startTransition(() => {
+      setActiveModule("quests");
+      setActiveRailAlias(null);
+      setActiveTab("All");
+      setActiveEntityId(quest.id);
+    });
+    setSelectedWorldEventId("");
+    setPreviewEntityId(quest.id);
+    requestAnimationFrame(scrollContentToTop);
+  };
+
   const preparedCombatController = usePreparedCombatController({
     activeCampaignId,
     activeCombat,
@@ -3439,6 +3564,7 @@ export default function App() {
     onCloseCombatSetupModal: closeCombatSetupModal,
     onEntityToForm: entityToForm,
     onHandleProtectedActionError: handleProtectedActionError,
+    onRememberCombatReturnTarget: rememberCombatReturnTarget,
     onOpenCombatScreen: openCombatScreen,
     onOpenEntityPreparedCombatSetup: openEntityPreparedCombatSetup,
     onOpenQuestFocus: openQuestFocus,
@@ -3510,10 +3636,8 @@ export default function App() {
     randomEventModalOpen,
     randomEventNotes,
     randomEventPrompt,
-    randomEventType,
     setRandomEventLocationId,
-    setRandomEventPrompt,
-    setRandomEventType
+    setRandomEventPrompt
   } = randomEventController;
   const entityActionsController = useEntityActionsController({
     activeCampaignId,
@@ -3817,11 +3941,13 @@ export default function App() {
     }
 
     try {
+      const finishedCombatId = activeCombat.id;
       setSaving(true);
       const result = await api.finishCombat(activeCampaignId);
       setCombatReport(result);
       hydrateCampaign(result.campaign);
-      openCombatSetupModal(result.campaign.preparedCombat ?? null);
+      closeCombatSetupModal();
+      navigateAfterCombatFinish(result.campaign, consumeCombatReturnTarget(finishedCombatId));
     } catch (error) {
       setBootError(error instanceof Error ? error.message : "Не удалось завершить бой.");
     } finally {
@@ -4397,6 +4523,7 @@ export default function App() {
                 entityMap={entityMap}
                 entityToForm={entityToForm}
                 hydrateCampaign={hydrateCampaign}
+                focusedShopId={focusedShopId}
                 initialEventId={selectedWorldEventId || undefined}
                 isEntityPlaylistActive={isEntityPlaylistActive}
                 legacyContent={null}
@@ -4439,6 +4566,7 @@ export default function App() {
                 currentPlaybackTrackUrl={currentPlaybackTrackUrl}
                 entityByTitle={entityByTitle}
                 isEntityPlaylistActive={isEntityPlaylistActive}
+                locationShops={activeEntity.kind === "location" ? campaign.shops.filter((shop) => shop.locationId === activeEntity.id) : []}
                 onCopyImageLink={handleCopyImageLink}
                 onContentContextMenu={(event) => entityLinkController.handleActiveEntityContentContextMenu(activeEntity, "content", event)}
                 onCreatePlayerFacingCard={() => openNewPlayerFacingEditor(activeEntity)}
@@ -4458,6 +4586,7 @@ export default function App() {
                 onOpenPlaylistEditor={() => openEntityPlaylistModal(activeEntity)}
                 onOpenPreview={() => openPreview(activeEntity.id)}
                 onOpenRelatedEntity={openRelatedEntity}
+                onOpenShop={openShopFromLocation}
                 onPeekQuest={peekEntity}
                 onPlayNextPlaylistTrack={playNextRandomTrack}
                 onPlayPlaylist={(index, advanceIfActive) => playEntityPlaylist(activeEntity, index, advanceIfActive)}
@@ -4983,7 +5112,6 @@ export default function App() {
         notes={randomEventNotes}
         onChangeLocationId={setRandomEventLocationId}
         onChangePrompt={setRandomEventPrompt}
-        onChangeType={setRandomEventType}
         onClose={requestRandomEventModalClose}
         onGenerate={() => {
           void generateRandomEvent();
@@ -4991,7 +5119,6 @@ export default function App() {
         open={randomEventModalOpen}
         prompt={randomEventPrompt}
         selectedLocationId={randomEventLocationId}
-        selectedType={randomEventType}
       />
 
       <PlayerFacingController controller={playerFacing} onClose={requestPlayerFacingViewClose} />

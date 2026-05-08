@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-255",
+  "remoteId": "255",
+  "slug": "255-iron-pot",
+  "title": "Железный горшок",
+  "englishTitle": "Iron Pot",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Железный горшок вмещает до 1 галлона.",
+  "searchText": "железный горшок,iron pot, equipment предмет снаряжения предмет снаряжения железный горшок",
+  "buyPriceGp": 2,
+  "buyPriceLabel": "2 ЗМ",
+  "sellPriceGp": 1,
+  "sellPriceLabel": "1 зм",
+  "url": "https://next.dnd.su/equipment/255-iron-pot",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:03:20Z",
+  "description": "Железный горшок вмещает до 1 галлона.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tЖелезный горшок вмещает до 1 галлона.\n\t\u003c/p\u003e",
+  "weightLb": 10
+}

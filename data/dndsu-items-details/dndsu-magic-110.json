@@ -1,0 +1,26 @@
+{
+  "id": "dndsu-magic-110",
+  "remoteId": "110",
+  "slug": "110-ring-of-warmth",
+  "title": "Кольцо тепла",
+  "englishTitle": "Ring of warmth",
+  "source": "dndsu-magic",
+  "category": "ring",
+  "subcategory": "Кольцо",
+  "typeLabel": "Кольцо, необычное (требуется настройка)",
+  "summary": "Нося это кольцо, вы обладаете сопротивлением урону холодом. Кроме того, вы и всё, что вы несёте и носите, не получают вреда от температур не ниже -50 °F .",
+  "searchText": "кольцо тепла,ring of warmth, кольцо кольцо тепла",
+  "buyPriceGp": 300.5,
+  "buyPriceLabel": "101-500 зм",
+  "sellPriceGp": 150.25,
+  "sellPriceLabel": "50 зм 5 см-250 зм",
+  "reference": "Dungeon Master's Guide",
+  "url": "https://dnd.su/items/110-ring-of-warmth/",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:04:00Z",
+  "description": "Нося это кольцо, вы обладаете сопротивлением урону холодом. Кроме того, вы и всё, что вы несёте и носите, не получают вреда от температур не ниже -50 °F .",
+  "descriptionHtml": "\u003cp\u003eНося это кольцо, вы обладаете сопротивлением урону холодом. Кроме того, вы и всё, что вы несёте и носите, не получают вреда от температур не ниже -50 °F.\u003c/p\u003e",
+  "properties": [
+    "Требуется настройка"
+  ]
+}

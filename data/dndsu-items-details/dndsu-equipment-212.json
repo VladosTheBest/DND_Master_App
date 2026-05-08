@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-212",
+  "remoteId": "212",
+  "slug": "212-blanket",
+  "title": "Одеяло",
+  "englishTitle": "Blanket",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Завернувшись в одеяло, вы совершаете с Преимуществом спасброски против Чрезвычайного холода.",
+  "searchText": "одеяло,blanket, equipment предмет снаряжения предмет снаряжения одеяло",
+  "buyPriceGp": 0.5,
+  "buyPriceLabel": "5 СМ",
+  "sellPriceGp": 0.25,
+  "sellPriceLabel": "2 см 5 мм",
+  "url": "https://next.dnd.su/equipment/212-blanket",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:04:52Z",
+  "description": "Завернувшись в одеяло, вы совершаете с Преимуществом спасброски против Чрезвычайного холода.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tЗавернувшись в одеяло, вы совершаете с Преимуществом спасброски против Чрезвычайного холода.\n\t\u003c/p\u003e",
+  "weightLb": 3
+}

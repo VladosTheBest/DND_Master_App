@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-209",
+  "remoteId": "209",
+  "slug": "209-basket",
+  "title": "Корзина",
+  "englishTitle": "Basket",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Корзина вмещает груз объёмом до 2 кубических футов и весом до 40 фунтов.",
+  "searchText": "корзина,basket, equipment предмет снаряжения предмет снаряжения корзина",
+  "buyPriceGp": 0.4,
+  "buyPriceLabel": "4 СМ",
+  "sellPriceGp": 0.2,
+  "sellPriceLabel": "2 см",
+  "url": "https://next.dnd.su/equipment/209-basket",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:04:15Z",
+  "description": "Корзина вмещает груз объёмом до 2 кубических футов и весом до 40 фунтов.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tКорзина вмещает груз объёмом до 2 кубических футов и весом до 40 фунтов.\n\t\u003c/p\u003e",
+  "weightLb": 2
+}

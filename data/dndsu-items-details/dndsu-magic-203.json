@@ -1,0 +1,27 @@
+{
+  "id": "dndsu-magic-203",
+  "remoteId": "203",
+  "slug": "203-gauntlets-of-ogre-power",
+  "title": "Рукавицы силы огра",
+  "englishTitle": "Gauntlets of ogre power",
+  "source": "dndsu-magic",
+  "category": "other",
+  "subcategory": "Чудесный предмет, необычный (требуется настройка)",
+  "rarity": "Необычный",
+  "typeLabel": "Чудесный предмет, необычный (требуется настройка)",
+  "summary": "Ваша Сила равна 19, когда вы носите эти латные рукавицы. Они не оказывают на вас эффект, если ваша Сила без них уже 19 или выше.",
+  "searchText": "рукавицы силы огра,gauntlets of ogre power, чудесный предмет рукавицы силы огра",
+  "buyPriceGp": 300.5,
+  "buyPriceLabel": "101-500 зм",
+  "sellPriceGp": 150.25,
+  "sellPriceLabel": "50 зм 5 см-250 зм",
+  "reference": "Dungeon Master's Guide",
+  "url": "https://dnd.su/items/203-gauntlets-of-ogre-power/",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:15Z",
+  "description": "Ваша Сила равна 19, когда вы носите эти латные рукавицы. Они не оказывают на вас эффект, если ваша Сила без них уже 19 или выше.",
+  "descriptionHtml": "\u003cp\u003eВаша Сила равна 19, когда вы носите эти латные рукавицы. Они не оказывают на вас эффект, если ваша Сила без них уже 19 или выше.\u003c/p\u003e",
+  "properties": [
+    "Требуется настройка"
+  ]
+}

@@ -55,6 +55,7 @@ export function usePreparedCombatController({
   onCloseCombatSetupModal,
   onEntityToForm,
   onHandleProtectedActionError,
+  onRememberCombatReturnTarget,
   onOpenCombatScreen,
   onOpenEntityPreparedCombatSetup,
   onOpenQuestFocus,
@@ -328,6 +329,10 @@ export function usePreparedCombatController({
           }))
         ]
       });
+      const startedCombatId = result.combat?.id ?? result.campaign.activeCombat?.id ?? "";
+      if (startedCombatId) {
+        onRememberCombatReturnTarget(startedCombatId, entity.kind === "quest" ? entity.id : undefined);
+      }
       onApplyCombatPayload(result);
       onOpenCombatScreen();
     } catch (error) {
@@ -606,6 +611,15 @@ export function usePreparedCombatController({
         thresholds: effectiveCombatThresholds,
         items: startItems
       });
+      const startedCombatId = result.combat?.id ?? result.campaign.activeCombat?.id ?? "";
+      if (startedCombatId) {
+        onRememberCombatReturnTarget(
+          startedCombatId,
+          entityCombatSetupTarget?.kind === "quest" && isPreparedCombatHostEntity(entityCombatSetupTarget)
+            ? entityCombatSetupTarget.id
+            : undefined
+        );
+      }
       onApplyCombatPayload(result);
       onCloseCombatSetupModal();
       onOpenCombatScreen();
@@ -637,6 +651,15 @@ export function usePreparedCombatController({
         thresholds: effectiveCombatThresholds,
         customAdjustedXp: combatDifficulty === "custom" ? Math.max(0, combatCustomAdjustedXp) : undefined
       });
+      const startedCombatId = result.combat?.id ?? result.campaign.activeCombat?.id ?? "";
+      if (startedCombatId) {
+        onRememberCombatReturnTarget(
+          startedCombatId,
+          entityCombatSetupTarget?.kind === "quest" && isPreparedCombatHostEntity(entityCombatSetupTarget)
+            ? entityCombatSetupTarget.id
+            : undefined
+        );
+      }
       onApplyCombatPayload(result);
       onCloseCombatSetupModal();
       const firstCreated = result.createdEntities[0]?.id;

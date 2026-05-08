@@ -1,0 +1,22 @@
+{
+  "id": "dndsu-equipment-251",
+  "remoteId": "251",
+  "slug": "251-parchment",
+  "title": "Пергамент",
+  "englishTitle": "Parchment",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Один лист Пергамента вмещает около 250 рукописных слов.",
+  "searchText": "пергамент,parchment, equipment предмет снаряжения предмет снаряжения пергамент",
+  "buyPriceGp": 0.1,
+  "buyPriceLabel": "1 СМ",
+  "sellPriceGp": 0.05,
+  "sellPriceLabel": "5 мм",
+  "url": "https://next.dnd.su/equipment/251-parchment",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:01Z",
+  "description": "Один лист Пергамента вмещает около 250 рукописных слов.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tОдин лист Пергамента вмещает около 250 рукописных слов.\n\t\u003c/p\u003e"
+}

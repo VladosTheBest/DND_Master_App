@@ -1,0 +1,27 @@
+{
+  "id": "dndsu-magic-2369",
+  "remoteId": "2369",
+  "slug": "2369-helm-of-underwater-action",
+  "title": "Шлем подводных действий",
+  "englishTitle": "Helm of Underwater Action",
+  "source": "dndsu-magic",
+  "category": "other",
+  "subcategory": "Чудесный предмет, необычный (требуется настройка)",
+  "rarity": "Необычный",
+  "typeLabel": "Чудесный предмет, необычный (требуется настройка)",
+  "summary": "Надев этот латунный шлем, вы можете дышать под водой, получаете тёмное зрение с дальностью 60 футов, и получаете скорость плавания 30 футов.",
+  "searchText": "шлем подводных действий,helm of underwater action, чудесный предмет шлем подводных действий",
+  "buyPriceGp": 300.5,
+  "buyPriceLabel": "101-500 зм",
+  "sellPriceGp": 150.25,
+  "sellPriceLabel": "50 зм 5 см-250 зм",
+  "reference": "Ghosts of Saltmarsh",
+  "url": "https://dnd.su/items/2369-helm-of-underwater-action/",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:52Z",
+  "description": "Надев этот латунный шлем, вы можете дышать под водой, получаете тёмное зрение с дальностью 60 футов, и получаете скорость плавания 30 футов.",
+  "descriptionHtml": "\u003cp\u003eНадев этот латунный шлем, вы можете дышать под водой, получаете тёмное зрение с дальностью 60 футов, и получаете скорость плавания 30 футов.\u003c/p\u003e",
+  "properties": [
+    "Требуется настройка"
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "dndsu-magic-178",
+  "remoteId": "178",
+  "slug": "178-headband-of-intellect",
+  "title": "Повязка интеллекта",
+  "englishTitle": "Headband of intellect",
+  "source": "dndsu-magic",
+  "category": "other",
+  "subcategory": "Чудесный предмет, необычный (требуется настройка)",
+  "rarity": "Необычный",
+  "typeLabel": "Чудесный предмет, необычный (требуется настройка)",
+  "summary": "Значение вашего Интеллекта равно 19, пока вы носите эту повязку. Она не оказывает на вас эффект, если ваш Интеллект без неё и так уже 19 или выше.",
+  "searchText": "повязка интеллекта,headband of intellect, чудесный предмет повязка интеллекта",
+  "buyPriceGp": 300.5,
+  "buyPriceLabel": "101-500 зм",
+  "sellPriceGp": 150.25,
+  "sellPriceLabel": "50 зм 5 см-250 зм",
+  "reference": "Dungeon Master's Guide",
+  "url": "https://dnd.su/items/178-headband-of-intellect/",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:03Z",
+  "description": "Значение вашего Интеллекта равно 19, пока вы носите эту повязку. Она не оказывает на вас эффект, если ваш Интеллект без неё и так уже 19 или выше.",
+  "descriptionHtml": "\u003cp\u003eЗначение вашего Интеллекта равно 19, пока вы носите эту повязку. Она не оказывает на вас эффект, если ваш Интеллект без неё и так уже 19 или выше.\u003c/p\u003e",
+  "properties": [
+    "Требуется настройка"
+  ]
+}

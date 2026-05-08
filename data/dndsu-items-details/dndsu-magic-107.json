@@ -1,0 +1,26 @@
+{
+  "id": "dndsu-magic-107",
+  "remoteId": "107",
+  "slug": "107-ring-of-resistance",
+  "title": "Кольцо сопротивления",
+  "englishTitle": "Ring of resistance",
+  "source": "dndsu-magic",
+  "category": "ring",
+  "subcategory": "Кольцо",
+  "typeLabel": "Кольцо, редкое (требуется настройка)",
+  "summary": "Вы обладаете сопротивлением одному виду урона, пока носите это кольцо. Драгоценный камень в кольце указывает на этот вид урона, который Мастер выбирает самостоятельно или с помощью данной таблицы: к10 | Вид урона | Каме…",
+  "searchText": "кольцо сопротивления,ring of resistance, кольцо кольцо сопротивления",
+  "buyPriceGp": 2750.5,
+  "buyPriceLabel": "501-5 000 зм",
+  "sellPriceGp": 1375.25,
+  "sellPriceLabel": "250 зм 5 см-2 500 зм",
+  "reference": "Dungeon Master's Guide",
+  "url": "https://dnd.su/items/107-ring-of-resistance/",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:04:00Z",
+  "description": "Вы обладаете сопротивлением одному виду урона, пока носите это кольцо. Драгоценный камень в кольце указывает на этот вид урона, который Мастер выбирает самостоятельно или с помощью данной таблицы: к10 | Вид урона | Камень | 1 | Кислота | Жемчужина | 2 | Холод | Турмалин | 3 | Огонь | Гранат | 4 | Силовое поле | Сапфир | 5 | Электричество | Цитрин | 6 | Некротическая энергия | Гагат | 7 | Яд | Аметист | 8 | Психическая энергия | Жадеит | 9 | Излучение | Топаз | 10 | Звук | Шпинель |",
+  "descriptionHtml": "\u003cp\u003eВы обладаете сопротивлением одному виду урона, пока носите это кольцо. Драгоценный камень в кольце указывает на этот вид урона, который Мастер выбирает самостоятельно или с помощью данной таблицы:\u003c/p\u003e\n\u003ctable\u003e\n\u003ctbody\u003e\n\u003ctr\u003e\u003ctd\u003eк10\u003c/td\u003e\n\u003ctd\u003eВид урона\u003c/td\u003e\n\u003ctd\u003eКамень\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e1\u003c/td\u003e\n\u003ctd\u003eКислота \u003c/td\u003e\n\u003ctd\u003eЖемчужина \u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e2\u003c/td\u003e\n\u003ctd\u003eХолод \u003c/td\u003e\n\u003ctd\u003eТурмалин \u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e3\u003c/td\u003e\n\u003ctd\u003eОгонь \u003c/td\u003e\n\u003ctd\u003eГранат \u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e4\u003c/td\u003e\n\u003ctd\u003eСиловое поле\u003c/td\u003e\n\u003ctd\u003eСапфир \u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e5\u003c/td\u003e\n\u003ctd\u003eЭлектричество \u003c/td\u003e\n\u003ctd\u003eЦитрин \u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e6\u003c/td\u003e\n\u003ctd\u003eНекротическая энергия\u003c/td\u003e\n\u003ctd\u003eГагат \u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e7\u003c/td\u003e\n\u003ctd\u003eЯд \u003c/td\u003e\n\u003ctd\u003eАметист \u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e8\u003c/td\u003e\n\u003ctd\u003eПсихическая энергия\u003c/td\u003e\n\u003ctd\u003eЖадеит \u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e9\u003c/td\u003e\n\u003ctd\u003eИзлучение \u003c/td\u003e\n\u003ctd\u003eТопаз \u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003e10\u003c/td\u003e\n\u003ctd\u003eЗвук \u003c/td\u003e\n\u003ctd\u003eШпинель\u003c/td\u003e\n\u003c/tr\u003e\n\u003c/tbody\u003e\n\u003c/table\u003e",
+  "properties": [
+    "Требуется настройка"
+  ]
+}

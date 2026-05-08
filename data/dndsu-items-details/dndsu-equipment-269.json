@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-269",
+  "remoteId": "269",
+  "slug": "269-tent",
+  "title": "Палатка",
+  "englishTitle": "Tent",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "В палатке может спать до двух существ Маленького или Среднего размера.",
+  "searchText": "палатка,tent, equipment предмет снаряжения предмет снаряжения палатка",
+  "buyPriceGp": 2,
+  "buyPriceLabel": "2 ЗМ",
+  "sellPriceGp": 1,
+  "sellPriceLabel": "1 зм",
+  "url": "https://next.dnd.su/equipment/269-tent",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:26Z",
+  "description": "В палатке может спать до двух существ Маленького или Среднего размера.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tВ палатке может спать до двух существ Маленького или Среднего размера.\n\t\u003c/p\u003e",
+  "weightLb": 20
+}

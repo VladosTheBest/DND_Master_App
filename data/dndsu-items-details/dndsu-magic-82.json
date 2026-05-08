@@ -1,0 +1,27 @@
+{
+  "id": "dndsu-magic-82",
+  "remoteId": "82",
+  "slug": "82-stone-of-good-luck",
+  "title": "Камень удачи",
+  "englishTitle": "Stone of good luck",
+  "source": "dndsu-magic",
+  "category": "other",
+  "subcategory": "Чудесный предмет, необычный (требуется настройка)",
+  "rarity": "Необычный",
+  "typeLabel": "Чудесный предмет, необычный (требуется настройка)",
+  "summary": "Пока этот полированный агат находится у вас, вы получаете бонус +1 к проверкам характеристик и спасброскам.",
+  "searchText": "камень удачи,stone of good luck, чудесный предмет камень удачи",
+  "buyPriceGp": 300.5,
+  "buyPriceLabel": "101-500 зм",
+  "sellPriceGp": 150.25,
+  "sellPriceLabel": "50 зм 5 см-250 зм",
+  "reference": "Dungeon Master's Guide",
+  "url": "https://dnd.su/items/82-stone-of-good-luck/",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:03:45Z",
+  "description": "Пока этот полированный агат находится у вас, вы получаете бонус +1 к проверкам характеристик и спасброскам.",
+  "descriptionHtml": "\u003cp\u003eПока этот полированный агат находится у вас, вы получаете бонус +1 к проверкам характеристик и спасброскам.\u003c/p\u003e",
+  "properties": [
+    "Требуется настройка"
+  ]
+}

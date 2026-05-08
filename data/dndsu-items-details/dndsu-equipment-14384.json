@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-14384",
+  "remoteId": "14384",
+  "slug": "14384-lyre",
+  "title": "Лира",
+  "englishTitle": "Lyre",
+  "source": "dndsu-equipment",
+  "category": "tool",
+  "subcategory": "Инструмент",
+  "typeLabel": "Инструмент",
+  "summary": "Вариант Музыкального инструмента . Каждый вариант инструмента требует отдельного владения.",
+  "searchText": "лира,lyre, toolkit инструмент инструмент лира",
+  "buyPriceGp": 30,
+  "buyPriceLabel": "30 ЗМ",
+  "sellPriceGp": 15,
+  "sellPriceLabel": "15 зм",
+  "url": "https://next.dnd.su/equipment/14384-lyre",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:04:38Z",
+  "description": "Вариант Музыкального инструмента . Каждый вариант инструмента требует отдельного владения.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tВариант Музыкального инструмента. Каждый вариант инструмента требует отдельного владения.\n\t\u003c/p\u003e",
+  "weightLb": 2
+}

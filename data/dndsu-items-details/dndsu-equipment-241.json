@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-241",
+  "remoteId": "241",
+  "slug": "241-bullseye-lantern",
+  "title": "Направленный фонарь",
+  "englishTitle": "Bullseye Lantern",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Направленный фонарь заправляется Маслом и при горении испускает Яркий свет в 60-футовом Конусе и Тусклый свет ещё на 60 футов.",
+  "searchText": "направленный фонарь,bullseye lantern, equipment предмет снаряжения предмет снаряжения направленный фонарь",
+  "buyPriceGp": 10,
+  "buyPriceLabel": "10 ЗМ",
+  "sellPriceGp": 5,
+  "sellPriceLabel": "5 зм",
+  "url": "https://next.dnd.su/equipment/241-bullseye-lantern",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:04:51Z",
+  "description": "Направленный фонарь заправляется Маслом и при горении испускает Яркий свет в 60-футовом Конусе и Тусклый свет ещё на 60 футов.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tНаправленный фонарь заправляется Маслом и при горении испускает Яркий свет в 60-футовом Конусе и Тусклый свет ещё на 60 футов.\n\t\u003c/p\u003e",
+  "weightLb": 2
+}

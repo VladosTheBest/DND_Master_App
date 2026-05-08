@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-17354",
+  "remoteId": "17354",
+  "slug": "17354-cittern",
+  "title": "Цистра",
+  "englishTitle": "Cittern",
+  "source": "dndsu-equipment",
+  "category": "tool",
+  "subcategory": "Инструмент",
+  "typeLabel": "Инструмент",
+  "summary": "Вариант Музыкального инструмента . Каждый вариант инструмента требует отдельного владения.",
+  "searchText": "цистра,cittern, toolkit инструмент инструмент цистра",
+  "buyPriceGp": 65,
+  "buyPriceLabel": "65 ЗМ",
+  "sellPriceGp": 32.5,
+  "sellPriceLabel": "32 зм 5 см",
+  "url": "https://next.dnd.su/equipment/17354-cittern",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:47Z",
+  "description": "Вариант Музыкального инструмента . Каждый вариант инструмента требует отдельного владения.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tВариант Музыкального инструмента. Каждый вариант инструмента требует отдельного владения.\n\t\u003c/p\u003e",
+  "weightLb": 2
+}

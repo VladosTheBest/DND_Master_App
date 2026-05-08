@@ -1,0 +1,27 @@
+{
+  "id": "dndsu-magic-404",
+  "remoteId": "404",
+  "slug": "404-charlatans-die",
+  "title": "Кость шарлатана",
+  "englishTitle": "Charlatan’s Die",
+  "source": "dndsu-magic",
+  "category": "other",
+  "subcategory": "Чудесный предмет, обычный (требуется настройка)",
+  "rarity": "Обычный",
+  "typeLabel": "Чудесный предмет, обычный (требуется настройка)",
+  "summary": "Когда вы бросаете эту 6-гранную кость, вы можете выбрать, какой гранью она выпадет.",
+  "searchText": "кость шарлатана,charlatan’s die, чудесный предмет кость шарлатана",
+  "buyPriceGp": 75,
+  "buyPriceLabel": "50-100 зм",
+  "sellPriceGp": 37.5,
+  "sellPriceLabel": "25 зм-50 зм",
+  "reference": "Xanathar's Guide to Everything",
+  "url": "https://dnd.su/items/404-charlatans-die/",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:04:05Z",
+  "description": "Когда вы бросаете эту 6-гранную кость, вы можете выбрать, какой гранью она выпадет.",
+  "descriptionHtml": "\u003cp\u003eКогда вы бросаете эту 6-гранную кость, вы можете выбрать, какой гранью она выпадет.\u003c/p\u003e",
+  "properties": [
+    "Требуется настройка"
+  ]
+}

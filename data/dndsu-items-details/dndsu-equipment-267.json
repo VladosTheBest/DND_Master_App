@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-267",
+  "remoteId": "267",
+  "slug": "267-spyglass",
+  "title": "Подзорная труба",
+  "englishTitle": "Spyglass",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Рассматриваемые в подзорную трубу объекты увеличены в два раза по сравнению с их размерами.",
+  "searchText": "подзорная труба,spyglass, equipment предмет снаряжения предмет снаряжения подзорная труба",
+  "buyPriceGp": 1000,
+  "buyPriceLabel": "1000 ЗМ",
+  "sellPriceGp": 500,
+  "sellPriceLabel": "500 зм",
+  "url": "https://next.dnd.su/equipment/267-spyglass",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:03Z",
+  "description": "Рассматриваемые в подзорную трубу объекты увеличены в два раза по сравнению с их размерами.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tРассматриваемые в подзорную трубу объекты увеличены в два раза по сравнению с их размерами.\n\t\u003c/p\u003e",
+  "weightLb": 1
+}

@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-228",
+  "remoteId": "228",
+  "slug": "228-crowbar",
+  "title": "Ломик",
+  "englishTitle": "Crowbar",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Вы совершаете с Преимуществом проверки Силы, если используете Ломик там, где может быть применен его рычаг.",
+  "searchText": "ломик,crowbar, equipment предмет снаряжения предмет снаряжения ломик",
+  "buyPriceGp": 2,
+  "buyPriceLabel": "2 ЗМ",
+  "sellPriceGp": 1,
+  "sellPriceLabel": "1 зм",
+  "url": "https://next.dnd.su/equipment/228-crowbar",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:04:29Z",
+  "description": "Вы совершаете с Преимуществом проверки Силы, если используете Ломик там, где может быть применен его рычаг.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tВы совершаете с Преимуществом проверки Силы, если используете Ломик там, где может быть применен его рычаг.\n\t\u003c/p\u003e",
+  "weightLb": 5
+}

@@ -1,12 +1,12 @@
 {
-  "updatedAt": "2026-04-28T14:32:37Z",
+  "updatedAt": "2026-05-06T17:48:14Z",
   "sync": {
     "state": "ready",
     "total": 2874,
     "hydrated": 2874,
     "lastStartedAt": "2026-04-24T11:51:03Z",
     "lastFinishedAt": "2026-04-24T11:51:03Z",
-    "updatedAt": "2026-04-28T14:32:37Z"
+    "updatedAt": "2026-05-06T17:48:14Z"
   },
   "entries": [
     {
@@ -1128,8 +1128,8 @@
       "slug": "grick-alpha",
       "title": "Альфа грик",
       "englishTitle": "Grick alpha",
-      "subtitle": "Grick alpha • 7",
-      "summary": "Официальный монстр dnd.su. Детальная карточка подтянется в кэш при синхронизации или при первом открытии.",
+      "subtitle": "Grick alpha • Monster Manual",
+      "summary": "«Альфа грик (Grick alpha)» - большой монстр D\u0026D 5-й редакции с показателем опасности 7.",
       "challenge": "7",
       "challengeSort": 7,
       "creatureType": "? монстр",
@@ -1140,7 +1140,7 @@
       "url": "https://dnd.su/bestiary/189-grick-alpha/",
       "searchText": "Альфа грик,Grick alpha, Альфа грик Grick alpha 7",
       "imageUrl": "https://dnd.su/gallery/bestiary/189_1511003352_s.png",
-      "lastSyncedAt": "2026-04-22T12:52:19Z"
+      "lastSyncedAt": "2026-05-06T17:48:14Z"
     },
     {
       "id": "5631",

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ActiveCombat, KnowledgeEntity, LastCombatSummary } from "@shadow-edge/shared-types";
 import victoryBloodOverlayUrl from "./assets/victory-blood-overlay.png";
 import { createPortraitSource } from "./app-shared";
@@ -51,10 +51,50 @@ export function InitiativeTrackerScreen({
   const victoryLoserEntries = victoryEntries.filter((entry) => entry.side === "enemy");
   const trackViewportRef = useRef<HTMLDivElement | null>(null);
   const cardRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const previousCombatIdRef = useRef<string | null>(null);
+  const previousHitPointsRef = useRef<Record<string, number>>({});
+  const damageBurstTimersRef = useRef<Record<string, number>>({});
+  const [damageBursts, setDamageBursts] = useState<Record<string, { amount: number; token: number }>>({});
   const currentTurnEntry =
     (activeCombat?.currentTurnEntryId ? orderedEntries.find((entry) => entry.id === activeCombat.currentTurnEntryId) ?? null : null) ??
     orderedEntries[0] ??
     null;
+
+  const clearDamageBursts = () => {
+    Object.values(damageBurstTimersRef.current).forEach((timer) => window.clearTimeout(timer));
+    damageBurstTimersRef.current = {};
+    setDamageBursts({});
+  };
+
+  const triggerDamageBurst = (entryId: string, amount: number) => {
+    const visibleAmount = Math.max(0, Math.floor(amount));
+    if (visibleAmount <= 0) {
+      return;
+    }
+
+    const token = Date.now() + Math.random();
+    setDamageBursts((current) => ({
+      ...current,
+      [entryId]: { amount: visibleAmount, token }
+    }));
+
+    const existingTimer = damageBurstTimersRef.current[entryId];
+    if (existingTimer) {
+      window.clearTimeout(existingTimer);
+    }
+
+    damageBurstTimersRef.current[entryId] = window.setTimeout(() => {
+      setDamageBursts((current) => {
+        if (current[entryId]?.token !== token) {
+          return current;
+        }
+
+        const { [entryId]: _removedBurst, ...next } = current;
+        return next;
+      });
+      delete damageBurstTimersRef.current[entryId];
+    }, 2800);
+  };
 
   useEffect(() => {
     if (!currentTurnEntry?.id) {
@@ -79,6 +119,36 @@ export function InitiativeTrackerScreen({
       behavior: "smooth"
     });
   }, [currentTurnEntry?.id, orderedEntries.length]);
+
+  useEffect(() => {
+    if (!activeCombat) {
+      previousCombatIdRef.current = null;
+      previousHitPointsRef.current = {};
+      clearDamageBursts();
+      return;
+    }
+
+    const isSameCombat = previousCombatIdRef.current === activeCombat.id;
+    const nextHitPoints: Record<string, number> = {};
+    activeCombat.entries.forEach((entry) => {
+      nextHitPoints[entry.id] = entry.currentHitPoints;
+      const previousHitPoints = previousHitPointsRef.current[entry.id];
+      if (isSameCombat && previousHitPoints !== undefined && entry.currentHitPoints < previousHitPoints) {
+        triggerDamageBurst(entry.id, previousHitPoints - entry.currentHitPoints);
+      }
+    });
+
+    previousCombatIdRef.current = activeCombat.id;
+    previousHitPointsRef.current = nextHitPoints;
+  }, [activeCombat?.id, activeCombat?.entries]);
+
+  useEffect(
+    () => () => {
+      Object.values(damageBurstTimersRef.current).forEach((timer) => window.clearTimeout(timer));
+      damageBurstTimersRef.current = {};
+    },
+    []
+  );
 
   return (
     <div className="initiative-display-screen">
@@ -113,6 +183,11 @@ export function InitiativeTrackerScreen({
                     type="button"
                   >
                     <span className="initiative-order-badge">{index + 1}</span>
+                    {damageBursts[entry.id] ? (
+                      <span key={damageBursts[entry.id].token} className="initiative-damage-burst" aria-live="polite">
+                        -{damageBursts[entry.id].amount}
+                      </span>
+                    ) : null}
                     <div className="initiative-card-frame">
                       {isCurrent ? <span aria-hidden="true" className="initiative-current-chevron" /> : null}
                       <div className="initiative-card-image-shell">

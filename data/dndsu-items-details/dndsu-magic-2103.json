@@ -1,0 +1,27 @@
+{
+  "id": "dndsu-magic-2103",
+  "remoteId": "2103",
+  "slug": "2103-helm-of-the-gods",
+  "title": "Шлем богов",
+  "englishTitle": "Helm of the Gods",
+  "source": "dndsu-magic",
+  "category": "other",
+  "subcategory": "Чудесный предмет, редкий (требуется настройка)",
+  "rarity": "Редкий",
+  "typeLabel": "Чудесный предмет, редкий (требуется настройка)",
+  "summary": "Нося этот шлем, вы знаете, есть ли в 30 футах от вас Небожитель или Исчадие, а также его местоположение, при условии, что оно не находится за полным укрытием. Каждый раз, когда вы заканчиваете продолжительный отдых и на…",
+  "searchText": "шлем богов,helm of the gods, чудесный предмет шлем богов",
+  "buyPriceGp": 2750.5,
+  "buyPriceLabel": "501-5 000 зм",
+  "sellPriceGp": 1375.25,
+  "sellPriceLabel": "250 зм 5 см-2 500 зм",
+  "reference": "Mythic Odysseys of Theros",
+  "url": "https://dnd.su/items/2103-helm-of-the-gods/",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:52Z",
+  "description": "Нося этот шлем, вы знаете, есть ли в 30 футах от вас Небожитель или Исчадие, а также его местоположение, при условии, что оно не находится за полным укрытием. Каждый раз, когда вы заканчиваете продолжительный отдых и надеваете шлем, вы можете помолиться одному из богов, перечисленных в таблице «Шлем богов», и сохранить указанное заклинание в шлеме, заменяя любое заклинание, которое уже хранится в нем. Сл спасброска для этих заклинаний 13. У шлема есть 3 заряда. Чтобы наложить заклинание с помощью шлема, вы должны израсходовать 1 заряд. Шлем восстанавливает 1к3 заряда ежедневно на рассвете. Шлем богов Бог | Заклинание | Атрей | защита от зла и добра [protection from evil and good] | Гелиод | направленный снаряд [guiding bolt] | Ирой | героизм [heroism] | Караметра | чудо-ягоды [goodberry] | Керан | громовая кара [thunderous smite] | Клотида | опутывание [entangle] | Круфикс | диссонирующий шёпот [dissonant whispers] | Могий | адское возмездие [hellish rebuke] | Нилея | огонь фей [faerie fire] | Пирфор | палящая кара [searing smite] | Тасса | опознание [identify] | Фарика | малое восстановление [lesser restoration] | Фенакс | очарование личности [charm person] | Эреб | нанесение ран [inflict wounds] | Эфара | убежище [sanctuary] |",
+  "descriptionHtml": "\u003cp\u003eНося этот шлем, вы знаете, есть ли в 30 футах от вас Небожитель или Исчадие, а также его местоположение, при условии, что оно не находится за полным укрытием.\u003c/p\u003e\n\u003cp\u003eКаждый раз, когда вы заканчиваете продолжительный отдых и надеваете шлем, вы можете помолиться одному из богов, перечисленных в таблице «Шлем богов», и сохранить указанное заклинание в шлеме, заменяя любое заклинание, которое уже хранится в нем. Сл спасброска для этих заклинаний 13.\u003c/p\u003e\n\u003cp\u003eУ шлема есть 3 заряда. Чтобы наложить заклинание с помощью шлема, вы должны израсходовать 1 заряд. Шлем восстанавливает 1к3 заряда ежедневно на рассвете.\u003c/p\u003e\n\u003ch4 class=\"tableTitle\"\u003eШлем богов\u003c/h4\u003e\n\u003ctable\u003e\n\u003ctbody\u003e\n\u003ctr\u003e\u003ctd\u003eБог\u003c/td\u003e\n\u003ctd\u003eЗаклинание\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003eАтрей\u003c/td\u003e\n\u003ctd\u003eзащита от зла и добра [protection from evil and good]\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003eГелиод\u003c/td\u003e\n\u003ctd\u003eнаправленный снаряд [guiding bolt]\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003eИрой\u003c/td\u003e\n\u003ctd\u003eгероизм [heroism]\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003eКараметра\u003c/td\u003e\n\u003ctd\u003eчудо-ягоды [goodberry]\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003eКеран\u003c/td\u003e\n\u003ctd\u003eгромовая кара [thunderous smite]\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003eКлотида\u003c/td\u003e\n\u003ctd\u003eопутывание [entangle]\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003eКруфикс\u003c/td\u003e\n\u003ctd\u003eдиссонирующий шёпот [dissonant whispers]\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003eМогий\u003c/td\u003e\n\u003ctd\u003eадское возмездие [hellish rebuke]\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003eНилея\u003c/td\u003e\n\u003ctd\u003eогонь фей [faerie fire]\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003eПирфор\u003c/td\u003e\n\u003ctd\u003eпалящая кара [searing smite]\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003eТасса\u003c/td\u003e\n\u003ctd\u003eопознание [identify]\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003eФарика\u003c/td\u003e\n\u003ctd\u003eмалое восстановление [lesser restoration]\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003eФенакс\u003c/td\u003e\n\u003ctd\u003eочарование личности [charm person]\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003eЭреб\u003c/td\u003e\n\u003ctd\u003eнанесение ран [inflict wounds]\u003c/td\u003e\n\u003c/tr\u003e\n\u003ctr\u003e\n\u003ctd\u003eЭфара\u003c/td\u003e\n\u003ctd\u003eубежище [sanctuary]\u003c/td\u003e\n\u003c/tr\u003e\n\u003c/tbody\u003e\n\u003c/table\u003e",
+  "properties": [
+    "Требуется настройка"
+  ]
+}

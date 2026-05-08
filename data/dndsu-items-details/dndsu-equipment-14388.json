@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-14388",
+  "remoteId": "14388",
+  "slug": "14388-shawm",
+  "title": "Шалмей",
+  "englishTitle": "Shawm",
+  "source": "dndsu-equipment",
+  "category": "tool",
+  "subcategory": "Инструмент",
+  "typeLabel": "Инструмент",
+  "summary": "Вариант Музыкального инструмента . Каждый вариант инструмента требует отдельного владения.",
+  "searchText": "шалмей,shawm, toolkit инструмент инструмент шалмей",
+  "buyPriceGp": 2,
+  "buyPriceLabel": "2 ЗМ",
+  "sellPriceGp": 1,
+  "sellPriceLabel": "1 зм",
+  "url": "https://next.dnd.su/equipment/14388-shawm",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:53Z",
+  "description": "Вариант Музыкального инструмента . Каждый вариант инструмента требует отдельного владения.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tВариант Музыкального инструмента. Каждый вариант инструмента требует отдельного владения.\n\t\u003c/p\u003e",
+  "weightLb": 1
+}

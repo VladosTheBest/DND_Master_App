@@ -1,0 +1,27 @@
+{
+  "id": "dndsu-magic-2193",
+  "remoteId": "2193",
+  "slug": "2193-peregrine-mask",
+  "title": "Маска сокола",
+  "englishTitle": "Peregrine Mask",
+  "source": "dndsu-magic",
+  "category": "clothing",
+  "subcategory": "Чудесный предмет, очень редкий (требуется настройка)",
+  "rarity": "Очень редкий",
+  "typeLabel": "Чудесный предмет, очень редкий (требуется настройка)",
+  "summary": "Пока вы носите этот крылатый шлем, вы получаете скорость полёта 60 футов. Кроме того, вы получаете преимущество на броски инициативы.",
+  "searchText": "маска сокола,peregrine mask, чудесный предмет маска сокола",
+  "buyPriceGp": 27500.5,
+  "buyPriceLabel": "5 001-50 000 зм",
+  "sellPriceGp": 13750.25,
+  "sellPriceLabel": "2 500 зм 5 см-25 000 зм",
+  "reference": "Guildmasters' guide to Ravnica",
+  "url": "https://dnd.su/items/2193-peregrine-mask/",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:04:26Z",
+  "description": "Пока вы носите этот крылатый шлем, вы получаете скорость полёта 60 футов. Кроме того, вы получаете преимущество на броски инициативы.",
+  "descriptionHtml": "\u003cp\u003eПока вы носите этот крылатый шлем, вы получаете скорость полёта 60 футов. Кроме того, вы получаете преимущество на броски инициативы.\u003c/p\u003e",
+  "properties": [
+    "Требуется настройка"
+  ]
+}

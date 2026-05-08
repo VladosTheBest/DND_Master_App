@@ -1427,7 +1427,7 @@ export function QuestPreviewPanel({
 
         <div className="quest-preview-action-grid">
           <QuestPreviewActionButton hint={combatPrimaryHint} label={combatPrimaryLabel} onClick={() => onRunCombat(quest)} tone="danger" />
-          <QuestPreviewActionButton hint="Подбросить поворот прямо в текущую сцену" label="Случайное событие" onClick={onOpenRandomEvent} tone="warning" />
+          <QuestPreviewActionButton hint="Подготовить подробный текст, который можно зачитать игрокам" label="Сцена для зачитки" onClick={onOpenRandomEvent} tone="warning" />
           <QuestPreviewActionButton
             disabled={!hasPlayerFacingVersion}
             hint={hasPlayerFacingVersion ? "Открыть версию для игроков" : "Отдельная версия не заполнена"}

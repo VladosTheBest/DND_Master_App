@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-14387",
+  "remoteId": "14387",
+  "slug": "14387-horn",
+  "title": "Рожок",
+  "englishTitle": "Horn",
+  "source": "dndsu-equipment",
+  "category": "tool",
+  "subcategory": "Инструмент",
+  "typeLabel": "Инструмент",
+  "summary": "Вариант Музыкального инструмента . Каждый вариант инструмента требует отдельного владения.",
+  "searchText": "рожок,horn, toolkit инструмент инструмент рожок",
+  "buyPriceGp": 3,
+  "buyPriceLabel": "3 ЗМ",
+  "sellPriceGp": 1.5,
+  "sellPriceLabel": "1 зм 5 см",
+  "url": "https://next.dnd.su/equipment/14387-horn",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:30Z",
+  "description": "Вариант Музыкального инструмента . Каждый вариант инструмента требует отдельного владения.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tВариант Музыкального инструмента. Каждый вариант инструмента требует отдельного владения.\n\t\u003c/p\u003e",
+  "weightLb": 2
+}

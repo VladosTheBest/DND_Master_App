@@ -118,7 +118,7 @@ export function EventsWorkspace({
             Новое событие
           </button>
           <button className="ghost" onClick={onOpenGenerator} type="button">
-            Сгенерировать ИИ
+            Сцена для зачитки
           </button>
           <button className="primary" disabled={saving || generating} onClick={onSave} type="button">
             {saving ? "Сохраняю..." : "Сохранить"}

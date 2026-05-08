@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-224",
+  "remoteId": "224",
+  "slug": "224-fine-clothes",
+  "title": "Отличная одежда",
+  "englishTitle": "Fine Clothes",
+  "source": "dndsu-equipment",
+  "category": "clothing",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Отличная одежда изготавливается из дорогих тканей и иcкусно украшается. В некоторые места и мероприятия и допускаются только одетые в такую одежду.",
+  "searchText": "отличная одежда,fine clothes, equipment предмет снаряжения предмет снаряжения отличная одежда",
+  "buyPriceGp": 15,
+  "buyPriceLabel": "15 ЗМ",
+  "sellPriceGp": 7.5,
+  "sellPriceLabel": "7 зм 5 см",
+  "url": "https://next.dnd.su/equipment/224-fine-clothes",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:06Z",
+  "description": "Отличная одежда изготавливается из дорогих тканей и иcкусно украшается. В некоторые места и мероприятия и допускаются только одетые в такую одежду.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tОтличная одежда изготавливается из дорогих тканей и иcкусно украшается. В некоторые места и мероприятия и допускаются только одетые в такую одежду.\n\t\u003c/p\u003e",
+  "weightLb": 6
+}

@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-257",
+  "remoteId": "257",
+  "slug": "257-pouch",
+  "title": "Кошель",
+  "englishTitle": "Pouch",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Кошель вмещает до 6 фунтов объёмом до 1/5 кубического фута.",
+  "searchText": "кошель,pouch, equipment предмет снаряжения предмет снаряжения кошель",
+  "buyPriceGp": 0.5,
+  "buyPriceLabel": "5 СМ",
+  "sellPriceGp": 0.25,
+  "sellPriceLabel": "2 см 5 мм",
+  "url": "https://next.dnd.su/equipment/257-pouch",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:04:28Z",
+  "description": "Кошель вмещает до 6 фунтов объёмом до 1/5 кубического фута.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tКошель вмещает до 6 фунтов объёмом до 1/5 кубического фута.\n\t\u003c/p\u003e",
+  "weightLb": 1
+}

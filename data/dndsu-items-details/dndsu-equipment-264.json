@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-264",
+  "remoteId": "264",
+  "slug": "264-shovel",
+  "title": "Лопата",
+  "englishTitle": "Shovel",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Вы можете использовать Лопату, чтобы за 1 час работы выкопать в почве или подобном материале яму в виде куба со стороной 5 футов.",
+  "searchText": "лопата,shovel, equipment предмет снаряжения предмет снаряжения лопата",
+  "buyPriceGp": 2,
+  "buyPriceLabel": "2 ЗМ",
+  "sellPriceGp": 1,
+  "sellPriceLabel": "1 зм",
+  "url": "https://next.dnd.su/equipment/264-shovel",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:04:25Z",
+  "description": "Вы можете использовать Лопату, чтобы за 1 час работы выкопать в почве или подобном материале яму в виде куба со стороной 5 футов.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tВы можете использовать Лопату, чтобы за 1 час работы выкопать в почве или подобном материале яму в виде куба со стороной 5 футов.\n\t\u003c/p\u003e",
+  "weightLb": 5
+}

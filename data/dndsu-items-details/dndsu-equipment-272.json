@@ -1,0 +1,22 @@
+{
+  "id": "dndsu-equipment-272",
+  "remoteId": "272",
+  "slug": "272-vial",
+  "title": "Флакон",
+  "englishTitle": "Vial",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Флакон вмещает до 4 унций.",
+  "searchText": "флакон,vial, equipment предмет снаряжения предмет снаряжения флакон",
+  "buyPriceGp": 1,
+  "buyPriceLabel": "1 ЗМ",
+  "sellPriceGp": 0.5,
+  "sellPriceLabel": "5 см",
+  "url": "https://next.dnd.su/equipment/272-vial",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:43Z",
+  "description": "Флакон вмещает до 4 унций.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tФлакон вмещает до 4 унций.\n\t\u003c/p\u003e"
+}

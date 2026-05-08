@@ -1,0 +1,22 @@
+{
+  "id": "dndsu-equipment-247",
+  "remoteId": "247",
+  "slug": "247-mirror",
+  "title": "Зеркало",
+  "englishTitle": "Mirror",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Ручное Зеркало из стали полезно не только для нанесения косметики, но и чтобы заглядывать за углы и подавать сигналы отражённым светом.",
+  "searchText": "зеркало,mirror, equipment предмет снаряжения предмет снаряжения зеркало",
+  "buyPriceGp": 5,
+  "buyPriceLabel": "5 ЗМ",
+  "sellPriceGp": 2.5,
+  "sellPriceLabel": "2 зм 5 см",
+  "url": "https://next.dnd.su/equipment/247-mirror",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:03:28Z",
+  "description": "Ручное Зеркало из стали полезно не только для нанесения косметики, но и чтобы заглядывать за углы и подавать сигналы отражённым светом.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tРучное Зеркало из стали полезно не только для нанесения косметики, но и чтобы заглядывать за углы и подавать сигналы отражённым светом.\n\t\u003c/p\u003e"
+}

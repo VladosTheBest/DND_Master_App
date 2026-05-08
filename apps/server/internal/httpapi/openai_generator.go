@@ -143,7 +143,7 @@ func (generator openAIGenerator) GenerateWorldEvent(campaign campaignData, input
 	return generateWorldEventResult{
 		Provider: generator.config.activeProvider,
 		Notes: append(generator.buildNotes(campaign),
-			"Событие подготовлено как короткая сценка, а не как полноценный квест.",
+			"Сцена подготовлена как подробная карточка для зачитки игрокам.",
 		),
 		Event: normalizeWorldEventDraftInput(campaign, input, event),
 	}, nil
@@ -596,30 +596,32 @@ If this is a quest and the current form has no issuerId, keep the issuer concept
 }
 
 func buildOpenAIWorldEventSystemPrompt() string {
-	return strings.TrimSpace(`You generate compact world events for a D&D 5e Game Master's app.
+	return strings.TrimSpace(`You generate detailed read-aloud scene cards for a D&D 5e Game Master's app.
 
 Rules:
 - Output only JSON matching the schema.
 - Prefer Russian when the prompt or campaign uses Russian.
 - Respect the current campaign canon, locations, factions, NPCs, monsters and tone where useful.
-- This is not a quest. Keep it punchy, table-ready and small enough to drop into play immediately.
-- summary should explain in one or two sentences why the scene matters.
-- sceneText should describe what is happening right now and why the party is drawn in.
-- dialogueBranches should feel playable: each branch needs a title, a few spoken lines and a short outcome.
-- loot must stay short, concrete and specific. Coins should use exact counts and denominations.
+- This is not a quest and not a mechanics block. The app will save title and sceneText as a player-facing card.
+- title should be a short, memorable event/card name invented by you.
+- summary should explain in one or two GM-facing sentences what the scene is about.
+- sceneText is the main output: write a detailed text the GM can read aloud to players.
+- sceneText must include what the party notices, who they meet, what is happening right now, visible motives or a small player-safe backstory, and a clear spark the GM can continue.
+- Keep sceneText player-safe: no hidden GM secrets, no stat blocks, no DC lists and no instructions like "tell the players".
+- dialogueBranches and loot should usually be empty arrays unless the GM explicitly asks for branches or loot in the request.
 - Do not invent image URLs.`)
 }
 
 func buildOpenAIWorldEventUserPrompt(campaign campaignData, input generateWorldEventInput) string {
-	return strings.TrimSpace(fmt.Sprintf(`Generate one small world event for a D&D GM app.
+	return strings.TrimSpace(fmt.Sprintf(`Generate one detailed random read-aloud scene for a D&D GM app.
 
-Requested event type:
+Schema event type placeholder:
 %s
 
-Requested location id:
+Selected location id, if any:
 %s
 
-Additional GM request:
+GM description of where the players are and what kind of moment they need:
 %s
 
 Current event values:
@@ -628,7 +630,7 @@ Current event values:
 Campaign context:
 %s
 
-Return one complete world event object that feels fun, short and ready to run immediately.`, firstNonEmpty(strings.TrimSpace(input.Type), "social"), strings.TrimSpace(input.LocationID), firstNonEmpty(strings.TrimSpace(input.Prompt), "Create a lively, table-ready scene."), marshalAIJSON(input.Current), marshalAIJSON(compactCampaignContext(campaign))))
+Return one complete object. The app will save title and sceneText as a player-facing card, so sceneText must stand alone as vivid read-aloud narration.`, firstNonEmpty(strings.TrimSpace(input.Type), "social"), strings.TrimSpace(input.LocationID), firstNonEmpty(strings.TrimSpace(input.Prompt), "Create a lively, table-ready read-aloud scene."), marshalAIJSON(input.Current), marshalAIJSON(compactCampaignContext(campaign))))
 }
 
 func buildOpenAIPlayerFacingFormatSystemPrompt() string {

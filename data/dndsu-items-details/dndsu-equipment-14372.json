@@ -1,0 +1,22 @@
+{
+  "id": "dndsu-equipment-14372",
+  "remoteId": "14372",
+  "slug": "14372-dice",
+  "title": "Кости",
+  "englishTitle": "Dice",
+  "source": "dndsu-equipment",
+  "category": "tool",
+  "subcategory": "Инструмент",
+  "typeLabel": "Инструмент",
+  "summary": "Вариант Игрового набора . Каждый вариант инструмента требует отдельного владения.",
+  "searchText": "кости,dice, toolkit инструмент инструмент кости",
+  "buyPriceGp": 0.1,
+  "buyPriceLabel": "1 СМ",
+  "sellPriceGp": 0.05,
+  "sellPriceLabel": "5 мм",
+  "url": "https://next.dnd.su/equipment/14372-dice",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:04:04Z",
+  "description": "Вариант Игрового набора . Каждый вариант инструмента требует отдельного владения.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tВариант Игрового набора. Каждый вариант инструмента требует отдельного владения.\n\t\u003c/p\u003e"
+}

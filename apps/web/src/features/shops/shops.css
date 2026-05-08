@@ -312,6 +312,7 @@
 
 .shops-list-copy,
 .shops-picker-copy,
+.shops-picker-info,
 .shops-stock-product {
   min-width: 0;
 }
@@ -539,6 +540,31 @@
   gap: 12px;
 }
 
+.shops-stock-product-button {
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.shops-stock-product-button:hover strong,
+.shops-stock-product-button:focus-visible strong,
+.shops-picker-info:hover strong,
+.shops-picker-info:focus-visible strong {
+  color: #c8b8ff;
+}
+
+.shops-stock-product-button:disabled {
+  cursor: default;
+}
+
+.shops-stock-product-button:disabled:hover strong {
+  color: inherit;
+}
+
 .shops-item-thumb {
   width: 56px;
   height: 56px;
@@ -698,7 +724,7 @@
 .shops-picker-item {
   min-width: 0;
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) 30px;
+  grid-template-columns: minmax(0, 1fr) 30px;
   align-items: center;
   gap: 12px;
   min-height: 70px;
@@ -710,6 +736,20 @@
   cursor: grab;
   text-align: left;
   transition: transform 140ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.shops-picker-info {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
 }
 
 .shops-picker-item:hover {
@@ -753,9 +793,18 @@
 .shops-picker-add {
   width: 28px;
   height: 28px;
+  border: 0;
   border-radius: 999px;
   background: linear-gradient(180deg, rgba(135, 82, 220, .88), rgba(88, 50, 157, .92));
   color: #fff;
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.shops-picker-add:hover,
+.shops-picker-add:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(102, 56, 184, .32);
 }
 
 .shops-catalog-foot {

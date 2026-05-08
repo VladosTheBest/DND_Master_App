@@ -66,7 +66,7 @@ export function EntityDirectoryScreen({
           <div className="actions">
             {activeModule === "quests" ? (
               <button className="ghost" onClick={onOpenRandomEventModal} type="button">
-                Случайное событие
+                Сцена для зачитки
               </button>
             ) : null}
             <button className="primary" onClick={() => onOpenEntityModal(defaultCreateKind)} type="button">

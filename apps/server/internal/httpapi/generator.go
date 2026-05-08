@@ -130,7 +130,7 @@ func (generator scaffoldGenerator) Generate(_ campaignData, input generateEntity
 func (generator scaffoldGenerator) GenerateWorldEvent(campaign campaignData, input generateWorldEventInput) (generateWorldEventResult, error) {
 	return generateWorldEventResult{
 		Provider: generator.config.activeProvider,
-		Notes:    append(generator.buildNotes(), "Короткое событие собрано локальным scaffold-провайдером."),
+		Notes:    append(generator.buildNotes(), "Зачитка для игроков собрана локальным scaffold-провайдером."),
 		Event:    normalizeWorldEventDraftInput(campaign, input, buildWorldEventDraft(campaign, input)),
 	}, nil
 }

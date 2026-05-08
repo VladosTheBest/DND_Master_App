@@ -39,6 +39,7 @@ export function AppContentRouter({
   entityToForm,
   hydrateCampaign,
   initialEventId,
+  focusedShopId,
   isEntityPlaylistActive,
   legacyContent,
   normalizeWorldEventForClient,
@@ -83,6 +84,7 @@ export function AppContentRouter({
   entityToForm: (entity: KnowledgeEntity) => CreateEntityInput;
   hydrateCampaign: (campaign: CampaignData, focusEntityId?: string) => void;
   initialEventId?: string;
+  focusedShopId?: string;
   isEntityPlaylistActive: (entityId?: string) => boolean;
   legacyContent: ReactNode;
   normalizeWorldEventForClient: (event: WorldEvent, locations?: LocationEntity[]) => WorldEvent;
@@ -130,7 +132,7 @@ export function AppContentRouter({
   }
 
   if (activeRailAlias === "shops") {
-    return <ShopsPage campaign={campaign} hydrateCampaign={hydrateCampaign} />;
+    return <ShopsPage campaign={campaign} focusedShopId={focusedShopId} hydrateCampaign={hydrateCampaign} />;
   }
 
   if (activeRailAlias === "events") {

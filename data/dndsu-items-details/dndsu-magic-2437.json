@@ -1,0 +1,26 @@
+{
+  "id": "dndsu-magic-2437",
+  "remoteId": "2437",
+  "slug": "2437-ring-of-truth-telling",
+  "title": "Кольцо правды",
+  "englishTitle": "Ring of Truth Telling",
+  "source": "dndsu-magic",
+  "category": "ring",
+  "subcategory": "Кольцо",
+  "typeLabel": "Кольцо, необычное (требуется настройка)",
+  "summary": "Надев это кольцо, вы получаете преимущество на проверки Мудрости ( Проницательность ) для определения, говорит ли кто-то правду или нет.",
+  "searchText": "кольцо правды,ring of truth telling, кольцо кольцо правды",
+  "buyPriceGp": 300.5,
+  "buyPriceLabel": "101-500 зм",
+  "sellPriceGp": 150.25,
+  "sellPriceLabel": "50 зм 5 см-250 зм",
+  "reference": "Waterdeep: Dragon Heist",
+  "url": "https://dnd.su/items/2437-ring-of-truth-telling/",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:03:59Z",
+  "description": "Надев это кольцо, вы получаете преимущество на проверки Мудрости ( Проницательность ) для определения, говорит ли кто-то правду или нет.",
+  "descriptionHtml": "\u003cp\u003eНадев это кольцо, вы получаете преимущество на проверки Мудрости (Проницательность) для определения, говорит ли кто-то правду или нет.\u003c/p\u003e",
+  "properties": [
+    "Требуется настройка"
+  ]
+}

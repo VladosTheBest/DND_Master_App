@@ -1,5 +1,6 @@
 import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import type {
+  CampaignShop,
   GalleryImage,
   KnowledgeEntity,
   PlayerFacingCard,
@@ -34,6 +35,7 @@ type EntityDetailsPageProps = {
   currentPlaybackTrackUrl: string;
   entityByTitle: Map<string, KnowledgeEntity>;
   isEntityPlaylistActive: (entityId?: string) => boolean;
+  locationShops: CampaignShop[];
   onCopyImageLink: (url: string) => Promise<void>;
   preparedCombatSection: ReactNode;
   onContentContextMenu: (event: ReactMouseEvent<HTMLElement>) => void;
@@ -50,6 +52,7 @@ type EntityDetailsPageProps = {
   onOpenPlaylistEditor: () => void;
   onOpenPreview: () => void;
   onOpenRelatedEntity: (item: RelatedEntity) => void;
+  onOpenShop: (shopId: string) => void;
   onPeekQuest: (questId: string) => void;
   onPlayNextPlaylistTrack: () => void;
   onPlayPlaylist: (index?: number, advanceIfActive?: boolean) => void;
@@ -57,6 +60,38 @@ type EntityDetailsPageProps = {
   onStopPlayback: () => void;
   onTogglePin: () => void;
 };
+
+const formatShopNumber = (value: number) =>
+  new Intl.NumberFormat("ru-RU", { maximumFractionDigits: value % 1 === 0 ? 0 : 2 }).format(value);
+
+const formatShopGold = (value: number) => `${formatShopNumber(value)} зм`;
+
+const resolveShopEntryPrice = (entry: CampaignShop["inventory"][number]) =>
+  entry.priceMode === "manual" ? entry.manualPriceGp ?? null : entry.itemPriceGp ?? null;
+
+const resolveShopInventoryTotal = (shop: CampaignShop) =>
+  shop.inventory.reduce((total, entry) => {
+    const price = resolveShopEntryPrice(entry);
+    return price == null ? total : total + price * (entry.quantity ?? 1);
+  }, 0);
+
+function ShopRelationIcon() {
+  const common = {
+    fill: "none",
+    stroke: "currentColor",
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    strokeWidth: 1.75
+  };
+
+  return (
+    <svg aria-hidden="true" className="location-shop-icon-svg" viewBox="0 0 20 20">
+      <path {...common} d="M4.2 8.1h11.6l-1-3.4H5.2l-1 3.4Z" />
+      <path {...common} d="M5.5 8.1v7.2h9V8.1" />
+      <path {...common} d="M7.2 15.3v-4h2.2v4M11.2 11.3h1.9" />
+    </svg>
+  );
+}
 
 export function EntityDetailsPage({
   activeEntity,
@@ -68,6 +103,7 @@ export function EntityDetailsPage({
   currentPlaybackTrackUrl,
   entityByTitle,
   isEntityPlaylistActive,
+  locationShops,
   onCopyImageLink,
   preparedCombatSection,
   onContentContextMenu,
@@ -84,6 +120,7 @@ export function EntityDetailsPage({
   onOpenPlaylistEditor,
   onOpenPreview,
   onOpenRelatedEntity,
+  onOpenShop,
   onPeekQuest,
   onPlayNextPlaylistTrack,
   onPlayPlaylist,
@@ -261,6 +298,50 @@ export function EntityDetailsPage({
               </article>
             ))}
           </div>
+        </CollapsibleSection>
+      ) : null}
+
+      {activeEntity.kind === "location" ? (
+        <CollapsibleSection
+          key={`${activeEntity.id}-shops`}
+          hint="Торговые точки, привязанные к этой локации"
+          summary={
+            <p className="copy">
+              {locationShops.length ? `${locationShops.length} магазинов в этой локации.` : "Магазинов в этой локации пока нет."}
+            </p>
+          }
+          title="Магазины локации"
+        >
+          {locationShops.length ? (
+            <div className="location-shop-grid">
+              {locationShops.map((shop) => {
+                const total = resolveShopInventoryTotal(shop);
+                return (
+                  <button
+                    key={shop.id}
+                    className="location-shop-card"
+                    onClick={() => onOpenShop(shop.id)}
+                    type="button"
+                  >
+                    <span className="location-shop-mark">
+                      <ShopRelationIcon />
+                    </span>
+                    <span className="location-shop-copy">
+                      <strong>{shop.name}</strong>
+                      <small>{shop.inventory.length} товаров</small>
+                      {shop.description ? <span>{shop.description}</span> : null}
+                    </span>
+                    <span className="location-shop-meta">
+                      <b>{total > 0 ? formatShopGold(total) : "без цен"}</b>
+                      <small>витрина</small>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="copy">Привяжи магазин к этой локации во вкладке “Магазин”, и он появится здесь как связанная торговая точка.</p>
+          )}
         </CollapsibleSection>
       ) : null}
 

@@ -1,0 +1,22 @@
+{
+  "id": "dndsu-equipment-17344",
+  "remoteId": "17344",
+  "slug": "17344-desert-clothing",
+  "title": "Одежда для пустыни",
+  "englishTitle": "Desert Clothing",
+  "source": "dndsu-equipment",
+  "category": "clothing",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Пока вы носите Одежду для пустыни и не носите Среднего или Тяжёлого доспеха, вы автоматически преуспеваете в спасбросках против эффектов экстремальной жары.",
+  "searchText": "одежда для пустыни,desert clothing, equipment предмет снаряжения предмет снаряжения одежда для пустыни",
+  "buyPriceGp": 10,
+  "buyPriceLabel": "10 ЗМ",
+  "sellPriceGp": 5,
+  "sellPriceLabel": "5 зм",
+  "url": "https://next.dnd.su/equipment/17344-desert-clothing",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:00Z",
+  "description": "Пока вы носите Одежду для пустыни и не носите Среднего или Тяжёлого доспеха, вы автоматически преуспеваете в спасбросках против эффектов экстремальной жары.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tПока вы носите Одежду для пустыни и не носите Среднего или Тяжёлого доспеха, вы автоматически преуспеваете в спасбросках против эффектов экстремальной жары.\n\t\u003c/p\u003e"
+}

@@ -1,0 +1,22 @@
+{
+  "id": "dndsu-equipment-236",
+  "remoteId": "236",
+  "slug": "236-ink",
+  "title": "Чернила",
+  "englishTitle": "Ink",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Чернила находятся в бутылочке объёмом в 1 унцию; этого количества достаточно для написания около 500 листов.",
+  "searchText": "чернила,ink, equipment предмет снаряжения предмет снаряжения чернила",
+  "buyPriceGp": 10,
+  "buyPriceLabel": "10 ЗМ",
+  "sellPriceGp": 5,
+  "sellPriceLabel": "5 зм",
+  "url": "https://next.dnd.su/equipment/236-ink",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:06:02Z",
+  "description": "Чернила находятся в бутылочке объёмом в 1 унцию; этого количества достаточно для написания около 500 листов.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tЧернила находятся в бутылочке объёмом в 1 унцию; этого количества достаточно для написания около 500 листов.\n\t\u003c/p\u003e"
+}

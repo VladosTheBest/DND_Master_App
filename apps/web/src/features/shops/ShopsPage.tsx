@@ -1,6 +1,7 @@
 import "./shops.css";
 import builtInItemsRaw from "../../../../../dnd_items_150_ru_official_basic_rules_2014.json";
 import { api } from "../../app/api";
+import { ItemDetailModal } from "../items/ItemsPage";
 import { buildBuiltInItemLookup, enrichRemoteItemWithBuiltInMetrics } from "../items/items.utils";
 import type { Item } from "../items/items.types";
 import { useItemsCatalogController } from "../items/useItemsCatalogController";
@@ -8,6 +9,7 @@ import {
   startTransition,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type DragEvent
 } from "react";
@@ -322,9 +324,11 @@ function ItemThumb({ item, category }: { item?: Item | null; category?: string }
 
 export function ShopsPage({
   campaign,
+  focusedShopId,
   hydrateCampaign
 }: {
   campaign: CampaignData;
+  focusedShopId?: string;
   hydrateCampaign: (campaign: CampaignData) => void;
 }) {
   const [selectedShopId, setSelectedShopId] = useState(campaign.shops[0]?.id ?? "");
@@ -336,10 +340,18 @@ export function ShopsPage({
   const [sortMode, setSortMode] = useState<SortMode>("default");
   const [draggingItemId, setDraggingItemId] = useState("");
   const [stockDropActive, setStockDropActive] = useState(false);
+  const [selectedInfoItemId, setSelectedInfoItemId] = useState("");
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
-  const { catalogItems, catalogLoading, catalogError, ensureCatalogItemDetail } = useItemsCatalogController({ campaignId: campaign.id });
+  const appliedFocusedShopIdRef = useRef("");
+  const {
+    catalogItems,
+    catalogLoading,
+    catalogError,
+    loadingCatalogItemIds,
+    ensureCatalogItemDetail
+  } = useItemsCatalogController({ campaignId: campaign.id });
 
   useEffect(() => {
     setCustomItems(loadCustomItems(campaign.id));
@@ -350,6 +362,19 @@ export function ShopsPage({
     setSelectedShopId(selected?.id ?? "");
     setDraft(shopToDraft(selected));
   }, [campaign.shops, selectedShopId]);
+
+  useEffect(() => {
+    if (!focusedShopId || appliedFocusedShopIdRef.current === focusedShopId) {
+      return;
+    }
+    const focused = campaign.shops.find((shop) => shop.id === focusedShopId);
+    if (!focused) {
+      return;
+    }
+    appliedFocusedShopIdRef.current = focusedShopId;
+    setSelectedShopId(focused.id);
+    setDraft(shopToDraft(focused));
+  }, [campaign.shops, focusedShopId]);
 
   const allItems = useMemo(
     () => [
@@ -387,6 +412,7 @@ export function ShopsPage({
 
   const selectedShop = campaign.shops.find((shop) => shop.id === selectedShopId) ?? null;
   const selectedLocation = campaign.locations.find((location) => location.id === draft.locationId) ?? null;
+  const selectedInfoItem = selectedInfoItemId ? itemById.get(selectedInfoItemId) ?? null : null;
   const totalPrice = draft.inventory.reduce((sum, entry) => {
     const liveItem = itemById.get(entry.itemId);
     const price = entry.priceMode === "manual" ? entry.manualPriceGp : liveItem ? itemPrice(liveItem) : entry.itemPriceGp;
@@ -429,12 +455,29 @@ export function ShopsPage({
     setError("");
   };
 
-  const handleCreateShop = () => {
-    const next = shopToDraft(null);
-    setSelectedShopId("");
-    setDraft(next);
+  const handleCreateShop = async () => {
+    setSaving(true);
     setNotice("");
     setError("");
+    const nextShop: CampaignShop = {
+      id: createId("shop"),
+      name: `Новый магазин ${campaign.shops.length + 1}`,
+      inventory: []
+    };
+
+    try {
+      const updatedCampaign = await api.updateCampaign(campaign.id, {
+        shops: [nextShop, ...campaign.shops]
+      });
+      hydrateCampaign(updatedCampaign);
+      setSelectedShopId(nextShop.id);
+      setDraft(shopToDraft(nextShop));
+      startTransition(() => setNotice("Новый магазин создан."));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Не удалось создать магазин.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSelectShop = (shopId: string) => {
@@ -473,7 +516,15 @@ export function ShopsPage({
     setError("");
   };
 
-  const handleCatalogDragStart = (event: DragEvent<HTMLButtonElement>, item: Item) => {
+  const handleOpenItemInfo = (item: Item | undefined | null) => {
+    if (!item) {
+      return;
+    }
+    ensureCatalogItemDetail(item.id);
+    setSelectedInfoItemId(item.id);
+  };
+
+  const handleCatalogDragStart = (event: DragEvent<HTMLElement>, item: Item) => {
     setDraggingItemId(item.id);
     event.dataTransfer.effectAllowed = "copy";
     event.dataTransfer.setData("text/plain", item.id);
@@ -558,7 +609,7 @@ export function ShopsPage({
             </span>
             <h1>Магазины</h1>
           </div>
-          <button className="shops-primary-action" disabled={saving} onClick={handleCreateShop} type="button">
+          <button className="shops-primary-action" disabled={saving} onClick={() => void handleCreateShop()} type="button">
             <ShopIcon name="plus" />
             <span>Новый магазин</span>
           </button>
@@ -713,10 +764,16 @@ export function ShopsPage({
                 return (
                   <article className="shops-stock-row" key={entry.id}>
                     <span className="shops-drag-handle">::</span>
-                    <div className="shops-stock-product">
+                    <button
+                      className="shops-stock-product shops-stock-product-button"
+                      disabled={!liveItem}
+                      onClick={() => handleOpenItemInfo(liveItem)}
+                      title={liveItem ? "Открыть карточку предмета" : "Предмет не найден в каталоге"}
+                      type="button"
+                    >
                       <ItemThumb category={entry.category} item={liveItem} />
                       <strong>{liveItem?.name ?? entry.itemName}</strong>
-                    </div>
+                    </button>
                     <span className="shops-stock-category">{itemSubtypeLabel(liveItem, entry.category)}</span>
                     <input
                       className="shops-note-input"
@@ -810,29 +867,36 @@ export function ShopsPage({
 
         <div className="shops-picker-list">
           {filteredItems.map((item) => (
-            <button
+            <article
               className={`shops-picker-item ${draggingItemId === item.id ? "dragging" : ""}`}
               draggable
               key={item.id}
-              onClick={() => handleAddItem(item)}
               onDragEnd={handleCatalogDragEnd}
               onDragStart={(event) => handleCatalogDragStart(event, item)}
-              type="button"
             >
-              <ItemThumb item={item} />
-              <span className="shops-picker-copy">
-                <strong>{item.name}</strong>
-                <small>{itemSubtypeLabel(item)}</small>
-              </span>
-              <span className="shops-picker-add">
+              <button className="shops-picker-info" onClick={() => handleOpenItemInfo(item)} type="button">
+                <ItemThumb item={item} />
+                <span className="shops-picker-copy">
+                  <strong>{item.name}</strong>
+                  <small>{itemSubtypeLabel(item)}</small>
+                </span>
+              </button>
+              <button className="shops-picker-add" onClick={() => handleAddItem(item)} title="Добавить в магазин" type="button">
                 <ShopIcon name="plus" />
-              </span>
-            </button>
+              </button>
+            </article>
           ))}
         </div>
 
         <div className="shops-catalog-foot">{catalogLoading ? "Каталог загружается..." : `Показано ${filteredItems.length} товаров`}</div>
       </aside>
+      {selectedInfoItem ? (
+        <ItemDetailModal
+          item={selectedInfoItem}
+          isLoadingDetail={loadingCatalogItemIds.includes(selectedInfoItem.id)}
+          onClose={() => setSelectedInfoItemId("")}
+        />
+      ) : null}
     </div>
   );
 }

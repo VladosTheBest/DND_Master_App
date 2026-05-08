@@ -1,0 +1,22 @@
+{
+  "id": "dndsu-equipment-17352",
+  "remoteId": "17352",
+  "slug": "17352-winter-camouflage",
+  "title": "Зимняя маскировка",
+  "englishTitle": "Winter Camouflage",
+  "source": "dndsu-equipment",
+  "category": "clothing",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Пока вы носите Зимнюю маскировку в подходящем окружении, вы совершаете с Преимуществом проверки Ловкости ( Скрытность ).",
+  "searchText": "зимняя маскировка,winter camouflage, equipment предмет снаряжения предмет снаряжения зимняя маскировка",
+  "buyPriceGp": 50,
+  "buyPriceLabel": "50 ЗМ",
+  "sellPriceGp": 25,
+  "sellPriceLabel": "25 зм",
+  "url": "https://next.dnd.su/equipment/17352-winter-camouflage",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:03:21Z",
+  "description": "Пока вы носите Зимнюю маскировку в подходящем окружении, вы совершаете с Преимуществом проверки Ловкости ( Скрытность ).",
+  "descriptionHtml": "\u003cp\u003e\n\t\tПока вы носите Зимнюю маскировку в подходящем окружении, вы совершаете с Преимуществом проверки Ловкости (Скрытность).\n\t\u003c/p\u003e"
+}

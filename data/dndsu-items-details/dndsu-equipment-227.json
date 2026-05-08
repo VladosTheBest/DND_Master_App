@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-227",
+  "remoteId": "227",
+  "slug": "227-costume",
+  "title": "Костюм",
+  "englishTitle": "Costume",
+  "source": "dndsu-equipment",
+  "category": "gear",
+  "subcategory": "Предмет снаряжения",
+  "typeLabel": "Предмет снаряжения",
+  "summary": "Надев костюм, вы совершаете с Преимуществом те проверки характеристик, которые совершаете, чтобы выдать себя за того, кому присущ этот костюм.",
+  "searchText": "костюм,costume, equipment предмет снаряжения предмет снаряжения костюм",
+  "buyPriceGp": 5,
+  "buyPriceLabel": "5 ЗМ",
+  "sellPriceGp": 2.5,
+  "sellPriceLabel": "2 зм 5 см",
+  "url": "https://next.dnd.su/equipment/227-costume",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:04:05Z",
+  "description": "Надев костюм, вы совершаете с Преимуществом те проверки характеристик, которые совершаете, чтобы выдать себя за того, кому присущ этот костюм.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tНадев костюм, вы совершаете с Преимуществом те проверки характеристик, которые совершаете, чтобы выдать себя за того, кому присущ этот костюм.\n\t\u003c/p\u003e",
+  "weightLb": 4
+}

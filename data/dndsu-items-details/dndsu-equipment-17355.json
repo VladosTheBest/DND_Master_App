@@ -1,0 +1,23 @@
+{
+  "id": "dndsu-equipment-17355",
+  "remoteId": "17355",
+  "slug": "17355-yarting",
+  "title": "Яртинг",
+  "englishTitle": "Yarting",
+  "source": "dndsu-equipment",
+  "category": "tool",
+  "subcategory": "Инструмент",
+  "typeLabel": "Инструмент",
+  "summary": "Вариант Музыкального инструмента . Каждый вариант инструмента требует отдельного владения.",
+  "searchText": "яртинг,yarting, toolkit инструмент инструмент яртинг",
+  "buyPriceGp": 40,
+  "buyPriceLabel": "40 ЗМ",
+  "sellPriceGp": 20,
+  "sellPriceLabel": "20 зм",
+  "url": "https://next.dnd.su/equipment/17355-yarting",
+  "descriptionLoaded": true,
+  "lastSyncedAt": "2026-05-05T20:05:57Z",
+  "description": "Вариант Музыкального инструмента . Каждый вариант инструмента требует отдельного владения.",
+  "descriptionHtml": "\u003cp\u003e\n\t\tВариант Музыкального инструмента. Каждый вариант инструмента требует отдельного владения.\n\t\u003c/p\u003e",
+  "weightLb": 2
+}
