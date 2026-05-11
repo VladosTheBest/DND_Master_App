@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import loginBgUrl from "./assets/login-bg.jpg";
 import { formatPlaybackTime } from "./playback";
-import { RailIcon, type RailIconName } from "./rail-icon";
+import { RailIcon } from "./rail-icon";
 
 export function DndGenerationProgress({
   title,
@@ -65,7 +65,7 @@ export function DndGenerationProgress({
   );
 }
 
-function LoginFieldGlyph({ kind }: { kind: "user" | "lock" | "eye" | "eye-off" | "spark" }) {
+function LoginFieldGlyph({ kind }: { kind: "user" | "lock" | "eye" | "eye-off" | "spark" | "sun" | "moon" | "shield" | "users" | "arrow" }) {
   const common = {
     fill: "none",
     stroke: "currentColor",
@@ -104,11 +104,94 @@ function LoginFieldGlyph({ kind }: { kind: "user" | "lock" | "eye" | "eye-off" |
           <path {...common} d="M5.3 7.2A13.4 13.4 0 0 0 2.4 10s2.6 4.3 7.6 4.3c.8 0 1.5-.1 2.2-.3" />
         </svg>
       );
+    case "sun":
+      return (
+        <svg aria-hidden="true" className="login-glyph" viewBox="0 0 20 20">
+          <circle {...common} cx="10" cy="10" r="3" />
+          <path {...common} d="M10 2.8v1.6M10 15.6v1.6M2.8 10h1.6M15.6 10h1.6M4.9 4.9 6 6M14 14l1.1 1.1M15.1 4.9 14 6M6 14l-1.1 1.1" />
+        </svg>
+      );
+    case "moon":
+      return (
+        <svg aria-hidden="true" className="login-glyph" viewBox="0 0 20 20">
+          <path {...common} d="M14.9 12.9A5.8 5.8 0 0 1 7.1 5.1 6.5 6.5 0 1 0 14.9 12.9Z" />
+        </svg>
+      );
+    case "shield":
+      return (
+        <svg aria-hidden="true" className="login-glyph" viewBox="0 0 20 20">
+          <path {...common} d="M10 3.2 15 5v4.3c0 3.1-1.8 5.7-5 7.5-3.2-1.8-5-4.4-5-7.5V5l5-1.8Z" />
+          <path {...common} d="m8 10 1.3 1.3L12.5 8" />
+        </svg>
+      );
+    case "users":
+      return (
+        <svg aria-hidden="true" className="login-glyph" viewBox="0 0 20 20">
+          <circle {...common} cx="8" cy="7.3" r="2.1" />
+          <circle {...common} cx="13.4" cy="8.1" r="1.7" />
+          <path {...common} d="M4.3 15.1c.8-2.1 2.2-3.1 4.2-3.1 1.9 0 3.2.9 4.1 2.8" />
+          <path {...common} d="M11.7 13.4c.6-.8 1.5-1.2 2.5-1.2 1.2 0 2.2.6 2.9 1.8" />
+        </svg>
+      );
+    case "arrow":
+      return (
+        <svg aria-hidden="true" className="login-glyph" viewBox="0 0 20 20">
+          <path {...common} d="M4 10h11" />
+          <path {...common} d="m11.2 6.2 3.8 3.8-3.8 3.8" />
+        </svg>
+      );
     default:
       return (
         <svg aria-hidden="true" className="login-glyph" viewBox="0 0 20 20">
           <path {...common} d="m10 2.8 1.2 4 4 1.2-4 1.2-1.2 4-1.2-4-4-1.2 4-1.2 1.2-4Z" />
           <path {...common} d="m15 12.8.6 2 .2.6.6.2 2 .6-2 .6-.6.2-.2.6-.6 2-.6-2-.2-.6-.6-.2-2-.6 2-.6.6-.2.2-.6.6-2Z" />
+        </svg>
+      );
+  }
+}
+
+type LoginHeroGlyphName = "quest" | "initiative" | "map" | "note";
+
+function LoginHeroGlyph({ name }: { name: LoginHeroGlyphName }) {
+  const common = {
+    fill: "none",
+    stroke: "currentColor",
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+    strokeWidth: 1.85
+  };
+
+  switch (name) {
+    case "quest":
+      return (
+        <svg aria-hidden="true" className="login-hero-glyph" viewBox="0 0 32 32">
+          <path {...common} d="M9 7.5h12.5c1.8 0 3.2 1.4 3.2 3.2v.6H12.4A3.4 3.4 0 0 0 9 14.7V24" />
+          <path {...common} d="M7.3 7.5h3.1A3.6 3.6 0 0 1 14 11.1v13.4H9.6a3.6 3.6 0 0 1-3.6-3.6V8.8c0-.7.6-1.3 1.3-1.3Z" />
+          <path {...common} d="M14 16.4h10.2M14 20.4h7" />
+        </svg>
+      );
+    case "initiative":
+      return (
+        <svg aria-hidden="true" className="login-hero-glyph" viewBox="0 0 32 32">
+          <path {...common} d="m9 8 15 15M23 8 8 23" />
+          <path {...common} d="m7.2 5.8 4.9 4.9M24.8 5.8l-4.9 4.9M5.8 24.8l4.9-4.9M26.2 24.8l-4.9-4.9" />
+          <path {...common} d="m6 5 3.2 1.1L7.1 8.2 6 5ZM26 5l-1.1 3.2-2.1-2.1L26 5ZM6 27l1.1-3.2 2.1 2.1L6 27ZM26 27l-3.2-1.1 2.1-2.1L26 27Z" />
+        </svg>
+      );
+    case "map":
+      return (
+        <svg aria-hidden="true" className="login-hero-glyph" viewBox="0 0 32 32">
+          <path {...common} d="m6.5 9.2 6.3-2.7 6.4 2.7 6.3-2.7v16.3l-6.3 2.7-6.4-2.7-6.3 2.7V9.2Z" />
+          <path {...common} d="M12.8 6.5v16.3M19.2 9.2v16.3" />
+        </svg>
+      );
+    case "note":
+      return (
+        <svg aria-hidden="true" className="login-hero-glyph" viewBox="0 0 32 32">
+          <path {...common} d="M10 6.5h12l3 3v15a1.8 1.8 0 0 1-1.8 1.8H10A1.8 1.8 0 0 1 8.2 24.5V8.3A1.8 1.8 0 0 1 10 6.5Z" />
+          <path {...common} d="M22 6.5v4h4" />
+          <path {...common} d="M12 14.3h8M12 18.3h8M12 22.3h5.4" />
+          <path {...common} d="M12.2 4.5v4M18.2 4.5v4" />
         </svg>
       );
   }
@@ -141,11 +224,11 @@ export function LoginScreen({
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
   const [ritualMode, setRitualMode] = useState(false);
   const isRegistering = authMode === "register";
-  const submitLabel = busy ? (isRegistering ? "Создаю аккаунт..." : "Открываю кабинет...") : isRegistering ? "Зарегистрироваться" : "Войти в кабинет";
-  const loginFeatures: Array<{ title: string; detail: string; icon: RailIconName }> = [
+  const submitLabel = busy ? (isRegistering ? "Создаю аккаунт..." : "Открываю кабинет...") : isRegistering ? "Создать аккаунт" : "Войти в кабинет";
+  const loginFeatures: Array<{ title: string; detail: string; icon: LoginHeroGlyphName }> = [
     { title: "Квесты", detail: "Веди истории и кампании", icon: "quest" },
-    { title: "Инициатива", detail: "Удобные боевые сцены", icon: "player" },
-    { title: "Карты", detail: "Локации и регионы", icon: "location" },
+    { title: "Инициатива", detail: "Удобные боевые сцены", icon: "initiative" },
+    { title: "Карты", detail: "Локации и регионы", icon: "map" },
     { title: "Заметки", detail: "Твои записи и идеи", icon: "note" }
   ];
 
@@ -194,10 +277,10 @@ export function LoginScreen({
               type="button"
             >
               <span className={`login-theme-icon ${!ritualMode ? "active" : ""}`}>
-                <LoginFieldGlyph kind="spark" />
+                <LoginFieldGlyph kind="sun" />
               </span>
               <span className={`login-theme-icon ${ritualMode ? "active" : ""}`}>
-                <LoginFieldGlyph kind="eye" />
+                <LoginFieldGlyph kind="moon" />
               </span>
             </button>
           </header>
@@ -229,7 +312,7 @@ export function LoginScreen({
                 {loginFeatures.map((feature) => (
                   <article key={feature.title} className="login-feature-card">
                     <span className="login-feature-icon" aria-hidden="true">
-                      <RailIcon name={feature.icon} />
+                      <LoginHeroGlyph name={feature.icon} />
                     </span>
                     <strong>{feature.title}</strong>
                     <small>{feature.detail}</small>
@@ -238,10 +321,13 @@ export function LoginScreen({
               </div>
 
               <blockquote className="login-quote-card">
-                <p>Мир ждёт твоей истории. Готов ли ты её написать?</p>
                 <span className="login-quote-mark" aria-hidden="true">
-                  <RailIcon name="brand" />
+                  <LoginFieldGlyph kind="spark" />
                 </span>
+                <p>
+                  <strong>Мир ждёт твоей истории.</strong>
+                  <small>Создавай легенды, которые запомнятся навсегда.</small>
+                </p>
               </blockquote>
             </section>
 
@@ -276,7 +362,7 @@ export function LoginScreen({
                   role="tab"
                   type="button"
                 >
-                  Зарегистрироваться
+                  Регистрация
                 </button>
               </div>
 
@@ -350,15 +436,16 @@ export function LoginScreen({
                   <span>Запомнить меня</span>
                 </label>
                 <button className="login-link" onClick={() => setAuthMode(isRegistering ? "login" : "register")} type="button">
-                  {isRegistering ? "Уже есть аккаунт?" : "Создать аккаунт"}
+                  {isRegistering ? "Уже есть аккаунт?" : "Забыли пароль?"}
                 </button>
               </div>
 
               {error ? <p className="login-error">{error}</p> : null}
 
               <button className="primary login-submit" disabled={busy} type="submit">
+                <LoginFieldGlyph kind="shield" />
                 <span>{submitLabel}</span>
-                <span aria-hidden="true">→</span>
+                <LoginFieldGlyph kind="arrow" />
               </button>
 
               <div className="login-divider" aria-hidden="true">
@@ -369,8 +456,9 @@ export function LoginScreen({
 
               <div className="login-public-note">
                 <div className="ghost login-secondary login-secondary-static" role="note">
-                  <span>Публичный трекер для игроков открывается из боя</span>
-                  <span aria-hidden="true">↗</span>
+                  <LoginFieldGlyph kind="users" />
+                  <span>Публичный трекер для игроков</span>
+                  <LoginFieldGlyph kind="arrow" />
                 </div>
               </div>
             </form>
