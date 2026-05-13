@@ -249,15 +249,22 @@ import {
 } from "react";
 
 const tabs: Record<ModuleId, string[]> = {
-  dashboard: ["Snapshot", "Prep"],
-  combat: ["Encounter"],
-  locations: ["All", "Cities", "Regions", "Dungeons", "POI"],
-  players: ["All", "Active", "Reserve", "Guest"],
-  npcs: ["All", "Critical", "Allies", "Threats"],
-  monsters: ["Catalog", "Imported", "Named NPC", "Classic"],
-  quests: ["All", "Active", "Paused", "Completed"],
-  lore: ["All", "GM Only", "Player Safe", "Threat Files"],
+  dashboard: ["Сводка", "Подготовка"],
+  combat: ["Сцена"],
+  locations: ["Все", "Города", "Регионы", "Подземелья", "Точки"],
+  players: ["Все", "Активные", "Резерв", "Гости"],
+  npcs: ["Все", "Важные", "Союзники", "Угрозы"],
+  monsters: ["Каталог", "Импорт", "Именные НПС", "Классика"],
+  quests: ["Все", "Активные", "Пауза", "Завершены"],
+  lore: ["Все", "Только GM", "Для игроков", "Угрозы"],
   rules: ["SRD 5.2.1"]
+};
+
+const questStatusTabLabel = (status: QuestEntity["status"]) => {
+  if (status === "active") return "Активные";
+  if (status === "paused") return "Пауза";
+  if (status === "completed") return "Завершены";
+  return "Все";
 };
 
 const moduleByKind: Record<EntityKind, ModuleId> = {
@@ -488,7 +495,7 @@ const normalizeCombatEntryForClient = (entry: CombatEntry): CombatEntry => ({
   entityKind: entry.entityKind ?? "monster",
   side: entry.side ?? (entry.entityKind === "player" ? "player" : "enemy"),
   initiative: Number.isFinite(entry.initiative) ? entry.initiative : 0,
-  armorClass: entry.armorClass || (entry.entityKind === "player" ? "РІР‚вЂќ" : "10")
+  armorClass: entry.armorClass || (entry.entityKind === "player" ? "—" : "10")
 });
 
 const normalizeEntityForClient = <T extends KnowledgeEntity>(entity: T): T => {
@@ -728,7 +735,7 @@ const sanitizeGalleryImages = (items: GalleryImage[] = []) =>
     }))
     .filter((item) => item.url)
     .map((item, index) => ({
-      title: item.title || `Р ВР В·Р С•Р В±РЎР‚Р В°Р В¶Р ВµР Р…Р С‘Р Вµ ${index + 1}`,
+      title: item.title || `Изображение ${index + 1}`,
       url: item.url,
       caption: item.caption
     }));
@@ -804,10 +811,10 @@ const sanitizeMonsterRewardProfile = (profile?: MonsterRewardProfile): MonsterRe
     }))
     .filter((entry) => entry.name || entry.category || entry.quantity || entry.check || entry.dc || entry.details)
     .map((entry) => ({
-      name: entry.name || "Р вЂР ВµР В·РЎвЂ№Р СРЎРЏР Р…Р Р…Р В°РЎРЏ Р Т‘Р С•Р В±РЎвЂ№РЎвЂЎР В°",
-      category: entry.category || "Р вЂєРЎС“РЎвЂљ",
+      name: entry.name || "Безымянная добыча",
+      category: entry.category || "Лут",
       quantity: entry.quantity || "1",
-      check: entry.check || "Р вЂР ВµР В· Р С—РЎР‚Р С•Р Р†Р ВµРЎР‚Р С”Р С‘",
+      check: entry.check || "Без проверки",
       dc: entry.dc,
       details: entry.details
     }));
@@ -1012,7 +1019,7 @@ const copyTextToClipboard = async (value: string) => {
   const copied = document.execCommand("copy");
   document.body.removeChild(textarea);
   if (!copied) {
-    throw new Error("Р вЂРЎР‚Р В°РЎС“Р В·Р ВµРЎР‚ Р Р…Р Вµ Р Т‘Р В°Р В» РЎРѓР С”Р С•Р С—Р С‘РЎР‚Р С•Р Р†Р В°РЎвЂљРЎРЉ РЎРѓРЎРѓРЎвЂ№Р В»Р С”РЎС“.");
+    throw new Error("Браузер не дал скопировать ссылку.");
   }
 };
 
@@ -1136,7 +1143,7 @@ function CombatWorkbench({
     )
   ).slice(0, 4);
   const masterNotes = [
-    currentTurnEntry ? `Р РЋР ВµР в„–РЎвЂЎР В°РЎРѓ РЎвЂљР ВµР СР С— РЎРѓРЎвЂ Р ВµР Р…РЎвЂ№ Р Т‘Р ВµРЎР‚Р В¶Р С‘РЎвЂљ ${currentTurnEntry.title}.` : "",
+    currentTurnEntry ? `Сейчас темп сцены держит ${currentTurnEntry.title}.` : "",
     selectedEntryResolved?.summary ? truncateInlineText(selectedEntryResolved.summary, 148) : "",
     activeCombat.difficulty ? `Сложность: ${combatDifficultyLabel[activeCombat.difficulty]}.` : "",
     livingEnemyCount ? `На ногах осталось ${livingEnemyCount} противников.` : "Все противники уже выведены из сцены."
@@ -1205,7 +1212,7 @@ function CombatWorkbench({
           ) : null}
           {bootError ? (
             <div className="card mini form-error" role="status">
-              <strong>Р СџРЎР‚Р С•Р В±Р В»Р ВµР СР В° Р Р† Р В±Р С•РЎР‹</strong>
+              <strong>Проблема в бою</strong>
               <p>{bootError}</p>
             </div>
           ) : null}
@@ -1227,15 +1234,15 @@ function CombatWorkbench({
         <section className="card combat-summary-card">
           <div className="row muted">
             <span>Плейлист треков</span>
-            <span>{isCombatPlaylistActive ? "Р ВР С–РЎР‚Р В°Р ВµРЎвЂљ" : "Р вЂњР С•РЎвЂљР С•Р Р†"}</span>
+            <span>{isCombatPlaylistActive ? "Играет" : "Готов"}</span>
           </div>
-          <strong>{currentPlaybackTrackLabel || "Р вЂР С•Р в„– РІР‚вЂќ Р СњР В°Р С—РЎР‚РЎРЏР В¶Р ВµР Р…Р С‘Р Вµ"}</strong>
+          <strong>{currentPlaybackTrackLabel || "Бой — Напряжение"}</strong>
           <div className="combat-summary-actions">
             <button className="ghost" disabled={!(campaign.combatPlaylist ?? []).length} onClick={onPlayCombatPlaylist} type="button">
               {isCombatPlaylistActive ? "Следующий трек" : "Запустить"}
             </button>
             <button className="ghost" disabled={!(campaign.combatPlaylist ?? []).length} onClick={onPlayNextRandomTrack} type="button">
-              Р В Р В°Р Р…Р Т‘Р С•Р С
+              Рандом
             </button>
             <button className="ghost" onClick={onOpenCombatPlaylistModal} type="button">
               Плейлист
@@ -1246,7 +1253,7 @@ function CombatWorkbench({
         <section className="card combat-summary-card">
           <div className="row muted">
             <span>Условия сцены</span>
-            <span>{sceneTags.length} Р СР ВµРЎвЂљР С”Р С‘</span>
+            <span>{sceneTags.length} метки</span>
           </div>
           <div className="combat-tag-list">
             {sceneTags.map((tag) => (
@@ -1259,7 +1266,7 @@ function CombatWorkbench({
 
         <section className="card combat-summary-card">
           <div className="row muted">
-            <span>Р вЂРЎвЂ№РЎРѓРЎвЂљРЎР‚РЎвЂ№Р Вµ Р Т‘Р ВµР в„–РЎРѓРЎвЂљР Р†Р С‘РЎРЏ</span>
+            <span>Быстрые действия</span>
             <span>{initiativeShareBusy ? "Готовлю ссылку" : "На стол"}</span>
           </div>
           <div className="combat-summary-action-grid">
@@ -1377,7 +1384,7 @@ function CombatWorkbench({
                 <strong>{Math.max(1, activeCombat.round || 1)}</strong>
               </div>
               <div className="combat-side-detail-row">
-                <span>Р вЂ™РЎР‚Р ВµР СРЎРЏ Р В±Р С•РЎРЏ</span>
+                <span>Время боя</span>
                 <strong>{combatDurationLabel}</strong>
               </div>
             </div>
@@ -1402,11 +1409,11 @@ function CombatWorkbench({
           <section className="card mini combat-side-card combat-player-panel">
             <div className="row muted">
               <strong>Добавить участника</strong>
-              <span>Р ВР В· Р Р†Р С”Р В»Р В°Р Т‘Р С”Р С‘ Р ВР С–РЎР‚Р С•Р С”Р С‘</span>
+              <span>Из вкладки Игроки</span>
             </div>
             <div className="combat-player-form">
               <label className="field">
-                <span>Р ВР С–РЎР‚Р С•Р С”</span>
+                <span>Игрок</span>
                 <select
                   className="input"
                   onChange={(event) => onCombatPlayerEntityIdChange(event.target.value)}
@@ -1436,8 +1443,8 @@ function CombatWorkbench({
             {selectedCombatPlayer ? (
               <p className="copy">
                 {selectedCombatPlayerAlreadyInFight
-                  ? `${selectedCombatPlayer.title} РЎС“Р В¶Р Вµ РЎС“РЎвЂЎР В°РЎРѓРЎвЂљР Р†РЎС“Р ВµРЎвЂљ Р Р† РЎвЂљР ВµР С”РЎС“РЎвЂ°Р ВµР С Р В±Р С•РЎР‹.`
-                  : selectedCombatPlayer.summary || `${selectedCombatPlayer.title} Р СР С•Р В¶Р Р…Р С• РЎРѓРЎР‚Р В°Р В·РЎС“ Р Т‘Р С•Р В±Р В°Р Р†Р С‘РЎвЂљРЎРЉ Р Р† Р С‘Р Р…Р С‘РЎвЂ Р С‘Р В°РЎвЂљР С‘Р Р†РЎС“.`}
+                  ? `${selectedCombatPlayer.title} уже участвует в текущем бою.`
+                  : selectedCombatPlayer.summary || `${selectedCombatPlayer.title} можно сразу добавить в инициативу.`}
               </p>
             ) : null}
             <button
@@ -1452,7 +1459,7 @@ function CombatWorkbench({
 
           <section className="card mini combat-side-card">
             <div className="row muted">
-              <strong>Р вЂ”Р В°Р СР ВµРЎвЂљР С”Р С‘ Р Т‘Р В»РЎРЏ Р СР В°РЎРѓРЎвЂљР ВµРЎР‚Р В°</strong>
+              <strong>Заметки для мастера</strong>
               <span>{defeatedCount} выведено</span>
             </div>
             <div className="combat-side-notes">
@@ -1464,7 +1471,7 @@ function CombatWorkbench({
 
           <section className="card mini combat-side-card">
             <div className="row muted">
-              <strong>Р В§Р ВµР С”-Р В»Р С‘РЎРѓРЎвЂљ Р СР В°РЎРѓРЎвЂљР ВµРЎР‚Р В°</strong>
+              <strong>Чек-лист мастера</strong>
               <span>{checklistItems.filter((item) => checklistOverrides[item.id] ?? item.done).length}/{checklistItems.length}</span>
             </div>
             <div className="combat-side-checklist">
@@ -1880,7 +1887,7 @@ export default function App() {
 
   const handleProtectedActionError = (error: unknown, fallbackMessage: string) => {
     if (isUnauthorizedError(error)) {
-      setAuthError("Р РЋР ВµРЎРѓРЎРѓР С‘РЎРЏ Р С‘РЎРѓРЎвЂљР ВµР С”Р В»Р В° Р С‘Р В»Р С‘ Р Р†РЎвЂ¦Р С•Р Т‘ Р Р…Р Вµ Р С—Р С•Р Т‘РЎвЂљР Р†Р ВµРЎР‚Р В¶Р Т‘РЎвЂР Р…. Р вЂ™Р С•Р в„–Р Т‘Р С‘ РЎРѓР Р…Р С•Р Р†Р В°.");
+      setAuthError("Сессия истекла или вход не подтверждён. Войди снова.");
       setAuthError("Сессия истекла или вход не подтвержден. Войди снова.");
       setAuthState("unauthenticated");
       setAuthUsername("");
@@ -2136,7 +2143,7 @@ export default function App() {
     [moduleEntitySearch, scopedEntities]
   );
   const visibleModuleEntities =
-    activeModule === "monsters" && activeTab === "Imported" ? bestiaryController.filteredImportedMonsters : scopedEntities;
+    activeModule === "monsters" && activeTab === "Импорт" ? bestiaryController.filteredImportedMonsters : scopedEntities;
 
   useEffect(() => {
     if (!campaign || activeModule === "dashboard" || activeModule === "combat" || isBestiaryBrowseTab(activeModule, activeTab)) {
@@ -2207,7 +2214,7 @@ export default function App() {
         current
           ? {
               ...current,
-              ownerTitle: `${campaign.title} РІР‚Сћ Р вЂР С•Р ВµР Р†Р С•Р в„– Р С—Р В»Р ВµР в„–Р В»Р С‘РЎРѓРЎвЂљ`,
+              ownerTitle: `${campaign.title} • Боевой плейлист`,
               tracks,
               currentIndex: nextIndex >= 0 ? nextIndex : 0
             }
@@ -2673,7 +2680,7 @@ export default function App() {
     playPlaylist({
       scope: "combat",
       ownerId: campaign.id,
-      ownerTitle: `${campaign.title} РІР‚Сћ Р вЂР С•Р ВµР Р†Р С•Р в„– Р С—Р В»Р ВµР в„–Р В»Р С‘РЎРѓРЎвЂљ`,
+      ownerTitle: `${campaign.title} • Боевой плейлист`,
       tracks: campaign.combatPlaylist ?? [],
       index,
       random
@@ -2839,11 +2846,11 @@ export default function App() {
     }
 
     const targetModule = moduleByKind[entity.kind];
-    const defaultTab = entity.kind === "monster" ? "Imported" : "All";
+    const defaultTab = entity.kind === "monster" ? "Импорт" : "Все";
     const isVisibleInCurrentTab =
       entity.kind === "monster"
         ? activeModule === targetModule &&
-          activeTab === "Imported" &&
+          activeTab === "Импорт" &&
           bestiaryController.filteredImportedMonsters.some((candidate) => candidate.id === entity.id)
         : activeModule === targetModule && scopedEntities.some((candidate) => candidate.id === entity.id);
     const nextTab =
@@ -2876,7 +2883,7 @@ export default function App() {
 
     setActiveModule("quests");
     setActiveRailAlias("events");
-    setActiveTab("All");
+    setActiveTab("Все");
     setActiveEntityId("");
     setSelectedWorldEventId(event.id);
     setPreviewEntityId(event.locationId ?? "");
@@ -2894,7 +2901,7 @@ export default function App() {
     }
 
     const nextTab =
-      activeModule === "quests" && (activeTab === "All" || activeTab.toLowerCase() === entity.status) ? activeTab : "All";
+      activeModule === "quests" && (activeTab === "Все" || activeTab === questStatusTabLabel(entity.status)) ? activeTab : "Все";
 
     startTransition(() => {
       setActiveModule("quests");
@@ -2910,7 +2917,7 @@ export default function App() {
   const openRelatedEntity = (item: RelatedEntity) => {
     const linked = resolveLinkedEntity(item);
     if (!linked) {
-      setBootError(`Р РЋР Р†РЎРЏР В·Р В°Р Р…Р Р…Р В°РЎРЏ РЎРѓРЎС“РЎвЂ°Р Р…Р С•РЎРѓРЎвЂљРЎРЉ "${item.label}" Р Р…Р Вµ Р Р…Р В°Р в„–Р Т‘Р ВµР Р…Р В° Р Р† Р С”Р В°Р СР С—Р В°Р Р…Р С‘Р С‘. Р вЂ™Р С•Р В·Р СР С•Р В¶Р Р…Р С•, Р ВµРЎвЂ РЎС“Р Т‘Р В°Р В»Р С‘Р В»Р С‘ Р С‘Р В»Р С‘ РЎРѓРЎРѓРЎвЂ№Р В»Р С”Р В° РЎС“РЎРѓРЎвЂљР В°РЎР‚Р ВµР В»Р В°.`);
+      setBootError(`Связанная сущность "${item.label}" не найдена в кампании. Возможно, её удалили или ссылка устарела.`);
       return;
     }
 
@@ -2958,7 +2965,7 @@ export default function App() {
 
   const preparePublicInitiativeTrackerLink = async () => {
     if (!activeCampaignId) {
-      throw new Error("Р С™Р В°Р СР С—Р В°Р Р…Р С‘РЎРЏ Р Р…Р Вµ Р Р†РЎвЂ№Р В±РЎР‚Р В°Р Р…Р В°.");
+      throw new Error("Кампания не выбрана.");
     }
 
     setInitiativeShareBusy(true);
@@ -2968,9 +2975,9 @@ export default function App() {
       setInitiativePublishNotice(
         hasActiveCombat
           ? share.publishedAt
-            ? `Р СџРЎС“Р В±Р В»Р С‘РЎвЂЎР Р…Р В°РЎРЏ РЎРѓРЎРѓРЎвЂ№Р В»Р С”Р В° Р С–Р С•РЎвЂљР С•Р Р†Р В°. Р ВР С–РЎР‚Р С•Р С”Р С‘ РЎС“Р Р†Р С‘Р Т‘РЎРЏРЎвЂљ Р С•Р В±РЎвЂ№РЎвЂЎР Р…РЎвЂ№Р в„– Р В¶Р С‘Р Р†Р С•Р в„– РЎвЂљРЎР‚Р ВµР С”Р ВµРЎР‚. Р СџР С•РЎРѓР В»Р ВµР Т‘Р Р…Р ВµР Вµ Р С•Р В±Р Р…Р С•Р Р†Р В»Р ВµР Р…Р С‘Р Вµ: ${formatDateTime(share.publishedAt)}.`
-            : "Р СџРЎС“Р В±Р В»Р С‘РЎвЂЎР Р…Р В°РЎРЏ РЎРѓРЎРѓРЎвЂ№Р В»Р С”Р В° Р С–Р С•РЎвЂљР С•Р Р†Р В°. Р ВР С–РЎР‚Р С•Р С”Р С‘ РЎС“Р Р†Р С‘Р Т‘РЎРЏРЎвЂљ Р С•Р В±РЎвЂ№РЎвЂЎР Р…РЎвЂ№Р в„– Р В¶Р С‘Р Р†Р С•Р в„– РЎвЂљРЎР‚Р ВµР С”Р ВµРЎР‚."
-          : "Р СџРЎС“Р В±Р В»Р С‘РЎвЂЎР Р…Р В°РЎРЏ РЎРѓРЎРѓРЎвЂ№Р В»Р С”Р В° Р С–Р С•РЎвЂљР С•Р Р†Р В°. Р СџР С•Р С”Р В° Р В±Р С•Р в„– Р Р…Р Вµ Р Р…Р В°РЎвЂЎР В°РЎвЂљ, Р С—Р С• Р Р…Р ВµР в„– Р В±РЎС“Р Т‘Р ВµРЎвЂљ РЎРЊР С”РЎР‚Р В°Р Р… Р С•Р В¶Р С‘Р Т‘Р В°Р Р…Р С‘РЎРЏ. Р СћРЎР‚Р ВµР С”Р ВµРЎР‚ Р С—Р С•РЎРЏР Р†Р С‘РЎвЂљРЎРѓРЎРЏ Р В°Р Р†РЎвЂљР С•Р СР В°РЎвЂљР С‘РЎвЂЎР ВµРЎРѓР С”Р С‘ Р С—Р С•РЎРѓР В»Р Вµ РЎРѓРЎвЂљР В°РЎР‚РЎвЂљР В° Р В±Р С•РЎРЏ."
+            ? `Публичная ссылка готова. Игроки увидят обычный живой трекер. Последнее обновление: ${formatDateTime(share.publishedAt)}.`
+            : "Публичная ссылка готова. Игроки увидят обычный живой трекер."
+          : "Публичная ссылка готова. Пока бой не начат, по ней будет экран ожидания. Трекер появится автоматически после старта боя."
       );
       return share.url;
     } catch (error) {
@@ -3079,7 +3086,7 @@ export default function App() {
     setModuleEntitySearch("");
     setActiveRailAlias(alias);
     setActiveModule(targetModule);
-    setActiveTab("All");
+    setActiveTab("Все");
     setActiveEntityId("");
     setPreviewEntityId("");
     bestiaryController.resetBrowseSelection();
@@ -3197,7 +3204,7 @@ export default function App() {
 
   const uploadCampaignImage = async (file: File) => {
     if (!activeCampaignId) {
-      throw new Error("Р РЋР Р…Р В°РЎвЂЎР В°Р В»Р В° Р С•РЎвЂљР С”РЎР‚Р С•Р в„– Р С”Р В°Р СР С—Р В°Р Р…Р С‘РЎР‹, Р В° Р С—Р С•РЎвЂљР С•Р С РЎС“Р В¶Р Вµ Р В·Р В°Р С–РЎР‚РЎС“Р В¶Р В°Р в„– Р С‘Р В·Р С•Р В±РЎР‚Р В°Р В¶Р ВµР Р…Р С‘РЎРЏ.");
+      throw new Error("Сначала открой кампанию, а потом уже загружай изображения.");
     }
 
     return api.uploadImage(activeCampaignId, file);
@@ -3220,7 +3227,7 @@ export default function App() {
       setBootError("");
       await loadCampaign(campaignId);
     } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р С”Р В°Р СР С—Р В°Р Р…Р С‘РЎР‹.");
+      setBootError(error instanceof Error ? error.message : "Не удалось открыть кампанию.");
     }
   };
 
@@ -3243,7 +3250,7 @@ export default function App() {
           setActivePlayback({
             scope: "combat",
             ownerId: activeCampaignId,
-            ownerTitle: `${updated.title} РІР‚Сћ Р вЂР С•Р ВµР Р†Р С•Р в„– Р С—Р В»Р ВµР в„–Р В»Р С‘РЎРѓРЎвЂљ`,
+            ownerTitle: `${updated.title} • Боевой плейлист`,
             tracks: sanitized,
             currentIndex: nextIndex >= 0 ? nextIndex : 0,
             token: activePlayback.token
@@ -3265,7 +3272,7 @@ export default function App() {
     hydrateCampaign(result.campaign, result.entity.id);
     setActiveModule(moduleByKind[result.entity.kind]);
     setActiveRailAlias((current) => preserveRailAliasForModule(current, moduleByKind[result.entity.kind]));
-    setActiveTab(result.entity.kind === "monster" ? "Imported" : "All");
+    setActiveTab(result.entity.kind === "monster" ? "Импорт" : "Все");
     contentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -3284,7 +3291,7 @@ export default function App() {
           id: issuer.id,
           kind: "npc",
           label: issuer.title,
-          reason: "Р В­РЎвЂљР С•РЎвЂљ Р СњР СџР РЋ Р Р†РЎвЂ№Р Т‘Р В°РЎвЂРЎвЂљ, РЎРѓР С•Р С—РЎР‚Р С•Р Р†Р С•Р В¶Р Т‘Р В°Р ВµРЎвЂљ Р С‘Р В»Р С‘ Р С—РЎР‚Р С•Р Т‘Р Р†Р С‘Р С–Р В°Р ВµРЎвЂљ Р С”Р Р†Р ВµРЎРѓРЎвЂљ."
+          reason: "Этот НПС выдаёт, сопровождает или продвигает квест."
         });
       }
     }
@@ -3296,7 +3303,7 @@ export default function App() {
           id: linkedLocation.id,
           kind: "location",
           label: linkedLocation.title,
-          reason: "Р С™Р Р†Р ВµРЎРѓРЎвЂљ Р Р…Р В°Р С—РЎР‚РЎРЏР СРЎС“РЎР‹ Р С—РЎР‚Р С‘Р Р†РЎРЏР В·Р В°Р Р… Р С” РЎРЊРЎвЂљР С•Р в„– Р В»Р С•Р С”Р В°РЎвЂ Р С‘Р С‘."
+          reason: "Квест напрямую привязан к этой локации."
         });
       }
     }
@@ -3335,7 +3342,7 @@ export default function App() {
         id: result.entity.id,
         kind: "quest",
         label: result.entity.title,
-        reason: "Р РЋР Р†РЎРЏР В·Р В°Р Р…Р Р…РЎвЂ№Р в„– Р С”Р Р†Р ВµРЎРѓРЎвЂљ, РЎРѓР С•Р В·Р Т‘Р В°Р Р…Р Р…РЎвЂ№Р в„– Р С—РЎР‚РЎРЏР СР С• Р С‘Р В· Р С—РЎР‚Р С•РЎвЂћР С‘Р В»РЎРЏ РЎРЊРЎвЂљР С•Р С–Р С• Р СњР СџР РЋ."
+        reason: "Связанный квест, созданный прямо из профиля этого НПС."
       }
     ];
 
@@ -3358,7 +3365,7 @@ export default function App() {
     linkedIssuerDraft?: CreateEntityInput | null;
   }): Promise<CreateEntityResult> => {
     if (!activeCampaignId) {
-      throw new Error("Р С™Р В°Р СР С—Р В°Р Р…Р С‘РЎРЏ Р Р…Р Вµ Р Р†РЎвЂ№Р В±РЎР‚Р В°Р Р…Р В°.");
+      throw new Error("Кампания не выбрана.");
     }
 
     let autoCreatedIssuerId = "";
@@ -3390,7 +3397,7 @@ export default function App() {
                       id: issuerResult.entity.id,
                       kind: "npc" as const,
                       label: issuerResult.entity.title,
-                      reason: "Р В­РЎвЂљР С•РЎвЂљ Р СњР СџР РЋ Р В±РЎвЂ№Р В» Р В°Р Р†РЎвЂљР С•Р СР В°РЎвЂљР С‘РЎвЂЎР ВµРЎРѓР С”Р С‘ РЎРѓР С•Р В·Р Т‘Р В°Р Р… Р С”Р В°Р С” Р С”Р Р†Р ВµРЎРѓРЎвЂљР С•Р Т‘Р В°РЎвЂљР ВµР В»РЎРЉ Р Т‘Р В»РЎРЏ Р Т‘Р В°Р Р…Р Р…Р С•Р С–Р С• Р С”Р Р†Р ВµРЎРѓРЎвЂљР В°."
+                      reason: "Этот НПС был автоматически создан как квестодатель для данного квеста."
                     }
                   ]
             ]
@@ -3524,7 +3531,7 @@ export default function App() {
     startTransition(() => {
       setActiveModule("quests");
       setActiveRailAlias(null);
-      setActiveTab("All");
+      setActiveTab("Все");
       setActiveEntityId("");
     });
     setSelectedWorldEventId("");
@@ -3544,7 +3551,7 @@ export default function App() {
     startTransition(() => {
       setActiveModule("quests");
       setActiveRailAlias(null);
-      setActiveTab("All");
+      setActiveTab("Все");
       setActiveEntityId(quest.id);
     });
     setSelectedWorldEventId("");
@@ -3643,12 +3650,12 @@ export default function App() {
     closeRandomEventModal,
     generateRandomEvent,
     openRandomEventModal,
+    randomEventDestinationId,
     randomEventGenerating,
-    randomEventLocationId,
     randomEventModalOpen,
     randomEventNotes,
     randomEventPrompt,
-    setRandomEventLocationId,
+    setRandomEventDestinationId,
     setRandomEventPrompt
   } = randomEventController;
   const entityActionsController = useEntityActionsController({
@@ -3710,7 +3717,7 @@ export default function App() {
     );
 
     if (!uniqueEntities.length) {
-      setCombatPortraitNotice("Р РЋР Р…Р В°РЎвЂЎР В°Р В»Р В° РЎРѓР С•Р В±Р ВµРЎР‚Р С‘ Р В±Р С•Р в„– Р С‘Р В»Р С‘ Р В·Р В°Р С—РЎС“РЎРѓРЎвЂљР С‘ РЎРѓРЎвЂ Р ВµР Р…РЎС“, РЎвЂЎРЎвЂљР С•Р В±РЎвЂ№ Р В±РЎвЂ№Р В»Р С• Р С”Р С•Р СРЎС“ Р С—Р С•Р Т‘РЎвЂљРЎРЏР С–Р С‘Р Р†Р В°РЎвЂљРЎРЉ Р С—Р С•РЎР‚РЎвЂљРЎР‚Р ВµРЎвЂљРЎвЂ№.");
+      setCombatPortraitNotice("Сначала собери бой или запусти сцену, чтобы было кому подтягивать портреты.");
       return;
     }
 
@@ -3764,7 +3771,7 @@ export default function App() {
       if (selectedCombatSearchItem.source === "bestiary") {
         const imported = await api.importBestiaryMonster(activeCampaignId, selectedCombatSearchItem.id);
         if (!imported.entity?.id) {
-          throw new Error("Backend Р Р…Р Вµ Р Р†Р ВµРЎР‚Р Р…РЎС“Р В» Р С‘Р СР С—Р С•РЎР‚РЎвЂљР С‘РЎР‚Р С•Р Р†Р В°Р Р…Р Р…Р С•Р С–Р С• Р СР С•Р Р…РЎРѓРЎвЂљРЎР‚Р В° Р Т‘Р В»РЎРЏ Р Т‘Р С•Р В±Р В°Р Р†Р В»Р ВµР Р…Р С‘РЎРЏ Р Р† Р В±Р С•Р в„–.");
+          throw new Error("Backend не вернул импортированного монстра для добавления в бой.");
         }
         entityId = imported.entity.id;
         setPreviewEntityId(imported.entity.id);
@@ -3925,7 +3932,7 @@ export default function App() {
       return;
     }
 
-    if (!window.confirm("Р СџР С•Р С”Р В°Р В·Р В°РЎвЂљРЎРЉ Р С‘Р С–РЎР‚Р С•Р С”Р В°Р С РЎРЊР С”РЎР‚Р В°Р Р… Р С—Р С•Р В±Р ВµР Т‘РЎвЂ№ Р С‘ Р С—Р С•Р СР ВµРЎвЂљР С‘РЎвЂљРЎРЉ Р Р†РЎР‚Р В°Р С–Р С•Р Р† Р С—Р С•Р В±Р ВµР В¶Р Т‘РЎвЂР Р…Р Р…РЎвЂ№Р СР С‘?")) {
+    if (!window.confirm("Показать игрокам экран победы и пометить врагов побеждёнными?")) {
       return;
     }
 
@@ -3937,7 +3944,7 @@ export default function App() {
       setBootError("");
       hydrateCampaign(result.campaign);
     } catch (error) {
-      handleProtectedActionError(error, "Р СњР Вµ РЎС“Р Т‘Р В°Р В»Р С•РЎРѓРЎРЉ Р С•РЎвЂљР СР ВµРЎвЂљР С‘РЎвЂљРЎРЉ Р С—Р С•Р В±Р ВµР Т‘РЎС“ Р С‘Р С–РЎР‚Р С•Р С”Р С•Р Р†.");
+      handleProtectedActionError(error, "Не удалось отметить победу игроков.");
     } finally {
       setCombatStateBusy(false);
     }
@@ -3948,7 +3955,7 @@ export default function App() {
       return;
     }
 
-    if (!window.confirm("Р вЂ”Р В°Р Р†Р ВµРЎР‚РЎв‚¬Р С‘РЎвЂљРЎРЉ Р В±Р С•Р в„–, Р С•РЎвЂЎР С‘РЎРѓРЎвЂљР С‘РЎвЂљРЎРЉ Р В°Р С”РЎвЂљР С‘Р Р†Р Р…РЎС“РЎР‹ РЎРѓРЎвЂ Р ВµР Р…РЎС“ Р С‘ Р С—Р С•РЎРѓРЎвЂЎР С‘РЎвЂљР В°РЎвЂљРЎРЉ Р С•Р С—РЎвЂ№РЎвЂљ Р В·Р В° Р Р†РЎРѓР ВµРЎвЂ¦ Р Р†РЎР‚Р В°Р С–Р С•Р Р†, Р С”Р С•РЎвЂљР С•РЎР‚РЎвЂ№Р Вµ РЎС“Р В¶Р Вµ Р Р†РЎвЂ№Р Р†Р ВµР Т‘Р ВµР Р…РЎвЂ№ Р С‘Р В»Р С‘ Р С‘Р СР ВµРЎР‹РЎвЂљ 0 HP?")) {
+    if (!window.confirm("Завершить бой, очистить активную сцену и посчитать опыт за всех врагов, которые уже выведены или имеют 0 HP?")) {
       return;
     }
 
@@ -3994,7 +4001,7 @@ export default function App() {
     { key: "quests", label: "Квесты", icon: "quest", onClick: () => switchModule("quests") },
     { key: "locations", label: "Локации", icon: "location", onClick: () => switchModule("locations") },
     { key: "players", label: "Игроки", icon: "player", onClick: () => switchModule("players") },
-    { key: "npcs", label: "NPC", icon: "npc", onClick: () => switchModule("npcs") },
+    { key: "npcs", label: "НПС", icon: "npc", onClick: () => switchModule("npcs") },
     { key: "monsters", label: "Монстры", icon: "monster", onClick: () => switchModule("monsters") },
     { key: "rules", label: "Правила", icon: "rule", onClick: () => openRulesCompendium() },
     { key: "items", label: railAliasTitle.items ?? "Items", icon: "item", onClick: () => openRailAlias("items") },
@@ -4150,8 +4157,8 @@ export default function App() {
       <div className="boot">
         <div className="panel boot-card">
           <p className="eyebrow">Shadow Edge Ward</p>
-          <h1>Р СџРЎР‚Р С•Р Р†Р ВµРЎР‚РЎРЏРЎР‹ Р С”Р В»РЎР‹РЎвЂЎ Р С•РЎвЂљ Р СР В°РЎРѓРЎвЂљР ВµРЎР‚РЎРѓР С”Р С•Р в„–</h1>
-          <p>Р СџР С•Р Т‘Р Р…Р С‘Р СР В°РЎР‹ РЎРѓР ВµРЎРѓРЎРѓР С‘РЎР‹ Р С‘ РЎС“Р В±Р ВµР В¶Р Т‘Р В°РЎР‹РЎРѓРЎРЉ, РЎвЂЎРЎвЂљР С• Р С”Р В°Р В±Р С‘Р Р…Р ВµРЎвЂљ Р СР С•Р В¶Р Р…Р С• Р С•РЎвЂљР С”РЎР‚РЎвЂ№РЎвЂљРЎРЉ Р В±Р ВµР В·Р С•Р С—Р В°РЎРѓР Р…Р С•.</p>
+          <h1>Проверяю ключ от мастерской</h1>
+          <p>Поднимаю сессию и убеждаюсь, что кабинет можно открыть безопасно.</p>
         </div>
       </div>
     );
@@ -4178,8 +4185,8 @@ export default function App() {
       <div className="boot">
         <div className="panel boot-card">
           <p className="eyebrow">Phase 1 Foundation</p>
-          <h1>Р РЋР С•Р В±Р С‘РЎР‚Р В°Р ВµР С Р С”Р В°Р В±Р С‘Р Р…Р ВµРЎвЂљ Р СР В°РЎРѓРЎвЂљР ВµРЎР‚Р В°</h1>
-          <p>Р вЂ”Р В°Р С–РЎР‚РЎС“Р В¶Р В°РЎР‹ Р С”Р В°Р СР С—Р В°Р Р…Р С‘РЎР‹, РЎРѓР Р†РЎРЏР В·Р С‘ Р С‘ РЎР‚Р В°Р В±Р С•РЎвЂЎР С‘Р в„– shell Р Т‘Р В»РЎРЏ Р СР В°РЎРѓРЎвЂљР ВµРЎР‚Р В°.</p>
+          <h1>Собираем кабинет мастера</h1>
+          <p>Загружаю кампанию, связи и рабочий shell для мастера.</p>
         </div>
       </div>
     );
@@ -4191,13 +4198,13 @@ export default function App() {
         <div className="boot">
           <div className="panel boot-card stack">
             <p className="eyebrow">Backend Connection</p>
-            <h1>Р РЋР ВµРЎР‚Р Р†Р ВµРЎР‚ Р Р…Р Вµ Р С•РЎвЂљР Т‘Р В°Р В» Р В°Р С”РЎвЂљР С‘Р Р†Р Р…РЎС“РЎР‹ Р С”Р В°Р СР С—Р В°Р Р…Р С‘РЎР‹</h1>
+            <h1>Сервер не отдал активную кампанию</h1>
             <p className="copy">
-              Р Р€Р В±Р ВµР Т‘Р С‘РЎРѓРЎРЉ, РЎвЂЎРЎвЂљР С• backend Р В·Р В°Р С—РЎС“РЎвЂ°Р ВµР Р… Р С‘ Р Т‘Р С•РЎРѓРЎвЂљРЎС“Р С—Р ВµР Р… Р Р…Р В° РЎвЂљР ВµР С”РЎС“РЎвЂ°Р ВµР С Р Т‘Р С•Р СР ВµР Р…Р Вµ. Р вЂќР В»РЎРЏ Р В»Р С•Р С”Р В°Р В»РЎРЉР Р…Р С•Р в„– РЎР‚Р В°Р В·РЎР‚Р В°Р В±Р С•РЎвЂљР С”Р С‘ РЎРЊРЎвЂљР С• Р С•Р В±РЎвЂ№РЎвЂЎР Р…Р С• `http://localhost:8080`. Р СћР ВµР С”РЎС“РЎвЂ°Р В°РЎРЏ Р С•РЎв‚¬Р С‘Р В±Р С”Р В°: {bootError || "Р С”Р В°Р СР С—Р В°Р Р…Р С‘Р С‘ Р Р…Р Вµ Р Р…Р В°Р в„–Р Т‘Р ВµР Р…РЎвЂ№"}.
+              Убедись, что backend запущен и доступен на текущем домене. Для локальной разработки это обычно `http://localhost:8080`. Текущая ошибка: {bootError || "кампании не найдены"}.
             </p>
             <div className="actions">
               <button className="primary" onClick={openCampaignModal} type="button">
-                Р РЋР С•Р В·Р Т‘Р В°РЎвЂљРЎРЉ Р С”Р В°Р СР С—Р В°Р Р…Р С‘РЎР‹
+                Создать кампанию
               </button>
             </div>
           </div>
@@ -4397,7 +4404,7 @@ export default function App() {
                             <strong>{event.title}</strong>
                             <span className={badge(worldEventTypeTones[event.type])}>{worldEventTypeLabels[event.type]}</span>
                           </div>
-                          <small>{event.locationLabel ? `${event.locationLabel} РІР‚Сћ ` : ""}{event.date}</small>
+                          <small>{event.locationLabel ? `${event.locationLabel} • ` : ""}{event.date}</small>
                           <p>{event.summary}</p>
                         </button>
                       ))}
@@ -4407,7 +4414,7 @@ export default function App() {
                   <article className="card section-card">
                     <div className="row muted">
                       <span>Hot Entities</span>
-                      <span>Р вЂРЎвЂ№РЎРѓРЎвЂљРЎР‚РЎвЂ№Р в„– Р С—Р ВµРЎР‚Р ВµРЎвЂ¦Р С•Р Т‘</span>
+                      <span>Быстрый переход</span>
                     </div>
                     <div className="stack">
                       {[...campaign.locations, ...campaign.npcs, ...campaign.monsters, ...campaign.quests, ...campaign.lore]
@@ -4511,7 +4518,7 @@ export default function App() {
                     onContentContextMenu={(entity, event) => entityLinkController.handleActiveEntityContentContextMenu(entity, "content", event)}
                     onCopyImageLink={handleCopyImageLink}
                     onEditEntity={openEntityEditor}
-                    onOpenDirectory={() => openModuleDirectory("monsters", "Imported")}
+                    onOpenDirectory={() => openModuleDirectory("monsters", "Импорт")}
                     onOpenEntity={openEntity}
                     onOpenEntityActionMenu={openEntityActionMenu}
                     onOpenGallery={openEntityGalleryModal}
@@ -4781,7 +4788,7 @@ export default function App() {
             <div className="row">
               <div>
                 <p className="eyebrow">Combat Playlist</p>
-                <strong>Р С›Р Т‘Р С‘Р Р… Р С•Р В±РЎвЂ°Р С‘Р в„– Р С—Р В»Р ВµР в„–Р В»Р С‘РЎРѓРЎвЂљ Р Т‘Р В»РЎРЏ Р Р†РЎРѓР ВµРЎвЂ¦ Р В±Р С•РЎвЂР Р† РЎРЊРЎвЂљР С•Р в„– Р С”Р В°Р СР С—Р В°Р Р…Р С‘Р С‘</strong>
+                <strong>Один общий плейлист для всех боёв этой кампании</strong>
               </div>
               <button className="ghost" onClick={requestCombatPlaylistModalClose} type="button">
                 Esc
@@ -4789,17 +4796,17 @@ export default function App() {
             </div>
 
             <PlaylistEditorSection
-              hint="Р С›Р В±РЎвЂ№РЎвЂЎР Р…Р С• РЎРѓРЎР‹Р Т‘Р В° РЎС“Р Т‘Р С•Р В±Р Р…Р С• РЎРѓР С”Р В»Р В°Р Т‘РЎвЂ№Р Р†Р В°РЎвЂљРЎРЉ Р В°РЎвЂљР СР С•РЎРѓРЎвЂћР ВµРЎР‚Р Р…РЎвЂ№Р Вµ Р В±Р С•Р ВµР Р†РЎвЂ№Р Вµ YouTube-РЎвЂљРЎР‚Р ВµР С”Р С‘. Р вЂєРЎР‹Р В±Р С•Р в„– Р Р…Р С•Р Р†РЎвЂ№Р в„– Р С‘Р В»Р С‘ РЎРѓРЎвЂљР В°РЎР‚РЎвЂ№Р в„– Р В±Р С•Р в„– Р В±РЎС“Р Т‘Р ВµРЎвЂљ Р С—Р С•Р В»РЎРЉР В·Р С•Р Р†Р В°РЎвЂљРЎРЉРЎРѓРЎРЏ РЎРЊРЎвЂљР С‘Р С РЎРѓР С—Р С‘РЎРѓР С”Р С•Р С."
+              hint="Обычно сюда удобно складывать атмосферные боевые YouTube-треки. Любой новый или старый бой будет пользоваться этим списком."
               onAdd={addCombatPlaylistTrack}
               onChange={updateCombatPlaylistTrack}
               onRemove={removeCombatPlaylistTrack}
-              title="Р вЂР С•Р ВµР Р†Р С•Р в„– Р С—Р В»Р ВµР в„–Р В»Р С‘РЎРѓРЎвЂљ"
+              title="Боевой плейлист"
               tracks={combatPlaylistDraft}
             />
 
             <div className="actions">
               <button className="ghost" onClick={requestCombatPlaylistModalClose} type="button">
-                Р С›РЎвЂљР СР ВµР Р…Р В°
+                Отмена
               </button>
               <button className="primary" disabled={saving} onClick={() => void saveCombatPlaylist()} type="button">
                 {saving ? "Сохраняю..." : "Сохранить плейлист"}
@@ -4825,7 +4832,7 @@ export default function App() {
                   }}
                   type="button"
                 >
-                  Р СњР С•Р Р†РЎвЂ№Р в„– Р СР С•Р Р…РЎРѓРЎвЂљРЎР‚
+                  Новый монстр
                 </button>
                 <button className="ghost" onClick={requestCombatSetupModalClose} type="button">
                   Esc
@@ -4835,7 +4842,7 @@ export default function App() {
 
             {bootError ? (
               <div className="card mini form-error" role="status">
-                <strong>Р СџРЎР‚Р С•Р В±Р В»Р ВµР СР В° Р С—РЎР‚Р С‘ Р Р†РЎвЂ№Р С—Р С•Р В»Р Р…Р ВµР Р…Р С‘Р С‘ Р Т‘Р ВµР в„–РЎРѓРЎвЂљР Р†Р С‘РЎРЏ</strong>
+                <strong>Проблема при выполнении действия</strong>
                 <p>{bootError}</p>
               </div>
             ) : null}
@@ -4974,7 +4981,7 @@ export default function App() {
                     </div>
                   <strong>{selectedCombatSearchProfile.title}</strong>
                   <small>
-                    Р С™Р вЂ {selectedCombatSearchProfile.statBlock.armorClass} РІР‚Сћ Р ТђР Сџ {selectedCombatSearchProfile.statBlock.hitPoints}
+                    КБ {selectedCombatSearchProfile.statBlock.armorClass} • ХП {selectedCombatSearchProfile.statBlock.hitPoints}
                   </small>
                   <small>{selectedCombatSearchProfile.summary}</small>
                 </div>
@@ -4997,7 +5004,7 @@ export default function App() {
             <section className="card section-card combat-tool-card">
               <div className="row muted">
                 <span>Автогенерация encounter</span>
-                <span>Р С™Р В°Р СР С—Р В°Р Р…Р С‘РЎРЏ, Р СР С‘РЎР‚ Р С‘ Р С—Р В°РЎР‚Р В°Р СР ВµРЎвЂљРЎР‚РЎвЂ№ Р С—Р В°РЎР‚РЎвЂљР С‘Р С‘ РЎС“РЎвЂ¦Р С•Р Т‘РЎРЏРЎвЂљ Р Р† Р С–Р ВµР Р…Р ВµРЎР‚Р В°РЎвЂ Р С‘РЎР‹ Р С”Р В°Р С” Р С”Р С•Р Р…РЎвЂљР ВµР С”РЎРѓРЎвЂљ</span>
+                <span>Кампания, мир и параметры партии уходят в генерацию как контекст</span>
               </div>
 
               <div className="form-grid">
@@ -5006,7 +5013,7 @@ export default function App() {
                   <textarea
                     className="input textarea"
                     onChange={(event) => setCombatPrompt(event.target.value)}
-                    placeholder="Р СњР В°Р С—РЎР‚Р С‘Р СР ВµРЎР‚: Р В±Р В°Р Р…Р Т‘Р С‘РЎвЂљРЎРѓР С”Р В°РЎРЏ Р В·Р В°РЎРѓР В°Р Т‘Р В° РЎС“ РЎвЂљРЎР‚Р В°Р С”РЎвЂљР В°, 5 Р Р†РЎР‚Р В°Р С–Р С•Р Р†, Р С•Р Т‘Р С‘Р Р… Р В»Р С‘Р Т‘Р ВµРЎР‚"
+                    placeholder="Например: бандитская засада у тракта, 5 врагов, один лидер"
                     value={combatPrompt}
                   />
                 </label>
@@ -5098,7 +5105,7 @@ export default function App() {
 
               {generating ? (
                 <DndGenerationProgress
-                  detail="Р РЋР С•Р В±Р С‘РЎР‚Р В°РЎР‹ Р С”Р С•Р Р…РЎвЂљР ВµР С”РЎРѓРЎвЂљ Р С”Р В°Р СР С—Р В°Р Р…Р С‘Р С‘ Р С‘ Р С•РЎвЂљР С—РЎР‚Р В°Р Р†Р В»РЎРЏРЎР‹ Р В·Р В°Р С—РЎР‚Р С•РЎРѓ Р Р…Р В° РЎРѓР В±Р С•РЎР‚Р С”РЎС“ encounter. Р В­РЎвЂљР С• Р В¶Р С‘Р Р†Р С•Р в„– Р С‘Р Р…Р Т‘Р С‘Р С”Р В°РЎвЂљР С•РЎР‚ Р С—РЎР‚Р С•РЎвЂ Р ВµРЎРѓРЎРѓР В°, Р Р…Р Вµ РЎвЂљР С•РЎвЂЎР Р…РЎвЂ№Р в„– Р С—РЎР‚Р С•РЎвЂ Р ВµР Р…РЎвЂљ."
+                  detail="Собираю контекст кампании и отправляю запрос на сборку encounter. Это живой индикатор процесса, не точный процент."
                   steps={combatGenerationSteps}
                   title="Оракул собирает бой"
                 />
@@ -5124,7 +5131,7 @@ export default function App() {
         generating={randomEventGenerating}
         generationSteps={randomEventGenerationSteps}
         notes={randomEventNotes}
-        onChangeLocationId={setRandomEventLocationId}
+        onChangeDestinationId={setRandomEventDestinationId}
         onChangePrompt={setRandomEventPrompt}
         onClose={requestRandomEventModalClose}
         onGenerate={() => {
@@ -5132,7 +5139,7 @@ export default function App() {
         }}
         open={randomEventModalOpen}
         prompt={randomEventPrompt}
-        selectedLocationId={randomEventLocationId}
+        selectedDestinationId={randomEventDestinationId}
       />
 
       <PlayerFacingController controller={playerFacing} onClose={requestPlayerFacingViewClose} />

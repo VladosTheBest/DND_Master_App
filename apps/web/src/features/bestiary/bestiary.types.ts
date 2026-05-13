@@ -6,7 +6,7 @@ import type {
   MonsterEntity
 } from "@shadow-edge/shared-types";
 
-export type BestiaryBrowseTab = "Catalog" | "Named NPC" | "Classic";
+export type BestiaryBrowseTab = "Каталог" | "Именные НПС" | "Классика" | "Catalog" | "Named NPC" | "Classic";
 export type BestiaryViewMode = "browse" | "imported";
 
 export type ImportedMonsterFilters = {

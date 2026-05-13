@@ -54,14 +54,14 @@ export function AppHeader(props: AppHeaderProps) {
             Вернуться в приложение
           </button>
           <div className="topbar-campaign">
-            <p className="eyebrow">Campaign</p>
+            <p className="eyebrow">Кампания</p>
             <strong>{props.campaignTitle}</strong>
             <small>{props.inWorldDate}</small>
           </div>
         </div>
 
         <div className="combat-screen-title">
-          <p className="eyebrow">Combat Screen</p>
+          <p className="eyebrow">Сцена боя</p>
           <strong>{props.combatTitle}</strong>
           <small>{props.hasActiveCombat ? `${props.activeCombatCount} участников в сцене` : "Подготовка новой сцены боя"}</small>
         </div>
@@ -103,7 +103,7 @@ export function AppHeader(props: AppHeaderProps) {
   return (
     <header className="panel topbar">
       <div className="topbar-campaign">
-        <p className="eyebrow">Campaign</p>
+        <p className="eyebrow">Кампания</p>
         <strong>{props.campaignTitle}</strong>
         <small>{props.inWorldDate}</small>
       </div>

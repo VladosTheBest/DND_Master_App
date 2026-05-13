@@ -1,16 +1,24 @@
 :root {
-  --text: #edf2ff;
-  --text-soft: #aeb9d1;
-  --text-muted: #8894ad;
-  --accent: #9fbcff;
+  --text: #f3f6fb;
+  --text-soft: #b8c2d3;
+  --text-muted: #8490a5;
+  --accent: #8fb7ff;
+  --accent-strong: #d7a84f;
+  --accent-cool: #6fd0c1;
   --success: #8ad3b1;
   --warning: #e6c07d;
   --danger: #f0937d;
-  --bg-panel: linear-gradient(180deg, rgba(16, 21, 31, .94), rgba(10, 14, 22, .92));
-  --line: rgba(164, 179, 209, .14);
-  --line-strong: rgba(164, 179, 209, .24);
-  --radius-xl: 24px;
-  --radius-lg: 18px;
-  --radius-md: 12px;
-  --shadow-md: 0 20px 44px rgba(0, 0, 0, .28);
+  --surface-strong: rgba(17, 22, 32, .96);
+  --surface: rgba(13, 18, 27, .9);
+  --surface-soft: rgba(255, 255, 255, .045);
+  --bg-panel: linear-gradient(180deg, rgba(18, 24, 35, .96), rgba(9, 13, 22, .94));
+  --line: rgba(176, 190, 214, .16);
+  --line-strong: rgba(205, 216, 236, .28);
+  --focus: rgba(143, 183, 255, .56);
+  --radius-xl: 18px;
+  --radius-lg: 12px;
+  --radius-md: 8px;
+  --shadow-sm: 0 10px 24px rgba(0, 0, 0, .18);
+  --shadow-md: 0 18px 42px rgba(0, 0, 0, .3);
+  --shadow-lg: 0 30px 70px rgba(0, 0, 0, .4);
 }

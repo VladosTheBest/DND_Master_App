@@ -1,12 +1,12 @@
 {
-  "updatedAt": "2026-05-06T17:48:14Z",
+  "updatedAt": "2026-05-13T01:36:36Z",
   "sync": {
     "state": "ready",
     "total": 2874,
     "hydrated": 2874,
     "lastStartedAt": "2026-04-24T11:51:03Z",
     "lastFinishedAt": "2026-04-24T11:51:03Z",
-    "updatedAt": "2026-05-06T17:48:14Z"
+    "updatedAt": "2026-05-13T01:36:36Z"
   },
   "entries": [
     {
@@ -258,8 +258,8 @@
       "slug": "avi",
       "title": "Ави",
       "englishTitle": "Avi",
-      "subtitle": "Avi • 2",
-      "summary": "Официальный монстр dnd.su. Детальная карточка подтянется в кэш при синхронизации или при первом открытии.",
+      "subtitle": "Avi • Waterdeep: Dragon Heist",
+      "summary": "«Ави (Avi)» - средний гуманоид D\u0026D 5-й редакции с показателем опасности 2.",
       "challenge": "2",
       "challengeSort": 2,
       "creatureType": "? гуманоид (водяной дженази)",
@@ -271,7 +271,7 @@
       "searchText": "Ави,Avi, Ави Avi 2",
       "namedNpc": true,
       "imageUrl": "https://dnd.su/img/thumbnail.jpg",
-      "lastSyncedAt": "2026-04-22T12:52:17Z"
+      "lastSyncedAt": "2026-05-13T01:36:36Z"
     },
     {
       "id": "8707",

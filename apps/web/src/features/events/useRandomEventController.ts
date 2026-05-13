@@ -82,6 +82,19 @@ const buildLoreScenePayload = (card: PlayerFacingCard, selectedLocationLabel: st
   visibility: "player_safe"
 });
 
+const randomEventTargetModule = (entity: KnowledgeEntity): ModuleId =>
+  entity.kind === "location" ? "locations" : entity.kind === "quest" ? "quests" : "lore";
+
+const randomEventTargetTab = (entity: KnowledgeEntity) => {
+  if (entity.kind === "quest") {
+    if (entity.status === "active") return "Активные";
+    if (entity.status === "paused") return "Пауза";
+    if (entity.status === "completed") return "Завершены";
+  }
+
+  return "Все";
+};
+
 export function useRandomEventController({
   activeCampaignId,
   activeEntity,
@@ -98,22 +111,23 @@ export function useRandomEventController({
   onHydrateCampaign
 }: UseRandomEventControllerArgs) {
   const [randomEventModalOpen, setRandomEventModalOpen] = useState(false);
-  const [randomEventLocationId, setRandomEventLocationId] = useState("");
+  const [randomEventDestinationId, setRandomEventDestinationId] = useState("");
   const [randomEventPrompt, setRandomEventPrompt] = useState("");
   const [randomEventNotes, setRandomEventNotes] = useState<string[]>([]);
   const [randomEventGenerating, setRandomEventGenerating] = useState(false);
 
-  const openRandomEventModal = (suggestions?: { locationId?: string }) => {
-    const suggestedLocationId =
+  const openRandomEventModal = (suggestions?: { locationId?: string; destinationId?: string }) => {
+    const suggestedDestinationId =
+      suggestions?.destinationId ??
       suggestions?.locationId ??
-      (activeEntity?.kind === "location"
+      (activeEntity?.kind === "location" || activeEntity?.kind === "quest"
         ? activeEntity.id
-        : activeEntity?.kind === "npc" || activeEntity?.kind === "monster" || activeEntity?.kind === "quest"
+        : activeEntity?.kind === "npc" || activeEntity?.kind === "monster"
           ? activeEntity.locationId ?? ""
           : "") ??
       "";
 
-    setRandomEventLocationId(suggestedLocationId);
+    setRandomEventDestinationId(suggestedDestinationId);
     setRandomEventPrompt("");
     setRandomEventNotes([]);
     setRandomEventModalOpen(true);
@@ -123,7 +137,7 @@ export function useRandomEventController({
     setRandomEventModalOpen(false);
     setRandomEventNotes([]);
     setRandomEventPrompt("");
-    setRandomEventLocationId("");
+    setRandomEventDestinationId("");
     setRandomEventGenerating(false);
   };
 
@@ -136,12 +150,20 @@ export function useRandomEventController({
       setRandomEventGenerating(true);
       setBootError("");
 
+      const selectedDestination =
+        campaign && randomEventDestinationId
+          ? [...campaign.quests, ...campaign.locations].find((entity) => entity.id === randomEventDestinationId) ?? null
+          : null;
       const selectedLocation =
-        campaign?.locations.find((location) => location.id === randomEventLocationId) ?? null;
+        selectedDestination?.kind === "location"
+          ? selectedDestination
+          : selectedDestination?.kind === "quest" && selectedDestination.locationId
+            ? campaign?.locations.find((location) => location.id === selectedDestination.locationId) ?? null
+            : null;
       const selectedLocationLabel = selectedLocation?.title ?? "";
       const prompt = buildRandomEventPrompt(selectedLocationLabel, randomEventPrompt);
       const draft = await api.generateWorldEvent(activeCampaignId, {
-        locationId: randomEventLocationId || undefined,
+        locationId: selectedLocation?.id || undefined,
         type: "social",
         prompt,
         current: {
@@ -149,7 +171,7 @@ export function useRandomEventController({
           date: "",
           summary: "",
           type: "social",
-          locationId: randomEventLocationId || "",
+          locationId: selectedLocation?.id || "",
           locationLabel: selectedLocationLabel,
           sceneText: "",
           dialogueBranches: [],
@@ -162,19 +184,19 @@ export function useRandomEventController({
       const sceneText = draft.event.sceneText || draft.event.summary || randomEventPrompt;
       const card = buildSceneCard(draft.event.title, sceneText, randomEventPrompt);
 
-      if (selectedLocation) {
-        const nextForm = entityToForm(selectedLocation);
+      if (selectedDestination?.kind === "location" || selectedDestination?.kind === "quest") {
+        const nextForm = entityToForm(selectedDestination);
         const nextCard =
-          sanitizeSinglePlayerFacingCard(selectedLocation.kind, card, nextForm.playerCards?.length ?? 0) ?? card;
+          sanitizeSinglePlayerFacingCard(selectedDestination.kind, card, nextForm.playerCards?.length ?? 0) ?? card;
         nextForm.playerCards = [...(nextForm.playerCards ?? []), nextCard];
         nextForm.playerContent = nextForm.playerCards[0]?.content ?? nextCard.content;
 
-        const result = await api.updateEntity(activeCampaignId, selectedLocation.id, serializeEntityForm(nextForm));
+        const result = await api.updateEntity(activeCampaignId, selectedDestination.id, serializeEntityForm(nextForm));
         setRandomEventNotes(draft.notes);
         onHydrateCampaign(result.campaign, result.entity.id);
-        setActiveModule("locations");
+        setActiveModule(randomEventTargetModule(selectedDestination));
         setActiveRailAlias(null);
-        setActiveTab("All");
+        setActiveTab(randomEventTargetTab(selectedDestination));
         setActiveEntityId(result.entity.id);
         setPreviewEntityId(result.entity.id);
         setSelectedWorldEventId("");
@@ -189,7 +211,7 @@ export function useRandomEventController({
       onHydrateCampaign(result.campaign, result.entity.id);
       setActiveModule("lore");
       setActiveRailAlias(null);
-      setActiveTab("All");
+      setActiveTab("Все");
       setActiveEntityId(result.entity.id);
       setPreviewEntityId(result.entity.id);
       setSelectedWorldEventId("");
@@ -206,11 +228,11 @@ export function useRandomEventController({
     generateRandomEvent,
     openRandomEventModal,
     randomEventGenerating,
-    randomEventLocationId,
+    randomEventDestinationId,
     randomEventModalOpen,
     randomEventNotes,
     randomEventPrompt,
-    setRandomEventLocationId,
+    setRandomEventDestinationId,
     setRandomEventPrompt
   };
 }

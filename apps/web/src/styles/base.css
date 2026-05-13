@@ -1,27 +1,58 @@
 * { box-sizing: border-box; }
 
 html, body, #root { min-height: 100%; }
+html { color-scheme: dark; }
 body {
   margin: 0;
   overflow: hidden;
   background:
-    radial-gradient(circle at top left, rgba(124, 166, 255, 0.16), transparent 30%),
-    radial-gradient(circle at top right, rgba(126, 214, 161, 0.1), transparent 24%),
-    linear-gradient(180deg, #090c12 0%, #07090f 100%);
+    linear-gradient(135deg, rgba(36, 43, 58, .22) 0%, transparent 34%),
+    linear-gradient(215deg, rgba(65, 50, 34, .18) 0%, transparent 32%),
+    linear-gradient(180deg, #080b11 0%, #0b1018 46%, #07090e 100%);
   color: var(--text);
-  font-family: "Segoe UI Variable", "Trebuchet MS", sans-serif;
-  font-size: 13px;
-  line-height: 1.38;
+  font-family: Inter, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  text-rendering: optimizeLegibility;
 }
 button, input, select, textarea { font: inherit; }
-button { cursor: pointer; }
+button {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+button:disabled {
+  cursor: not-allowed;
+  opacity: .56;
+  transform: none !important;
+}
 h1, h2, h3 {
   margin: 0;
   font-family: "Palatino Linotype", "Book Antiqua", Georgia, serif;
   font-weight: 700;
-  letter-spacing: -.015em;
+  letter-spacing: 0;
 }
 p { margin: 0; }
 strong { font-family: inherit; font-weight: 600; }
 small { color: var(--text-soft); }
 body, button, input, select, textarea, span, small, strong, p, h1, h2, h3 { overflow-wrap: anywhere; }
+
+::selection {
+  background: rgba(143, 183, 255, .28);
+  color: var(--text);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}

@@ -16,7 +16,7 @@ export function CloseConfirmDialog({
   }
 
   return (
-    <div className="overlay" role="presentation">
+    <div className="overlay close-confirm-overlay" role="presentation">
       <div className="panel palette close-confirm-modal" aria-modal="true" onClick={(event) => event.stopPropagation()} role="alertdialog">
         <div className="stack wide">
           <div className="row">

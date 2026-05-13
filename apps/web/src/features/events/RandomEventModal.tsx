@@ -10,8 +10,8 @@ type RandomEventModalProps = {
   notes: string[];
   open: boolean;
   prompt: string;
-  selectedLocationId: string;
-  onChangeLocationId: (value: string) => void;
+  selectedDestinationId: string;
+  onChangeDestinationId: (value: string) => void;
   onChangePrompt: (value: string) => void;
   onClose: () => void;
   onGenerate: () => void;
@@ -77,8 +77,8 @@ export function RandomEventModal({
   notes,
   open,
   prompt,
-  selectedLocationId,
-  onChangeLocationId,
+  selectedDestinationId,
+  onChangeDestinationId,
   onChangePrompt,
   onClose,
   onGenerate
@@ -87,13 +87,19 @@ export function RandomEventModal({
     return null;
   }
 
-  const selectedLocation = campaign?.locations.find((location) => location.id === selectedLocationId) ?? null;
-  const existingCardCount = selectedLocation?.playerCards?.length ?? 0;
-  const destinationLabel = selectedLocation?.title ?? "Новая заметка в лоре";
+  const selectedDestination =
+    campaign && selectedDestinationId
+      ? [...campaign.quests, ...campaign.locations].find((entity) => entity.id === selectedDestinationId) ?? null
+      : null;
+  const selectedLocation = selectedDestination?.kind === "location" ? selectedDestination : null;
+  const selectedQuest = selectedDestination?.kind === "quest" ? selectedDestination : null;
+  const existingCardCount = selectedDestination?.playerCards?.length ?? 0;
+  const destinationLabel = selectedDestination?.title ?? "Новая заметка в лоре";
+  const destinationTypeLabel = selectedQuest ? "Квест" : selectedLocation ? "Локация" : "Лор";
   const promptLength = prompt.trim().length;
 
   return (
-    <div className="overlay random-event-overlay" role="presentation">
+    <div className="overlay random-event-overlay" onClick={onClose} role="presentation">
       <div className="panel random-event-modal" onClick={(event) => event.stopPropagation()} role="dialog">
         <div className="random-event-shell">
           <header className="random-event-hero">
@@ -126,13 +132,26 @@ export function RandomEventModal({
                   <span>Сохранить карточку</span>
                   <strong>{destinationLabel}</strong>
                 </span>
-                <select onChange={(event) => onChangeLocationId(event.target.value)} value={selectedLocationId}>
+                <select onChange={(event) => onChangeDestinationId(event.target.value)} value={selectedDestinationId}>
                   <option value="">Отдельной заметкой в лоре</option>
-                  {campaign?.locations.map((location) => (
-                    <option key={location.id} value={location.id}>
-                      {location.title}
-                    </option>
-                  ))}
+                  {campaign?.quests.length ? (
+                    <optgroup label="Квесты">
+                      {campaign.quests.map((quest) => (
+                        <option key={quest.id} value={quest.id}>
+                          {quest.title}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ) : null}
+                  {campaign?.locations.length ? (
+                    <optgroup label="Локации">
+                      {campaign.locations.map((location) => (
+                        <option key={location.id} value={location.id}>
+                          {location.title}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ) : null}
                 </select>
               </label>
 
@@ -178,19 +197,19 @@ export function RandomEventModal({
               <div className="random-event-stat-grid">
                 <div className="random-event-stat-card">
                   <RandomEventIcon name="book" />
-                  <strong>{selectedLocation ? "Локация" : "Лор"}</strong>
+                  <strong>{destinationTypeLabel}</strong>
                   <span>{destinationLabel}</span>
                 </div>
                 <div className="random-event-stat-card">
                   <RandomEventIcon name="card" />
-                  <strong>{selectedLocation ? existingCardCount + 1 : 1}</strong>
-                  <span>{selectedLocation ? "карточка по счёту" : "новая запись"}</span>
+                  <strong>{selectedDestination ? existingCardCount + 1 : 1}</strong>
+                  <span>{selectedDestination ? "карточка по счёту" : "новая запись"}</span>
                 </div>
               </div>
 
               <div className="random-event-result-preview">
                 <span className="random-event-preview-kicker">Сохранится как</span>
-                <strong>{selectedLocation ? `Карточка у "${selectedLocation.title}"` : "Lore-запись с карточкой"}</strong>
+                <strong>{selectedDestination ? `Карточка у "${selectedDestination.title}"` : "Lore-запись с карточкой"}</strong>
                 <p>
                   Название и текст зачитки придёт из AI. Скрытые заметки, статы и проверки в карточку не попадут.
                 </p>

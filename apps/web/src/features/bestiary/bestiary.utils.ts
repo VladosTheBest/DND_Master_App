@@ -5,13 +5,13 @@ import type {
 } from "@shadow-edge/shared-types";
 import { getEntityChallenge } from "../combat/combat.utils";
 
-export const isBestiaryBrowseTab = (moduleId: ModuleId, tab: string) => moduleId === "monsters" && tab !== "Imported";
+export const isBestiaryBrowseTab = (moduleId: ModuleId, tab: string) => moduleId === "monsters" && tab !== "Импорт" && tab !== "Imported";
 
 export const bestiaryBrowseTabLabel = (tab: string) => {
-  if (tab === "Catalog") {
+  if (tab === "Каталог" || tab === "Catalog") {
     return "Каталог dnd.su";
   }
-  if (tab === "Named NPC") {
+  if (tab === "Именные НПС" || tab === "Named NPC") {
     return "Именные NPC из бестиария";
   }
   return "Карточки с пометкой «Классика»";

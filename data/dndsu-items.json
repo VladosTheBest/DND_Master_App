@@ -1,12 +1,12 @@
 {
-  "updatedAt": "2026-05-06T17:48:02Z",
+  "updatedAt": "2026-05-13T01:38:02Z",
   "sync": {
     "state": "ready",
     "total": 1131,
     "hydrated": 913,
     "lastStartedAt": "2026-04-28T10:27:56Z",
     "lastFinishedAt": "2026-04-28T10:27:56Z",
-    "updatedAt": "2026-05-06T17:48:02Z"
+    "updatedAt": "2026-05-13T01:38:02Z"
   },
   "entries": [
     {
@@ -26,7 +26,7 @@
       "sellPriceGp": 10,
       "sellPriceLabel": "10 зм",
       "url": "https://next.dnd.su/equipment/11-halberd",
-      "lastSyncedAt": "2026-05-06T17:47:43Z"
+      "lastSyncedAt": "2026-05-13T01:36:45Z"
     },
     {
       "id": "dndsu-equipment-202",
@@ -145,7 +145,7 @@
       "sellPriceGp": 7.5,
       "sellPriceLabel": "7 зм 5 см",
       "url": "https://next.dnd.su/equipment/12-warhammer",
-      "lastSyncedAt": "2026-05-06T17:47:44Z"
+      "lastSyncedAt": "2026-05-13T01:36:47Z"
     },
     {
       "id": "dndsu-equipment-1",
@@ -164,7 +164,7 @@
       "sellPriceGp": 0.1,
       "sellPriceLabel": "1 см",
       "url": "https://next.dnd.su/equipment/1-quarterstaff",
-      "lastSyncedAt": "2026-05-06T17:47:44Z"
+      "lastSyncedAt": "2026-05-13T01:36:47Z"
     },
     {
       "id": "dndsu-equipment-13",
@@ -183,7 +183,7 @@
       "sellPriceGp": 5,
       "sellPriceLabel": "5 зм",
       "url": "https://next.dnd.su/equipment/13-battleaxe",
-      "lastSyncedAt": "2026-05-06T17:47:44Z"
+      "lastSyncedAt": "2026-05-13T01:36:48Z"
     },
     {
       "id": "dndsu-equipment-203",
@@ -218,7 +218,7 @@
       "sellPriceGp": 0.5,
       "sellPriceLabel": "5 см",
       "url": "https://next.dnd.su/equipment/39-crossbow-bolts",
-      "lastSyncedAt": "2026-05-06T17:47:44Z"
+      "lastSyncedAt": "2026-05-13T01:36:48Z"
     },
     {
       "id": "dndsu-equipment-208",
@@ -257,7 +257,7 @@
       "sellPriceGp": 2.5,
       "sellPriceLabel": "2 зм 5 см",
       "url": "https://next.dnd.su/equipment/2-mace",
-      "lastSyncedAt": "2026-05-06T17:47:45Z"
+      "lastSyncedAt": "2026-05-13T01:36:49Z"
     },
     {
       "id": "dndsu-equipment-250",
@@ -432,7 +432,7 @@
       "sellPriceGp": 12.5,
       "sellPriceLabel": "12 зм 5 см",
       "url": "https://next.dnd.su/equipment/14379-thieves-tools",
-      "lastSyncedAt": "2026-05-06T17:47:46Z"
+      "lastSyncedAt": "2026-05-13T01:36:52Z"
     },
     {
       "id": "dndsu-equipment-14",
@@ -451,7 +451,7 @@
       "sellPriceGp": 10,
       "sellPriceLabel": "10 зм",
       "url": "https://next.dnd.su/equipment/14-glaive",
-      "lastSyncedAt": "2026-05-06T17:47:46Z"
+      "lastSyncedAt": "2026-05-13T01:37:56Z"
     },
     {
       "id": "dndsu-equipment-15",
@@ -470,7 +470,7 @@
       "sellPriceGp": 25,
       "sellPriceLabel": "25 зм",
       "url": "https://next.dnd.su/equipment/15-greatsword",
-      "lastSyncedAt": "2026-05-06T17:47:47Z"
+      "lastSyncedAt": "2026-05-13T01:37:57Z"
     },
     {
       "id": "dndsu-equipment-286",
@@ -509,7 +509,7 @@
       "sellPriceGp": 25,
       "sellPriceLabel": "25 зм",
       "url": "https://next.dnd.su/equipment/33-longbow",
-      "lastSyncedAt": "2026-05-06T17:47:47Z"
+      "lastSyncedAt": "2026-05-13T01:37:57Z"
     },
     {
       "id": "dndsu-equipment-16",
@@ -528,7 +528,7 @@
       "sellPriceGp": 7.5,
       "sellPriceLabel": "7 зм 5 см",
       "url": "https://next.dnd.su/equipment/16-longsword",
-      "lastSyncedAt": "2026-05-06T17:47:47Z"
+      "lastSyncedAt": "2026-05-13T01:37:57Z"
     },
     {
       "id": "dndsu-equipment-225",
@@ -587,7 +587,7 @@
       "sellPriceGp": 0.025,
       "sellPriceLabel": "3 мм",
       "url": "https://next.dnd.su/equipment/29-dart",
-      "lastSyncedAt": "2026-05-06T17:47:48Z"
+      "lastSyncedAt": "2026-05-13T01:37:57Z"
     },
     {
       "id": "dndsu-equipment-229",
@@ -622,7 +622,7 @@
       "sellPriceGp": 0.05,
       "sellPriceLabel": "5 мм",
       "url": "https://next.dnd.su/equipment/3-club",
-      "lastSyncedAt": "2026-05-06T17:47:48Z"
+      "lastSyncedAt": "2026-05-13T01:37:57Z"
     },
     {
       "id": "dndsu-equipment-14389",
@@ -681,7 +681,7 @@
       "sellPriceGp": 5,
       "sellPriceLabel": "5 зм",
       "url": "https://next.dnd.su/equipment/34-blowgun",
-      "lastSyncedAt": "2026-05-06T17:47:48Z"
+      "lastSyncedAt": "2026-05-13T01:37:57Z"
     },
     {
       "id": "dndsu-equipment-282",
@@ -1257,7 +1257,7 @@
       "sellPriceGp": 5,
       "sellPriceLabel": "5 зм",
       "url": "https://next.dnd.su/equipment/17-lance",
-      "lastSyncedAt": "2026-05-06T17:47:57Z"
+      "lastSyncedAt": "2026-05-13T01:37:58Z"
     },
     {
       "id": "dndsu-equipment-217",
@@ -1336,7 +1336,7 @@
       "sellPriceGp": 1,
       "sellPriceLabel": "1 зм",
       "url": "https://next.dnd.su/equipment/4-dagger",
-      "lastSyncedAt": "2026-05-05T20:18:23Z"
+      "lastSyncedAt": "2026-05-13T01:37:58Z"
     },
     {
       "id": "dndsu-equipment-49",
@@ -1395,7 +1395,7 @@
       "sellPriceGp": 2.5,
       "sellPriceLabel": "2 зм 5 см",
       "url": "https://next.dnd.su/equipment/18-war-pick",
-      "lastSyncedAt": "2026-05-06T17:47:59Z"
+      "lastSyncedAt": "2026-05-13T01:37:58Z"
     },
     {
       "id": "dndsu-equipment-214",
@@ -1454,7 +1454,7 @@
       "sellPriceGp": 1,
       "sellPriceLabel": "1 зм",
       "url": "https://next.dnd.su/equipment/19-whip",
-      "lastSyncedAt": "2026-05-05T20:18:33Z"
+      "lastSyncedAt": "2026-05-13T01:37:58Z"
     },
     {
       "id": "dndsu-equipment-44",
@@ -1633,7 +1633,7 @@
       "sellPriceGp": 0.5,
       "sellPriceLabel": "5 см",
       "url": "https://next.dnd.su/equipment/5-spear",
-      "lastSyncedAt": "2026-05-05T20:18:31Z"
+      "lastSyncedAt": "2026-05-13T01:37:58Z"
     },
     {
       "id": "dndsu-equipment-209",
@@ -1672,7 +1672,7 @@
       "sellPriceGp": 12.5,
       "sellPriceLabel": "12 зм 5 см",
       "url": "https://next.dnd.su/equipment/30-shortbow",
-      "lastSyncedAt": "2026-05-05T20:18:32Z"
+      "lastSyncedAt": "2026-05-13T01:37:58Z"
     },
     {
       "id": "dndsu-equipment-20",
@@ -1691,7 +1691,7 @@
       "sellPriceGp": 5,
       "sellPriceLabel": "5 зм",
       "url": "https://next.dnd.su/equipment/20-shortsword",
-      "lastSyncedAt": "2026-05-05T20:18:38Z"
+      "lastSyncedAt": "2026-05-13T01:37:58Z"
     },
     {
       "id": "dndsu-equipment-14372",
@@ -1990,7 +1990,7 @@
       "sellPriceGp": 12.5,
       "sellPriceLabel": "12 зм 5 см",
       "url": "https://next.dnd.su/equipment/31-light-crossbow",
-      "lastSyncedAt": "2026-05-05T20:18:40Z"
+      "lastSyncedAt": "2026-05-13T01:37:58Z"
     },
     {
       "id": "dndsu-equipment-6",
@@ -2009,7 +2009,7 @@
       "sellPriceGp": 1,
       "sellPriceLabel": "1 зм",
       "url": "https://next.dnd.su/equipment/6-light-hammer",
-      "lastSyncedAt": "2026-05-05T20:18:28Z"
+      "lastSyncedAt": "2026-05-13T01:37:59Z"
     },
     {
       "id": "dndsu-equipment-205",
@@ -2144,7 +2144,7 @@
       "sellPriceGp": 0.25,
       "sellPriceLabel": "2 см 5 мм",
       "url": "https://next.dnd.su/equipment/7-javelin",
-      "lastSyncedAt": "2026-05-05T20:18:46Z"
+      "lastSyncedAt": "2026-05-13T01:37:59Z"
     },
     {
       "id": "dndsu-equipment-263",
@@ -2203,7 +2203,7 @@
       "sellPriceGp": 5,
       "sellPriceLabel": "5 зм",
       "url": "https://next.dnd.su/equipment/21-maul",
-      "lastSyncedAt": "2026-05-05T20:18:30Z"
+      "lastSyncedAt": "2026-05-13T01:37:59Z"
     },
     {
       "id": "dndsu-equipment-22",
@@ -2222,7 +2222,7 @@
       "sellPriceGp": 7.5,
       "sellPriceLabel": "7 зм 5 см",
       "url": "https://next.dnd.su/equipment/22-morningstar",
-      "lastSyncedAt": "2026-05-05T20:18:47Z"
+      "lastSyncedAt": "2026-05-13T01:37:59Z"
     },
     {
       "id": "dndsu-equipment-14380",
@@ -2257,7 +2257,7 @@
       "sellPriceGp": 250,
       "sellPriceLabel": "250 зм",
       "url": "https://next.dnd.su/equipment/35-musket",
-      "lastSyncedAt": "2026-05-05T20:18:56Z"
+      "lastSyncedAt": "2026-05-13T01:37:59Z"
     },
     {
       "id": "dndsu-equipment-94",
@@ -2566,7 +2566,7 @@
       "sellPriceGp": 37.5,
       "sellPriceLabel": "37 зм 5 см",
       "url": "https://next.dnd.su/equipment/37-hand-crossbow",
-      "lastSyncedAt": "2026-05-05T20:18:53Z"
+      "lastSyncedAt": "2026-05-13T01:38:00Z"
     },
     {
       "id": "dndsu-equipment-9",
@@ -2585,7 +2585,7 @@
       "sellPriceGp": 2.5,
       "sellPriceLabel": "2 зм 5 см",
       "url": "https://next.dnd.su/equipment/9-handaxe",
-      "lastSyncedAt": "2026-05-05T20:18:55Z"
+      "lastSyncedAt": "2026-05-13T01:38:00Z"
     },
     {
       "id": "dndsu-equipment-224",
@@ -2664,7 +2664,7 @@
       "sellPriceGp": 0.1,
       "sellPriceLabel": "1 см",
       "url": "https://next.dnd.su/equipment/8-greatclub",
-      "lastSyncedAt": "2026-05-05T20:18:57Z"
+      "lastSyncedAt": "2026-05-13T01:38:00Z"
     },
     {
       "id": "dndsu-equipment-251",
@@ -2703,7 +2703,7 @@
       "sellPriceGp": 2.5,
       "sellPriceLabel": "2 зм 5 см",
       "url": "https://next.dnd.su/equipment/23-pike",
-      "lastSyncedAt": "2026-05-05T20:18:51Z"
+      "lastSyncedAt": "2026-05-13T01:38:00Z"
     },
     {
       "id": "dndsu-equipment-36",
@@ -2722,7 +2722,7 @@
       "sellPriceGp": 125,
       "sellPriceLabel": "125 зм",
       "url": "https://next.dnd.su/equipment/36-pistol",
-      "lastSyncedAt": "2026-05-05T20:18:54Z"
+      "lastSyncedAt": "2026-05-13T01:38:00Z"
     },
     {
       "id": "dndsu-equipment-237",
@@ -2881,7 +2881,7 @@
       "sellPriceGp": 0.05,
       "sellPriceLabel": "5 мм",
       "url": "https://next.dnd.su/equipment/32-sling",
-      "lastSyncedAt": "2026-05-05T20:18:50Z"
+      "lastSyncedAt": "2026-05-13T01:38:00Z"
     },
     {
       "id": "dndsu-equipment-45",
@@ -2979,7 +2979,7 @@
       "sellPriceGp": 12.5,
       "sellPriceLabel": "12 зм 5 см",
       "url": "https://next.dnd.su/equipment/24-rapier",
-      "lastSyncedAt": "2026-05-05T20:19:00Z"
+      "lastSyncedAt": "2026-05-13T01:38:00Z"
     },
     {
       "id": "dndsu-equipment-260",
@@ -3134,7 +3134,7 @@
       "sellPriceGp": 15,
       "sellPriceLabel": "15 зм",
       "url": "https://next.dnd.su/equipment/25-greataxe",
-      "lastSyncedAt": "2026-05-05T20:38:23Z"
+      "lastSyncedAt": "2026-05-13T01:38:01Z"
     },
     {
       "id": "dndsu-equipment-10",
@@ -3153,7 +3153,7 @@
       "sellPriceGp": 0.5,
       "sellPriceLabel": "5 см",
       "url": "https://next.dnd.su/equipment/10-sickle",
-      "lastSyncedAt": "2026-05-05T20:38:23Z"
+      "lastSyncedAt": "2026-05-13T01:38:01Z"
     },
     {
       "id": "dndsu-equipment-248",
@@ -3212,7 +3212,7 @@
       "sellPriceGp": 12.5,
       "sellPriceLabel": "12 зм 5 см",
       "url": "https://next.dnd.su/equipment/26-scimitar",
-      "lastSyncedAt": "2026-05-05T20:38:23Z"
+      "lastSyncedAt": "2026-05-13T01:38:01Z"
     },
     {
       "id": "dndsu-equipment-40",
@@ -3409,7 +3409,7 @@
       "sellPriceGp": 2.5,
       "sellPriceLabel": "2 зм 5 см",
       "url": "https://next.dnd.su/equipment/27-trident",
-      "lastSyncedAt": "2026-05-05T20:05:48Z"
+      "lastSyncedAt": "2026-05-13T01:38:01Z"
     },
     {
       "id": "dndsu-equipment-270",
@@ -3468,7 +3468,7 @@
       "sellPriceGp": 25,
       "sellPriceLabel": "25 зм",
       "url": "https://next.dnd.su/equipment/38-heavy-crossbow",
-      "lastSyncedAt": "2026-05-05T20:05:56Z"
+      "lastSyncedAt": "2026-05-13T01:38:01Z"
     },
     {
       "id": "dndsu-equipment-17350",
@@ -3647,7 +3647,7 @@
       "sellPriceGp": 5,
       "sellPriceLabel": "5 зм",
       "url": "https://next.dnd.su/equipment/28-flail",
-      "lastSyncedAt": "2026-05-05T20:05:51Z"
+      "lastSyncedAt": "2026-05-13T01:38:02Z"
     },
     {
       "id": "dndsu-equipment-221",
@@ -3910,7 +3910,7 @@
       "searchText": "адская машина лума безумного,the infernal machine of lum the mad, чудесный предмет адская машина лума безумного",
       "reference": "Infernal Machine Rebuild",
       "url": "https://dnd.su/items/3961-the-infernal-machine-of-lum-the-mad/",
-      "lastSyncedAt": "2026-05-06T17:47:43Z"
+      "lastSyncedAt": "2026-05-13T01:36:45Z"
     },
     {
       "id": "dndsu-magic-2242",
@@ -3971,7 +3971,7 @@
       "sellPriceLabel": "250 зм 5 см-2 500 зм",
       "reference": "Tasha's Cauldron of Everything",
       "url": "https://dnd.su/items/2125-alchemical-compendium/",
-      "lastSyncedAt": "2026-05-06T17:47:43Z"
+      "lastSyncedAt": "2026-05-13T01:36:45Z"
     },
     {
       "id": "dndsu-magic-2",
@@ -4252,7 +4252,7 @@
       "sellPriceLabel": "25 зм-50 зм",
       "reference": "Xanathar's Guide to Everything",
       "url": "https://dnd.su/items/392-dark-shard-amulet/",
-      "lastSyncedAt": "2026-05-06T17:47:43Z"
+      "lastSyncedAt": "2026-05-13T01:36:46Z"
     },
     {
       "id": "dndsu-magic-2344",
@@ -4352,7 +4352,7 @@
       "sellPriceLabel": "250 зм 5 см-2 500 зм",
       "reference": "The Book of Many Things",
       "url": "https://dnd.su/items/7259-starshot-crossbow/",
-      "lastSyncedAt": "2026-05-06T17:47:44Z"
+      "lastSyncedAt": "2026-05-13T01:36:46Z"
     },
     {
       "id": "dndsu-magic-9041",
@@ -4431,7 +4431,7 @@
       "sellPriceLabel": "250 зм 5 см-2 500 зм",
       "reference": "Tasha's Cauldron of Everything",
       "url": "https://dnd.su/items/2127-astromancy-archive/",
-      "lastSyncedAt": "2026-05-06T17:47:44Z"
+      "lastSyncedAt": "2026-05-13T01:36:46Z"
     },
     {
       "id": "dndsu-magic-2128",
@@ -4474,7 +4474,7 @@
       "sellPriceLabel": "250 зм 5 см-2 500 зм",
       "reference": "Tasha's Cauldron of Everything",
       "url": "https://dnd.su/items/2129-atlas-of-endless-horizons/",
-      "lastSyncedAt": "2026-05-06T17:47:44Z"
+      "lastSyncedAt": "2026-05-13T01:36:46Z"
     },
     {
       "id": "dndsu-magic-9047",
@@ -4588,7 +4588,7 @@
       "searchText": "бесконечный гримуар,grimoire infinitus, чудесный предмет бесконечный гримуар",
       "reference": "Explorer's Guide to Wildemount",
       "url": "https://dnd.su/items/2308-grimoire-infinitus/",
-      "lastSyncedAt": "2026-05-06T17:47:44Z"
+      "lastSyncedAt": "2026-05-13T01:36:47Z"
     },
     {
       "id": "dndsu-magic-6445",
@@ -4605,7 +4605,7 @@
       "searchText": "благотворный браслет бигби,bigby’s beneficent bracelet, чудесный предмет благотворный браслет бигби",
       "reference": "Bigby Presents: Glory of the Giants",
       "url": "https://dnd.su/items/6445-bigbys-beneficent-bracelet/",
-      "lastSyncedAt": "2026-05-06T17:47:44Z"
+      "lastSyncedAt": "2026-05-13T01:36:47Z"
     },
     {
       "id": "dndsu-magic-2346",
@@ -4622,7 +4622,7 @@
       "searchText": "боб,bob, оружие не имеет редкости боб",
       "reference": "Tomb of Annihilation",
       "url": "https://dnd.su/items/2346-bob/",
-      "lastSyncedAt": "2026-05-06T17:47:45Z"
+      "lastSyncedAt": "2026-05-13T01:36:47Z"
     },
     {
       "id": "dndsu-magic-7168",
@@ -4874,7 +4874,7 @@
       "searchText": "булава черной короны,mace of the black crown, оружие булава черной короны",
       "reference": "Explorer's Guide to Wildemount",
       "url": "https://dnd.su/items/2318-mace-of-the-black-crown/",
-      "lastSyncedAt": "2026-05-06T17:47:45Z"
+      "lastSyncedAt": "2026-05-13T01:36:49Z"
     },
     {
       "id": "dndsu-magic-2435",
@@ -5128,7 +5128,7 @@
       "searchText": "веретено судьбы,spindle of fate, волшебная палочка веретено судьбы",
       "reference": "The Book of Many Things",
       "url": "https://dnd.su/items/7258-spindle-of-fate/",
-      "lastSyncedAt": "2026-05-06T17:47:45Z"
+      "lastSyncedAt": "2026-05-13T01:36:50Z"
     },
     {
       "id": "dndsu-magic-13",
@@ -5215,7 +5215,7 @@
       "sellPriceLabel": "250 зм 5 см-2 500 зм",
       "reference": "Tasha's Cauldron of Everything",
       "url": "https://dnd.su/items/2134-bell-branch/",
-      "lastSyncedAt": "2026-05-06T17:47:45Z"
+      "lastSyncedAt": "2026-05-13T01:36:50Z"
     },
     {
       "id": "dndsu-magic-2255",
@@ -5315,7 +5315,7 @@
       "searchText": "визор данота,danoth’s visor, чудесный предмет визор данота",
       "reference": "Explorer's Guide to Wildemount",
       "url": "https://dnd.su/items/2311-danoths-visor/",
-      "lastSyncedAt": "2026-05-06T17:47:45Z"
+      "lastSyncedAt": "2026-05-13T01:36:51Z"
     },
     {
       "id": "dndsu-magic-2230",
@@ -5391,7 +5391,7 @@
       "sellPriceLabel": "250 зм 5 см-2 500 зм",
       "reference": "Hoard of the Dragon Queen",
       "url": "https://dnd.su/items/300-wand-of-winter/",
-      "lastSyncedAt": "2026-05-06T17:47:46Z"
+      "lastSyncedAt": "2026-05-13T01:36:51Z"
     },
     {
       "id": "dndsu-magic-17",
@@ -5684,7 +5684,7 @@
       "searchText": "воля когтя,will of the talon, оружие воля когтя",
       "reference": "Explorer's Guide to Wildemount",
       "url": "https://dnd.su/items/2319-will-of-the-talon/",
-      "lastSyncedAt": "2026-05-06T17:47:46Z"
+      "lastSyncedAt": "2026-05-13T01:36:52Z"
     },
     {
       "id": "dndsu-magic-7222",
@@ -5748,7 +5748,7 @@
       "sellPriceLabel": "2 500 зм 5 см-25 000 зм",
       "reference": "Storm King's Thunder",
       "url": "https://dnd.su/items/2405-pennant-of-the-vind-rune/",
-      "lastSyncedAt": "2026-05-06T17:47:46Z"
+      "lastSyncedAt": "2026-05-13T01:36:53Z"
     },
     {
       "id": "dndsu-magic-3163",
@@ -5786,7 +5786,7 @@
       "searchText": "высекающий искры,tinderstrike, оружие высекающий искры",
       "reference": "Princes of the Apocalypse",
       "url": "https://dnd.su/items/2386-tinderstrike/",
-      "lastSyncedAt": "2026-05-06T17:47:46Z"
+      "lastSyncedAt": "2026-05-13T01:36:53Z"
     },
     {
       "id": "dndsu-magic-2430",
@@ -5838,7 +5838,7 @@
       "searchText": "глаз и рука векны,eye and hand of vecna, чудесный предмет глаз и рука векны",
       "reference": "Dungeon Master's Guide",
       "url": "https://dnd.su/items/2223-eye-and-hand-of-vecna/",
-      "lastSyncedAt": "2026-05-06T17:47:46Z"
+      "lastSyncedAt": "2026-05-13T01:37:56Z"
     },
     {
       "id": "dndsu-magic-2439",
@@ -5859,7 +5859,7 @@
       "sellPriceLabel": "250 зм 5 см-2 500 зм",
       "reference": "Waterdeep: Dragon Heist",
       "url": "https://dnd.su/items/2439-knaves-eye-patch/",
-      "lastSyncedAt": "2026-05-06T17:47:46Z"
+      "lastSyncedAt": "2026-05-13T01:37:56Z"
     },
     {
       "id": "dndsu-magic-394",
@@ -5942,7 +5942,7 @@
       "searchText": "граната гномгарда,gnomengarde grenade, чудесный предмет не имеет редкости граната гномгарда",
       "reference": "Essentials Kit: Divine Contention",
       "url": "https://dnd.su/items/2363-gnomengarde-grenade/",
-      "lastSyncedAt": "2026-05-06T17:47:46Z"
+      "lastSyncedAt": "2026-05-13T01:37:56Z"
     },
     {
       "id": "dndsu-magic-30",
@@ -5963,7 +5963,7 @@
       "sellPriceLabel": "50 зм 5 см-250 зм",
       "reference": "Dungeon Master's Guide",
       "url": "https://dnd.su/items/30-decanter-of-endless-water/",
-      "lastSyncedAt": "2026-05-06T17:47:46Z"
+      "lastSyncedAt": "2026-05-13T01:37:57Z"
     },
     {
       "id": "dndsu-magic-2135",
@@ -5984,7 +5984,7 @@
       "sellPriceLabel": "250 зм 5 см-2 500 зм",
       "reference": "Tasha's Cauldron of Everything",
       "url": "https://dnd.su/items/2135-fulminating-treatise/",
-      "lastSyncedAt": "2026-05-06T17:47:46Z"
+      "lastSyncedAt": "2026-05-13T01:37:56Z"
     },
     {
       "id": "dndsu-magic-234",
@@ -7410,7 +7410,7 @@
       "searchText": "железный клык,ironfang, оружие железный клык",
       "reference": "Princes of the Apocalypse",
       "url": "https://dnd.su/items/2387-ironfang/",
-      "lastSyncedAt": "2026-05-06T17:47:48Z"
+      "lastSyncedAt": "2026-05-13T01:37:57Z"
     },
     {
       "id": "dndsu-magic-6329",
@@ -7697,7 +7697,7 @@
       "searchText": "закладка,bookmark, оружие закладка",
       "reference": "Tomb of Annihilation",
       "url": "https://dnd.su/items/2345-bookmark/",
-      "lastSyncedAt": "2026-05-06T17:47:49Z"
+      "lastSyncedAt": "2026-05-13T01:37:57Z"
     },
     {
       "id": "dndsu-magic-399",
@@ -9408,7 +9408,7 @@
       "searchText": "клинок авернуса,blade of avernus, оружие клинок авернуса",
       "reference": "Baldur's Gate: Descent Into Avernus",
       "url": "https://dnd.su/items/2248-blade-of-avernus/",
-      "lastSyncedAt": "2026-05-06T17:47:59Z"
+      "lastSyncedAt": "2026-05-13T01:37:58Z"
     },
     {
       "id": "dndsu-magic-2291",
@@ -9569,7 +9569,7 @@
       "searchText": "клинок разбитых зеркал,blade of broken mirrors, оружие клинок разбитых зеркал",
       "reference": "Explorer's Guide to Wildemount",
       "url": "https://dnd.su/items/2320-blade-of-broken-mirrors/",
-      "lastSyncedAt": "2026-05-06T17:48:00Z"
+      "lastSyncedAt": "2026-05-13T01:37:58Z"
     },
     {
       "id": "dndsu-magic-2360",
@@ -11323,7 +11323,7 @@
       "searchText": "кровавая смерть,the bloody end, оружие кровавая смерть",
       "reference": "Explorer's Guide to Wildemount",
       "url": "https://dnd.su/items/2321-the-bloody-end/",
-      "lastSyncedAt": "2026-05-05T20:18:25Z"
+      "lastSyncedAt": "2026-05-13T01:37:58Z"
     },
     {
       "id": "dndsu-magic-2201",
@@ -13089,7 +13089,7 @@
       "searchText": "меч каса,sword of kas, оружие меч каса",
       "reference": "Dungeon Master's Guide",
       "url": "https://dnd.su/items/2226-sword-of-kas/",
-      "lastSyncedAt": "2026-05-05T20:18:29Z"
+      "lastSyncedAt": "2026-05-13T01:37:59Z"
     },
     {
       "id": "dndsu-magic-143",
@@ -13189,7 +13189,7 @@
       "sellPriceLabel": "2 500 зм 5 см-25 000 зм",
       "reference": "Guildmasters' guide to Ravnica",
       "url": "https://dnd.su/items/2194-sword-of-the-paruns/",
-      "lastSyncedAt": "2026-05-05T20:18:29Z"
+      "lastSyncedAt": "2026-05-13T01:37:59Z"
     },
     {
       "id": "dndsu-magic-7164",
@@ -13967,7 +13967,7 @@
       "sellPriceLabel": "2 500 зм 5 см-25 000 зм",
       "reference": "The Book of Many Things",
       "url": "https://dnd.su/items/7251-fate-cutter-shears/",
-      "lastSyncedAt": "2026-05-05T20:18:42Z"
+      "lastSyncedAt": "2026-05-13T01:37:59Z"
     },
     {
       "id": "dndsu-magic-4642",
@@ -15162,7 +15162,7 @@
       "searchText": "перст ветра,windvane, оружие перст ветра",
       "reference": "Princes of the Apocalypse",
       "url": "https://dnd.su/items/2388-windvane/",
-      "lastSyncedAt": "2026-05-05T20:18:45Z"
+      "lastSyncedAt": "2026-05-13T01:38:00Z"
     },
     {
       "id": "dndsu-magic-168",
@@ -15910,7 +15910,7 @@
       "searchText": "плеть теней,lash of shadows, оружие плеть теней",
       "reference": "Explorer's Guide to Wildemount",
       "url": "https://dnd.su/items/2322-lash-of-shadows/",
-      "lastSyncedAt": "2026-05-05T20:18:48Z"
+      "lastSyncedAt": "2026-05-13T01:38:00Z"
     },
     {
       "id": "dndsu-magic-416",
@@ -16098,7 +16098,7 @@
       "searchText": "ползучий молотильщик,grovelthrash, оружие ползучий молотильщик",
       "reference": "Explorer's Guide to Wildemount",
       "url": "https://dnd.su/items/2323-grovelthrash/",
-      "lastSyncedAt": "2026-05-05T20:18:48Z"
+      "lastSyncedAt": "2026-05-13T01:38:00Z"
     },
     {
       "id": "dndsu-magic-2382",
@@ -17017,7 +17017,7 @@
       "searchText": "потерянный меч,lost sword, оружие не имеет редкости потерянный меч",
       "reference": "Curse of Strahd",
       "url": "https://dnd.su/items/2238-lost-sword/",
-      "lastSyncedAt": "2026-05-05T20:18:49Z"
+      "lastSyncedAt": "2026-05-13T01:38:00Z"
     },
     {
       "id": "dndsu-magic-198",
@@ -17638,7 +17638,7 @@
       "searchText": "рассекатель орков,orcsplitter, оружие рассекатель орков",
       "reference": "Princes of the Apocalypse",
       "url": "https://dnd.su/items/2389-orcsplitter/",
-      "lastSyncedAt": "2026-05-05T20:18:50Z"
+      "lastSyncedAt": "2026-05-13T01:38:00Z"
     },
     {
       "id": "dndsu-magic-2383",
@@ -17926,7 +17926,7 @@
       "sellPriceLabel": "2 500 зм 5 см-25 000 зм",
       "reference": "Critical Role: Call of the Netherdeep",
       "url": "https://dnd.su/items/3617-ruidium-weapon/",
-      "lastSyncedAt": "2026-05-05T20:18:51Z"
+      "lastSyncedAt": "2026-05-13T01:38:00Z"
     },
     {
       "id": "dndsu-magic-3615",
@@ -18953,7 +18953,7 @@
       "searchText": "сеющий разорение,ruin’s wake, оружие сеющий разорение",
       "reference": "Explorer's Guide to Wildemount",
       "url": "https://dnd.su/items/2324-ruins-wake/",
-      "lastSyncedAt": "2026-05-05T20:38:23Z"
+      "lastSyncedAt": "2026-05-13T01:38:01Z"
     },
     {
       "id": "dndsu-magic-10778",
@@ -20638,7 +20638,7 @@
       "searchText": "тесло аннама,adze of annam, оружие тесло аннама",
       "reference": "Bigby Presents: Glory of the Giants",
       "url": "https://dnd.su/items/6442-adze-of-annam/",
-      "lastSyncedAt": "2026-05-05T20:38:25Z"
+      "lastSyncedAt": "2026-05-13T01:38:01Z"
     },
     {
       "id": "dndsu-magic-7173",
@@ -20713,7 +20713,7 @@
       "searchText": "топитель,drown, оружие топитель",
       "reference": "Princes of the Apocalypse",
       "url": "https://dnd.su/items/2390-drown/",
-      "lastSyncedAt": "2026-05-05T20:38:25Z"
+      "lastSyncedAt": "2026-05-13T01:38:01Z"
     },
     {
       "id": "dndsu-magic-237",
@@ -20751,7 +20751,7 @@
       "searchText": "топор владык дварфов,axe of the dwarvish lords, оружие топор владык дварфов",
       "reference": "Dungeon Master's Guide",
       "url": "https://dnd.su/items/2228-axe-of-the-dwarvish-lords/",
-      "lastSyncedAt": "2026-05-05T20:38:25Z"
+      "lastSyncedAt": "2026-05-13T01:38:01Z"
     },
     {
       "id": "dndsu-magic-2845",
@@ -22088,7 +22088,7 @@
       "searchText": "шелковая ненависть,silken spite, оружие шелковая ненависть",
       "reference": "Explorer's Guide to Wildemount",
       "url": "https://dnd.su/items/2325-silken-spite/",
-      "lastSyncedAt": "2026-05-05T20:05:50Z"
+      "lastSyncedAt": "2026-05-13T01:38:02Z"
     },
     {
       "id": "dndsu-magic-436",

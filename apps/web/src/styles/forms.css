@@ -7,6 +7,9 @@
   place-items: center;
   padding: 1rem;
 }
+.close-confirm-overlay {
+  z-index: 220;
+}
 
 .palette {
   width: min(56rem, 100%);

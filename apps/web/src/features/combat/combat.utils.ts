@@ -313,7 +313,7 @@ export const cloneCampaignPreparedCombat = (plan?: CampaignPreparedCombat | null
       }
     : createEmptyCampaignPreparedCombat();
 
-export const defaultPreparedCombatTitle = (index: number) => `Р‘РѕР№ ${index + 1}`;
+export const defaultPreparedCombatTitle = (index: number) => `Бой ${index + 1}`;
 
 export const isPreparedCombatHostEntity = (entity: { kind: string }): entity is PreparedCombatHostEntity =>
   entity.kind === "location" || entity.kind === "quest";

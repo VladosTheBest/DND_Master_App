@@ -2296,7 +2296,7 @@ func (manager *initiativeShareManager) ensurePublicServerLocked() (string, error
 
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
-		return "", fmt.Errorf("РЅРµ СѓРґР°Р»РѕСЃСЊ РїРѕРґРЅСЏС‚СЊ Р»РѕРєР°Р»СЊРЅС‹Р№ viewer РёРЅРёС†РёР°С‚РёРІС‹: %w", err)
+		return "", fmt.Errorf("не удалось поднять локальный viewer инициативы: %w", err)
 	}
 
 	mux := http.NewServeMux()
@@ -3016,7 +3016,7 @@ func publicInitiativeVisual(campaign campaignData, entry combatEntry) (string, s
 
 func publicCombatConditionLegacy(entry combatEntry) (string, string) {
 	if entry.Defeated || entry.CurrentHitPoints <= 0 {
-		return "Р’С‹РІРµРґРµРЅ", "defeated"
+		return "Выведен", "defeated"
 	}
 	if entry.MaxHitPoints <= 0 {
 		return "", ""
@@ -3025,9 +3025,9 @@ func publicCombatConditionLegacy(entry combatEntry) (string, string) {
 	ratio := float64(entry.CurrentHitPoints) / float64(entry.MaxHitPoints)
 	switch {
 	case ratio <= 0.10:
-		return "РќР° РіСЂР°РЅРё", "critical"
+		return "На грани", "critical"
 	case ratio < 0.50:
-		return "РћРєСЂРѕРІР°РІР»РµРЅ", "bloodied"
+		return "Окровавлен", "bloodied"
 	default:
 		return "", ""
 	}

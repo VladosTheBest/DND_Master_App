@@ -242,53 +242,64 @@ export const filterEntities = (
     return [];
   }
 
-  if (activeModule === "monsters" && activeTab !== "Imported") {
+  const isTab = (...labels: string[]) => labels.some((label) => activeTab === label);
+
+  if (activeModule === "monsters" && !isTab("Импорт", "Imported")) {
     return [];
   }
 
   return moduleEntities(campaign, activeModule).filter((entity) => {
-    if (activeTab === "All") return true;
+    if (isTab("Все", "All")) return true;
 
     if (entity.kind === "location") {
       return (
-        (activeTab === "Cities" && entity.category === "City") ||
-        (activeTab === "Regions" && entity.category === "Region") ||
-        (activeTab === "Dungeons" && entity.category === "Dungeon") ||
-        (activeTab === "POI" && entity.category === "POI")
+        (isTab("Города", "Cities") && entity.category === "City") ||
+        (isTab("Регионы", "Regions") && entity.category === "Region") ||
+        (isTab("Подземелья", "Dungeons") && entity.category === "Dungeon") ||
+        (isTab("Точки", "POI") && entity.category === "POI")
       );
     }
 
     if (entity.kind === "player") {
-      return activeTab === "All" || activeTab === entity.status;
+      return (
+        isTab("Все", "All") ||
+        (isTab("Активные", "Active") && entity.status === "Active") ||
+        (isTab("Резерв", "Reserve") && entity.status === "Reserve") ||
+        (isTab("Гости", "Guest") && entity.status === "Guest")
+      );
     }
 
     if (entity.kind === "npc") {
       return (
-        (activeTab === "Critical" && entity.importance === "Critical") ||
-        (activeTab === "Allies" && entity.status === "Ally") ||
-        (activeTab === "Threats" && entity.status === "Threat")
+        (isTab("Важные", "Critical") && entity.importance === "Critical") ||
+        (isTab("Союзники", "Allies") && entity.status === "Ally") ||
+        (isTab("Угрозы", "Threats") && entity.status === "Threat")
       );
     }
 
     if (entity.kind === "monster") {
       return (
-        activeTab === "Imported" ||
-        (activeTab === "Hostile" && entity.status === "Hostile") ||
-        (activeTab === "Elite" && entity.importance === "Elite") ||
-        (activeTab === "Bosses" && entity.importance === "Boss") ||
-        (activeTab === "Beasts" && entity.statBlock?.creatureType.toLowerCase().includes("beast"))
+        isTab("Импорт", "Imported") ||
+        (isTab("Враждебные", "Hostile") && entity.status === "Hostile") ||
+        (isTab("Элита", "Elite") && entity.importance === "Elite") ||
+        (isTab("Боссы", "Bosses") && entity.importance === "Boss") ||
+        (isTab("Звери", "Beasts") && entity.statBlock?.creatureType.toLowerCase().includes("beast"))
       );
     }
 
     if (entity.kind === "quest") {
-      return activeTab.toLowerCase() === entity.status;
+      return (
+        (isTab("Активные", "Active") && entity.status === "active") ||
+        (isTab("Пауза", "Paused") && entity.status === "paused") ||
+        (isTab("Завершены", "Completed") && entity.status === "completed")
+      );
     }
 
     if (entity.kind === "lore") {
       return (
-        (activeTab === "GM Only" && entity.visibility === "gm_only") ||
-        (activeTab === "Player Safe" && entity.visibility === "player_safe") ||
-        (activeTab === "Threat Files" && entity.category === "Threat")
+        (isTab("Только GM", "GM Only") && entity.visibility === "gm_only") ||
+        (isTab("Для игроков", "Player Safe") && entity.visibility === "player_safe") ||
+        (isTab("Угрозы", "Threat Files") && entity.category === "Threat")
       );
     }
 

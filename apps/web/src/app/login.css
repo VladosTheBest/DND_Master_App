@@ -781,7 +781,12 @@
   }
 
   .login-auth-switch {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .login-auth-switch button {
+    padding: 0 .48rem;
+    font-size: .8rem;
   }
 
   .login-meta-row {

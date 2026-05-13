@@ -34,7 +34,9 @@ export function useBestiaryController({
 
   const deferredBestiarySearch = useDeferredValue(bestiarySearch);
   const isBrowseMode = isBestiaryBrowseTab(activeModule, activeTab);
-  const isImportedMode = activeModule === "monsters" && activeTab === "Imported";
+  const isImportedMode = activeModule === "monsters" && (activeTab === "Импорт" || activeTab === "Imported");
+  const isNamedNpcTab = activeTab === "Именные НПС" || activeTab === "Named NPC";
+  const isClassicTab = activeTab === "Классика" || activeTab === "Classic";
 
   const filteredImportedMonsters = useMemo(
     () => filterImportedMonsters(campaignMonsters, importedMonsterSearch, importedMonsterChallenge),
@@ -77,8 +79,8 @@ export function useBestiaryController({
           q: deferredBestiarySearch.trim(),
           challenge: bestiaryChallenge,
           type: bestiaryType,
-          namedNpc: activeTab === "Named NPC",
-          classic: activeTab === "Classic"
+          namedNpc: isNamedNpcTab,
+          classic: isClassicTab
         });
         if (cancelled) {
           return;
@@ -103,7 +105,7 @@ export function useBestiaryController({
     return () => {
       cancelled = true;
     };
-  }, [activeTab, bestiaryChallenge, bestiaryType, deferredBestiarySearch, isBrowseMode, setBootError]);
+  }, [activeTab, bestiaryChallenge, bestiaryType, deferredBestiarySearch, isBrowseMode, isClassicTab, isNamedNpcTab, setBootError]);
 
   useEffect(() => {
     let cancelled = false;
@@ -154,8 +156,8 @@ export function useBestiaryController({
           q: deferredBestiarySearch.trim(),
           challenge: bestiaryChallenge,
           type: bestiaryType,
-          namedNpc: activeTab === "Named NPC",
-          classic: activeTab === "Classic"
+          namedNpc: isNamedNpcTab,
+          classic: isClassicTab
         })
         .then((result) => {
           setBestiary(result);
@@ -165,7 +167,7 @@ export function useBestiaryController({
     }, 5000);
 
     return () => window.clearInterval(timer);
-  }, [activeTab, bestiary?.status.state, bestiaryChallenge, bestiaryType, deferredBestiarySearch, isBrowseMode]);
+  }, [activeTab, bestiary?.status.state, bestiaryChallenge, bestiaryType, deferredBestiarySearch, isBrowseMode, isClassicTab, isNamedNpcTab]);
 
   const importSelectedBestiaryMonster = async () => {
     if (!activeCampaignId || !selectedBestiaryId) {
