@@ -337,10 +337,31 @@ type searchResult struct {
 }
 
 type storageState struct {
-	AuthSecret string         `json:"authSecret,omitempty"`
-	Users      []userAccount  `json:"users,omitempty"`
-	Campaigns  []campaignData `json:"campaigns"`
-	UpdatedAt  string         `json:"updatedAt"`
+	AuthSecret      string           `json:"authSecret,omitempty"`
+	Users           []userAccount    `json:"users,omitempty"`
+	Campaigns       []campaignData   `json:"campaigns"`
+	UpdatedAt       string           `json:"updatedAt"`
+	SurveyInvites   []surveyInvite   `json:"surveyInvites,omitempty"`
+	SurveyResponses []surveyResponse `json:"surveyResponses,omitempty"`
+}
+
+type surveyInvite struct {
+	Token            string `json:"token"`
+	CampaignID       string `json:"campaignId"`
+	CreatedAt        string `json:"createdAt"`
+	LastSubmissionAt string `json:"lastSubmissionAt,omitempty"`
+}
+type surveyResponse struct {
+	ID           string `json:"id"`
+	CampaignID   string `json:"campaignId"`
+	SubmittedAt  string `json:"submittedAt"`
+	Name         string `json:"name"`
+	Setting      string `json:"setting"`
+	Inspirations string `json:"inspirations"`
+	Character    string `json:"character"`
+	Tone         string `json:"tone"`
+	Expectations string `json:"expectations"`
+	Boundaries   string `json:"boundaries"`
 }
 
 type createCampaignInput struct {

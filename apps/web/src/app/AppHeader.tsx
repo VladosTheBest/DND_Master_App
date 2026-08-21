@@ -18,6 +18,7 @@ type DefaultHeaderProps = {
   onOpenRandomEvent: () => void;
   onLogout: () => void;
   onCreateEntity: () => void;
+  onOpenPlayerSurveys: () => void;
 };
 
 type CombatHeaderProps = {
@@ -137,6 +138,7 @@ export function AppHeader(props: AppHeaderProps) {
             Сцена для зачитки
           </button>
         ) : null}
+        <button className="ghost" onClick={props.onOpenPlayerSurveys} type="button">Анкеты игроков</button>
         <button className="ghost" disabled={props.authBusy} onClick={props.onLogout} type="button">
           {props.authBusy ? "Выходим..." : "Выйти"}
         </button>

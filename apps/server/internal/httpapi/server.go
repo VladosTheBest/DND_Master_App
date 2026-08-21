@@ -29,6 +29,7 @@ type server struct {
 	web       http.Handler
 	uploads   http.Handler
 	uploadDir string
+	surveys   *surveyManager
 }
 
 type envelope struct {
@@ -84,6 +85,7 @@ func NewServer(options Options) (http.Handler, error) {
 		uploads:   uploadHandler,
 		uploadDir: options.UploadDir,
 	}
+	srv.surveys = newSurveyManager(store, options.PublicBaseURL)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", srv.handleHealth)
@@ -91,8 +93,11 @@ func NewServer(options Options) (http.Handler, error) {
 	mux.HandleFunc("/api/display-meta/", srv.shares.handlePublicDisplayMeta)
 	mux.HandleFunc("/api/display/", srv.shares.handlePublicDisplayAPI)
 	mux.HandleFunc("/initiative/", srv.shares.handlePublicInitiativePage)
+	mux.HandleFunc("/survey/", srv.surveys.handlePublicPage)
+	mux.HandleFunc("/master/surveys", srv.handleMasterSurveyPage)
 	mux.HandleFunc("/api/initiative-meta/", srv.shares.handlePublicInitiativeMeta)
 	mux.HandleFunc("/api/initiative/", srv.shares.handlePublicInitiativeAPI)
+	mux.HandleFunc("/api/survey/", srv.surveys.handlePublicAPI)
 	mux.HandleFunc("/api/auth/session", srv.auth.handleSession)
 	mux.HandleFunc("/api/auth/login", srv.auth.handleLogin)
 	mux.HandleFunc("/api/auth/register", srv.auth.handleRegister)
@@ -134,12 +139,26 @@ func isServerManagedPath(path string) bool {
 	return path == "/healthz" ||
 		strings.HasPrefix(path, "/api/") ||
 		strings.HasPrefix(path, "/initiative/") ||
+		strings.HasPrefix(path, "/survey/") ||
+		path == "/master/surveys" ||
 		strings.HasPrefix(path, "/display/") ||
 		strings.HasPrefix(path, "/uploads/")
 }
 
 func (srv *server) handleHealth(writer http.ResponseWriter, _ *http.Request) {
 	writeJSON(writer, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (srv *server) handleMasterSurveyPage(writer http.ResponseWriter, request *http.Request) {
+	if request.Method != http.MethodGet {
+		http.NotFound(writer, request)
+		return
+	}
+	if _, ok := srv.requireAuthUser(writer, request); !ok {
+		return
+	}
+	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = writer.Write([]byte(masterSurveyHTML))
 }
 
 func (srv *server) requireAuthUser(writer http.ResponseWriter, request *http.Request) (authUser, bool) {
@@ -239,6 +258,10 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 	switch {
 	case len(segments) == 2 && segments[1] == "initiative-share":
 		srv.handleInitiativeShare(writer, request, campaignID)
+	case len(segments) == 2 && segments[1] == "survey-link":
+		srv.surveys.handleCreateLink(writer, request, campaignID)
+	case len(segments) == 2 && segments[1] == "survey-responses":
+		srv.surveys.handleResponses(writer, request, campaignID)
 	case len(segments) == 3 && segments[1] == "initiative-share" && segments[2] == "publish":
 		srv.handleInitiativeSharePublish(writer, request, campaignID)
 	case len(segments) == 2 && segments[1] == "player-display":

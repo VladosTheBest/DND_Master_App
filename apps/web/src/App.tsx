@@ -4325,6 +4325,7 @@ export default function App() {
                 onOpenDirectory={() => openModuleDirectory(activeModule)}
                 onOpenPinnedEntity={peekEntity}
                 onOpenRandomEvent={openRandomEventModal}
+				onOpenPlayerSurveys={() => { window.open("/master/surveys", "_blank", "noopener,noreferrer"); }}
                 onOpenSearch={openPalette}
                 pinnedEntities={pinnedEntities}
                 variant="default"
