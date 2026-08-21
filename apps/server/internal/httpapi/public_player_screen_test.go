@@ -163,6 +163,10 @@ func TestPublicDisplaySanitizesWallsAndVisionToken(t *testing.T) {
 	if token == nil || token.X != 0 || token.Y != 1 || token.VisionRadius != 1.5 {
 		t.Fatalf("expected clamped token, got %+v", token)
 	}
+	image := sanitizePublicDisplayImage(publicDisplayImage{URL: "/map.png", MapAspectRatio: 99})
+	if image == nil || image.MapAspectRatio != 5 {
+		t.Fatalf("expected clamped map aspect ratio, got %+v", image)
+	}
 }
 
 func TestPublicScreenResultStaysUntilNewImageIsShown(t *testing.T) {

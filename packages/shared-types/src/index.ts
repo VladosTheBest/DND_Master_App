@@ -768,6 +768,7 @@ export interface PlayerDisplayImageInput {
   fogRegions?: PlayerDisplayFogRegion[];
   walls?: PlayerDisplayWall[];
   token?: PlayerDisplayToken;
+  mapAspectRatio?: number;
 }
 
 export interface AuthSessionResult {

@@ -69,19 +69,20 @@ type publicInitiativeMeta struct {
 }
 
 type playerDisplayImageInput struct {
-	URL        string              `json:"url"`
-	Title      string              `json:"title"`
-	Alt        string              `json:"alt"`
-	Caption    string              `json:"caption"`
-	FogRows    int                 `json:"fogRows"`
-	FogColumns int                 `json:"fogColumns"`
-	Revealed   []int               `json:"revealed"`
-	ShowGrid   bool                `json:"showGrid"`
-	SessionMap bool                `json:"sessionMap"`
-	MediaType  string              `json:"mediaType"`
-	FogRegions []publicFogRegion   `json:"fogRegions"`
-	Walls      []publicDisplayWall `json:"walls"`
-	Token      *publicDisplayToken `json:"token"`
+	URL            string              `json:"url"`
+	Title          string              `json:"title"`
+	Alt            string              `json:"alt"`
+	Caption        string              `json:"caption"`
+	FogRows        int                 `json:"fogRows"`
+	FogColumns     int                 `json:"fogColumns"`
+	Revealed       []int               `json:"revealed"`
+	ShowGrid       bool                `json:"showGrid"`
+	SessionMap     bool                `json:"sessionMap"`
+	MediaType      string              `json:"mediaType"`
+	FogRegions     []publicFogRegion   `json:"fogRegions"`
+	Walls          []publicDisplayWall `json:"walls"`
+	Token          *publicDisplayToken `json:"token"`
+	MapAspectRatio float64             `json:"mapAspectRatio"`
 }
 
 type publicFogPoint struct {
@@ -108,19 +109,20 @@ type publicDisplayToken struct {
 }
 
 type publicDisplayImage struct {
-	URL        string              `json:"url"`
-	Title      string              `json:"title,omitempty"`
-	Alt        string              `json:"alt,omitempty"`
-	Caption    string              `json:"caption,omitempty"`
-	FogRows    int                 `json:"fogRows,omitempty"`
-	FogColumns int                 `json:"fogColumns,omitempty"`
-	Revealed   []int               `json:"revealed,omitempty"`
-	ShowGrid   bool                `json:"showGrid,omitempty"`
-	SessionMap bool                `json:"sessionMap,omitempty"`
-	MediaType  string              `json:"mediaType,omitempty"`
-	FogRegions []publicFogRegion   `json:"fogRegions,omitempty"`
-	Walls      []publicDisplayWall `json:"walls,omitempty"`
-	Token      *publicDisplayToken `json:"token,omitempty"`
+	URL            string              `json:"url"`
+	Title          string              `json:"title,omitempty"`
+	Alt            string              `json:"alt,omitempty"`
+	Caption        string              `json:"caption,omitempty"`
+	FogRows        int                 `json:"fogRows,omitempty"`
+	FogColumns     int                 `json:"fogColumns,omitempty"`
+	Revealed       []int               `json:"revealed,omitempty"`
+	ShowGrid       bool                `json:"showGrid,omitempty"`
+	SessionMap     bool                `json:"sessionMap,omitempty"`
+	MediaType      string              `json:"mediaType,omitempty"`
+	FogRegions     []publicFogRegion   `json:"fogRegions,omitempty"`
+	Walls          []publicDisplayWall `json:"walls,omitempty"`
+	Token          *publicDisplayToken `json:"token,omitempty"`
+	MapAspectRatio float64             `json:"mapAspectRatio,omitempty"`
 }
 
 type publicDisplaySnapshot struct {
@@ -1299,17 +1301,18 @@ var (
         statusNode.textContent = UI.updated + formatUpdatedAt(updatedAt);
       };
 
-      const visibilityPolygon = (token, walls) => {
+      const visibilityPolygon = (token, walls, aspectRatio) => {
         if (!token) return [];
         const origin = { x: Number(token.x || 0), y: Number(token.y || 0) };
         const radius = Math.max(0.03, Number(token.visionRadius || 0.22));
+        const aspect = Math.max(0.2, Number(aspectRatio || 1));
         const angles = Array.from({ length: 180 }, (_, index) => (Math.PI * 2 * index) / 180);
         (walls || []).forEach((wall) => [wall.start, wall.end].forEach((point) => {
-          const angle = Math.atan2(Number(point.y) - origin.y, Number(point.x) - origin.x);
+          const angle = Math.atan2((Number(point.y) - origin.y) / aspect, Number(point.x) - origin.x);
           angles.push(angle - 0.0001, angle, angle + 0.0001);
         }));
         return angles.sort((a, b) => a - b).map((angle) => {
-          const ray = { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
+          const ray = { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius * aspect };
           let distance = 1;
           (walls || []).forEach((wall) => {
             const q = wall.start, segment = { x: wall.end.x - q.x, y: wall.end.y - q.y };
@@ -1353,7 +1356,7 @@ var (
         const regions = Array.isArray(image?.fogRegions) ? image.fogRegions : [];
         const walls = Array.isArray(image?.walls) ? image.walls : [];
         const token = image?.token || null;
-        const visionPoints = visibilityPolygon(token, walls).map((point) => (point.x * 1000) + ',' + (point.y * 1000)).join(' ');
+        const visionPoints = visibilityPolygon(token, walls, image?.mapAspectRatio).map((point) => (point.x * 1000) + ',' + (point.y * 1000)).join(' ');
         const regionShapes = regions.map((region) => {
           const points = Array.isArray(region?.points)
             ? region.points.map((point) => (Math.max(0, Math.min(1, Number(point?.x || 0))) * 1000) + ',' + (Math.max(0, Math.min(1, Number(point?.y || 0))) * 1000)).join(' ')
@@ -2183,19 +2186,20 @@ func (manager *initiativeShareManager) showPlayerDisplayImage(
 	}
 
 	manager.currentDisplaySnapshotLocked(campaign, &publicDisplayImage{
-		URL:        resolvePublicDisplayAssetURL(strings.TrimSpace(input.URL), baseURL),
-		Title:      strings.TrimSpace(input.Title),
-		Alt:        strings.TrimSpace(input.Alt),
-		Caption:    strings.TrimSpace(input.Caption),
-		FogRows:    input.FogRows,
-		FogColumns: input.FogColumns,
-		Revealed:   input.Revealed,
-		ShowGrid:   input.ShowGrid,
-		SessionMap: input.SessionMap,
-		MediaType:  input.MediaType,
-		FogRegions: input.FogRegions,
-		Walls:      input.Walls,
-		Token:      input.Token,
+		URL:            resolvePublicDisplayAssetURL(strings.TrimSpace(input.URL), baseURL),
+		Title:          strings.TrimSpace(input.Title),
+		Alt:            strings.TrimSpace(input.Alt),
+		Caption:        strings.TrimSpace(input.Caption),
+		FogRows:        input.FogRows,
+		FogColumns:     input.FogColumns,
+		Revealed:       input.Revealed,
+		ShowGrid:       input.ShowGrid,
+		SessionMap:     input.SessionMap,
+		MediaType:      input.MediaType,
+		FogRegions:     input.FogRegions,
+		Walls:          input.Walls,
+		Token:          input.Token,
+		MapAspectRatio: input.MapAspectRatio,
 	})
 
 	publicSnapshot := manager.currentSnapshotLocked(campaign)
@@ -2348,7 +2352,7 @@ func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 	if mode == publicScreenModeImage && snapshot.Image != nil {
 		fmt.Fprintf(
 			&builder,
-			"image|%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|%v|%v|",
+			"image|%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|%v|%v|%f|",
 			snapshot.Image.URL,
 			snapshot.Image.Title,
 			snapshot.Image.Alt,
@@ -2362,6 +2366,7 @@ func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 			snapshot.Image.FogRegions,
 			snapshot.Image.Walls,
 			snapshot.Image.Token,
+			snapshot.Image.MapAspectRatio,
 		)
 		return builder.String()
 	}
@@ -2461,7 +2466,7 @@ func publicDisplaySnapshotFingerprint(snapshot publicDisplaySnapshot) string {
 
 	fmt.Fprintf(
 		&builder,
-		"%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|%v|%v|",
+		"%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|%v|%v|%f|",
 		snapshot.Image.URL,
 		snapshot.Image.Title,
 		snapshot.Image.Alt,
@@ -2475,6 +2480,7 @@ func publicDisplaySnapshotFingerprint(snapshot publicDisplaySnapshot) string {
 		snapshot.Image.FogRegions,
 		snapshot.Image.Walls,
 		snapshot.Image.Token,
+		snapshot.Image.MapAspectRatio,
 	)
 	return builder.String()
 }
@@ -2517,21 +2523,26 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 	regions := sanitizePublicFogRegions(image.FogRegions)
 	walls := sanitizePublicDisplayWalls(image.Walls)
 	token := sanitizePublicDisplayToken(image.Token)
+	aspectRatio := max(0.2, min(image.MapAspectRatio, 5))
+	if image.MapAspectRatio == 0 {
+		aspectRatio = 1
+	}
 
 	return &publicDisplayImage{
-		URL:        url,
-		Title:      strings.TrimSpace(image.Title),
-		Alt:        strings.TrimSpace(image.Alt),
-		Caption:    strings.TrimSpace(image.Caption),
-		FogRows:    rows,
-		FogColumns: columns,
-		Revealed:   revealed,
-		ShowGrid:   image.ShowGrid,
-		SessionMap: image.SessionMap,
-		MediaType:  mediaType,
-		FogRegions: regions,
-		Walls:      walls,
-		Token:      token,
+		URL:            url,
+		Title:          strings.TrimSpace(image.Title),
+		Alt:            strings.TrimSpace(image.Alt),
+		Caption:        strings.TrimSpace(image.Caption),
+		FogRows:        rows,
+		FogColumns:     columns,
+		Revealed:       revealed,
+		ShowGrid:       image.ShowGrid,
+		SessionMap:     image.SessionMap,
+		MediaType:      mediaType,
+		FogRegions:     regions,
+		Walls:          walls,
+		Token:          token,
+		MapAspectRatio: aspectRatio,
 	}
 }
 
