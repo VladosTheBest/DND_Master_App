@@ -50,7 +50,7 @@ func (m *surveyManager) handleCreateLink(w http.ResponseWriter, r *http.Request,
 		writeError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Only POST is supported")
 		return
 	}
-	token, err := m.store.ensureSurveyInvite(campaignID)
+	token, err := m.store.rotateSurveyInvite(campaignID)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "survey_link_failed", err.Error())
 		return
@@ -153,7 +153,7 @@ func validateSurvey(i surveyInput) error {
 	return nil
 }
 
-func (s *campaignStore) ensureSurveyInvite(campaignID string) (string, error) {
+func (s *campaignStore) rotateSurveyInvite(campaignID string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	found := false
@@ -165,15 +165,17 @@ func (s *campaignStore) ensureSurveyInvite(campaignID string) (string, error) {
 	if !found {
 		return "", fmt.Errorf("campaign %q not found", campaignID)
 	}
-	for _, i := range s.data.SurveyInvites {
-		if i.CampaignID == campaignID {
-			return i.Token, nil
-		}
-	}
 	token, err := newSurveyToken()
 	if err != nil {
 		return "", err
 	}
+	invites := s.data.SurveyInvites[:0]
+	for _, invite := range s.data.SurveyInvites {
+		if invite.CampaignID != campaignID {
+			invites = append(invites, invite)
+		}
+	}
+	s.data.SurveyInvites = invites
 	s.data.SurveyInvites = append(s.data.SurveyInvites, surveyInvite{Token: token, CampaignID: campaignID, CreatedAt: time.Now().UTC().Format(time.RFC3339)})
 	return token, s.saveLocked()
 }
