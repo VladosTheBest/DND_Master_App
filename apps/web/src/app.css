@@ -4,6 +4,7 @@
 @import "./styles/layout.css";
 @import "./styles/forms.css";
 @import "./styles/shared-components.css";
+@import "./app/session-map.css";
 
 /* TODO: Keep remaining feature-specific and responsive overrides here until each feature CSS split is fully verified. */
 

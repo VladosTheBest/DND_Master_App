@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -68,17 +69,27 @@ type publicInitiativeMeta struct {
 }
 
 type playerDisplayImageInput struct {
-	URL     string `json:"url"`
-	Title   string `json:"title"`
-	Alt     string `json:"alt"`
-	Caption string `json:"caption"`
+	URL        string `json:"url"`
+	Title      string `json:"title"`
+	Alt        string `json:"alt"`
+	Caption    string `json:"caption"`
+	FogRows    int    `json:"fogRows"`
+	FogColumns int    `json:"fogColumns"`
+	Revealed   []int  `json:"revealed"`
+	ShowGrid   bool   `json:"showGrid"`
+	SessionMap bool   `json:"sessionMap"`
 }
 
 type publicDisplayImage struct {
-	URL     string `json:"url"`
-	Title   string `json:"title,omitempty"`
-	Alt     string `json:"alt,omitempty"`
-	Caption string `json:"caption,omitempty"`
+	URL        string `json:"url"`
+	Title      string `json:"title,omitempty"`
+	Alt        string `json:"alt,omitempty"`
+	Caption    string `json:"caption,omitempty"`
+	FogRows    int    `json:"fogRows,omitempty"`
+	FogColumns int    `json:"fogColumns,omitempty"`
+	Revealed   []int  `json:"revealed,omitempty"`
+	ShowGrid   bool   `json:"showGrid,omitempty"`
+	SessionMap bool   `json:"sessionMap,omitempty"`
 }
 
 type publicDisplaySnapshot struct {
@@ -553,13 +564,47 @@ var (
         box-shadow:
           0 0 0 1px rgba(255, 255, 255, 0.04) inset,
           0 24px 72px rgba(0, 0, 0, 0.46);
+        display: grid;
+        place-items: center;
       }
-      .image-state img {
-        width: 100%;
-        height: 100%;
+      .image-canvas {
+        position: relative;
+        display: inline-block;
+        max-width: 100%;
+        max-height: 100%;
+        line-height: 0;
+      }
+      .image-canvas img {
+        max-width: 100%;
+        max-height: min(76vh, 58rem);
         display: block;
         object-fit: contain;
         object-position: center;
+      }
+      .fog-grid {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        display: grid;
+        pointer-events: none;
+      }
+      .fog-cell {
+        min-width: 0;
+        min-height: 0;
+        background:
+          radial-gradient(circle at 45% 48%, rgba(34, 25, 49, 0.94), rgba(3, 5, 10, 0.995) 72%),
+          linear-gradient(135deg, rgba(73, 47, 93, 0.24), rgba(0, 0, 0, 0.94));
+        box-shadow: 0 0 18px rgba(0, 0, 0, 0.88) inset;
+        opacity: 1;
+        transition: opacity 520ms ease, filter 520ms ease;
+      }
+      .fog-cell.revealed {
+        opacity: 0;
+        filter: blur(8px);
+      }
+      .fog-grid.show-grid .fog-cell:not(.revealed) {
+        outline: 1px solid rgba(210, 173, 255, 0.08);
+        outline-offset: -1px;
       }
       .image-overlay {
         position: absolute;
@@ -573,6 +618,7 @@ var (
         border: 1px solid rgba(122, 94, 198, 0.24);
         background: linear-gradient(180deg, rgba(8, 10, 16, 0.76), rgba(8, 10, 16, 0.92));
         backdrop-filter: blur(18px);
+        z-index: 3;
       }
       .image-overlay[hidden] {
         display: none;
@@ -1160,16 +1206,40 @@ var (
             (caption ? '<p>' + escapeHtml(caption) + '</p>' : "") +
             '</figcaption>'
           : "";
+        const rows = Math.max(0, Number(image?.fogRows || 0));
+        const columns = Math.max(0, Number(image?.fogColumns || 0));
+        const revealed = new Set(Array.isArray(image?.revealed) ? image.revealed.map(Number) : []);
+        const fogCells = rows >= 2 && columns >= 2
+          ? Array.from({ length: rows * columns }, (_, index) =>
+              '<span class="fog-cell' + (revealed.has(index) ? ' revealed' : '') + '"></span>'
+            ).join("")
+          : "";
+        const fog = fogCells
+          ? '<div class="fog-grid' + (image?.showGrid ? ' show-grid' : '') + '" style="grid-template-columns:repeat(' + columns + ',1fr);grid-template-rows:repeat(' + rows + ',1fr)">' + fogCells + '</div>'
+          : "";
         trackNode.innerHTML =
-          '<figure class="image-state"><img alt="' +
+          '<figure class="image-state"><div class="image-canvas"><img alt="' +
           escapeHtml(image?.alt || title || UI.imageAlt) +
           '" src="' +
           escapeHtml(image?.url || "") +
           '">' +
+          fog +
+          '</div>' +
           overlay +
           '</figure>';
         setPublishedStatus(snapshot?.updatedAt);
       };
+
+      document.addEventListener("keydown", (event) => {
+        if (String(event.key || "").toLowerCase() === "f" && !document.fullscreenElement) {
+          document.documentElement.requestFullscreen?.().catch(() => {});
+        }
+      });
+      document.addEventListener("dblclick", () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen?.().catch(() => {});
+        }
+      });
 
       const victoryBloodOverlay = "/initiative/assets/victory-blood-overlay.png";
 
@@ -1941,10 +2011,15 @@ func (manager *initiativeShareManager) showPlayerDisplayImage(
 	}
 
 	manager.currentDisplaySnapshotLocked(campaign, &publicDisplayImage{
-		URL:     resolvePublicDisplayAssetURL(strings.TrimSpace(input.URL), baseURL),
-		Title:   strings.TrimSpace(input.Title),
-		Alt:     strings.TrimSpace(input.Alt),
-		Caption: strings.TrimSpace(input.Caption),
+		URL:        resolvePublicDisplayAssetURL(strings.TrimSpace(input.URL), baseURL),
+		Title:      strings.TrimSpace(input.Title),
+		Alt:        strings.TrimSpace(input.Alt),
+		Caption:    strings.TrimSpace(input.Caption),
+		FogRows:    input.FogRows,
+		FogColumns: input.FogColumns,
+		Revealed:   input.Revealed,
+		ShowGrid:   input.ShowGrid,
+		SessionMap: input.SessionMap,
 	})
 
 	publicSnapshot := manager.currentSnapshotLocked(campaign)
@@ -2069,7 +2144,7 @@ func shouldShowPublicDisplayImage(campaign campaignData, display publicDisplaySn
 		return false
 	}
 	if campaign.ActiveCombat != nil {
-		return false
+		return display.Image.SessionMap
 	}
 	if campaign.LastCombatSummary == nil {
 		return true
@@ -2097,11 +2172,16 @@ func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 	if mode == publicScreenModeImage && snapshot.Image != nil {
 		fmt.Fprintf(
 			&builder,
-			"image|%s|%s|%s|%s|",
+			"image|%s|%s|%s|%s|%d|%d|%t|%t|%v|",
 			snapshot.Image.URL,
 			snapshot.Image.Title,
 			snapshot.Image.Alt,
 			snapshot.Image.Caption,
+			snapshot.Image.FogRows,
+			snapshot.Image.FogColumns,
+			snapshot.Image.ShowGrid,
+			snapshot.Image.SessionMap,
+			snapshot.Image.Revealed,
 		)
 		return builder.String()
 	}
@@ -2201,11 +2281,16 @@ func publicDisplaySnapshotFingerprint(snapshot publicDisplaySnapshot) string {
 
 	fmt.Fprintf(
 		&builder,
-		"%s|%s|%s|%s|",
+		"%s|%s|%s|%s|%d|%d|%t|%t|%v|",
 		snapshot.Image.URL,
 		snapshot.Image.Title,
 		snapshot.Image.Alt,
 		snapshot.Image.Caption,
+		snapshot.Image.FogRows,
+		snapshot.Image.FogColumns,
+		snapshot.Image.ShowGrid,
+		snapshot.Image.SessionMap,
+		snapshot.Image.Revealed,
 	)
 	return builder.String()
 }
@@ -2216,11 +2301,36 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 		return nil
 	}
 
+	rows := max(0, min(image.FogRows, 24))
+	columns := max(0, min(image.FogColumns, 24))
+	if rows < 2 || columns < 2 {
+		rows, columns = 0, 0
+	}
+	limit := rows * columns
+	revealed := make([]int, 0, len(image.Revealed))
+	seen := make(map[int]struct{}, len(image.Revealed))
+	for _, index := range image.Revealed {
+		if index < 0 || index >= limit {
+			continue
+		}
+		if _, exists := seen[index]; exists {
+			continue
+		}
+		seen[index] = struct{}{}
+		revealed = append(revealed, index)
+	}
+	slices.Sort(revealed)
+
 	return &publicDisplayImage{
-		URL:     url,
-		Title:   strings.TrimSpace(image.Title),
-		Alt:     strings.TrimSpace(image.Alt),
-		Caption: strings.TrimSpace(image.Caption),
+		URL:        url,
+		Title:      strings.TrimSpace(image.Title),
+		Alt:        strings.TrimSpace(image.Alt),
+		Caption:    strings.TrimSpace(image.Caption),
+		FogRows:    rows,
+		FogColumns: columns,
+		Revealed:   revealed,
+		ShowGrid:   image.ShowGrid,
+		SessionMap: image.SessionMap,
 	}
 }
 

@@ -82,6 +82,46 @@ func TestPublicScreenActiveCombatOverridesPublishedImage(t *testing.T) {
 	}
 }
 
+func TestSessionMapOverridesCombatAndSanitizesFog(t *testing.T) {
+	store, campaign := newPublicScreenTestStore(t)
+	manager := newInitiativeShareManager(store, "https://players.example")
+	request := httptest.NewRequest(http.MethodPost, "/api/campaigns/"+campaign.ID+"/player-display", nil)
+
+	if _, err := store.startCombat(campaign.ID, startCombatInput{
+		Title:      "Ambush",
+		PartySize:  1,
+		Thresholds: combatThresholds{Easy: 25, Medium: 50, Hard: 75, Deadly: 100},
+		ManualParticipants: []manualCombatantInput{
+			{Title: "Aelar", Initiative: 14, MaxHitPoints: 18},
+		},
+	}); err != nil {
+		t.Fatalf("startCombat() error = %v", err)
+	}
+
+	share, err := manager.showPlayerDisplayImage(campaign.ID, request, playerDisplayImageInput{
+		URL:        "/uploads/map.png",
+		FogRows:    2,
+		FogColumns: 3,
+		Revealed:   []int{5, 1, 1, -1, 6},
+		ShowGrid:   true,
+		SessionMap: true,
+	})
+	if err != nil {
+		t.Fatalf("showPlayerDisplayImage() error = %v", err)
+	}
+
+	snapshot, err := manager.snapshotForToken(share.Token)
+	if err != nil {
+		t.Fatalf("snapshotForToken() error = %v", err)
+	}
+	if snapshot.Mode != publicScreenModeImage || snapshot.Image == nil {
+		t.Fatalf("expected session map to override combat, got mode=%q image=%+v", snapshot.Mode, snapshot.Image)
+	}
+	if got := snapshot.Image.Revealed; len(got) != 2 || got[0] != 1 || got[1] != 5 {
+		t.Fatalf("expected valid unique sorted fog cells, got %v", got)
+	}
+}
+
 func TestPublicScreenResultStaysUntilNewImageIsShown(t *testing.T) {
 	store, campaign := newPublicScreenTestStore(t)
 	manager := newInitiativeShareManager(store, "https://players.example")

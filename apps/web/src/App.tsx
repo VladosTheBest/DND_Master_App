@@ -42,6 +42,7 @@ import { AppHeader } from "./app/AppHeader";
 import { AppPreviewContent } from "./app/AppPreviewContent";
 import { AppPreviewPanel } from "./app/AppPreviewPanel";
 import { AppSidebar } from "./app/AppSidebar";
+import { SessionMapModal } from "./app/SessionMapModal";
 import { EntityDirectoryScreen } from "./app/EntityDirectoryScreen";
 import { useCampaignCreationController } from "./app/hooks/useCampaignCreationController";
 import { useModalController } from "./app/hooks/useModalController";
@@ -1539,6 +1540,7 @@ export default function App() {
   const [saving, setSaving] = useState(false);
   const [initiativeShareBusy, setInitiativeShareBusy] = useState(false);
   const [playerDisplayBusy, setPlayerDisplayBusy] = useState(false);
+  const [sessionMapOpen, setSessionMapOpen] = useState(false);
   const [combatStateBusy, setCombatStateBusy] = useState(false);
   const [initiativePublishNotice, setInitiativePublishNotice] = useState("");
   const [generating, setGenerating] = useState(false);
@@ -4326,6 +4328,7 @@ export default function App() {
                 onOpenPinnedEntity={peekEntity}
                 onOpenRandomEvent={openRandomEventModal}
 				onOpenPlayerSurveys={() => { window.open("/master/surveys", "_blank", "noopener,noreferrer"); }}
+                onOpenSessionMap={() => setSessionMapOpen(true)}
                 onOpenSearch={openPalette}
                 pinnedEntities={pinnedEntities}
                 variant="default"
@@ -5210,6 +5213,12 @@ export default function App() {
         onCancel={cancelModalCloseRequest}
         onConfirm={confirmModalCloseRequest}
         state={closeConfirmState}
+      />
+
+      <SessionMapModal
+        campaignId={activeCampaignId}
+        onClose={() => setSessionMapOpen(false)}
+        open={sessionMapOpen}
       />
     </>
   );

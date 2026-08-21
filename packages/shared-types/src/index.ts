@@ -736,6 +736,11 @@ export interface PlayerDisplayImageInput {
   title?: string;
   alt?: string;
   caption?: string;
+  fogRows?: number;
+  fogColumns?: number;
+  revealed?: number[];
+  showGrid?: boolean;
+  sessionMap?: boolean;
 }
 
 export interface AuthSessionResult {
