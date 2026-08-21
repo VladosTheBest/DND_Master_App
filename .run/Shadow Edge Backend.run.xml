@@ -1,0 +1,9 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Shadow Edge Backend" type="GoApplicationRunConfiguration" factoryName="Go Application">
+    <module name="DND_Master_App" />
+    <working_directory value="$PROJECT_DIR$" />
+    <kind value="PACKAGE" />
+    <package value="./apps/server/cmd/server" />
+    <method v="2" />
+  </configuration>
+</component>
