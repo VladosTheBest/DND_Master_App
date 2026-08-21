@@ -1311,7 +1311,10 @@ var (
           const angle = Math.atan2((Number(point.y) - origin.y) / aspect, Number(point.x) - origin.x);
           angles.push(angle - 0.0001, angle, angle + 0.0001);
         }));
-        return angles.sort((a, b) => a - b).map((angle) => {
+        const normalizedAngles = angles
+          .map((angle) => ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2))
+          .sort((a, b) => a - b);
+        return normalizedAngles.map((angle) => {
           const ray = { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius * aspect };
           let distance = 1;
           (walls || []).forEach((wall) => {
