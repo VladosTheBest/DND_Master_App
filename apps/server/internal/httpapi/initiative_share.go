@@ -97,9 +97,10 @@ type publicFogRegion struct {
 }
 
 type publicDisplayWall struct {
-	ID    string         `json:"id"`
-	Start publicFogPoint `json:"start"`
-	End   publicFogPoint `json:"end"`
+	ID       string         `json:"id"`
+	Start    publicFogPoint `json:"start"`
+	End      publicFogPoint `json:"end"`
+	Disabled bool           `json:"disabled,omitempty"`
 }
 
 type publicDisplayToken struct {
@@ -1307,7 +1308,8 @@ var (
         const radius = Math.max(0.03, Number(token.visionRadius || 0.22));
         const aspect = Math.max(0.2, Number(aspectRatio || 1));
         const angles = Array.from({ length: 180 }, (_, index) => (Math.PI * 2 * index) / 180);
-        (walls || []).forEach((wall) => [wall.start, wall.end].forEach((point) => {
+        const blockingWalls = (walls || []).filter((wall) => !wall?.disabled);
+        blockingWalls.forEach((wall) => [wall.start, wall.end].forEach((point) => {
           const angle = Math.atan2((Number(point.y) - origin.y) / aspect, Number(point.x) - origin.x);
           angles.push(angle - 0.0001, angle, angle + 0.0001);
         }));
@@ -1317,7 +1319,7 @@ var (
         return normalizedAngles.map((angle) => {
           const ray = { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius * aspect };
           let distance = 1;
-          (walls || []).forEach((wall) => {
+          blockingWalls.forEach((wall) => {
             const q = wall.start, segment = { x: wall.end.x - q.x, y: wall.end.y - q.y };
             const cross = ray.x * segment.y - ray.y * segment.x;
             if (Math.abs(cross) < 1e-9) return;
@@ -2564,7 +2566,7 @@ func sanitizePublicDisplayWalls(walls []publicDisplayWall) []publicDisplayWall {
 		if start == end {
 			continue
 		}
-		result = append(result, publicDisplayWall{ID: id, Start: start, End: end})
+		result = append(result, publicDisplayWall{ID: id, Start: start, End: end, Disabled: wall.Disabled})
 	}
 	return result
 }

@@ -746,6 +746,7 @@ export interface PlayerDisplayWall {
   id: string;
   start: PlayerDisplayFogPoint;
   end: PlayerDisplayFogPoint;
+  disabled?: boolean;
 }
 
 export interface PlayerDisplayToken {
