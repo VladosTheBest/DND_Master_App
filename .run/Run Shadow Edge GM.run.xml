@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Run Shadow Edge GM" type="CompoundRunConfigurationType">
-    <toRun name="Shadow Edge Backend" type="GoApplicationRunConfiguration" />
+    <toRun name="Shadow Edge Backend" type="js.build_tools.npm" />
     <toRun name="Shadow Edge Frontend (Vite)" type="js.build_tools.npm" />
     <method v="2" />
   </configuration>
