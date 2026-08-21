@@ -6,6 +6,7 @@
       <script value="dev" />
     </scripts>
     <node-interpreter value="project" />
+    <package-manager value="C:\nvm4w\nodejs\npm.cmd" />
     <method v="2" />
   </configuration>
 </component>
