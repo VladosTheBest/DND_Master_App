@@ -967,6 +967,8 @@ select.input option,
 
 /* Player dossier: optimized for fast scanning during a session. */
 .player-details-page,
+.npc-details-page,
+.location-details-page,
 .monster-details-page {
   width: min(100%, 1480px);
   margin-inline: auto;
@@ -974,16 +976,22 @@ select.input option,
 }
 
 .player-details-page > *,
+.npc-details-page > *,
+.location-details-page > *,
 .monster-details-page > * {
   scroll-margin-top: 5.25rem;
 }
 
-.player-details-page .hero {
+.player-details-page .hero,
+.npc-details-page .hero,
+.location-details-page .hero {
   min-height: 9.5rem;
   padding: clamp(1.1rem, 2vw, 1.75rem);
 }
 
-.player-details-page .hero-copy-block .copy {
+.player-details-page .hero-copy-block .copy,
+.npc-details-page .hero-copy-block .copy,
+.location-details-page .hero-copy-block .copy {
   max-width: 76ch;
   font-size: .9rem;
   line-height: 1.62;
@@ -1035,60 +1043,82 @@ select.input option,
   color: #fff;
 }
 
-.player-details-page .section-card {
+.player-details-page .section-card,
+.npc-details-page .section-card,
+.location-details-page .section-card {
   padding: clamp(.95rem, 1.45vw, 1.3rem);
 }
 
-.player-details-page .collapsible-copy strong {
+.player-details-page .collapsible-copy strong,
+.npc-details-page .collapsible-copy strong,
+.location-details-page .collapsible-copy strong {
   font-family: Georgia, "Times New Roman", serif;
   font-size: 1.05rem;
   color: #fff7e8;
 }
 
-.player-details-page .collapsible-copy small {
+.player-details-page .collapsible-copy small,
+.npc-details-page .collapsible-copy small,
+.location-details-page .collapsible-copy small {
   margin-top: .14rem;
   font-size: .76rem;
   line-height: 1.45;
 }
 
-.player-details-page .facts {
+.player-details-page .facts,
+.npc-details-page .facts,
+.location-details-page .facts {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
-.player-details-page .fact-box {
+.player-details-page .fact-box,
+.npc-details-page .fact-box,
+.location-details-page .fact-box {
   min-height: 5.4rem;
   padding: .85rem .95rem;
 }
 
-.player-details-page .player-detail-media-grid {
+.player-details-page .player-detail-media-grid,
+.npc-details-page .player-detail-media-grid,
+.location-details-page .player-detail-media-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
   align-items: start;
 }
 
-.player-details-page #player-master-notes .collapsible-body {
+.player-details-page #player-master-notes .collapsible-body,
+.npc-details-page #npc-master-notes .collapsible-body,
+.location-details-page #location-master-notes .collapsible-body {
   justify-items: center;
 }
 
-.player-details-page #player-master-notes .collapsible-body > div {
+.player-details-page #player-master-notes .collapsible-body > div,
+.npc-details-page #npc-master-notes .collapsible-body > div,
+.location-details-page #location-master-notes .collapsible-body > div {
   width: min(100%, 92ch);
 }
 
-.player-details-page #player-master-notes .rich {
+.player-details-page #player-master-notes .rich,
+.npc-details-page #npc-master-notes .rich,
+.location-details-page #location-master-notes .rich {
   gap: .85rem;
   font-size: clamp(.9rem, .82vw, 1rem);
   line-height: 1.76;
 }
 
-.player-details-page #player-master-notes .rich p {
+.player-details-page #player-master-notes .rich p,
+.npc-details-page #npc-master-notes .rich p,
+.location-details-page #location-master-notes .rich p {
   margin: 0;
   padding: .2rem 0 .2rem 1rem;
   border-left: 2px solid rgba(194, 139, 255, .22);
   color: #d8d1df;
 }
 
-.player-details-page #player-master-notes .rich p:hover {
+.player-details-page #player-master-notes .rich p:hover,
+.npc-details-page #npc-master-notes .rich p:hover,
+.location-details-page #location-master-notes .rich p:hover {
   border-left-color: rgba(227, 181, 105, .58);
   color: #f0eaf4;
 }
@@ -1135,7 +1165,9 @@ select.input option,
 }
 
 @media (max-width: 900px) {
-  .player-details-page .player-detail-media-grid {
+  .player-details-page .player-detail-media-grid,
+  .npc-details-page .player-detail-media-grid,
+  .location-details-page .player-detail-media-grid {
     grid-template-columns: 1fr;
   }
 

@@ -132,6 +132,35 @@ export function EntityDetailsPage({
   const combatProfileEntity =
     activeEntity.kind === "player" || activeEntity.kind === "npc" || activeEntity.kind === "monster" ? activeEntity : null;
   const monsterGalleryAlbum = activeEntity.kind === "monster" ? buildEntityGalleryAlbum(activeEntity) : [];
+  const dossierKind = activeEntity.kind === "player" || activeEntity.kind === "npc" || activeEntity.kind === "location" ? activeEntity.kind : null;
+  const dossierLinks =
+    activeEntity.kind === "npc"
+      ? [
+          ["npc-summary", "Сводка"],
+          ["npc-handouts", "Игроки видят"],
+          ["npc-quests", "Квесты"],
+          ["npc-media", "Медиа"],
+          ["npc-master-notes", "Мастеру"],
+          ["npc-relations", "Связи"],
+          ["npc-stats", "Статы"]
+        ]
+      : activeEntity.kind === "location"
+        ? [
+            ["location-summary", "Сводка"],
+            ["location-handouts", "Игроки видят"],
+            ["location-shops", "Магазины"],
+            ["location-media", "Медиа"],
+            ["location-master-notes", "Мастеру"],
+            ["location-relations", "Связи"]
+          ]
+        : [
+            ["player-summary", "Сводка"],
+            ["player-handouts", "Игроки видят"],
+            ["player-media", "Медиа"],
+            ["player-master-notes", "Мастеру"],
+            ["player-relations", "Связи"],
+            ["player-stats", "Статы"]
+          ];
 
   if (activeEntity.kind === "monster" && combatProfileEntity) {
     const openMonsterAlbum = () => {
@@ -231,7 +260,7 @@ export function EntityDetailsPage({
   }
 
   return (
-    <div className={`stack wide entity-details-page ${activeEntity.kind === "player" ? "player-details-page" : ""}`.trim()}>
+    <div className={`stack wide entity-details-page ${dossierKind ? `${dossierKind}-details-page` : ""}`.trim()}>
       <section
         className="card hero"
         onContextMenu={onOpenEntityActionMenu}
@@ -272,19 +301,16 @@ export function EntityDetailsPage({
         </div>
       </section>
 
-      {activeEntity.kind === "player" ? (
-        <nav aria-label="Быстрые переходы по карточке игрока" className="player-details-jumpbar">
+      {dossierKind ? (
+        <nav aria-label="Быстрые переходы по карточке" className="player-details-jumpbar">
           <span>Быстро найти</span>
-          <a href="#player-summary">Сводка</a>
-          <a href="#player-handouts">Игроки видят</a>
-          <a href="#player-media">Медиа</a>
-          <a href="#player-master-notes">Мастеру</a>
-          <a href="#player-relations">Связи</a>
-          <a href="#player-stats">Статы</a>
+          {dossierLinks.map(([id, label]) => (
+            <a key={id} href={`#${id}`}>{label}</a>
+          ))}
         </nav>
       ) : null}
 
-      <div id={activeEntity.kind === "player" ? "player-handouts" : undefined}>
+      <div id={dossierKind ? `${dossierKind}-handouts` : undefined}>
         <PlayerFacingCardStrip
           cards={activeEntityPlayerCards}
           createDescription="Отдельная сцена, handout или короткая заметка для игроков. Откроется сразу в режиме редактирования."
@@ -305,7 +331,7 @@ export function EntityDetailsPage({
       {preparedCombatSection}
 
       {visibleFacts.length ? (
-        <div id={activeEntity.kind === "player" ? "player-summary" : undefined}>
+        <div id={dossierKind ? `${dossierKind}-summary` : undefined}>
         <CollapsibleSection
           key={`${activeEntity.id}-facts`}
           hint="Ключевые данные, которые стоит держать перед глазами"
@@ -332,6 +358,7 @@ export function EntityDetailsPage({
       ) : null}
 
       {activeEntity.kind === "location" ? (
+        <div id="location-shops">
         <CollapsibleSection
           key={`${activeEntity.id}-shops`}
           hint="Торговые точки, привязанные к этой локации"
@@ -373,9 +400,10 @@ export function EntityDetailsPage({
             <p className="copy">Привяжи магазин к этой локации во вкладке “Магазин”, и он появится здесь как связанная торговая точка.</p>
           )}
         </CollapsibleSection>
+        </div>
       ) : null}
 
-      <div className="player-detail-media-grid" id={activeEntity.kind === "player" ? "player-media" : undefined}>
+      <div className="player-detail-media-grid" id={dossierKind ? `${dossierKind}-media` : undefined}>
       <PlaylistSection
         action={
           <button className="ghost" onClick={onOpenPlaylistEditor} type="button">
@@ -411,6 +439,7 @@ export function EntityDetailsPage({
       </div>
 
       {activeEntity.kind === "npc" ? (
+        <div id="npc-quests">
         <CollapsibleSection
           key={`${activeEntity.id}-quests`}
           action={
@@ -443,11 +472,12 @@ export function EntityDetailsPage({
             </p>
           )}
         </CollapsibleSection>
+        </div>
       ) : null}
 
       {isRewardableEntity(activeEntity) ? <RewardSection kind={activeEntity.kind} rewardProfile={activeEntity.rewardProfile} /> : null}
 
-      <div id={activeEntity.kind === "player" ? "player-master-notes" : undefined}>
+      <div id={dossierKind ? `${dossierKind}-master-notes` : undefined}>
       <CollapsibleSection
         key={`${activeEntity.id}-knowledge`}
         hint="Полная версия для мастера: скрытые детали, связи, последствия и служебные заметки"
@@ -460,7 +490,7 @@ export function EntityDetailsPage({
       </CollapsibleSection>
       </div>
 
-      <div id={activeEntity.kind === "player" ? "player-relations" : undefined}>
+      <div id={dossierKind ? `${dossierKind}-relations` : undefined}>
       <CollapsibleSection
         key={`${activeEntity.id}-related`}
         hint="Быстрые переходы без перегруза интерфейса"
@@ -502,7 +532,7 @@ export function EntityDetailsPage({
       </CollapsibleSection>
       </div>
 
-      <div id={activeEntity.kind === "player" ? "player-stats" : undefined}>
+      <div id={dossierKind ? `${dossierKind}-stats` : undefined}>
         {combatProfileEntity ? <CombatEntityStatSheet entity={combatProfileEntity} /> : null}
       </div>
     </div>
