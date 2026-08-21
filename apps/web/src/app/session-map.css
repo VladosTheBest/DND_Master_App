@@ -14,10 +14,12 @@
 .session-map-fog button.revealed{opacity:.08;background:rgba(122,83,160,.3)}
 .session-map-fog.show-grid button{outline:1px solid rgba(244,214,255,.16);outline-offset:-1px}
 .session-map-region-editor{position:absolute;inset:0;width:100%;height:100%;touch-action:none;pointer-events:auto}.session-map-region-editor.drawing{cursor:crosshair}.session-map-region-editor polygon{stroke:#bf83ff;stroke-width:3;vector-effect:non-scaling-stroke;transition:fill .2s ease,opacity .2s ease}.session-map-region-editor polygon.hidden{fill:rgba(5,4,12,.86)}.session-map-region-editor polygon.revealed{fill:rgba(151,90,218,.08);stroke:rgba(191,131,255,.55);stroke-dasharray:8 6}.session-map-region-editor .draft{fill:rgba(133,72,187,.28);stroke:#f1bdff;stroke-width:4;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round}
+.session-map-region-editor .map-wall,.session-map-region-editor .wall-draft{stroke:#ffcf70;stroke-width:6;vector-effect:non-scaling-stroke;stroke-linecap:round;filter:drop-shadow(0 0 4px rgba(255,171,59,.8))}.session-map-region-editor .vision-preview{fill:rgba(255,222,135,.08);stroke:rgba(255,225,151,.7);stroke-width:2;stroke-dasharray:9 7;vector-effect:non-scaling-stroke}.session-map-region-editor .map-token{fill:#e7af44;stroke:#fff0b0;stroke-width:4;vector-effect:non-scaling-stroke;filter:drop-shadow(0 0 8px rgba(255,190,78,.9))}
 .session-map-controls{display:flex;flex-direction:column;gap:.9rem;padding:.2rem}
 .session-map-controls label{display:grid;gap:.4rem;color:#cfc2dc;font-size:.88rem}
 .session-map-controls input:not([type=checkbox]){width:100%;padding:.72rem .8rem;border:1px solid rgba(160,119,211,.28);border-radius:.7rem;background:#0d1020;color:#fff}
 .session-map-resolution,.session-map-actions-grid{display:grid;grid-template-columns:1fr 1fr;gap:.65rem}
+.session-map-tool-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.45rem}
 .session-map-url-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:.5rem}.session-map-source-hint{margin:-.45rem 0 0;color:#9889a8;font-size:.78rem;line-height:1.4}
 .session-map-check{grid-template-columns:auto 1fr!important;align-items:center}
 .session-map-dropzone{display:grid;place-items:center;gap:.6rem;width:min(80%,34rem);min-height:16rem;padding:2rem;border:1px dashed rgba(196,137,255,.58);border-radius:1rem;background:rgba(99,48,145,.12);cursor:pointer;text-align:center}

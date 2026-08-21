@@ -742,6 +742,18 @@ export interface PlayerDisplayFogRegion {
   revealed: boolean;
 }
 
+export interface PlayerDisplayWall {
+  id: string;
+  start: PlayerDisplayFogPoint;
+  end: PlayerDisplayFogPoint;
+}
+
+export interface PlayerDisplayToken {
+  x: number;
+  y: number;
+  visionRadius: number;
+}
+
 export interface PlayerDisplayImageInput {
   url: string;
   title?: string;
@@ -754,6 +766,8 @@ export interface PlayerDisplayImageInput {
   sessionMap?: boolean;
   mediaType?: "image" | "youtube";
   fogRegions?: PlayerDisplayFogRegion[];
+  walls?: PlayerDisplayWall[];
+  token?: PlayerDisplayToken;
 }
 
 export interface AuthSessionResult {

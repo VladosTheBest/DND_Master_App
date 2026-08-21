@@ -69,17 +69,19 @@ type publicInitiativeMeta struct {
 }
 
 type playerDisplayImageInput struct {
-	URL        string            `json:"url"`
-	Title      string            `json:"title"`
-	Alt        string            `json:"alt"`
-	Caption    string            `json:"caption"`
-	FogRows    int               `json:"fogRows"`
-	FogColumns int               `json:"fogColumns"`
-	Revealed   []int             `json:"revealed"`
-	ShowGrid   bool              `json:"showGrid"`
-	SessionMap bool              `json:"sessionMap"`
-	MediaType  string            `json:"mediaType"`
-	FogRegions []publicFogRegion `json:"fogRegions"`
+	URL        string              `json:"url"`
+	Title      string              `json:"title"`
+	Alt        string              `json:"alt"`
+	Caption    string              `json:"caption"`
+	FogRows    int                 `json:"fogRows"`
+	FogColumns int                 `json:"fogColumns"`
+	Revealed   []int               `json:"revealed"`
+	ShowGrid   bool                `json:"showGrid"`
+	SessionMap bool                `json:"sessionMap"`
+	MediaType  string              `json:"mediaType"`
+	FogRegions []publicFogRegion   `json:"fogRegions"`
+	Walls      []publicDisplayWall `json:"walls"`
+	Token      *publicDisplayToken `json:"token"`
 }
 
 type publicFogPoint struct {
@@ -93,18 +95,32 @@ type publicFogRegion struct {
 	Revealed bool             `json:"revealed"`
 }
 
+type publicDisplayWall struct {
+	ID    string         `json:"id"`
+	Start publicFogPoint `json:"start"`
+	End   publicFogPoint `json:"end"`
+}
+
+type publicDisplayToken struct {
+	X            float64 `json:"x"`
+	Y            float64 `json:"y"`
+	VisionRadius float64 `json:"visionRadius"`
+}
+
 type publicDisplayImage struct {
-	URL        string            `json:"url"`
-	Title      string            `json:"title,omitempty"`
-	Alt        string            `json:"alt,omitempty"`
-	Caption    string            `json:"caption,omitempty"`
-	FogRows    int               `json:"fogRows,omitempty"`
-	FogColumns int               `json:"fogColumns,omitempty"`
-	Revealed   []int             `json:"revealed,omitempty"`
-	ShowGrid   bool              `json:"showGrid,omitempty"`
-	SessionMap bool              `json:"sessionMap,omitempty"`
-	MediaType  string            `json:"mediaType,omitempty"`
-	FogRegions []publicFogRegion `json:"fogRegions,omitempty"`
+	URL        string              `json:"url"`
+	Title      string              `json:"title,omitempty"`
+	Alt        string              `json:"alt,omitempty"`
+	Caption    string              `json:"caption,omitempty"`
+	FogRows    int                 `json:"fogRows,omitempty"`
+	FogColumns int                 `json:"fogColumns,omitempty"`
+	Revealed   []int               `json:"revealed,omitempty"`
+	ShowGrid   bool                `json:"showGrid,omitempty"`
+	SessionMap bool                `json:"sessionMap,omitempty"`
+	MediaType  string              `json:"mediaType,omitempty"`
+	FogRegions []publicFogRegion   `json:"fogRegions,omitempty"`
+	Walls      []publicDisplayWall `json:"walls,omitempty"`
+	Token      *publicDisplayToken `json:"token,omitempty"`
 }
 
 type publicDisplaySnapshot struct {
@@ -680,6 +696,8 @@ var (
       .fog-region.revealed {
         opacity: 0;
       }
+      .vision-fog { fill: #020308; opacity: 0.995; }
+      .player-token { fill: #e6b85f; stroke: #fff2be; stroke-width: 4; filter: drop-shadow(0 0 10px rgba(230,184,95,.9)); }
       .fog-cell {
         min-width: 0;
         min-height: 0;
@@ -1281,6 +1299,31 @@ var (
         statusNode.textContent = UI.updated + formatUpdatedAt(updatedAt);
       };
 
+      const visibilityPolygon = (token, walls) => {
+        if (!token) return [];
+        const origin = { x: Number(token.x || 0), y: Number(token.y || 0) };
+        const radius = Math.max(0.03, Number(token.visionRadius || 0.22));
+        const angles = Array.from({ length: 180 }, (_, index) => (Math.PI * 2 * index) / 180);
+        (walls || []).forEach((wall) => [wall.start, wall.end].forEach((point) => {
+          const angle = Math.atan2(Number(point.y) - origin.y, Number(point.x) - origin.x);
+          angles.push(angle - 0.0001, angle, angle + 0.0001);
+        }));
+        return angles.sort((a, b) => a - b).map((angle) => {
+          const ray = { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius };
+          let distance = 1;
+          (walls || []).forEach((wall) => {
+            const q = wall.start, segment = { x: wall.end.x - q.x, y: wall.end.y - q.y };
+            const cross = ray.x * segment.y - ray.y * segment.x;
+            if (Math.abs(cross) < 1e-9) return;
+            const offset = { x: q.x - origin.x, y: q.y - origin.y };
+            const t = (offset.x * segment.y - offset.y * segment.x) / cross;
+            const u = (offset.x * ray.y - offset.y * ray.x) / cross;
+            if (t >= 0 && t <= distance && u >= 0 && u <= 1) distance = t;
+          });
+          return { x: origin.x + ray.x * distance, y: origin.y + ray.y * distance };
+        });
+      };
+
       const renderImage = (snapshot, image) => {
         const isSessionMap = Boolean(image?.sessionMap);
         roundBannerNode.hidden = isSessionMap;
@@ -1308,6 +1351,9 @@ var (
             ).join("")
           : "";
         const regions = Array.isArray(image?.fogRegions) ? image.fogRegions : [];
+        const walls = Array.isArray(image?.walls) ? image.walls : [];
+        const token = image?.token || null;
+        const visionPoints = visibilityPolygon(token, walls).map((point) => (point.x * 1000) + ',' + (point.y * 1000)).join(' ');
         const regionShapes = regions.map((region) => {
           const points = Array.isArray(region?.points)
             ? region.points.map((point) => (Math.max(0, Math.min(1, Number(point?.x || 0))) * 1000) + ',' + (Math.max(0, Math.min(1, Number(point?.y || 0))) * 1000)).join(' ')
@@ -1316,8 +1362,14 @@ var (
             ? '<polygon class="fog-region' + (region?.revealed ? ' revealed' : '') + '" points="' + points + '"></polygon>'
             : '';
         }).join('');
-        const fog = regionShapes
-          ? '<svg class="fog-regions" preserveAspectRatio="none" viewBox="0 0 1000 1000">' + regionShapes + '</svg>'
+        const visionFog = visionPoints
+          ? '<defs><mask id="vision-cutout"><rect width="1000" height="1000" fill="white"></rect><polygon points="' + visionPoints + '" fill="black"></polygon></mask></defs><rect class="vision-fog" width="1000" height="1000" mask="url(#vision-cutout)"></rect>'
+          : '';
+        const tokenShape = token
+          ? '<circle class="player-token" cx="' + (Number(token.x) * 1000) + '" cy="' + (Number(token.y) * 1000) + '" r="13"></circle>'
+          : '';
+        const fog = regionShapes || visionFog || tokenShape
+          ? '<svg class="fog-regions" preserveAspectRatio="none" viewBox="0 0 1000 1000">' + visionFog + regionShapes + tokenShape + '</svg>'
           : fogCells
             ? '<div class="fog-grid' + (image?.showGrid ? ' show-grid' : '') + '" style="grid-template-columns:repeat(' + columns + ',1fr);grid-template-rows:repeat(' + rows + ',1fr)">' + fogCells + '</div>'
             : "";
@@ -2138,6 +2190,8 @@ func (manager *initiativeShareManager) showPlayerDisplayImage(
 		SessionMap: input.SessionMap,
 		MediaType:  input.MediaType,
 		FogRegions: input.FogRegions,
+		Walls:      input.Walls,
+		Token:      input.Token,
 	})
 
 	publicSnapshot := manager.currentSnapshotLocked(campaign)
@@ -2290,7 +2344,7 @@ func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 	if mode == publicScreenModeImage && snapshot.Image != nil {
 		fmt.Fprintf(
 			&builder,
-			"image|%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|",
+			"image|%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|%v|%v|",
 			snapshot.Image.URL,
 			snapshot.Image.Title,
 			snapshot.Image.Alt,
@@ -2302,6 +2356,8 @@ func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 			snapshot.Image.SessionMap,
 			snapshot.Image.Revealed,
 			snapshot.Image.FogRegions,
+			snapshot.Image.Walls,
+			snapshot.Image.Token,
 		)
 		return builder.String()
 	}
@@ -2401,7 +2457,7 @@ func publicDisplaySnapshotFingerprint(snapshot publicDisplaySnapshot) string {
 
 	fmt.Fprintf(
 		&builder,
-		"%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|",
+		"%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|%v|%v|",
 		snapshot.Image.URL,
 		snapshot.Image.Title,
 		snapshot.Image.Alt,
@@ -2413,6 +2469,8 @@ func publicDisplaySnapshotFingerprint(snapshot publicDisplaySnapshot) string {
 		snapshot.Image.SessionMap,
 		snapshot.Image.Revealed,
 		snapshot.Image.FogRegions,
+		snapshot.Image.Walls,
+		snapshot.Image.Token,
 	)
 	return builder.String()
 }
@@ -2453,6 +2511,8 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 	}
 	slices.Sort(revealed)
 	regions := sanitizePublicFogRegions(image.FogRegions)
+	walls := sanitizePublicDisplayWalls(image.Walls)
+	token := sanitizePublicDisplayToken(image.Token)
 
 	return &publicDisplayImage{
 		URL:        url,
@@ -2466,7 +2526,36 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 		SessionMap: image.SessionMap,
 		MediaType:  mediaType,
 		FogRegions: regions,
+		Walls:      walls,
+		Token:      token,
 	}
+}
+
+func sanitizePublicDisplayWalls(walls []publicDisplayWall) []publicDisplayWall {
+	if len(walls) > 256 {
+		walls = walls[:256]
+	}
+	result := make([]publicDisplayWall, 0, len(walls))
+	for index, wall := range walls {
+		id := strings.TrimSpace(wall.ID)
+		if id == "" {
+			id = fmt.Sprintf("wall-%d", index+1)
+		}
+		start := publicFogPoint{X: max(0, min(wall.Start.X, 1)), Y: max(0, min(wall.Start.Y, 1))}
+		end := publicFogPoint{X: max(0, min(wall.End.X, 1)), Y: max(0, min(wall.End.Y, 1))}
+		if start == end {
+			continue
+		}
+		result = append(result, publicDisplayWall{ID: id, Start: start, End: end})
+	}
+	return result
+}
+
+func sanitizePublicDisplayToken(token *publicDisplayToken) *publicDisplayToken {
+	if token == nil {
+		return nil
+	}
+	return &publicDisplayToken{X: max(0, min(token.X, 1)), Y: max(0, min(token.Y, 1)), VisionRadius: max(0.03, min(token.VisionRadius, 1.5))}
 }
 
 func sanitizePublicFogRegions(regions []publicFogRegion) []publicFogRegion {
