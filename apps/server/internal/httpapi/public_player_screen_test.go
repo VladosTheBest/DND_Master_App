@@ -238,6 +238,9 @@ func TestLegacyDisplayRouteServesUnifiedViewer(t *testing.T) {
 	if !strings.Contains(recorder.Body.String(), "/api/initiative/") {
 		t.Fatalf("expected legacy /display route to serve the unified initiative viewer")
 	}
+	if !strings.Contains(recorder.Body.String(), "data-media-key") {
+		t.Fatalf("expected viewer to preserve the media element while fog updates")
+	}
 }
 
 func newPublicScreenTestStore(t *testing.T) (*campaignStore, campaignData) {

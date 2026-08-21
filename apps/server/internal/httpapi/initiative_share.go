@@ -1322,11 +1322,21 @@ var (
             ? '<div class="fog-grid' + (image?.showGrid ? ' show-grid' : '') + '" style="grid-template-columns:repeat(' + columns + ',1fr);grid-template-rows:repeat(' + rows + ',1fr)">' + fogCells + '</div>'
             : "";
         const isYoutube = image?.mediaType === "youtube";
+        const mediaKey = String(image?.mediaType || "image") + "|" + String(image?.url || "");
+        const currentCanvas = trackNode.querySelector(".image-canvas");
+        if (currentCanvas?.dataset?.mediaKey === mediaKey) {
+          currentCanvas.querySelector(".fog-regions, .fog-grid")?.remove();
+          if (fog) {
+            currentCanvas.insertAdjacentHTML("beforeend", fog);
+          }
+          setPublishedStatus(snapshot?.updatedAt);
+          return;
+        }
         const media = isYoutube
           ? '<iframe allow="autoplay; encrypted-media; fullscreen" allowfullscreen title="' + escapeHtml(title || UI.imageAlt) + '" src="' + escapeHtml(image?.url || "") + '"></iframe>'
           : '<img alt="' + escapeHtml(image?.alt || title || UI.imageAlt) + '" src="' + escapeHtml(image?.url || "") + '">';
         trackNode.innerHTML =
-          '<figure class="image-state"><div class="image-canvas' + (isYoutube ? ' video-canvas' : '') + '">' +
+          '<figure class="image-state"><div class="image-canvas' + (isYoutube ? ' video-canvas' : '') + '" data-media-key="' + escapeHtml(mediaKey) + '">' +
           media +
           fog +
           '</div>' +
