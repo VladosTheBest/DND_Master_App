@@ -82,10 +82,6 @@ func (m *surveyManager) handlePublicAPI(w http.ResponseWriter, r *http.Request) 
 		writeError(w, 404, "not_found", "Survey not found")
 		return
 	}
-	if !m.allow(remoteIP(r)) {
-		writeError(w, 429, "rate_limited", "Попробуйте снова через несколько минут.")
-		return
-	}
 	var input surveyInput
 	if err := readJSON(r, &input); err != nil {
 		writeError(w, 400, "bad_request", err.Error())
@@ -102,6 +98,10 @@ func (m *surveyManager) handlePublicAPI(w http.ResponseWriter, r *http.Request) 
 	campaign, ok := m.store.campaignForSurveyToken(token)
 	if !ok {
 		writeError(w, 404, "not_found", "Survey not found")
+		return
+	}
+	if !m.allow(token + "|" + remoteIP(r)) {
+		writeError(w, 429, "rate_limited", "Эта анкета уже была отправлена. Попробуйте снова через несколько минут.")
 		return
 	}
 	if err := m.store.saveSurveyResponse(token, campaign.ID, input); err != nil {
