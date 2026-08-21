@@ -13,6 +13,7 @@
 .session-map-fog button:hover{background:rgba(124,69,172,.82)}
 .session-map-fog button.revealed{opacity:.08;background:rgba(122,83,160,.3)}
 .session-map-fog.show-grid button{outline:1px solid rgba(244,214,255,.16);outline-offset:-1px}
+.session-map-region-editor{position:absolute;inset:0;width:100%;height:100%;touch-action:none;pointer-events:none}.session-map-region-editor.drawing{pointer-events:auto;cursor:crosshair}.session-map-region-editor polygon{stroke:#bf83ff;stroke-width:3;vector-effect:non-scaling-stroke;transition:fill .2s ease,opacity .2s ease}.session-map-region-editor polygon.hidden{fill:rgba(5,4,12,.86)}.session-map-region-editor polygon.revealed{fill:rgba(151,90,218,.08);stroke:rgba(191,131,255,.55);stroke-dasharray:8 6}.session-map-region-editor .draft{fill:rgba(133,72,187,.28);stroke:#f1bdff;stroke-width:4;vector-effect:non-scaling-stroke;stroke-linecap:round;stroke-linejoin:round}
 .session-map-controls{display:flex;flex-direction:column;gap:.9rem;padding:.2rem}
 .session-map-controls label{display:grid;gap:.4rem;color:#cfc2dc;font-size:.88rem}
 .session-map-controls input:not([type=checkbox]){width:100%;padding:.72rem .8rem;border:1px solid rgba(160,119,211,.28);border-radius:.7rem;background:#0d1020;color:#fff}
@@ -23,4 +24,5 @@
 .session-map-dropzone strong{font-family:Georgia,serif;font-size:1.55rem}.session-map-dropzone span,.session-map-tip{color:#a99ab8}.session-map-dropzone input,.session-map-upload-small input{display:none}
 .session-map-upload-small{display:block!important;padding:.75rem;border:1px dashed rgba(196,137,255,.42);border-radius:.7rem;text-align:center;cursor:pointer}
 .session-map-launch{min-height:3rem}.session-map-tip,.session-map-notice{margin:0;font-size:.82rem;line-height:1.5}.session-map-notice{color:#e4b9ff}
+.session-map-region-list{display:grid;gap:.45rem;max-height:14rem;overflow:auto}.session-map-region-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:.4rem;align-items:center;padding:.45rem .55rem;border:1px solid rgba(160,119,211,.2);border-radius:.65rem;background:rgba(12,12,25,.58)}.session-map-region-row .danger{color:#ff9baf}
 @media(max-width:850px){.session-map-backdrop{padding:.4rem}.session-map-layout{grid-template-columns:1fr}.session-map-stage{min-height:18rem}.session-map-modal{max-height:98vh}.session-map-image-shell img{max-height:52vh}}

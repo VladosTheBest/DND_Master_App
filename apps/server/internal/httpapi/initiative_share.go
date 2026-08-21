@@ -69,29 +69,42 @@ type publicInitiativeMeta struct {
 }
 
 type playerDisplayImageInput struct {
-	URL        string `json:"url"`
-	Title      string `json:"title"`
-	Alt        string `json:"alt"`
-	Caption    string `json:"caption"`
-	FogRows    int    `json:"fogRows"`
-	FogColumns int    `json:"fogColumns"`
-	Revealed   []int  `json:"revealed"`
-	ShowGrid   bool   `json:"showGrid"`
-	SessionMap bool   `json:"sessionMap"`
-	MediaType  string `json:"mediaType"`
+	URL        string            `json:"url"`
+	Title      string            `json:"title"`
+	Alt        string            `json:"alt"`
+	Caption    string            `json:"caption"`
+	FogRows    int               `json:"fogRows"`
+	FogColumns int               `json:"fogColumns"`
+	Revealed   []int             `json:"revealed"`
+	ShowGrid   bool              `json:"showGrid"`
+	SessionMap bool              `json:"sessionMap"`
+	MediaType  string            `json:"mediaType"`
+	FogRegions []publicFogRegion `json:"fogRegions"`
+}
+
+type publicFogPoint struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+
+type publicFogRegion struct {
+	ID       string           `json:"id"`
+	Points   []publicFogPoint `json:"points"`
+	Revealed bool             `json:"revealed"`
 }
 
 type publicDisplayImage struct {
-	URL        string `json:"url"`
-	Title      string `json:"title,omitempty"`
-	Alt        string `json:"alt,omitempty"`
-	Caption    string `json:"caption,omitempty"`
-	FogRows    int    `json:"fogRows,omitempty"`
-	FogColumns int    `json:"fogColumns,omitempty"`
-	Revealed   []int  `json:"revealed,omitempty"`
-	ShowGrid   bool   `json:"showGrid,omitempty"`
-	SessionMap bool   `json:"sessionMap,omitempty"`
-	MediaType  string `json:"mediaType,omitempty"`
+	URL        string            `json:"url"`
+	Title      string            `json:"title,omitempty"`
+	Alt        string            `json:"alt,omitempty"`
+	Caption    string            `json:"caption,omitempty"`
+	FogRows    int               `json:"fogRows,omitempty"`
+	FogColumns int               `json:"fogColumns,omitempty"`
+	Revealed   []int             `json:"revealed,omitempty"`
+	ShowGrid   bool              `json:"showGrid,omitempty"`
+	SessionMap bool              `json:"sessionMap,omitempty"`
+	MediaType  string            `json:"mediaType,omitempty"`
+	FogRegions []publicFogRegion `json:"fogRegions,omitempty"`
 }
 
 type publicDisplaySnapshot struct {
@@ -647,6 +660,25 @@ var (
         z-index: 2;
         display: grid;
         pointer-events: none;
+      }
+      .fog-regions {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+      .fog-region {
+        fill: #020308;
+        stroke: rgba(65, 44, 78, 0.42);
+        stroke-width: 0.003;
+        opacity: 0.995;
+        filter: drop-shadow(0 0 0.012px #000);
+        transition: opacity 520ms ease;
+      }
+      .fog-region.revealed {
+        opacity: 0;
       }
       .fog-cell {
         min-width: 0;
@@ -1275,9 +1307,20 @@ var (
               '<span class="fog-cell' + (revealed.has(index) ? ' revealed' : '') + '"></span>'
             ).join("")
           : "";
-        const fog = fogCells
-          ? '<div class="fog-grid' + (image?.showGrid ? ' show-grid' : '') + '" style="grid-template-columns:repeat(' + columns + ',1fr);grid-template-rows:repeat(' + rows + ',1fr)">' + fogCells + '</div>'
-          : "";
+        const regions = Array.isArray(image?.fogRegions) ? image.fogRegions : [];
+        const regionShapes = regions.map((region) => {
+          const points = Array.isArray(region?.points)
+            ? region.points.map((point) => (Math.max(0, Math.min(1, Number(point?.x || 0))) * 1000) + ',' + (Math.max(0, Math.min(1, Number(point?.y || 0))) * 1000)).join(' ')
+            : '';
+          return points
+            ? '<polygon class="fog-region' + (region?.revealed ? ' revealed' : '') + '" points="' + points + '"></polygon>'
+            : '';
+        }).join('');
+        const fog = regionShapes
+          ? '<svg class="fog-regions" preserveAspectRatio="none" viewBox="0 0 1000 1000">' + regionShapes + '</svg>'
+          : fogCells
+            ? '<div class="fog-grid' + (image?.showGrid ? ' show-grid' : '') + '" style="grid-template-columns:repeat(' + columns + ',1fr);grid-template-rows:repeat(' + rows + ',1fr)">' + fogCells + '</div>'
+            : "";
         const isYoutube = image?.mediaType === "youtube";
         const media = isYoutube
           ? '<iframe allow="autoplay; encrypted-media; fullscreen" allowfullscreen title="' + escapeHtml(title || UI.imageAlt) + '" src="' + escapeHtml(image?.url || "") + '"></iframe>'
@@ -2084,6 +2127,7 @@ func (manager *initiativeShareManager) showPlayerDisplayImage(
 		ShowGrid:   input.ShowGrid,
 		SessionMap: input.SessionMap,
 		MediaType:  input.MediaType,
+		FogRegions: input.FogRegions,
 	})
 
 	publicSnapshot := manager.currentSnapshotLocked(campaign)
@@ -2236,7 +2280,7 @@ func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 	if mode == publicScreenModeImage && snapshot.Image != nil {
 		fmt.Fprintf(
 			&builder,
-			"image|%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|",
+			"image|%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|",
 			snapshot.Image.URL,
 			snapshot.Image.Title,
 			snapshot.Image.Alt,
@@ -2247,6 +2291,7 @@ func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 			snapshot.Image.ShowGrid,
 			snapshot.Image.SessionMap,
 			snapshot.Image.Revealed,
+			snapshot.Image.FogRegions,
 		)
 		return builder.String()
 	}
@@ -2346,7 +2391,7 @@ func publicDisplaySnapshotFingerprint(snapshot publicDisplaySnapshot) string {
 
 	fmt.Fprintf(
 		&builder,
-		"%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|",
+		"%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|",
 		snapshot.Image.URL,
 		snapshot.Image.Title,
 		snapshot.Image.Alt,
@@ -2357,6 +2402,7 @@ func publicDisplaySnapshotFingerprint(snapshot publicDisplaySnapshot) string {
 		snapshot.Image.ShowGrid,
 		snapshot.Image.SessionMap,
 		snapshot.Image.Revealed,
+		snapshot.Image.FogRegions,
 	)
 	return builder.String()
 }
@@ -2396,6 +2442,7 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 		revealed = append(revealed, index)
 	}
 	slices.Sort(revealed)
+	regions := sanitizePublicFogRegions(image.FogRegions)
 
 	return &publicDisplayImage{
 		URL:        url,
@@ -2408,7 +2455,34 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 		ShowGrid:   image.ShowGrid,
 		SessionMap: image.SessionMap,
 		MediaType:  mediaType,
+		FogRegions: regions,
 	}
+}
+
+func sanitizePublicFogRegions(regions []publicFogRegion) []publicFogRegion {
+	if len(regions) > 128 {
+		regions = regions[:128]
+	}
+	result := make([]publicFogRegion, 0, len(regions))
+	for regionIndex, region := range regions {
+		if len(region.Points) < 3 {
+			continue
+		}
+		points := region.Points
+		if len(points) > 256 {
+			points = points[:256]
+		}
+		clean := make([]publicFogPoint, 0, len(points))
+		for _, point := range points {
+			clean = append(clean, publicFogPoint{X: max(0, min(point.X, 1)), Y: max(0, min(point.Y, 1))})
+		}
+		id := strings.TrimSpace(region.ID)
+		if id == "" {
+			id = fmt.Sprintf("region-%d", regionIndex+1)
+		}
+		result = append(result, publicFogRegion{ID: id, Points: clean, Revealed: region.Revealed})
+	}
+	return result
 }
 
 func youtubeVideoID(raw string) string {

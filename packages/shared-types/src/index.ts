@@ -731,6 +731,17 @@ export interface InitiativeShareResult {
 
 export type PlayerDisplayShareResult = InitiativeShareResult;
 
+export interface PlayerDisplayFogPoint {
+  x: number;
+  y: number;
+}
+
+export interface PlayerDisplayFogRegion {
+  id: string;
+  points: PlayerDisplayFogPoint[];
+  revealed: boolean;
+}
+
 export interface PlayerDisplayImageInput {
   url: string;
   title?: string;
@@ -742,6 +753,7 @@ export interface PlayerDisplayImageInput {
   showGrid?: boolean;
   sessionMap?: boolean;
   mediaType?: "image" | "youtube";
+  fogRegions?: PlayerDisplayFogRegion[];
 }
 
 export interface AuthSessionResult {

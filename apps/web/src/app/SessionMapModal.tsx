@@ -1,224 +1,47 @@
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
+import type { PlayerDisplayFogPoint, PlayerDisplayFogRegion } from "@shadow-edge/shared-types";
 import { api } from "./api";
 
-type SessionMapModalProps = {
-  campaignId: string;
-  open: boolean;
-  onClose: () => void;
-};
+type Props = { campaignId: string; open: boolean; onClose: () => void };
+const youtubeId = (raw: string) => { try { const u=new URL(raw.trim()); const h=u.hostname.replace(/^www\./,"").toLowerCase(); if(h==="youtu.be") return u.pathname.split("/").filter(Boolean)[0]??""; if(["youtube.com","m.youtube.com","youtube-nocookie.com"].includes(h)) return u.searchParams.get("v")||u.pathname.match(/^\/(?:embed|shorts)\/([^/]+)/)?.[1]||""; } catch { return ""; } return ""; };
+const eventPoint = (event: ReactPointerEvent<SVGSVGElement>): PlayerDisplayFogPoint => { const r=event.currentTarget.getBoundingClientRect(); return {x:Math.max(0,Math.min(1,(event.clientX-r.left)/r.width)),y:Math.max(0,Math.min(1,(event.clientY-r.top)/r.height))}; };
+const svgPoints = (points: PlayerDisplayFogPoint[]) => points.map(p=>`${p.x*1000},${p.y*1000}`).join(" ");
 
-const DEFAULT_ROWS = 8;
-const DEFAULT_COLUMNS = 12;
+export function SessionMapModal({campaignId,open,onClose}:Props){
+  const [imageUrl,setImageUrl]=useState(""); const [mediaType,setMediaType]=useState<"image"|"youtube">("image");
+  const [sourceUrl,setSourceUrl]=useState(""); const [title,setTitle]=useState("Карта приключения");
+  const [regions,setRegions]=useState<PlayerDisplayFogRegion[]>([]); const [drawMode,setDrawMode]=useState(false);
+  const [draft,setDraft]=useState<PlayerDisplayFogPoint[]>([]); const [busy,setBusy]=useState(false);
+  const [notice,setNotice]=useState(""); const [displayUrl,setDisplayUrl]=useState("");
+  const drawing=useRef(false); const draftRef=useRef<PlayerDisplayFogPoint[]>([]);
 
-const youtubeVideoId = (raw: string) => {
-  try {
-    const url = new URL(raw.trim());
-    const host = url.hostname.replace(/^www\./, "").toLowerCase();
-    if (host === "youtu.be") return url.pathname.split("/").filter(Boolean)[0] ?? "";
-    if (["youtube.com", "m.youtube.com", "youtube-nocookie.com"].includes(host)) {
-      return url.searchParams.get("v") || url.pathname.match(/^\/(?:embed|shorts)\/([^/]+)/)?.[1] || "";
-    }
-  } catch {
-    return "";
-  }
-  return "";
-};
+  useEffect(()=>{if(!open)return; const close=(e:KeyboardEvent)=>e.key==="Escape"&&onClose(); document.addEventListener("keydown",close); const old=document.body.style.overflow; document.body.style.overflow="hidden"; return()=>{document.removeEventListener("keydown",close);document.body.style.overflow=old;};},[onClose,open]);
+  if(!open||typeof document==="undefined")return null;
 
-export function SessionMapModal({ campaignId, open, onClose }: SessionMapModalProps) {
-  const [imageUrl, setImageUrl] = useState("");
-  const [mediaType, setMediaType] = useState<"image" | "youtube">("image");
-  const [sourceUrl, setSourceUrl] = useState("");
-  const [title, setTitle] = useState("Карта приключения");
-  const [rows, setRows] = useState(DEFAULT_ROWS);
-  const [columns, setColumns] = useState(DEFAULT_COLUMNS);
-  const [revealed, setRevealed] = useState<Set<number>>(() => new Set());
-  const [showGrid, setShowGrid] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState("");
-  const [displayUrl, setDisplayUrl] = useState("");
+  const publish=async(next=regions,openDisplay=false)=>{if(!imageUrl){setNotice("Сначала загрузите или подключите карту.");return;} setBusy(true);try{const share=await api.showPlayerDisplayImage(campaignId,{alt:title||"Карта игровой сессии",fogRegions:next,mediaType,sessionMap:true,title,url:imageUrl});setDisplayUrl(share.url);setNotice("Экран игроков обновлён.");if(openDisplay)window.open(share.url,"shadow-edge-session-display")?.focus();}catch(error){setNotice(error instanceof Error?error.message:"Не удалось обновить экран игроков.");}finally{setBusy(false);}};
+  const updateRegions=(next:PlayerDisplayFogRegion[])=>{setRegions(next);if(displayUrl)void publish(next);};
+  const resetFog=()=>{setRegions([]);setDraft([]);draftRef.current=[];};
+  const upload=async(event:ChangeEvent<HTMLInputElement>)=>{const file=event.target.files?.[0];if(!file)return;setBusy(true);try{const result=await api.uploadImage(campaignId,file);setImageUrl(result.url);setMediaType("image");setTitle(file.name.replace(/\.[^.]+$/,"")||"Карта приключения");resetFog();setNotice("Карта загружена. Обведите скрываемые области.");}catch(error){setNotice(error instanceof Error?error.message:"Не удалось загрузить карту.");}finally{setBusy(false);event.target.value="";}};
+  const useUrl=()=>{const value=sourceUrl.trim();if(!value)return;const id=youtubeId(value);if(id){setImageUrl(value);setMediaType("youtube");setTitle("Анимированная карта");resetFog();setNotice("YouTube-карта подключена. Обведите зоны тумана.");return;}try{const parsed=new URL(value);if(!/^https?:$/.test(parsed.protocol))throw new Error();setImageUrl(value);setMediaType("image");resetFog();setNotice("Карта по ссылке подключена.");}catch{setNotice("Укажите прямую ссылку на изображение или YouTube.");}};
+  const begin=(event:ReactPointerEvent<SVGSVGElement>)=>{if(!drawMode)return;event.currentTarget.setPointerCapture(event.pointerId);const p=eventPoint(event);drawing.current=true;draftRef.current=[p];setDraft([p]);};
+  const move=(event:ReactPointerEvent<SVGSVGElement>)=>{if(!drawMode||!drawing.current)return;const p=eventPoint(event),last=draftRef.current.at(-1);if(last&&Math.hypot(p.x-last.x,p.y-last.y)<.006)return;draftRef.current=[...draftRef.current,p];setDraft(draftRef.current);};
+  const finish=(event:ReactPointerEvent<SVGSVGElement>)=>{if(!drawing.current)return;drawing.current=false;event.currentTarget.releasePointerCapture(event.pointerId);const points=draftRef.current;draftRef.current=[];setDraft([]);if(points.length<3){setNotice("Нарисуйте область чуть длиннее.");return;}const next=[...regions,{id:crypto.randomUUID?.()??`region-${Date.now()}`,points,revealed:false}];updateRegions(next);setNotice(`Добавлена область ${next.length}. Она скрыта.`);};
 
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", close);
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", close);
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [onClose, open]);
-
-  const cellCount = rows * columns;
-  const cells = useMemo(() => Array.from({ length: cellCount }, (_, index) => index), [cellCount]);
-
-  if (!open || typeof document === "undefined") return null;
-
-  const publish = async (nextRevealed = revealed, openDisplay = false) => {
-    if (!imageUrl) {
-      setNotice("Сначала загрузите карту.");
-      return;
-    }
-    setBusy(true);
-    try {
-      const share = await api.showPlayerDisplayImage(campaignId, {
-        alt: title || "Карта игровой сессии",
-        fogColumns: columns,
-        fogRows: rows,
-        revealed: [...nextRevealed],
-        showGrid,
-        sessionMap: true,
-        mediaType,
-        title,
-        url: imageUrl
-      });
-      setDisplayUrl(share.url);
-      setNotice("Экран игроков обновлён.");
-      if (openDisplay) {
-        const popup = window.open(share.url, "shadow-edge-session-display");
-        popup?.focus();
-      }
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Не удалось обновить экран игроков.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const upload = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    setBusy(true);
-    try {
-      const result = await api.uploadImage(campaignId, file);
-      setImageUrl(result.url);
-      setMediaType("image");
-      setTitle(file.name.replace(/\.[^.]+$/, "") || "Карта приключения");
-      setRevealed(new Set());
-      setNotice("Карта загружена. Все зоны пока скрыты.");
-    } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Не удалось загрузить карту.");
-    } finally {
-      setBusy(false);
-      event.target.value = "";
-    }
-  };
-
-  const useSourceUrl = () => {
-    const value = sourceUrl.trim();
-    if (!value) return;
-    const videoId = youtubeVideoId(value);
-    if (videoId) {
-      setImageUrl(value);
-      setMediaType("youtube");
-      setTitle("Анимированная карта");
-      setRevealed(new Set());
-      setNotice("YouTube-карта подключена. На телевизоре она запустится без звука и будет повторяться.");
-      return;
-    }
-    try {
-      const parsed = new URL(value);
-      if (!/^https?:$/.test(parsed.protocol)) throw new Error();
-      setImageUrl(value);
-      setMediaType("image");
-      setRevealed(new Set());
-      setNotice("Карта по ссылке подключена.");
-    } catch {
-      setNotice("Укажите прямую ссылку на изображение или ссылку YouTube.");
-    }
-  };
-
-  const toggleCell = (index: number) => {
-    const next = new Set(revealed);
-    if (next.has(index)) next.delete(index);
-    else next.add(index);
-    setRevealed(next);
-    if (displayUrl) void publish(next);
-  };
-
-  const replaceRevealed = (next: Set<number>) => {
-    setRevealed(next);
-    if (displayUrl) void publish(next);
-  };
-
-  return createPortal(
-    <div className="session-map-backdrop" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
-      <section aria-modal="true" className="session-map-modal" role="dialog">
-        <header className="session-map-head">
-          <div>
-            <p className="eyebrow">Режим сессии</p>
-            <h2>Карта на телевизоре</h2>
-            <p>Загрузите карту и открывайте игрокам только исследованные зоны.</p>
-          </div>
-          <button aria-label="Закрыть" className="ghost" onClick={onClose} type="button">✕</button>
-        </header>
-
-        <div className="session-map-layout">
-          <div className="session-map-stage">
-            {imageUrl ? (
-              <div className={`session-map-image-shell ${mediaType === "youtube" ? "video" : ""}`}>
-                {mediaType === "youtube" ? (
-                  <iframe
-                    allow="autoplay; encrypted-media"
-                    src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId(imageUrl)}?autoplay=1&mute=1&loop=1&playlist=${youtubeVideoId(imageUrl)}&controls=0&disablekb=1&fs=0&playsinline=1&rel=0`}
-                    title={title}
-                  />
-                ) : <img alt={title} src={imageUrl} />}
-                <div
-                  className={`session-map-fog ${showGrid ? "show-grid" : ""}`}
-                  style={{ gridTemplateColumns: `repeat(${columns}, 1fr)`, gridTemplateRows: `repeat(${rows}, 1fr)` }}
-                >
-                  {cells.map((index) => (
-                    <button
-                      aria-label={revealed.has(index) ? "Скрыть зону" : "Открыть зону"}
-                      className={revealed.has(index) ? "revealed" : ""}
-                      key={index}
-                      onClick={() => toggleCell(index)}
-                      type="button"
-                    />
-                  ))}
-                </div>
-              </div>
-            ) : (
-              <label className="session-map-dropzone">
-                <strong>Загрузить карту</strong>
-                <span>PNG, JPG, WEBP или GIF до 10 МБ</span>
-                <input accept="image/png,image/jpeg,image/webp,image/gif" disabled={busy} onChange={upload} type="file" />
-              </label>
-            )}
-          </div>
-
-          <aside className="session-map-controls">
-            <label>Ссылка на карту или YouTube
-              <div className="session-map-url-row">
-                <input onChange={(event) => setSourceUrl(event.target.value)} placeholder="https://…" value={sourceUrl} />
-                <button className="ghost" onClick={useSourceUrl} type="button">Подключить</button>
-              </div>
-            </label>
-            <p className="session-map-source-hint">Для изображения лучше использовать прямую ссылку, которая заканчивается на .jpg, .png или .webp.</p>
-            {imageUrl ? <label className="session-map-upload-small">Заменить карту<input accept="image/png,image/jpeg,image/webp,image/gif" disabled={busy} onChange={upload} type="file" /></label> : null}
-            <label>Название сцены<input onChange={(event) => setTitle(event.target.value)} value={title} /></label>
-            <div className="session-map-resolution">
-              <label>Строки<input max="24" min="2" onChange={(event) => { setRows(Number(event.target.value)); setRevealed(new Set()); }} type="number" value={rows} /></label>
-              <label>Колонки<input max="24" min="2" onChange={(event) => { setColumns(Number(event.target.value)); setRevealed(new Set()); }} type="number" value={columns} /></label>
-            </div>
-            <label className="session-map-check"><input checked={showGrid} onChange={(event) => setShowGrid(event.target.checked)} type="checkbox" /> Показывать сетку на телевизоре</label>
-            <div className="session-map-actions-grid">
-              <button className="ghost" onClick={() => replaceRevealed(new Set())} type="button">Скрыть всё</button>
-              <button className="ghost" onClick={() => replaceRevealed(new Set(cells))} type="button">Открыть всё</button>
-            </div>
-            <button className="primary session-map-launch" disabled={busy || !imageUrl} onClick={() => void publish(revealed, true)} type="button">
-              {busy ? "Обновляю…" : displayUrl ? "Открыть экран телевизора" : "Запустить сцену"}
-            </button>
-            {displayUrl ? <p className="session-map-tip">Кликайте зоны на карте — телевизор обновится автоматически. На экране телевизора нажмите F или дважды кликните для полноэкранного режима.</p> : null}
-            {notice ? <p className="session-map-notice">{notice}</p> : null}
-          </aside>
-        </div>
-      </section>
-    </div>,
-    document.body
-  );
+  return createPortal(<div className="session-map-backdrop" onMouseDown={e=>e.target===e.currentTarget&&onClose()}><section aria-modal="true" className="session-map-modal" role="dialog">
+    <header className="session-map-head"><div><p className="eyebrow">Режим сессии</p><h2>Карта на телевизоре</h2><p>Обводите комнаты и открывайте их по мере исследования.</p></div><button aria-label="Закрыть" className="ghost" onClick={onClose} type="button">✕</button></header>
+    <div className="session-map-layout"><div className="session-map-stage">{imageUrl?<div className={`session-map-image-shell ${mediaType==="youtube"?"video":""}`}>
+      {mediaType==="youtube"?<iframe allow="autoplay; encrypted-media" src={`https://www.youtube-nocookie.com/embed/${youtubeId(imageUrl)}?autoplay=1&mute=1&loop=1&playlist=${youtubeId(imageUrl)}&controls=0&disablekb=1&fs=0&playsinline=1&rel=0`} title={title}/>:<img alt={title} src={imageUrl}/>}
+      <svg className={`session-map-region-editor ${drawMode?"drawing":""}`} onPointerDown={begin} onPointerMove={move} onPointerUp={finish} preserveAspectRatio="none" viewBox="0 0 1000 1000">{regions.map((r,i)=><polygon className={r.revealed?"revealed":"hidden"} key={r.id} points={svgPoints(r.points)}><title>{`Область ${i+1}`}</title></polygon>)}{draft.length>1?<polyline className="draft" points={svgPoints(draft)}/>:null}</svg>
+    </div>:<label className="session-map-dropzone"><strong>Загрузить карту</strong><span>PNG, JPG, WEBP или GIF до 10 МБ</span><input accept="image/png,image/jpeg,image/webp,image/gif" disabled={busy} onChange={upload} type="file"/></label>}</div>
+    <aside className="session-map-controls"><label>Ссылка на карту или YouTube<div className="session-map-url-row"><input onChange={e=>setSourceUrl(e.target.value)} placeholder="https://…" value={sourceUrl}/><button className="ghost" onClick={useUrl} type="button">Подключить</button></div></label>
+      {imageUrl?<label className="session-map-upload-small">Заменить карту<input accept="image/png,image/jpeg,image/webp,image/gif" disabled={busy} onChange={upload} type="file"/></label>:null}
+      <label>Название сцены<input onChange={e=>setTitle(e.target.value)} value={title}/></label>
+      <button className={drawMode?"primary":"ghost"} disabled={!imageUrl} onClick={()=>setDrawMode(v=>!v)} type="button">{drawMode?"Рисование включено — ведите мышью":"Нарисовать область тумана"}</button>
+      <p className="session-map-source-hint">Зажмите мышь и обведите комнату или зону. Контур замкнётся автоматически.</p>
+      <div className="session-map-region-list">{regions.map((r,i)=><div className="session-map-region-row" key={r.id}><span>Область {i+1}</span><button className="ghost" onClick={()=>updateRegions(regions.map(item=>item.id===r.id?{...item,revealed:!item.revealed}:item))} type="button">{r.revealed?"Скрыть":"Показать"}</button><button aria-label="Удалить" className="ghost danger" onClick={()=>updateRegions(regions.filter(item=>item.id!==r.id))} type="button">✕</button></div>)}{!regions.length?<p className="session-map-tip">Нарисованных областей пока нет.</p>:null}</div>
+      <div className="session-map-actions-grid"><button className="ghost" onClick={()=>updateRegions(regions.map(r=>({...r,revealed:false})))} type="button">Скрыть всё</button><button className="ghost" onClick={()=>updateRegions(regions.map(r=>({...r,revealed:true})))} type="button">Показать всё</button></div>
+      <button className="primary session-map-launch" disabled={busy||!imageUrl} onClick={()=>void publish(regions,true)} type="button">{busy?"Обновляю…":displayUrl?"Открыть экран телевизора":"Запустить сцену"}</button>{displayUrl?<p className="session-map-tip">Изменения областей автоматически появляются на телевизоре.</p>:null}{notice?<p className="session-map-notice">{notice}</p>:null}
+    </aside></div>
+  </section></div>,document.body);
 }

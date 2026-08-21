@@ -138,6 +138,19 @@ func TestPublicDisplaySanitizesYouTubeMap(t *testing.T) {
 	}
 }
 
+func TestPublicDisplaySanitizesFreeformFogRegions(t *testing.T) {
+	regions := sanitizePublicFogRegions([]publicFogRegion{
+		{ID: " room ", Points: []publicFogPoint{{X: -1, Y: 0.2}, {X: 0.5, Y: 2}, {X: 0.8, Y: 0.7}}, Revealed: true},
+		{ID: "short", Points: []publicFogPoint{{X: 0, Y: 0}, {X: 1, Y: 1}}},
+	})
+	if len(regions) != 1 || regions[0].ID != "room" || !regions[0].Revealed {
+		t.Fatalf("expected one valid normalized region, got %+v", regions)
+	}
+	if regions[0].Points[0].X != 0 || regions[0].Points[1].Y != 1 {
+		t.Fatalf("expected region points to be clamped, got %+v", regions[0].Points)
+	}
+}
+
 func TestPublicScreenResultStaysUntilNewImageIsShown(t *testing.T) {
 	store, campaign := newPublicScreenTestStore(t)
 	manager := newInitiativeShareManager(store, "https://players.example")
