@@ -10,6 +10,7 @@
     "build": "npm run build --workspace @shadow-edge/web",
     "dev": "npm run dev --workspace @shadow-edge/web",
     "server": "go run ./apps/server/cmd/server",
+    "reset-password": "go run ./apps/server/cmd/server reset-password",
     "test:go": "go test ./apps/server/..."
   }
 }

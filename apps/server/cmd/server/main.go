@@ -24,6 +24,12 @@ func main() {
 	if dataFile == "" {
 		dataFile = filepath.Join("data", "store.json")
 	}
+	if len(os.Args) > 1 && os.Args[1] == "reset-password" {
+		if err := runPasswordReset(dataFile); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	bestiaryCacheFile := os.Getenv("SHADOW_EDGE_BESTIARY_CACHE_FILE")
 	if bestiaryCacheFile == "" {
 		bestiaryCacheFile = filepath.Join("data", "dndsu-bestiary.json")
