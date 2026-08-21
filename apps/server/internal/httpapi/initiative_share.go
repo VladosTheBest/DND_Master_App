@@ -592,6 +592,54 @@ var (
         height: 100%;
         display: block;
         border: 0;
+        pointer-events: none;
+      }
+      body.media-only {
+        height: 100vh;
+        min-height: 0;
+        overflow: hidden;
+        background: #000;
+      }
+      body.media-only::before,
+      body.media-only::after,
+      body.media-only .stage-head,
+      body.media-only .progress-rail,
+      body.media-only .status-row {
+        display: none;
+      }
+      body.media-only .shell,
+      body.media-only .stage,
+      body.media-only .track-viewport,
+      body.media-only .track {
+        width: 100vw;
+        height: 100vh;
+        min-height: 0;
+        max-width: none;
+        margin: 0;
+        padding: 0;
+        gap: 0;
+        overflow: hidden;
+      }
+      body.media-only .track-viewport::before,
+      body.media-only .track-viewport::after {
+        display: none;
+      }
+      body.media-only .image-state {
+        width: 100vw;
+        height: 100vh;
+        min-height: 0;
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        background: #000;
+      }
+      body.media-only .image-canvas,
+      body.media-only .image-canvas img {
+        max-width: 100vw;
+        max-height: 100vh;
+      }
+      body.media-only .image-canvas.video-canvas {
+        width: min(100vw, calc(100vh * 16 / 9));
       }
       .fog-grid {
         position: absolute;
@@ -1202,7 +1250,8 @@ var (
       };
 
       const renderImage = (snapshot, image) => {
-        roundBannerNode.hidden = false;
+        const isSessionMap = Boolean(image?.sessionMap);
+        roundBannerNode.hidden = isSessionMap;
         roundTitleNode.textContent = UI.imageMode;
         subcopyNode.textContent = snapshot?.campaignTitle ?? UI.campaign;
         progressRailNode.hidden = true;
@@ -1211,7 +1260,7 @@ var (
 
         const title = String(image?.title || "").trim();
         const caption = String(image?.caption || "").trim();
-        const overlay = title || caption
+        const overlay = !isSessionMap && (title || caption)
           ? '<figcaption class="image-overlay"><strong>' +
             escapeHtml(title || UI.imageMode) +
             '</strong>' +
@@ -1261,6 +1310,7 @@ var (
         const result = snapshot?.result ?? null;
         const image = snapshot?.image ?? null;
         const mode = snapshot?.mode || (combat ? "initiative" : result ? "result" : image ? "image" : "waiting");
+        document.body.classList.toggle("media-only", mode === "image" && Boolean(image?.sessionMap));
         currentVersion = Number(snapshot?.version ?? 0) || 0;
         document.title = combat
           ? combat.title + " - Трекер инициативы"
@@ -2322,7 +2372,7 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 		if videoID == "" {
 			return nil
 		}
-		url = fmt.Sprintf("https://www.youtube-nocookie.com/embed/%s?autoplay=1&mute=1&loop=1&playlist=%s&controls=0&playsinline=1&rel=0", videoID, videoID)
+		url = fmt.Sprintf("https://www.youtube-nocookie.com/embed/%s?autoplay=1&mute=1&loop=1&playlist=%s&controls=0&disablekb=1&fs=0&playsinline=1&rel=0", videoID, videoID)
 	} else {
 		mediaType = "image"
 	}

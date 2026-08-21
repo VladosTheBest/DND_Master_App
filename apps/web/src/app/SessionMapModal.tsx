@@ -163,7 +163,7 @@ export function SessionMapModal({ campaignId, open, onClose }: SessionMapModalPr
                 {mediaType === "youtube" ? (
                   <iframe
                     allow="autoplay; encrypted-media"
-                    src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId(imageUrl)}?autoplay=1&mute=1&loop=1&playlist=${youtubeVideoId(imageUrl)}&controls=0&playsinline=1&rel=0`}
+                    src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId(imageUrl)}?autoplay=1&mute=1&loop=1&playlist=${youtubeVideoId(imageUrl)}&controls=0&disablekb=1&fs=0&playsinline=1&rel=0`}
                     title={title}
                   />
                 ) : <img alt={title} src={imageUrl} />}
