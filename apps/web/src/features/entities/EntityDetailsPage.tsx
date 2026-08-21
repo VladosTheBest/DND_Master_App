@@ -1,4 +1,4 @@
-import type { MouseEvent as ReactMouseEvent, ReactNode } from "react";
+import { useEffect, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import type {
   CampaignShop,
   GalleryImage,
@@ -90,6 +90,68 @@ function ShopRelationIcon() {
       <path {...common} d="M5.5 8.1v7.2h9V8.1" />
       <path {...common} d="M7.2 15.3v-4h2.2v4M11.2 11.3h1.9" />
     </svg>
+  );
+}
+
+function MasterKnowledgeCard({
+  content,
+  entityByTitle,
+  onContextMenu,
+  onMentionClick,
+  summary,
+  title = "Информация для мастера"
+}: {
+  content: string;
+  entityByTitle: Map<string, KnowledgeEntity>;
+  onContextMenu: (event: ReactMouseEvent<HTMLElement>) => void;
+  onMentionClick: (id: string) => void;
+  summary: string;
+  title?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const excerpt = (summary.trim() || content.replace(/\s+/g, " ").trim() || "Информация пока не заполнена.").slice(0, 240);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open]);
+
+  return (
+    <>
+      <section className="card section-card master-knowledge-card">
+        <div className="master-knowledge-card-icon">✦</div>
+        <div className="master-knowledge-card-copy">
+          <small>Только для мастера</small>
+          <strong>{title}</strong>
+          <p>{excerpt}{excerpt.length >= 240 ? "…" : ""}</p>
+        </div>
+        <button className="primary" onClick={() => setOpen(true)} type="button">Открыть полностью</button>
+      </section>
+
+      {open ? (
+        <div className="master-knowledge-overlay" onMouseDown={() => setOpen(false)} role="presentation">
+          <section
+            aria-label={title}
+            aria-modal="true"
+            className="master-knowledge-dialog"
+            onMouseDown={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <header className="master-knowledge-dialog-head">
+              <div><small>Досье мастера</small><h2>{title}</h2></div>
+              <button aria-label="Закрыть" className="ghost" onClick={() => setOpen(false)} type="button">Закрыть</button>
+            </header>
+            <div className="master-knowledge-scroll" onContextMenu={onContextMenu}>
+              <RichParagraphs content={content} entityByTitle={entityByTitle} onMentionClick={onMentionClick} />
+            </div>
+          </section>
+        </div>
+      ) : null}
+    </>
   );
 }
 
@@ -244,16 +306,14 @@ export function EntityDetailsPage({
         </div>
 
         <div id="monster-description">
-        <CollapsibleSection
-          key={`${activeEntity.id}-knowledge`}
-          hint="Полное описание монстра, поведенческие заметки и любые служебные пояснения мастера."
-          summary={<p className="copy">{activeEntity.summary || activeEntity.content.slice(0, 180)}</p>}
-          title="Описание"
-        >
-          <div onContextMenu={onContentContextMenu}>
-            <RichParagraphs content={activeEntity.content} entityByTitle={entityByTitle} onMentionClick={onOpenPreview} />
-          </div>
-        </CollapsibleSection>
+        <MasterKnowledgeCard
+          content={activeEntity.content}
+          entityByTitle={entityByTitle}
+          onContextMenu={onContentContextMenu}
+          onMentionClick={onOpenPreview}
+          summary={activeEntity.summary}
+          title="Описание и заметки мастера"
+        />
         </div>
       </div>
     );
@@ -478,16 +538,13 @@ export function EntityDetailsPage({
       {isRewardableEntity(activeEntity) ? <RewardSection kind={activeEntity.kind} rewardProfile={activeEntity.rewardProfile} /> : null}
 
       <div id={dossierKind ? `${dossierKind}-master-notes` : undefined}>
-      <CollapsibleSection
-        key={`${activeEntity.id}-knowledge`}
-        hint="Полная версия для мастера: скрытые детали, связи, последствия и служебные заметки"
-        summary={<p className="copy">{activeEntity.summary || activeEntity.content.slice(0, 180)}</p>}
-        title="Информация для мастера"
-      >
-        <div onContextMenu={onContentContextMenu}>
-          <RichParagraphs content={activeEntity.content} entityByTitle={entityByTitle} onMentionClick={onOpenPreview} />
-        </div>
-      </CollapsibleSection>
+      <MasterKnowledgeCard
+        content={activeEntity.content}
+        entityByTitle={entityByTitle}
+        onContextMenu={onContentContextMenu}
+        onMentionClick={onOpenPreview}
+        summary={activeEntity.summary}
+      />
       </div>
 
       <div id={dossierKind ? `${dossierKind}-relations` : undefined}>
