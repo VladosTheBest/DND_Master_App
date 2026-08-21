@@ -1,9 +1,22 @@
 package httpapi
 
 import (
+	"bytes"
 	"path/filepath"
+	"strings"
 	"testing"
 )
+
+func TestSurveyTemplateEmbedsTokenWithoutExtraQuotes(t *testing.T) {
+	const token = "0123456789abcdef"
+	var output bytes.Buffer
+	if err := surveyTemplateV2.Execute(&output, surveyPageData(token)); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(output.String(), `const t="`+token+`",prefix=`) {
+		t.Fatal("survey template did not embed the exact token as a JavaScript string")
+	}
+}
 
 func TestRotateSurveyInviteReplacesPreviousCampaignToken(t *testing.T) {
 	store := &campaignStore{
