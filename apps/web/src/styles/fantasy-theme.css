@@ -966,13 +966,15 @@ select.input option,
 }
 
 /* Player dossier: optimized for fast scanning during a session. */
-.player-details-page {
+.player-details-page,
+.monster-details-page {
   width: min(100%, 1480px);
   margin-inline: auto;
   gap: 1rem;
 }
 
-.player-details-page > * {
+.player-details-page > *,
+.monster-details-page > * {
   scroll-margin-top: 5.25rem;
 }
 
@@ -1087,6 +1089,47 @@ select.input option,
 }
 
 .player-details-page #player-master-notes .rich p:hover {
+  border-left-color: rgba(227, 181, 105, .58);
+  color: #f0eaf4;
+}
+
+.monster-details-page .npc-sheet {
+  font-size: clamp(.86rem, .8vw, .98rem);
+}
+
+.monster-details-page .npc-sheet .copy,
+.monster-details-page .npc-section .copy {
+  max-width: 82ch;
+  line-height: 1.68;
+}
+
+.monster-details-page .npc-section,
+.monster-details-page .section-card {
+  padding: clamp(.95rem, 1.45vw, 1.3rem);
+}
+
+.monster-details-page #monster-description .collapsible-body {
+  justify-items: center;
+}
+
+.monster-details-page #monster-description .collapsible-body > div {
+  width: min(100%, 92ch);
+}
+
+.monster-details-page #monster-description .rich {
+  gap: .85rem;
+  font-size: clamp(.9rem, .82vw, 1rem);
+  line-height: 1.76;
+}
+
+.monster-details-page #monster-description .rich p {
+  margin: 0;
+  padding: .2rem 0 .2rem 1rem;
+  border-left: 2px solid rgba(194, 139, 255, .22);
+  color: #d8d1df;
+}
+
+.monster-details-page #monster-description .rich p:hover {
   border-left-color: rgba(227, 181, 105, .58);
   color: #f0eaf4;
 }

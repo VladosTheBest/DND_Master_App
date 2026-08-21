@@ -144,8 +144,8 @@ export function EntityDetailsPage({
     };
 
     return (
-      <div className="stack wide">
-        <div onContextMenu={onOpenEntityActionMenu}>
+      <div className="stack wide entity-details-page monster-details-page">
+        <div id="monster-combat" onContextMenu={onOpenEntityActionMenu}>
           <CombatEntityStatSheet
             action={
               <div className="npc-sheet-toolbar">
@@ -182,6 +182,15 @@ export function EntityDetailsPage({
           />
         </div>
 
+        <nav aria-label="Быстрые переходы по карточке монстра" className="player-details-jumpbar monster-details-jumpbar">
+          <span>Быстро найти</span>
+          <a href="#monster-combat">Боевой профиль</a>
+          <a href="#monster-notes">Заметки</a>
+          <a href="#monster-loot">Добыча</a>
+          <a href="#monster-description">Описание</a>
+        </nav>
+
+        <div id="monster-notes">
         <PlayerFacingCardStrip
           cards={activeEntityPlayerCards}
           cardBadgeLabel="GM-only"
@@ -199,9 +208,13 @@ export function EntityDetailsPage({
           onOpenCard={onOpenPlayerFacingCard}
           title="Заметки мастера"
         />
+        </div>
 
-        {isRewardableEntity(activeEntity) ? <RewardSection kind={activeEntity.kind} rewardProfile={activeEntity.rewardProfile} /> : null}
+        <div id="monster-loot">
+          {isRewardableEntity(activeEntity) ? <RewardSection kind={activeEntity.kind} rewardProfile={activeEntity.rewardProfile} /> : null}
+        </div>
 
+        <div id="monster-description">
         <CollapsibleSection
           key={`${activeEntity.id}-knowledge`}
           hint="Полное описание монстра, поведенческие заметки и любые служебные пояснения мастера."
@@ -212,6 +225,7 @@ export function EntityDetailsPage({
             <RichParagraphs content={activeEntity.content} entityByTitle={entityByTitle} onMentionClick={onOpenPreview} />
           </div>
         </CollapsibleSection>
+        </div>
       </div>
     );
   }
