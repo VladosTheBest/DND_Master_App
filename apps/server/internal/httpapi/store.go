@@ -59,6 +59,9 @@ func (store *campaignStore) load() error {
 	for index := range store.data.Campaigns {
 		store.data.Campaigns[index] = ensureCampaignShape(store.data.Campaigns[index])
 	}
+	if store.repairOrphanedSurveyInvitesLocked() {
+		needsSave = true
+	}
 
 	if changed, err := store.ensureAuthStorageLocked(); err != nil {
 		return err
@@ -75,6 +78,31 @@ func (store *campaignStore) load() error {
 	}
 
 	return nil
+}
+
+// repairOrphanedSurveyInvitesLocked preserves existing public links when a
+// single local campaign was recreated with a new ID. With multiple campaigns
+// there is no safe way to infer ownership, so those links are left untouched.
+func (store *campaignStore) repairOrphanedSurveyInvitesLocked() bool {
+	if len(store.data.Campaigns) != 1 || len(store.data.SurveyInvites) == 0 {
+		return false
+	}
+
+	campaignID := store.data.Campaigns[0].ID
+	validCampaigns := make(map[string]struct{}, len(store.data.Campaigns))
+	for _, campaign := range store.data.Campaigns {
+		validCampaigns[campaign.ID] = struct{}{}
+	}
+
+	changed := false
+	for index := range store.data.SurveyInvites {
+		if _, exists := validCampaigns[store.data.SurveyInvites[index].CampaignID]; exists {
+			continue
+		}
+		store.data.SurveyInvites[index].CampaignID = campaignID
+		changed = true
+	}
+	return changed
 }
 
 func (store *campaignStore) ensureAuthStorageLocked() (bool, error) {
