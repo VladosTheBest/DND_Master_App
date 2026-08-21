@@ -68,6 +68,7 @@ func (m *surveyManager) handlePublicPage(w http.ResponseWriter, r *http.Request)
 		http.NotFound(w, r)
 		return
 	}
+	w.Header().Set("Cache-Control", "no-store, max-age=0")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_ = surveyTemplateV2.Execute(w, surveyPageData(token))
 }
