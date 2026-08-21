@@ -352,16 +352,22 @@ type surveyInvite struct {
 	LastSubmissionAt string `json:"lastSubmissionAt,omitempty"`
 }
 type surveyResponse struct {
-	ID           string `json:"id"`
-	CampaignID   string `json:"campaignId"`
-	SubmittedAt  string `json:"submittedAt"`
-	Name         string `json:"name"`
-	Setting      string `json:"setting"`
-	Inspirations string `json:"inspirations"`
-	Character    string `json:"character"`
-	Tone         string `json:"tone"`
-	Expectations string `json:"expectations"`
-	Boundaries   string `json:"boundaries"`
+	ID             string `json:"id"`
+	CampaignID     string `json:"campaignId"`
+	SubmittedAt    string `json:"submittedAt"`
+	Name           string `json:"name"`
+	Setting        string `json:"setting"`
+	Inspirations   string `json:"inspirations"`
+	Character      string `json:"character"`
+	CharacterName  string `json:"characterName,omitempty"`
+	CharacterClass string `json:"characterClass,omitempty"`
+	Ancestry       string `json:"ancestry,omitempty"`
+	PartyRole      string `json:"partyRole,omitempty"`
+	Backstory      string `json:"backstory,omitempty"`
+	Tone           string `json:"tone"`
+	Atmosphere     string `json:"atmosphere,omitempty"`
+	Expectations   string `json:"expectations"`
+	Boundaries     string `json:"boundaries"`
 }
 
 type createCampaignInput struct {

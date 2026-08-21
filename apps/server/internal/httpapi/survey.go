@@ -25,14 +25,20 @@ type surveyLinkResponse struct {
 	Token string `json:"token"`
 }
 type surveyInput struct {
-	Name         string `json:"name"`
-	Setting      string `json:"setting"`
-	Inspirations string `json:"inspirations"`
-	Character    string `json:"character"`
-	Tone         string `json:"tone"`
-	Expectations string `json:"expectations"`
-	Boundaries   string `json:"boundaries"`
-	Website      string `json:"website"`
+	Name           string `json:"name"`
+	Setting        string `json:"setting"`
+	Inspirations   string `json:"inspirations"`
+	Character      string `json:"character"`
+	CharacterName  string `json:"characterName"`
+	CharacterClass string `json:"characterClass"`
+	Ancestry       string `json:"ancestry"`
+	PartyRole      string `json:"partyRole"`
+	Backstory      string `json:"backstory"`
+	Tone           string `json:"tone"`
+	Atmosphere     string `json:"atmosphere"`
+	Expectations   string `json:"expectations"`
+	Boundaries     string `json:"boundaries"`
+	Website        string `json:"website"`
 }
 
 func newSurveyManager(store *campaignStore, baseURL string) *surveyManager {
@@ -63,7 +69,7 @@ func (m *surveyManager) handlePublicPage(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_ = surveyTemplate.Execute(w, map[string]string{"Token": token})
+	_ = surveyTemplateV2.Execute(w, surveyPageData(token))
 }
 func (m *surveyManager) handlePublicAPI(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -135,7 +141,7 @@ func remoteIP(r *http.Request) string {
 	return r.RemoteAddr
 }
 func validateSurvey(i surveyInput) error {
-	for _, v := range []string{i.Name, i.Setting, i.Inspirations, i.Character, i.Tone, i.Expectations, i.Boundaries} {
+	for _, v := range []string{i.Name, i.Setting, i.Inspirations, i.Character, i.CharacterName, i.CharacterClass, i.Ancestry, i.PartyRole, i.Backstory, i.Tone, i.Atmosphere, i.Expectations, i.Boundaries} {
 		if len([]rune(strings.TrimSpace(v))) > 2000 {
 			return fmt.Errorf("поле анкеты слишком длинное")
 		}
@@ -200,7 +206,7 @@ func (s *campaignStore) saveSurveyResponse(token, campaignID string, input surve
 	for n := range s.data.SurveyInvites {
 		if s.data.SurveyInvites[n].Token == token {
 			s.data.SurveyInvites[n].LastSubmissionAt = time.Now().UTC().Format(time.RFC3339)
-			s.data.SurveyResponses = append(s.data.SurveyResponses, surveyResponse{ID: newID("survey"), CampaignID: campaignID, SubmittedAt: s.data.SurveyInvites[n].LastSubmissionAt, Name: strings.TrimSpace(input.Name), Setting: strings.TrimSpace(input.Setting), Inspirations: strings.TrimSpace(input.Inspirations), Character: strings.TrimSpace(input.Character), Tone: strings.TrimSpace(input.Tone), Expectations: strings.TrimSpace(input.Expectations), Boundaries: strings.TrimSpace(input.Boundaries)})
+			s.data.SurveyResponses = append(s.data.SurveyResponses, surveyResponse{ID: newID("survey"), CampaignID: campaignID, SubmittedAt: s.data.SurveyInvites[n].LastSubmissionAt, Name: strings.TrimSpace(input.Name), Setting: strings.TrimSpace(input.Setting), Inspirations: strings.TrimSpace(input.Inspirations), Character: strings.TrimSpace(input.Character), CharacterName: strings.TrimSpace(input.CharacterName), CharacterClass: strings.TrimSpace(input.CharacterClass), Ancestry: strings.TrimSpace(input.Ancestry), PartyRole: strings.TrimSpace(input.PartyRole), Backstory: strings.TrimSpace(input.Backstory), Tone: strings.TrimSpace(input.Tone), Atmosphere: strings.TrimSpace(input.Atmosphere), Expectations: strings.TrimSpace(input.Expectations), Boundaries: strings.TrimSpace(input.Boundaries)})
 			return s.saveLocked()
 		}
 	}
