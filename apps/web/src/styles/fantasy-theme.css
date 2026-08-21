@@ -1308,6 +1308,193 @@ select.input option,
   }
 }
 
+/* Dashboard focus strip. */
+.dashboard-stat-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  align-items: center;
+  gap: .8rem;
+  min-height: 6.7rem;
+  padding: .8rem .9rem;
+  overflow: hidden;
+}
+
+.dashboard-stat-card::after {
+  content: "";
+  position: absolute;
+  right: -1.5rem;
+  bottom: -2.5rem;
+  width: 7rem;
+  height: 7rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(165, 92, 246, .15), transparent 68%);
+  pointer-events: none;
+}
+
+.dashboard-stat-mark {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border: 1px solid rgba(211, 161, 255, .26);
+  border-radius: 13px;
+  background: linear-gradient(145deg, rgba(157, 86, 239, .18), rgba(228, 181, 105, .055));
+  color: #e4b96e;
+  font: 700 1.2rem Georgia, "Times New Roman", serif;
+}
+
+.dashboard-stat-copy {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: .18rem .45rem;
+  min-width: 0;
+}
+
+.dashboard-stat-copy strong {
+  justify-self: start;
+  color: #fff7e7;
+  font-size: 1.55rem;
+  line-height: 1;
+}
+
+.dashboard-stat-copy p {
+  grid-column: 1 / -1;
+  overflow: hidden;
+  margin: .1rem 0 0;
+  color: #968da2;
+  font-size: .73rem;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-stat-success .dashboard-stat-mark { color: #79d9a4; }
+.dashboard-stat-danger .dashboard-stat-mark { color: #f18a9b; }
+.dashboard-stat-warning .dashboard-stat-mark { color: #ebbc69; }
+
+.dashboard-hot-entities {
+  display: grid;
+  align-content: start;
+  gap: .85rem;
+}
+
+.dashboard-hot-head {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.dashboard-hot-head h2 {
+  margin: .16rem 0 0;
+  color: #fff6e6;
+  font: 700 1.08rem Georgia, "Times New Roman", serif;
+}
+
+.dashboard-hot-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .65rem;
+}
+
+.dashboard-hot-card {
+  position: relative;
+  display: grid;
+  grid-template-columns: 3.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: .72rem;
+  min-width: 0;
+  padding: .62rem .7rem;
+  overflow: hidden;
+  border: 1px solid rgba(199, 171, 239, .17);
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 0 0, rgba(158, 91, 242, .1), transparent 52%),
+    rgba(255, 255, 255, .025);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.dashboard-hot-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(204, 145, 255, .48);
+  background:
+    radial-gradient(circle at 0 0, rgba(166, 92, 251, .18), transparent 55%),
+    rgba(255, 255, 255, .045);
+}
+
+.dashboard-hot-visual {
+  width: 3.5rem;
+  height: 3.5rem;
+  overflow: hidden;
+  border: 1px solid rgba(228, 181, 105, .22);
+  border-radius: 10px;
+  background: #171222;
+}
+
+.dashboard-hot-visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dashboard-hot-copy {
+  display: grid;
+  gap: .12rem;
+  min-width: 0;
+}
+
+.dashboard-hot-copy small {
+  color: #c696ff;
+  font-size: .62rem;
+  font-weight: 800;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.dashboard-hot-copy strong,
+.dashboard-hot-copy span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-hot-copy strong {
+  color: #fff7e9;
+  font-size: .85rem;
+}
+
+.dashboard-hot-copy span {
+  color: #968da3;
+  font-size: .69rem;
+}
+
+.dashboard-hot-arrow {
+  color: #dcb978;
+  font-size: .9rem;
+  opacity: .62;
+}
+
+@media (max-width: 1050px) {
+  .dashboard-hot-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .dashboard-stat-card {
+    min-height: 5.8rem;
+  }
+
+  .dashboard-hot-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 900px) {
   .player-details-page .player-detail-media-grid,
   .npc-details-page .player-detail-media-grid,

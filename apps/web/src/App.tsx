@@ -4384,10 +4384,15 @@ export default function App() {
 
                 <section className="stats">
                   {campaign.dashboardCards.map((card) => (
-                    <article key={card.label} className="card stat">
-                      <span className={badge(card.tone)}>{card.label}</span>
-                      <strong>{card.value}</strong>
-                      <p>{card.detail}</p>
+                    <article key={card.label} className={`card stat dashboard-stat-card dashboard-stat-${card.tone}`}>
+                      <span aria-hidden="true" className="dashboard-stat-mark">
+                        {card.label === "Локации" ? "⌖" : card.label === "Игроки" ? "♙" : card.label === "НПС" ? "♜" : card.label === "Монстры" ? "♞" : card.label === "Бой" ? "⚔" : "✦"}
+                      </span>
+                      <span className="dashboard-stat-copy">
+                        <span className={badge(card.tone)}>{card.label}</span>
+                        <strong>{card.value}</strong>
+                        <p>{card.detail}</p>
+                      </span>
                     </article>
                   ))}
                 </section>
@@ -4412,17 +4417,28 @@ export default function App() {
                     </div>
                   </article>
 
-                  <article className="card section-card">
-                    <div className="row muted">
-                      <span>Hot Entities</span>
-                      <span>Быстрый переход</span>
+                  <article className="card section-card dashboard-hot-entities">
+                    <div className="dashboard-hot-head">
+                      <div>
+                        <span className="eyebrow">В фокусе</span>
+                        <h2>Важные сущности</h2>
+                      </div>
+                      <span className="muted">Быстрый переход</span>
                     </div>
-                    <div className="stack">
+                    <div className="dashboard-hot-grid">
                       {[...campaign.locations, ...campaign.npcs, ...campaign.monsters, ...campaign.quests, ...campaign.lore]
                         .slice(0, 4)
                         .map((entity) => (
-                          <button key={entity.id} className="ghost fill" onClick={() => peekEntity(entity.id)} type="button">
-                            {entity.title}
+                          <button key={entity.id} className="dashboard-hot-card" onClick={() => peekEntity(entity.id)} type="button">
+                            <span className="dashboard-hot-visual">
+                              <img alt="" loading="lazy" src={createPortraitSource(entity)} />
+                            </span>
+                            <span className="dashboard-hot-copy">
+                              <small>{kindTitle[entity.kind]}</small>
+                              <strong>{entity.title}</strong>
+                              <span>{entity.subtitle || entity.summary || "Открыть карточку"}</span>
+                            </span>
+                            <span aria-hidden="true" className="dashboard-hot-arrow">↗</span>
                           </button>
                         ))}
                     </div>
