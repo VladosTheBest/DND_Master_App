@@ -14,3 +14,6 @@ coverage/
 *.exe
 data/uploads/
 apps/server/internal/httpapi/*.go.*
+apps/server/data/store.json
+apps/server/data/store.json.bak
+go.work.sum
