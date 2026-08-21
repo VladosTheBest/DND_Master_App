@@ -1,4 +1,5 @@
 import { useEffect, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type {
   CampaignShop,
   GalleryImage,
@@ -113,11 +114,16 @@ function MasterKnowledgeCard({
 
   useEffect(() => {
     if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") setOpen(false);
     };
     window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
   }, [open]);
 
   return (
@@ -132,7 +138,7 @@ function MasterKnowledgeCard({
         <button className="primary" onClick={() => setOpen(true)} type="button">Открыть полностью</button>
       </section>
 
-      {open ? (
+      {open ? createPortal(
         <div className="master-knowledge-overlay" onMouseDown={() => setOpen(false)} role="presentation">
           <section
             aria-label={title}
@@ -149,7 +155,8 @@ function MasterKnowledgeCard({
               <RichParagraphs content={content} entityByTitle={entityByTitle} onMentionClick={onMentionClick} />
             </div>
           </section>
-        </div>
+        </div>,
+        document.body
       ) : null}
     </>
   );
