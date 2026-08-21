@@ -217,7 +217,7 @@ export function EntityDetailsPage({
   }
 
   return (
-    <div className="stack wide">
+    <div className={`stack wide entity-details-page ${activeEntity.kind === "player" ? "player-details-page" : ""}`.trim()}>
       <section
         className="card hero"
         onContextMenu={onOpenEntityActionMenu}
@@ -258,25 +258,40 @@ export function EntityDetailsPage({
         </div>
       </section>
 
-      <PlayerFacingCardStrip
-        cards={activeEntityPlayerCards}
-        createDescription="Отдельная сцена, handout или короткая заметка для игроков. Откроется сразу в режиме редактирования."
-        description={
-          activeEntity.kind === "location"
-            ? "Создавай сколько угодно отдельных карточек-сцен и handout-описаний для игроков."
-            : "Храни здесь player-safe описания, речи, handout-карточки и любые отдельные тексты, которые удобно открывать по одной."
-        }
-        emptyDescription="Пока карточек нет. Создай первую, и она сразу появится в отдельном удобном просмотре для зачитывания игрокам."
-        entityId={activeEntity.id}
-        onCreateCard={onCreatePlayerFacingCard}
-        onDeleteCard={onDeletePlayerFacingCard}
-        onEditCard={onEditPlayerFacingCard}
-        onOpenCard={onOpenPlayerFacingCard}
-      />
+      {activeEntity.kind === "player" ? (
+        <nav aria-label="Быстрые переходы по карточке игрока" className="player-details-jumpbar">
+          <span>Быстро найти</span>
+          <a href="#player-summary">Сводка</a>
+          <a href="#player-handouts">Игроки видят</a>
+          <a href="#player-media">Медиа</a>
+          <a href="#player-master-notes">Мастеру</a>
+          <a href="#player-relations">Связи</a>
+          <a href="#player-stats">Статы</a>
+        </nav>
+      ) : null}
+
+      <div id={activeEntity.kind === "player" ? "player-handouts" : undefined}>
+        <PlayerFacingCardStrip
+          cards={activeEntityPlayerCards}
+          createDescription="Отдельная сцена, handout или короткая заметка для игроков. Откроется сразу в режиме редактирования."
+          description={
+            activeEntity.kind === "location"
+              ? "Создавай сколько угодно отдельных карточек-сцен и handout-описаний для игроков."
+              : "Храни здесь player-safe описания, речи, handout-карточки и любые отдельные тексты, которые удобно открывать по одной."
+          }
+          emptyDescription="Пока карточек нет. Создай первую, и она сразу появится в отдельном удобном просмотре для зачитывания игрокам."
+          entityId={activeEntity.id}
+          onCreateCard={onCreatePlayerFacingCard}
+          onDeleteCard={onDeletePlayerFacingCard}
+          onEditCard={onEditPlayerFacingCard}
+          onOpenCard={onOpenPlayerFacingCard}
+        />
+      </div>
 
       {preparedCombatSection}
 
       {visibleFacts.length ? (
+        <div id={activeEntity.kind === "player" ? "player-summary" : undefined}>
         <CollapsibleSection
           key={`${activeEntity.id}-facts`}
           hint="Ключевые данные, которые стоит держать перед глазами"
@@ -299,6 +314,7 @@ export function EntityDetailsPage({
             ))}
           </div>
         </CollapsibleSection>
+        </div>
       ) : null}
 
       {activeEntity.kind === "location" ? (
@@ -345,6 +361,7 @@ export function EntityDetailsPage({
         </CollapsibleSection>
       ) : null}
 
+      <div className="player-detail-media-grid" id={activeEntity.kind === "player" ? "player-media" : undefined}>
       <PlaylistSection
         action={
           <button className="ghost" onClick={onOpenPlaylistEditor} type="button">
@@ -377,6 +394,7 @@ export function EntityDetailsPage({
         onOpenFullscreen={onOpenGalleryViewer}
         title="Галерея"
       />
+      </div>
 
       {activeEntity.kind === "npc" ? (
         <CollapsibleSection
@@ -415,6 +433,7 @@ export function EntityDetailsPage({
 
       {isRewardableEntity(activeEntity) ? <RewardSection kind={activeEntity.kind} rewardProfile={activeEntity.rewardProfile} /> : null}
 
+      <div id={activeEntity.kind === "player" ? "player-master-notes" : undefined}>
       <CollapsibleSection
         key={`${activeEntity.id}-knowledge`}
         hint="Полная версия для мастера: скрытые детали, связи, последствия и служебные заметки"
@@ -425,7 +444,9 @@ export function EntityDetailsPage({
           <RichParagraphs content={activeEntity.content} entityByTitle={entityByTitle} onMentionClick={onOpenPreview} />
         </div>
       </CollapsibleSection>
+      </div>
 
+      <div id={activeEntity.kind === "player" ? "player-relations" : undefined}>
       <CollapsibleSection
         key={`${activeEntity.id}-related`}
         hint="Быстрые переходы без перегруза интерфейса"
@@ -465,8 +486,11 @@ export function EntityDetailsPage({
           <p className="copy">Пока здесь пусто. Связи можно добавлять через редактор или wiki-ссылки в тексте.</p>
         )}
       </CollapsibleSection>
+      </div>
 
-      {combatProfileEntity ? <CombatEntityStatSheet entity={combatProfileEntity} /> : null}
+      <div id={activeEntity.kind === "player" ? "player-stats" : undefined}>
+        {combatProfileEntity ? <CombatEntityStatSheet entity={combatProfileEntity} /> : null}
+      </div>
     </div>
   );
 }
