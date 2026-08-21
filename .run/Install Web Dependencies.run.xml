@@ -1,9 +1,0 @@
-<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Install Web Dependencies" type="js.build_tools.npm" factoryName="npm">
-    <package-json value="$PROJECT_DIR$/package.json" />
-    <command value="install" />
-    <node-interpreter value="project" />
-    <package-manager value="C:\nvm4w\nodejs\npm.cmd" />
-    <method v="2" />
-  </configuration>
-</component>
