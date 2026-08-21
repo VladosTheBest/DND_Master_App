@@ -11,8 +11,24 @@ type SessionMapModalProps = {
 const DEFAULT_ROWS = 8;
 const DEFAULT_COLUMNS = 12;
 
+const youtubeVideoId = (raw: string) => {
+  try {
+    const url = new URL(raw.trim());
+    const host = url.hostname.replace(/^www\./, "").toLowerCase();
+    if (host === "youtu.be") return url.pathname.split("/").filter(Boolean)[0] ?? "";
+    if (["youtube.com", "m.youtube.com", "youtube-nocookie.com"].includes(host)) {
+      return url.searchParams.get("v") || url.pathname.match(/^\/(?:embed|shorts)\/([^/]+)/)?.[1] || "";
+    }
+  } catch {
+    return "";
+  }
+  return "";
+};
+
 export function SessionMapModal({ campaignId, open, onClose }: SessionMapModalProps) {
   const [imageUrl, setImageUrl] = useState("");
+  const [mediaType, setMediaType] = useState<"image" | "youtube">("image");
+  const [sourceUrl, setSourceUrl] = useState("");
   const [title, setTitle] = useState("Карта приключения");
   const [rows, setRows] = useState(DEFAULT_ROWS);
   const [columns, setColumns] = useState(DEFAULT_COLUMNS);
@@ -55,6 +71,7 @@ export function SessionMapModal({ campaignId, open, onClose }: SessionMapModalPr
         revealed: [...nextRevealed],
         showGrid,
         sessionMap: true,
+        mediaType,
         title,
         url: imageUrl
       });
@@ -78,6 +95,7 @@ export function SessionMapModal({ campaignId, open, onClose }: SessionMapModalPr
     try {
       const result = await api.uploadImage(campaignId, file);
       setImageUrl(result.url);
+      setMediaType("image");
       setTitle(file.name.replace(/\.[^.]+$/, "") || "Карта приключения");
       setRevealed(new Set());
       setNotice("Карта загружена. Все зоны пока скрыты.");
@@ -86,6 +104,30 @@ export function SessionMapModal({ campaignId, open, onClose }: SessionMapModalPr
     } finally {
       setBusy(false);
       event.target.value = "";
+    }
+  };
+
+  const useSourceUrl = () => {
+    const value = sourceUrl.trim();
+    if (!value) return;
+    const videoId = youtubeVideoId(value);
+    if (videoId) {
+      setImageUrl(value);
+      setMediaType("youtube");
+      setTitle("Анимированная карта");
+      setRevealed(new Set());
+      setNotice("YouTube-карта подключена. На телевизоре она запустится без звука и будет повторяться.");
+      return;
+    }
+    try {
+      const parsed = new URL(value);
+      if (!/^https?:$/.test(parsed.protocol)) throw new Error();
+      setImageUrl(value);
+      setMediaType("image");
+      setRevealed(new Set());
+      setNotice("Карта по ссылке подключена.");
+    } catch {
+      setNotice("Укажите прямую ссылку на изображение или ссылку YouTube.");
     }
   };
 
@@ -117,8 +159,14 @@ export function SessionMapModal({ campaignId, open, onClose }: SessionMapModalPr
         <div className="session-map-layout">
           <div className="session-map-stage">
             {imageUrl ? (
-              <div className="session-map-image-shell">
-                <img alt={title} src={imageUrl} />
+              <div className={`session-map-image-shell ${mediaType === "youtube" ? "video" : ""}`}>
+                {mediaType === "youtube" ? (
+                  <iframe
+                    allow="autoplay; encrypted-media"
+                    src={`https://www.youtube-nocookie.com/embed/${youtubeVideoId(imageUrl)}?autoplay=1&mute=1&loop=1&playlist=${youtubeVideoId(imageUrl)}&controls=0&playsinline=1&rel=0`}
+                    title={title}
+                  />
+                ) : <img alt={title} src={imageUrl} />}
                 <div
                   className={`session-map-fog ${showGrid ? "show-grid" : ""}`}
                   style={{ gridTemplateColumns: `repeat(${columns}, 1fr)`, gridTemplateRows: `repeat(${rows}, 1fr)` }}
@@ -144,6 +192,13 @@ export function SessionMapModal({ campaignId, open, onClose }: SessionMapModalPr
           </div>
 
           <aside className="session-map-controls">
+            <label>Ссылка на карту или YouTube
+              <div className="session-map-url-row">
+                <input onChange={(event) => setSourceUrl(event.target.value)} placeholder="https://…" value={sourceUrl} />
+                <button className="ghost" onClick={useSourceUrl} type="button">Подключить</button>
+              </div>
+            </label>
+            <p className="session-map-source-hint">Для изображения лучше использовать прямую ссылку, которая заканчивается на .jpg, .png или .webp.</p>
             {imageUrl ? <label className="session-map-upload-small">Заменить карту<input accept="image/png,image/jpeg,image/webp,image/gif" disabled={busy} onChange={upload} type="file" /></label> : null}
             <label>Название сцены<input onChange={(event) => setTitle(event.target.value)} value={title} /></label>
             <div className="session-map-resolution">

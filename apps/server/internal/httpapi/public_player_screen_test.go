@@ -122,6 +122,22 @@ func TestSessionMapOverridesCombatAndSanitizesFog(t *testing.T) {
 	}
 }
 
+func TestPublicDisplaySanitizesYouTubeMap(t *testing.T) {
+	image := sanitizePublicDisplayImage(publicDisplayImage{
+		URL:       "https://youtu.be/dQw4w9WgXcQ",
+		MediaType: "youtube",
+	})
+	if image == nil || image.MediaType != "youtube" {
+		t.Fatalf("expected valid YouTube display image, got %+v", image)
+	}
+	if !strings.HasPrefix(image.URL, "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?") {
+		t.Fatalf("expected privacy-enhanced embed URL, got %q", image.URL)
+	}
+	if invalid := sanitizePublicDisplayImage(publicDisplayImage{URL: "https://example.com/video", MediaType: "youtube"}); invalid != nil {
+		t.Fatalf("expected invalid YouTube host to be rejected, got %+v", invalid)
+	}
+}
+
 func TestPublicScreenResultStaysUntilNewImageIsShown(t *testing.T) {
 	store, campaign := newPublicScreenTestStore(t)
 	manager := newInitiativeShareManager(store, "https://players.example")

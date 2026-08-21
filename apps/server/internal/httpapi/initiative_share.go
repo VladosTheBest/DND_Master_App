@@ -78,6 +78,7 @@ type playerDisplayImageInput struct {
 	Revealed   []int  `json:"revealed"`
 	ShowGrid   bool   `json:"showGrid"`
 	SessionMap bool   `json:"sessionMap"`
+	MediaType  string `json:"mediaType"`
 }
 
 type publicDisplayImage struct {
@@ -90,6 +91,7 @@ type publicDisplayImage struct {
 	Revealed   []int  `json:"revealed,omitempty"`
 	ShowGrid   bool   `json:"showGrid,omitempty"`
 	SessionMap bool   `json:"sessionMap,omitempty"`
+	MediaType  string `json:"mediaType,omitempty"`
 }
 
 type publicDisplaySnapshot struct {
@@ -580,6 +582,16 @@ var (
         display: block;
         object-fit: contain;
         object-position: center;
+      }
+      .image-canvas.video-canvas {
+        width: min(100%, calc(76vh * 16 / 9));
+        aspect-ratio: 16 / 9;
+      }
+      .image-canvas iframe {
+        width: 100%;
+        height: 100%;
+        display: block;
+        border: 0;
       }
       .fog-grid {
         position: absolute;
@@ -1217,12 +1229,13 @@ var (
         const fog = fogCells
           ? '<div class="fog-grid' + (image?.showGrid ? ' show-grid' : '') + '" style="grid-template-columns:repeat(' + columns + ',1fr);grid-template-rows:repeat(' + rows + ',1fr)">' + fogCells + '</div>'
           : "";
+        const isYoutube = image?.mediaType === "youtube";
+        const media = isYoutube
+          ? '<iframe allow="autoplay; encrypted-media; fullscreen" allowfullscreen title="' + escapeHtml(title || UI.imageAlt) + '" src="' + escapeHtml(image?.url || "") + '"></iframe>'
+          : '<img alt="' + escapeHtml(image?.alt || title || UI.imageAlt) + '" src="' + escapeHtml(image?.url || "") + '">';
         trackNode.innerHTML =
-          '<figure class="image-state"><div class="image-canvas"><img alt="' +
-          escapeHtml(image?.alt || title || UI.imageAlt) +
-          '" src="' +
-          escapeHtml(image?.url || "") +
-          '">' +
+          '<figure class="image-state"><div class="image-canvas' + (isYoutube ? ' video-canvas' : '') + '">' +
+          media +
           fog +
           '</div>' +
           overlay +
@@ -2020,6 +2033,7 @@ func (manager *initiativeShareManager) showPlayerDisplayImage(
 		Revealed:   input.Revealed,
 		ShowGrid:   input.ShowGrid,
 		SessionMap: input.SessionMap,
+		MediaType:  input.MediaType,
 	})
 
 	publicSnapshot := manager.currentSnapshotLocked(campaign)
@@ -2172,11 +2186,12 @@ func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 	if mode == publicScreenModeImage && snapshot.Image != nil {
 		fmt.Fprintf(
 			&builder,
-			"image|%s|%s|%s|%s|%d|%d|%t|%t|%v|",
+			"image|%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|",
 			snapshot.Image.URL,
 			snapshot.Image.Title,
 			snapshot.Image.Alt,
 			snapshot.Image.Caption,
+			snapshot.Image.MediaType,
 			snapshot.Image.FogRows,
 			snapshot.Image.FogColumns,
 			snapshot.Image.ShowGrid,
@@ -2281,11 +2296,12 @@ func publicDisplaySnapshotFingerprint(snapshot publicDisplaySnapshot) string {
 
 	fmt.Fprintf(
 		&builder,
-		"%s|%s|%s|%s|%d|%d|%t|%t|%v|",
+		"%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|",
 		snapshot.Image.URL,
 		snapshot.Image.Title,
 		snapshot.Image.Alt,
 		snapshot.Image.Caption,
+		snapshot.Image.MediaType,
 		snapshot.Image.FogRows,
 		snapshot.Image.FogColumns,
 		snapshot.Image.ShowGrid,
@@ -2299,6 +2315,16 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 	url := strings.TrimSpace(image.URL)
 	if url == "" {
 		return nil
+	}
+	mediaType := strings.ToLower(strings.TrimSpace(image.MediaType))
+	if mediaType == "youtube" {
+		videoID := youtubeVideoID(url)
+		if videoID == "" {
+			return nil
+		}
+		url = fmt.Sprintf("https://www.youtube-nocookie.com/embed/%s?autoplay=1&mute=1&loop=1&playlist=%s&controls=0&playsinline=1&rel=0", videoID, videoID)
+	} else {
+		mediaType = "image"
 	}
 
 	rows := max(0, min(image.FogRows, 24))
@@ -2331,7 +2357,34 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 		Revealed:   revealed,
 		ShowGrid:   image.ShowGrid,
 		SessionMap: image.SessionMap,
+		MediaType:  mediaType,
 	}
+}
+
+func youtubeVideoID(raw string) string {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return ""
+	}
+	host := strings.ToLower(strings.TrimPrefix(parsed.Hostname(), "www."))
+	var id string
+	switch host {
+	case "youtu.be":
+		id = strings.Trim(parsed.Path, "/")
+	case "youtube.com", "m.youtube.com", "youtube-nocookie.com":
+		if strings.HasPrefix(parsed.Path, "/embed/") {
+			id = strings.TrimPrefix(parsed.Path, "/embed/")
+		} else if strings.HasPrefix(parsed.Path, "/shorts/") {
+			id = strings.TrimPrefix(parsed.Path, "/shorts/")
+		} else {
+			id = parsed.Query().Get("v")
+		}
+	}
+	id = strings.Split(strings.Trim(id, "/"), "/")[0]
+	if matched, _ := regexp.MatchString(`^[A-Za-z0-9_-]{11}$`, id); !matched {
+		return ""
+	}
+	return id
 }
 
 func resolvePublicDisplayAssetURL(raw string, baseURL string) string {

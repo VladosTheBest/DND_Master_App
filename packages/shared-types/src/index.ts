@@ -741,6 +741,7 @@ export interface PlayerDisplayImageInput {
   revealed?: number[];
   showGrid?: boolean;
   sessionMap?: boolean;
+  mediaType?: "image" | "youtube";
 }
 
 export interface AuthSessionResult {
