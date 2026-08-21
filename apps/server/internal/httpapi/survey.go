@@ -21,8 +21,12 @@ type surveyManager struct {
 	attempts map[string]time.Time
 }
 type surveyLinkResponse struct {
-	URL   string `json:"url"`
-	Token string `json:"token"`
+	URL        string `json:"url"`
+	Token      string `json:"token"`
+	PlayerName string `json:"playerName"`
+}
+type surveyLinkInput struct {
+	PlayerName string `json:"playerName"`
 }
 type surveyInput struct {
 	Name           string `json:"name"`
@@ -50,7 +54,17 @@ func (m *surveyManager) handleCreateLink(w http.ResponseWriter, r *http.Request,
 		writeError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Only POST is supported")
 		return
 	}
-	token, err := m.store.rotateSurveyInvite(campaignID)
+	var input surveyLinkInput
+	if err := readJSON(r, &input); err != nil {
+		writeError(w, http.StatusBadRequest, "bad_request", err.Error())
+		return
+	}
+	input.PlayerName = strings.TrimSpace(input.PlayerName)
+	if input.PlayerName == "" || len([]rune(input.PlayerName)) > 120 {
+		writeError(w, http.StatusBadRequest, "invalid_player_name", "Укажи имя игрока до 120 символов.")
+		return
+	}
+	token, err := m.store.createSurveyInvite(campaignID, input.PlayerName)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "survey_link_failed", err.Error())
 		return
@@ -59,18 +73,19 @@ func (m *surveyManager) handleCreateLink(w http.ResponseWriter, r *http.Request,
 	if base == "" {
 		base = publicBaseURLFromRequest(r)
 	}
-	writeJSON(w, http.StatusOK, surveyLinkResponse{URL: strings.TrimRight(base, "/") + "/survey/" + url.PathEscape(token), Token: token})
+	writeJSON(w, http.StatusOK, surveyLinkResponse{URL: strings.TrimRight(base, "/") + "/survey/" + url.PathEscape(token), Token: token, PlayerName: input.PlayerName})
 }
 
 func (m *surveyManager) handlePublicPage(w http.ResponseWriter, r *http.Request) {
 	token := surveyToken(r.URL.Path, "/survey/")
-	if token == "" || !m.store.surveyInviteExists(token) {
+	invite, ok := m.store.surveyInviteForToken(token)
+	if token == "" || !ok {
 		http.NotFound(w, r)
 		return
 	}
 	w.Header().Set("Cache-Control", "no-store, max-age=0")
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_ = surveyTemplateV2.Execute(w, surveyPageData(token))
+	_ = surveyTemplateV2.Execute(w, surveyPageData(token, invite.PlayerName))
 }
 func (m *surveyManager) handlePublicAPI(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
@@ -153,7 +168,7 @@ func validateSurvey(i surveyInput) error {
 	return nil
 }
 
-func (s *campaignStore) rotateSurveyInvite(campaignID string) (string, error) {
+func (s *campaignStore) createSurveyInvite(campaignID string, playerName string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	found := false
@@ -169,25 +184,22 @@ func (s *campaignStore) rotateSurveyInvite(campaignID string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	invites := s.data.SurveyInvites[:0]
-	for _, invite := range s.data.SurveyInvites {
-		if invite.CampaignID != campaignID {
-			invites = append(invites, invite)
-		}
-	}
-	s.data.SurveyInvites = invites
-	s.data.SurveyInvites = append(s.data.SurveyInvites, surveyInvite{Token: token, CampaignID: campaignID, CreatedAt: time.Now().UTC().Format(time.RFC3339)})
+	s.data.SurveyInvites = append(s.data.SurveyInvites, surveyInvite{Token: token, CampaignID: campaignID, PlayerName: strings.TrimSpace(playerName), CreatedAt: time.Now().UTC().Format(time.RFC3339)})
 	return token, s.saveLocked()
 }
-func (s *campaignStore) surveyInviteExists(token string) bool {
+func (s *campaignStore) surveyInviteForToken(token string) (surveyInvite, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	for _, i := range s.data.SurveyInvites {
-		if i.Token == token {
-			return true
+	for _, invite := range s.data.SurveyInvites {
+		if invite.Token == token {
+			return invite, true
 		}
 	}
-	return false
+	return surveyInvite{}, false
+}
+func (s *campaignStore) surveyInviteExists(token string) bool {
+	_, ok := s.surveyInviteForToken(token)
+	return ok
 }
 func (s *campaignStore) campaignForSurveyToken(token string) (campaignData, bool) {
 	s.mu.RLock()
@@ -209,7 +221,7 @@ func (s *campaignStore) saveSurveyResponse(token, campaignID string, input surve
 	for n := range s.data.SurveyInvites {
 		if s.data.SurveyInvites[n].Token == token {
 			s.data.SurveyInvites[n].LastSubmissionAt = time.Now().UTC().Format(time.RFC3339)
-			s.data.SurveyResponses = append(s.data.SurveyResponses, surveyResponse{ID: newID("survey"), CampaignID: campaignID, SubmittedAt: s.data.SurveyInvites[n].LastSubmissionAt, Name: strings.TrimSpace(input.Name), Setting: strings.TrimSpace(input.Setting), Inspirations: strings.TrimSpace(input.Inspirations), Character: strings.TrimSpace(input.Character), CharacterName: strings.TrimSpace(input.CharacterName), CharacterClass: strings.TrimSpace(input.CharacterClass), Ancestry: strings.TrimSpace(input.Ancestry), PartyRole: strings.TrimSpace(input.PartyRole), Backstory: strings.TrimSpace(input.Backstory), Tone: strings.TrimSpace(input.Tone), Atmosphere: strings.TrimSpace(input.Atmosphere), Expectations: strings.TrimSpace(input.Expectations), Boundaries: strings.TrimSpace(input.Boundaries)})
+			s.data.SurveyResponses = append(s.data.SurveyResponses, surveyResponse{ID: newID("survey"), CampaignID: campaignID, SubmittedAt: s.data.SurveyInvites[n].LastSubmissionAt, Name: strings.TrimSpace(input.Name), InvitedPlayer: strings.TrimSpace(s.data.SurveyInvites[n].PlayerName), Setting: strings.TrimSpace(input.Setting), Inspirations: strings.TrimSpace(input.Inspirations), Character: strings.TrimSpace(input.Character), CharacterName: strings.TrimSpace(input.CharacterName), CharacterClass: strings.TrimSpace(input.CharacterClass), Ancestry: strings.TrimSpace(input.Ancestry), PartyRole: strings.TrimSpace(input.PartyRole), Backstory: strings.TrimSpace(input.Backstory), Tone: strings.TrimSpace(input.Tone), Atmosphere: strings.TrimSpace(input.Atmosphere), Expectations: strings.TrimSpace(input.Expectations), Boundaries: strings.TrimSpace(input.Boundaries)})
 			return s.saveLocked()
 		}
 	}

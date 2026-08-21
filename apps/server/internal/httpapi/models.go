@@ -348,6 +348,7 @@ type storageState struct {
 type surveyInvite struct {
 	Token            string `json:"token"`
 	CampaignID       string `json:"campaignId"`
+	PlayerName       string `json:"playerName,omitempty"`
 	CreatedAt        string `json:"createdAt"`
 	LastSubmissionAt string `json:"lastSubmissionAt,omitempty"`
 }
@@ -356,6 +357,7 @@ type surveyResponse struct {
 	CampaignID     string `json:"campaignId"`
 	SubmittedAt    string `json:"submittedAt"`
 	Name           string `json:"name"`
+	InvitedPlayer  string `json:"invitedPlayer,omitempty"`
 	Setting        string `json:"setting"`
 	Inspirations   string `json:"inspirations"`
 	Character      string `json:"character"`

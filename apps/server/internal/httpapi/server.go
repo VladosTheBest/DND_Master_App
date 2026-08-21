@@ -158,7 +158,7 @@ func (srv *server) handleMasterSurveyPage(writer http.ResponseWriter, request *h
 		return
 	}
 	writer.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = writer.Write([]byte(masterSurveyHTML))
+	_, _ = writer.Write([]byte(masterSurveyHTMLV2))
 }
 
 func (srv *server) requireAuthUser(writer http.ResponseWriter, request *http.Request) (authUser, bool) {
