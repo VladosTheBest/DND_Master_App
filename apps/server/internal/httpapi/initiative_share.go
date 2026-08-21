@@ -1362,14 +1362,18 @@ var (
             ? '<polygon class="fog-region' + (region?.revealed ? ' revealed' : '') + '" points="' + points + '"></polygon>'
             : '';
         }).join('');
-        const visionFog = visionPoints
-          ? '<defs><mask id="vision-cutout"><rect width="1000" height="1000" fill="white"></rect><polygon points="' + visionPoints + '" fill="black"></polygon></mask></defs><rect class="vision-fog" width="1000" height="1000" mask="url(#vision-cutout)"></rect>'
+        const visionPath = visionPoints
+          ? 'M 0 0 H 1000 V 1000 H 0 Z M ' + visionPoints.trim().split(/\s+/).join(' L ') + ' Z'
+          : '';
+        const visionFog = visionPath
+          ? '<path class="vision-fog" d="' + visionPath + '" fill-rule="evenodd"></path>'
           : '';
         const tokenShape = token
           ? '<circle class="player-token" cx="' + (Number(token.x) * 1000) + '" cy="' + (Number(token.y) * 1000) + '" r="13"></circle>'
           : '';
-        const fog = regionShapes || visionFog || tokenShape
-          ? '<svg class="fog-regions" preserveAspectRatio="none" viewBox="0 0 1000 1000">' + visionFog + regionShapes + tokenShape + '</svg>'
+        const manualFog = token ? '' : regionShapes;
+        const fog = manualFog || visionFog || tokenShape
+          ? '<svg class="fog-regions" preserveAspectRatio="none" viewBox="0 0 1000 1000">' + visionFog + manualFog + tokenShape + '</svg>'
           : fogCells
             ? '<div class="fog-grid' + (image?.showGrid ? ' show-grid' : '') + '" style="grid-template-columns:repeat(' + columns + ',1fr);grid-template-rows:repeat(' + rows + ',1fr)">' + fogCells + '</div>'
             : "";
