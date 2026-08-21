@@ -1,0 +1,966 @@
+/*
+ * Shared visual language for the authenticated GM application.
+ * Feature styles keep their layout ownership; this layer supplies one
+ * fantasy palette, surface treatment, interaction rhythm and responsive
+ * behaviour to legacy and feature-owned screens alike.
+ */
+
+:root {
+  --text: #f5f0ff;
+  --text-soft: #c9bfdc;
+  --text-muted: #948aa9;
+  --accent: #b992ff;
+  --accent-strong: #e7bb69;
+  --accent-cool: #a879ff;
+  --success: #7ed5a4;
+  --warning: #e7bb69;
+  --danger: #ff8f97;
+  --surface-strong: rgba(18, 14, 29, .98);
+  --surface: rgba(15, 12, 25, .94);
+  --surface-soft: rgba(181, 135, 255, .07);
+  --bg-panel:
+    radial-gradient(circle at 8% 0%, rgba(147, 86, 255, .11), transparent 34%),
+    linear-gradient(160deg, rgba(24, 19, 39, .97), rgba(10, 10, 18, .96));
+  --line: rgba(199, 171, 239, .15);
+  --line-strong: rgba(187, 139, 255, .36);
+  --focus: rgba(190, 143, 255, .68);
+  --radius-xl: 18px;
+  --radius-lg: 13px;
+  --radius-md: 9px;
+  --shadow-sm: 0 10px 24px rgba(4, 2, 10, .25);
+  --shadow-md: 0 20px 48px rgba(4, 2, 10, .34);
+  --shadow-lg: 0 34px 80px rgba(3, 1, 8, .52);
+  --fantasy-purple: #9a62f0;
+  --fantasy-purple-bright: #c48cff;
+  --fantasy-gold: #e7bb69;
+  --fantasy-ink: #090812;
+}
+
+body {
+  background:
+    radial-gradient(circle at 14% -8%, rgba(111, 64, 192, .24), transparent 33%),
+    radial-gradient(circle at 92% 12%, rgba(72, 43, 137, .17), transparent 29%),
+    radial-gradient(circle at 45% 112%, rgba(154, 98, 240, .12), transparent 38%),
+    linear-gradient(145deg, #090711 0%, #0d0b16 48%, #07070c 100%);
+  color: var(--text);
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: .34;
+  background-image:
+    linear-gradient(rgba(255,255,255,.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.01) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: radial-gradient(circle at center, black, transparent 92%);
+}
+
+::selection {
+  background: rgba(168, 103, 255, .38);
+  color: #fff;
+}
+
+/* Application frame */
+.shell {
+  gap: clamp(.7rem, .9vw, 1rem);
+  padding: clamp(.7rem, .9vw, 1rem);
+}
+
+.panel,
+.card {
+  border-color: var(--line);
+  background: var(--bg-panel);
+  box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+.rail {
+  border-color: rgba(191, 147, 255, .22);
+  background:
+    radial-gradient(circle at 30% -4%, rgba(169, 102, 255, .18), transparent 30%),
+    linear-gradient(180deg, rgba(20, 15, 34, .98), rgba(9, 9, 16, .98));
+  box-shadow: 18px 0 55px rgba(4, 2, 10, .25), inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+.rail-brand {
+  padding-bottom: 1.05rem;
+  border-bottom-color: rgba(202, 168, 246, .15);
+}
+
+.rail-brand-mark {
+  width: 2.35rem;
+  height: 2.35rem;
+  padding: .46rem;
+  border: 1px solid rgba(231, 187, 105, .34);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(231, 187, 105, .13), rgba(133, 75, 220, .08));
+  color: var(--fantasy-gold);
+  filter: drop-shadow(0 10px 22px rgba(142, 80, 235, .34));
+}
+
+.rail-brand-copy strong {
+  color: #fff9ec;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1rem;
+}
+
+.rail-brand-copy small,
+.rail-select-chevron {
+  color: var(--text-muted);
+}
+
+.eyebrow {
+  color: #bda8dc;
+  letter-spacing: .18em;
+}
+
+.rail-plus-btn,
+.rail-select {
+  border-color: rgba(197, 159, 245, .18);
+  background: rgba(255,255,255,.035);
+}
+
+.rail-plus-btn {
+  color: var(--fantasy-gold);
+}
+
+.rail-plus-btn:hover,
+.rail-select:hover {
+  border-color: rgba(198, 143, 255, .48);
+  background: rgba(153, 91, 240, .1);
+}
+
+.rail-nav-item {
+  min-height: 2.7rem;
+  border-radius: 10px;
+  color: #b8adc9;
+}
+
+.rail-nav-item:hover {
+  border-color: rgba(190, 146, 250, .18);
+  background: rgba(164, 101, 247, .075);
+  color: #f4ecff;
+}
+
+.rail-nav-item.active {
+  border-color: rgba(188, 128, 255, .42);
+  background:
+    linear-gradient(90deg, rgba(139, 75, 229, .29), rgba(82, 48, 137, .12)),
+    rgba(255,255,255,.035);
+  color: #fff;
+  box-shadow:
+    inset 3px 0 0 var(--fantasy-gold),
+    0 12px 26px rgba(76, 38, 142, .24),
+    inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+.rail-nav-item.active .rail-nav-icon {
+  color: var(--fantasy-gold);
+  filter: drop-shadow(0 0 8px rgba(231, 187, 105, .28));
+}
+
+.rail-meta {
+  border-top-color: rgba(202, 168, 246, .13);
+}
+
+.topbar,
+.tabs {
+  border-color: rgba(190, 146, 250, .18);
+  background:
+    radial-gradient(circle at 38% -40%, rgba(155, 90, 248, .13), transparent 44%),
+    linear-gradient(160deg, rgba(23, 18, 37, .96), rgba(11, 11, 19, .96));
+}
+
+.topbar-campaign strong,
+.combat-screen-title strong {
+  color: #fff9ed;
+  font-family: Georgia, "Times New Roman", serif;
+  letter-spacing: .01em;
+}
+
+.content {
+  border-color: rgba(192, 149, 249, .14);
+  background:
+    radial-gradient(circle at 50% 0%, rgba(139, 79, 225, .075), transparent 32%),
+    linear-gradient(180deg, rgba(14, 12, 23, .95), rgba(8, 8, 14, .97));
+}
+
+.preview {
+  border-color: rgba(192, 149, 249, .17);
+  background:
+    radial-gradient(circle at 55% 0%, rgba(152, 91, 245, .11), transparent 35%),
+    linear-gradient(180deg, rgba(20, 16, 31, .97), rgba(9, 9, 16, .98));
+}
+
+/* Search, tabs and actions */
+.search-btn {
+  border-color: rgba(190, 146, 250, .2);
+  background:
+    linear-gradient(90deg, rgba(151, 86, 242, .12), rgba(231, 187, 105, .045)),
+    rgba(255,255,255,.025);
+}
+
+.search-btn:hover {
+  border-color: rgba(194, 137, 255, .46);
+  box-shadow: 0 14px 30px rgba(75, 39, 137, .2);
+}
+
+.search-btn span {
+  border-color: rgba(202, 168, 246, .2);
+  background: rgba(5, 4, 9, .54);
+  color: #c7b9da;
+}
+
+.tabs {
+  padding: .55rem;
+}
+
+.tab,
+.chip,
+.ghost {
+  border-color: rgba(199, 171, 239, .16);
+  background: rgba(255,255,255,.03);
+  color: #d5cce2;
+}
+
+.tab:hover,
+.chip:hover,
+.ghost:hover {
+  border-color: rgba(190, 132, 255, .42);
+  background: rgba(151, 87, 238, .11);
+  color: #fff;
+}
+
+.tab.active,
+.chip.active,
+.ghost.active,
+.active-combat-indicator {
+  border-color: rgba(196, 140, 255, .54);
+  background:
+    linear-gradient(180deg, rgba(147, 81, 239, .37), rgba(80, 44, 139, .25));
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(78, 40, 145, .23), inset 0 1px 0 rgba(255,255,255,.08);
+}
+
+.primary,
+.shops-primary-action,
+.items-workspace .primary,
+.rules-page .primary {
+  border-color: rgba(217, 166, 255, .62);
+  background:
+    linear-gradient(135deg, #aa69f5 0%, #7540c7 60%, #59309c 100%);
+  color: #fff;
+  box-shadow:
+    0 13px 30px rgba(105, 53, 187, .34),
+    inset 0 1px 0 rgba(255,255,255,.2);
+  font-weight: 700;
+}
+
+.primary:hover,
+.shops-primary-action:hover,
+.items-workspace .primary:hover,
+.rules-page .primary:hover {
+  border-color: rgba(241, 197, 120, .58);
+  background: linear-gradient(135deg, #bb79ff 0%, #8449db 62%, #6635b1 100%);
+  box-shadow: 0 17px 38px rgba(112, 56, 198, .43), inset 0 1px 0 rgba(255,255,255,.24);
+}
+
+.badge {
+  border-color: rgba(201, 170, 240, .2);
+  background: rgba(149, 91, 229, .1);
+}
+
+.tone-accent {
+  color: #c99dff;
+}
+
+.mention {
+  color: #c69aff;
+}
+
+.mention:hover {
+  color: #e1c5ff;
+}
+
+/* Cards, states and readable content */
+.hero {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(1rem, 1.6vw, 1.35rem);
+  border-color: rgba(199, 150, 255, .23);
+  background:
+    radial-gradient(circle at 86% 14%, rgba(228, 180, 104, .1), transparent 24%),
+    radial-gradient(circle at 4% 0%, rgba(158, 92, 248, .21), transparent 36%),
+    linear-gradient(145deg, rgba(35, 25, 54, .94), rgba(12, 11, 21, .96));
+}
+
+.hero::after {
+  content: "✦";
+  position: absolute;
+  top: .65rem;
+  right: 1rem;
+  color: rgba(231, 187, 105, .34);
+  font-size: 1.15rem;
+  pointer-events: none;
+}
+
+.hero-copy-block h1,
+.directory-head h2,
+.directory-empty h3 {
+  color: #fff8e9;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.stat,
+.mini,
+.section-card,
+.npc-sheet,
+.npc-section,
+.npc-core-card,
+.ability-card,
+.entry-card,
+.preview-stat-card {
+  border-color: rgba(199, 171, 239, .14);
+  background:
+    radial-gradient(circle at 0 0, rgba(151, 87, 238, .075), transparent 42%),
+    linear-gradient(180deg, rgba(255,255,255,.033), rgba(255,255,255,.012));
+}
+
+.stat {
+  min-height: 7.1rem;
+  align-content: start;
+  gap: .55rem;
+}
+
+.stat strong {
+  color: #fff6e4;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.25rem;
+}
+
+.fact-box:hover,
+.mini:hover,
+.entry-card:hover {
+  border-color: rgba(188, 130, 255, .3);
+}
+
+.directory-empty,
+.notes-empty-state,
+.quest-empty-state,
+.shops-empty-state,
+.items-empty-state {
+  border-color: rgba(190, 146, 250, .23);
+  background:
+    radial-gradient(circle at center, rgba(148, 83, 238, .09), transparent 58%),
+    rgba(255,255,255,.015);
+}
+
+/* Entity directories: locations, players, NPCs, quests and bestiary */
+.directory-screen {
+  gap: 1rem;
+  padding: clamp(.9rem, 1.4vw, 1.25rem);
+}
+
+.directory-head {
+  padding-bottom: .9rem;
+  border-bottom: 1px solid rgba(198, 164, 239, .13);
+}
+
+.directory-head h2 {
+  font-size: clamp(1.55rem, 2.2vw, 2.15rem);
+}
+
+.directory-grid {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: .85rem;
+}
+
+.directory-card,
+.bestiary-directory-card {
+  position: relative;
+  border-color: rgba(197, 163, 238, .16);
+  border-radius: 13px;
+  background:
+    radial-gradient(circle at 0 0, rgba(160, 94, 249, .1), transparent 43%),
+    linear-gradient(160deg, rgba(28, 23, 43, .88), rgba(12, 12, 21, .94));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 12px 28px rgba(3,2,8,.16);
+}
+
+.directory-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  background: linear-gradient(115deg, transparent, rgba(194, 132, 255, .08), transparent);
+  transition: opacity 160ms ease;
+}
+
+.directory-card:hover,
+.bestiary-directory-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(194, 134, 255, .45);
+  background:
+    radial-gradient(circle at 0 0, rgba(165, 96, 255, .19), transparent 48%),
+    linear-gradient(160deg, rgba(35, 27, 54, .94), rgba(13, 12, 22, .96));
+  box-shadow: 0 20px 42px rgba(49, 22, 91, .28), inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+.directory-card:hover::after {
+  opacity: 1;
+}
+
+.directory-card-thumb,
+.entity-thumb-frame {
+  border-color: rgba(218, 180, 111, .2);
+  background: linear-gradient(145deg, rgba(84, 52, 116, .5), rgba(15, 14, 22, .95));
+  box-shadow: 0 14px 30px rgba(3, 2, 8, .32);
+}
+
+.directory-card-topline strong {
+  color: #fff8eb;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.05rem;
+}
+
+.directory-meta span {
+  border-color: rgba(198, 163, 240, .17);
+  background: rgba(153, 91, 232, .07);
+}
+
+.quest-directory-card {
+  border-color: rgba(231, 187, 105, .2);
+}
+
+/* Forms and modal surfaces */
+.overlay,
+.gallery-lightbox-backdrop,
+.entity-action-backdrop,
+.entity-link-context-backdrop {
+  background: rgba(5, 3, 10, .79);
+  backdrop-filter: blur(14px) saturate(.9);
+}
+
+.palette,
+.form-modal,
+.gallery-lightbox {
+  border-color: rgba(201, 150, 255, .35);
+  background:
+    radial-gradient(circle at 50% -12%, rgba(159, 90, 251, .18), transparent 34%),
+    linear-gradient(160deg, rgba(25, 18, 39, .99), rgba(9, 9, 16, .99));
+  box-shadow: 0 32px 85px rgba(3, 1, 8, .62), inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+.input,
+.rail-select,
+.shops-search-box,
+.shops-select-pill,
+.items-workspace input,
+.items-workspace select,
+.items-workspace textarea {
+  border-color: rgba(199, 171, 239, .18);
+  background-color: rgba(5, 5, 11, .38);
+  color: var(--text);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.018);
+}
+
+.input:hover,
+.field select.input:hover {
+  border-color: rgba(192, 139, 255, .35);
+}
+
+.input:focus,
+.field select.input:focus,
+.notes-title-input:focus,
+.notes-editor-textarea:focus {
+  border-color: rgba(201, 145, 255, .72);
+  box-shadow: 0 0 0 3px rgba(145, 80, 231, .14), inset 0 1px 0 rgba(255,255,255,.025);
+}
+
+select.input option,
+.field select.input option,
+.field select.input optgroup {
+  background: #171021;
+}
+
+.field > span:first-child,
+.field-hint {
+  color: #b9aecb;
+}
+
+.draft-notes,
+.form-subsection {
+  border-color: rgba(198, 161, 239, .16);
+  background: rgba(147, 87, 230, .045);
+}
+
+/* Quest pages */
+.quest-hero-panel,
+.quest-action-section,
+.quest-checklist-section,
+.quest-reward-section,
+.quest-preview-section {
+  border-color: rgba(199, 157, 248, .18);
+  background:
+    radial-gradient(circle at 8% 0, rgba(155, 89, 247, .12), transparent 40%),
+    linear-gradient(160deg, rgba(25, 20, 39, .92), rgba(11, 11, 19, .96));
+}
+
+.quest-title-row h1,
+.quest-story-head strong,
+.quest-scene-copy strong {
+  color: #fff7e7;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.quest-meta-pill,
+.quest-entity-chip,
+.quest-action-card,
+.quest-checklist-item,
+.quest-reward-card,
+.quest-preview-entity,
+.quest-preview-list-item,
+.quest-story-card {
+  border-color: rgba(199, 164, 239, .16);
+  background: rgba(255,255,255,.027);
+}
+
+.quest-entity-chip:hover,
+.quest-action-card:hover,
+.quest-preview-entity:hover,
+.quest-preview-list-item:hover {
+  border-color: rgba(193, 133, 255, .38);
+  background: rgba(151, 87, 238, .085);
+}
+
+.quest-scene-spotlight {
+  border-color: rgba(231, 187, 105, .24);
+  background:
+    radial-gradient(circle at 85% 16%, rgba(231, 187, 105, .1), transparent 28%),
+    linear-gradient(145deg, rgba(52, 34, 63, .8), rgba(17, 14, 25, .94));
+}
+
+.quest-list-row.active,
+.notes-list-item.selected {
+  border-color: rgba(194, 132, 255, .5);
+  background: linear-gradient(150deg, rgba(133, 72, 217, .3), rgba(34, 25, 52, .76));
+  box-shadow: inset 3px 0 0 var(--fantasy-gold), 0 13px 28px rgba(64, 29, 117, .2);
+}
+
+/* Notes and events */
+.notes-workspace-head,
+.notes-directory-panel,
+.notes-editor-panel,
+.events-editor-panel {
+  border-color: rgba(197, 156, 247, .18);
+  background:
+    radial-gradient(circle at 0 0, rgba(151, 87, 238, .1), transparent 38%),
+    linear-gradient(160deg, rgba(23, 18, 36, .94), rgba(10, 10, 18, .97));
+}
+
+.notes-workspace-head h1,
+.notes-editor-head h2 {
+  color: #fff7e8;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.notes-list-item {
+  border-color: rgba(199, 164, 239, .15);
+  background: rgba(255,255,255,.025);
+}
+
+.notes-list-item:hover {
+  border-color: rgba(193, 133, 255, .38);
+  background: rgba(151, 87, 238, .085);
+}
+
+.notes-editor-textarea {
+  background:
+    linear-gradient(90deg, rgba(167, 103, 249, .035) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(8, 7, 14, .85), rgba(6, 6, 11, .96));
+  background-size: 28px 100%, auto;
+}
+
+/* Entity details, previews and relationship cards */
+.npc-sheet,
+.npc-section,
+.entity-player-facing-panel,
+.location-shop-card,
+.relation-card {
+  border-color: rgba(198, 159, 242, .16);
+}
+
+.npc-overview,
+.npc-core-card,
+.ability-card,
+.entry-card,
+.location-shop-card {
+  background:
+    radial-gradient(circle at 0 0, rgba(151, 87, 238, .07), transparent 44%),
+    rgba(255,255,255,.022);
+}
+
+.npc-section h2,
+.npc-section h3,
+.location-shop-copy strong {
+  color: #fff7e8;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.preview-hero {
+  border: 1px solid rgba(199, 153, 248, .2);
+  background-color: rgba(42, 27, 61, .6);
+  box-shadow: inset 0 -58px 90px rgba(4, 2, 9, .55), 0 14px 32px rgba(3,2,8,.28);
+}
+
+/* Bestiary and combat inherit the same purple/gold hierarchy. */
+.bestiary-toolbar,
+.combat-screen-shell,
+.combat-roster-panel,
+.combat-focus-card,
+.combat-summary-card,
+.combat-side-card,
+.combat-prep-reference-panel,
+.prepared-combat-modal,
+.prepared-combat-card {
+  border-color: rgba(198, 157, 245, .17);
+  background:
+    radial-gradient(circle at 0 0, rgba(151, 87, 238, .09), transparent 38%),
+    linear-gradient(160deg, rgba(23, 18, 36, .94), rgba(10, 10, 18, .97));
+}
+
+.combat-tag-pill,
+.combat-roster-filter,
+.combat-prep-count-tabs button,
+.combat-prep-party-tabs button,
+.combat-prep-filter-button {
+  border-color: rgba(198, 162, 240, .18);
+  background: rgba(255,255,255,.03);
+}
+
+.combat-roster-filter.active,
+.combat-prep-count-tabs button.active,
+.combat-prep-party-tabs button.active,
+.combat-prep-filter-button.active {
+  border-color: rgba(195, 135, 255, .5);
+  background: rgba(145, 79, 231, .22);
+  color: #fff;
+  box-shadow: inset 0 -2px 0 var(--fantasy-gold);
+}
+
+.combat-prep-field-row,
+.combat-prep-bestiary-row,
+.combat-selected-summary {
+  border-color: rgba(199, 164, 239, .15);
+  background: rgba(255,255,255,.025);
+}
+
+.combat-prep-field-row:hover,
+.combat-prep-bestiary-row:hover {
+  border-color: rgba(192, 132, 255, .37);
+  background: rgba(149, 84, 236, .08);
+}
+
+/* Feature-owned pages keep their specialised layouts but share the frame. */
+.items-workspace,
+.shops-workspace,
+.rules-page {
+  border-color: rgba(198, 155, 247, .21);
+  box-shadow: 0 24px 60px rgba(3, 1, 8, .36), inset 0 1px 0 rgba(255,255,255,.035);
+}
+
+.items-list-card,
+.shops-list-card,
+.rules-result-card {
+  transition: transform 150ms ease, border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
+}
+
+.items-list-card:hover,
+.shops-list-card:hover,
+.rules-result-card:hover {
+  border-color: rgba(194, 135, 255, .42);
+  box-shadow: 0 17px 36px rgba(65, 30, 118, .22);
+}
+
+/* Context menus and transient UI */
+.entity-action-menu,
+.entity-link-context-menu,
+.global-search-modal,
+.playlist-player {
+  border-color: rgba(201, 150, 255, .34);
+  background:
+    radial-gradient(circle at 50% -15%, rgba(158, 89, 250, .17), transparent 38%),
+    linear-gradient(160deg, rgba(26, 19, 40, .99), rgba(9, 9, 16, .99));
+  box-shadow: 0 28px 65px rgba(3, 1, 8, .55), inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+/* Scrollbars */
+.rail,
+.preview,
+.content,
+.notes-list,
+.shops-list,
+.items-card-grid,
+.rules-results {
+  scrollbar-color: rgba(169, 112, 244, .48) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(164, 107, 239, .38);
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(184, 127, 255, .58);
+  background-clip: padding-box;
+}
+
+@media (max-width: 1180px) {
+  .topbar {
+    grid-template-columns: minmax(150px, .65fr) minmax(220px, 1fr);
+  }
+
+  .topbar > .chips {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .directory-grid {
+    grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  }
+}
+
+@media (max-width: 1120px) {
+  .shell,
+  .shell.items-shell,
+  .shell.feature-owned-details-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .rail {
+    min-height: 0;
+    overflow: visible;
+    padding: .75rem;
+  }
+
+  .rail-shell {
+    display: grid;
+    grid-template-columns: minmax(190px, .72fr) minmax(230px, 1fr);
+    align-items: center;
+    gap: .65rem 1rem;
+    min-height: 0;
+  }
+
+  .rail-brand {
+    min-width: 0;
+    padding: 0 .8rem 0 0;
+    border-right: 1px solid rgba(202, 168, 246, .14);
+    border-bottom: 0;
+  }
+
+  .rail-group {
+    min-width: 0;
+  }
+
+  .rail-group-head {
+    display: none;
+  }
+
+  .rail-group-nav {
+    grid-column: 1 / -1;
+    border-top: 1px solid rgba(202, 168, 246, .12);
+    padding-top: .62rem;
+  }
+
+  .rail-group-nav > .eyebrow {
+    display: none;
+  }
+
+  .rail-nav {
+    display: flex;
+    gap: .4rem;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    padding: 0 0 .2rem;
+    scroll-snap-type: inline proximity;
+    scrollbar-width: none;
+  }
+
+  .rail-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .rail-nav-item {
+    flex: 0 0 auto;
+    grid-template-columns: 1rem auto;
+    min-width: max-content;
+    min-height: 2.5rem;
+    padding: .58rem .72rem;
+    scroll-snap-align: start;
+  }
+
+  .rail-meta {
+    display: none;
+  }
+}
+
+@media (max-width: 760px) {
+  body {
+    overflow: auto;
+  }
+
+  .shell {
+    min-height: 100dvh;
+    height: auto;
+    padding: .5rem;
+    gap: .55rem;
+  }
+
+  .rail {
+    padding: .65rem;
+  }
+
+  .rail-shell {
+    grid-template-columns: 1fr;
+    gap: .6rem;
+  }
+
+  .rail-brand {
+    padding: 0 0 .6rem;
+    border-right: 0;
+    border-bottom: 1px solid rgba(202, 168, 246, .13);
+  }
+
+  .rail-brand-mark {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .rail-group-nav {
+    grid-column: 1;
+  }
+
+  .rail-select {
+    min-height: 2.45rem;
+    padding-block: .58rem;
+  }
+
+  .panel,
+  .card,
+  .items-workspace,
+  .shops-workspace,
+  .rules-page {
+    border-radius: 13px;
+  }
+
+  .topbar {
+    grid-template-columns: 1fr;
+  }
+
+  .topbar > .chips {
+    grid-column: 1;
+  }
+
+  .topbar .chips {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    padding-bottom: .2rem;
+  }
+
+  .topbar .chips > * {
+    flex: 0 0 auto;
+  }
+
+  .directory-head,
+  .hero,
+  .notes-workspace-head,
+  .notes-editor-head {
+    grid-template-columns: 1fr;
+    flex-direction: column;
+  }
+
+  .directory-head .actions,
+  .hero .actions,
+  .notes-workspace-head .actions {
+    width: 100%;
+  }
+
+  .directory-head .actions > *,
+  .hero .actions > *,
+  .notes-workspace-head .actions > * {
+    flex: 1 1 10rem;
+  }
+
+  .directory-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .directory-card,
+  .bestiary-directory-card {
+    grid-template-columns: 5.2rem minmax(0, 1fr);
+    padding: .65rem;
+  }
+
+  .directory-card-thumb {
+    max-width: 5.2rem;
+    aspect-ratio: 1;
+    border-radius: 12px;
+  }
+
+  .stats,
+  .facts,
+  .split,
+  .grid,
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .field-full {
+    grid-column: auto;
+  }
+
+  .overlay {
+    align-items: end;
+    padding: .45rem;
+  }
+
+  .palette,
+  .form-modal {
+    width: 100%;
+    max-height: calc(100dvh - .9rem);
+    border-radius: 16px 16px 10px 10px;
+    padding: .9rem;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .panel,
+  .card,
+  .directory-card,
+  .items-list-card,
+  .shops-list-card,
+  .rules-result-card {
+    animation: fantasy-surface-in 260ms ease both;
+  }
+
+  @keyframes fantasy-surface-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+}
