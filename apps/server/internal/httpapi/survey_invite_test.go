@@ -44,3 +44,25 @@ func TestCreateSurveyInvitePreservesPersonalLinks(t *testing.T) {
 		t.Fatal("fresh invite was not stored for the selected campaign")
 	}
 }
+
+func TestDeleteSurveyResponseIsScopedToCampaign(t *testing.T) {
+	store := &campaignStore{
+		path: filepath.Join(t.TempDir(), "store.json"),
+		data: storageState{
+			SurveyResponses: []surveyResponse{
+				{ID: "response-one", CampaignID: "campaign-one"},
+				{ID: "response-two", CampaignID: "campaign-two"},
+			},
+		},
+	}
+
+	if store.deleteSurveyResponse("campaign-two", "response-one") {
+		t.Fatal("deleted a response through the wrong campaign")
+	}
+	if !store.deleteSurveyResponse("campaign-one", "response-one") {
+		t.Fatal("did not delete the matching response")
+	}
+	if len(store.data.SurveyResponses) != 1 || store.data.SurveyResponses[0].ID != "response-two" {
+		t.Fatal("unexpected responses after deletion")
+	}
+}

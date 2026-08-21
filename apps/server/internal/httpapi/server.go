@@ -262,6 +262,8 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 		srv.surveys.handleCreateLink(writer, request, campaignID)
 	case len(segments) == 2 && segments[1] == "survey-responses":
 		srv.surveys.handleResponses(writer, request, campaignID)
+	case len(segments) == 3 && segments[1] == "survey-responses":
+		srv.surveys.handleDeleteResponse(writer, request, campaignID, segments[2])
 	case len(segments) == 3 && segments[1] == "initiative-share" && segments[2] == "publish":
 		srv.handleInitiativeSharePublish(writer, request, campaignID)
 	case len(segments) == 2 && segments[1] == "player-display":

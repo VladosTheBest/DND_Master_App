@@ -132,6 +132,17 @@ func (m *surveyManager) handleResponses(w http.ResponseWriter, r *http.Request, 
 	}
 	writeJSON(w, 200, m.store.listSurveyResponses(campaignID))
 }
+func (m *surveyManager) handleDeleteResponse(w http.ResponseWriter, r *http.Request, campaignID, responseID string) {
+	if r.Method != http.MethodDelete {
+		writeError(w, http.StatusMethodNotAllowed, "method_not_allowed", "Only DELETE is supported")
+		return
+	}
+	if !m.store.deleteSurveyResponse(campaignID, responseID) {
+		writeError(w, http.StatusNotFound, "not_found", "Анкета не найдена.")
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]bool{"deleted": true})
+}
 func (m *surveyManager) allow(key string) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -237,6 +248,20 @@ func (s *campaignStore) listSurveyResponses(campaignID string) []surveyResponse 
 		}
 	}
 	return out
+}
+func (s *campaignStore) deleteSurveyResponse(campaignID, responseID string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for index, response := range s.data.SurveyResponses {
+		if response.CampaignID == campaignID && response.ID == responseID {
+			s.data.SurveyResponses = append(s.data.SurveyResponses[:index], s.data.SurveyResponses[index+1:]...)
+			if err := s.saveLocked(); err != nil {
+				return false
+			}
+			return true
+		}
+	}
+	return false
 }
 func newSurveyToken() (string, error) {
 	b := make([]byte, 24)
