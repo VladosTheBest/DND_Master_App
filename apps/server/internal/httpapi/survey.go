@@ -60,7 +60,7 @@ func (m *surveyManager) handleCreateLink(w http.ResponseWriter, r *http.Request,
 		return
 	}
 	input.PlayerName = strings.TrimSpace(input.PlayerName)
-	if input.PlayerName == "" || len([]rune(input.PlayerName)) > 120 {
+	if len([]rune(input.PlayerName)) > 120 {
 		writeError(w, http.StatusBadRequest, "invalid_player_name", "Укажи имя игрока до 120 символов.")
 		return
 	}
