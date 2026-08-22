@@ -2626,7 +2626,9 @@ func sanitizePublicViewport(viewport *publicViewport) *publicViewport {
 	if viewport == nil {
 		return &publicViewport{Zoom: 1}
 	}
-	return &publicViewport{Zoom: max(1, min(viewport.Zoom, 6)), X: max(-1, min(viewport.X, 1)), Y: max(-1, min(viewport.Y, 1))}
+	zoom := max(1, min(viewport.Zoom, 6))
+	limit := (zoom - 1) / 2
+	return &publicViewport{Zoom: zoom, X: max(-limit, min(viewport.X, limit)), Y: max(-limit, min(viewport.Y, limit))}
 }
 
 func sanitizePublicDisplayGrid(grid *publicDisplayGrid) *publicDisplayGrid {

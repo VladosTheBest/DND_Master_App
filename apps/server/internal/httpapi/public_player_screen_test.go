@@ -185,8 +185,12 @@ func TestPublicDisplaySanitizesMapGrid(t *testing.T) {
 
 func TestPublicDisplaySanitizesViewport(t *testing.T) {
 	viewport := sanitizePublicViewport(&publicViewport{Zoom: 20, X: -4, Y: 3})
-	if viewport.Zoom != 6 || viewport.X != -1 || viewport.Y != 1 {
+	if viewport.Zoom != 6 || viewport.X != -2.5 || viewport.Y != 2.5 {
 		t.Fatalf("expected clamped viewport, got %+v", viewport)
+	}
+	centered := sanitizePublicViewport(&publicViewport{Zoom: 1, X: 0.8, Y: -0.8})
+	if centered.X != 0 || centered.Y != 0 {
+		t.Fatalf("viewport at 100%% zoom must stay centered: %+v", centered)
 	}
 	defaults := sanitizePublicViewport(nil)
 	if defaults.Zoom != 1 || defaults.X != 0 || defaults.Y != 0 {
