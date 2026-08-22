@@ -13,13 +13,13 @@ try {
   const metadata = await sharp(input, { limitInputPixels: false }).metadata();
   if (!metadata.width || !metadata.height) throw new Error("Could not read image dimensions");
   await sharp(input, { limitInputPixels: false, sequentialRead: true })
-    .tile({ size: 512, layout: "dz", overlap: 0, container: "fs", format: "webp" })
+    .tile({ size: 512, layout: "dz", overlap: 0, container: "fs", format: "jpeg" })
     .toFile(outputBase);
   process.stdout.write(JSON.stringify({
     width: metadata.width,
     height: metadata.height,
     tileSize: 512,
-    format: "webp",
+    format: "jpeg",
     maxLevel: Math.ceil(Math.log2(Math.max(metadata.width, metadata.height))),
     descriptor: path.resolve(outputBase + ".dzi")
   }) + "\n");
