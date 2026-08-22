@@ -1440,7 +1440,7 @@ var (
           ? '<path class="vision-fog" d="' + visionPath + '" fill-rule="evenodd"></path>'
           : '';
         const tokenShape = token
-          ? '<circle class="player-token" cx="' + (Number(token.x) * 1000) + '" cy="' + (Number(token.y) * 1000) + '" r="13"></circle>'
+          ? '<circle class="player-token" cx="' + (Number(token.x) * 1000) + '" cy="' + (Number(token.y) * 1000) + '" r="' + (13 / Math.max(1, Number(image?.viewport?.zoom || 1))) + '"></circle>'
           : '';
         const manualFog = token ? '' : regionShapes;
         const fog = manualFog || visionFog || tokenShape
