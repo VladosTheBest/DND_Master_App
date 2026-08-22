@@ -710,6 +710,10 @@ var (
       body.media-only .image-canvas.video-canvas {
         width: min(100vw, calc(100vh * 16 / 9));
       }
+      body.media-only .image-canvas.tile-canvas {
+        width: min(100vw, calc(100vh * var(--tile-aspect, 1)));
+        height: auto;
+      }
       .fog-grid {
         position: absolute;
         inset: 0;
@@ -1424,7 +1428,9 @@ var (
             ? '<pattern id="session-grid" patternUnits="userSpaceOnUse" width="' + (hexWidth * 2) + '" height="' + (gridSize * 3 * gridAspect) + '"><path d="' + hexes + '" fill="none" stroke="' + gridColor + '" stroke-width="1.5" vector-effect="non-scaling-stroke"/></pattern>'
             : '';
         const mapGrid = gridPattern ? '<svg class="map-grid-overlay" style="opacity:' + gridOpacity + '" viewBox="0 0 1000 1000" preserveAspectRatio="none"><defs>' + gridPattern + '</defs><rect width="1000" height="1000" fill="url(#session-grid)"/></svg>' : '';
-        const visionPoints = visibilityPolygon(token, walls, image?.mapAspectRatio).map((point) => (point.x * 1000) + ',' + (point.y * 1000)).join(' ');
+        const existingCanvas = trackNode.querySelector(".image-canvas");
+        const renderedAspect = existingCanvas?.clientHeight ? existingCanvas.clientWidth / existingCanvas.clientHeight : image?.mapAspectRatio;
+        const visionPoints = visibilityPolygon(token, walls, renderedAspect).map((point) => (point.x * 1000) + ',' + (point.y * 1000)).join(' ');
         const regionShapes = regions.map((region) => {
           const points = Array.isArray(region?.points)
             ? region.points.map((point) => (Math.max(0, Math.min(1, Number(point?.x || 0))) * 1000) + ',' + (Math.max(0, Math.min(1, Number(point?.y || 0))) * 1000)).join(' ')
@@ -1457,13 +1463,13 @@ var (
         const tileMarkup = () => {
           if (!isTiles) return "";
           const source=image.deepZoom, zoom=Math.max(1,Number(viewport.zoom||1));
-          const level=Math.max(0,Math.min(source.maxLevel,Math.ceil(Math.log2(Math.max(innerWidth,innerHeight)*zoom))));
+          const level=Math.max(0,Math.min(source.maxLevel,Math.ceil(Math.log2(Math.max(innerWidth,innerHeight)*Math.max(1,devicePixelRatio||1)*zoom*2))));
           const divisor=Math.pow(2,source.maxLevel-level),w=Math.ceil(source.width/divisor),h=Math.ceil(source.height/divisor),size=source.tileSize;
           const left=Math.max(0,.5+(-.5-Number(viewport.x||0))/zoom),right=Math.min(1,.5+(.5-Number(viewport.x||0))/zoom),top=Math.max(0,.5+(-.5-Number(viewport.y||0))/zoom),bottom=Math.min(1,.5+(.5-Number(viewport.y||0))/zoom);
           const c0=Math.max(0,Math.floor(left*w/size)-8),c1=Math.min(Math.ceil(w/size)-1,Math.floor(right*w/size)+8),r0=Math.max(0,Math.floor(top*h/size)-8),r1=Math.min(Math.ceil(h/size)-1,Math.floor(bottom*h/size)+8);
           let html='<div class="tile-layer">'; for(let row=r0;row<=r1;row++)for(let col=c0;col<=c1;col++){const tw=Math.min(size,w-col*size),th=Math.min(size,h-row*size);html+='<img alt="" src="'+escapeHtml(source.tileBaseUrl+'/'+level+'/'+col+'_'+row+'.'+source.format)+'" style="left:'+(col*size/w*100)+'%;top:'+(row*size/h*100)+'%;width:calc('+(tw/w*100)+'% + 1px);height:calc('+(th/h*100)+'% + 1px)">';} return html+'</div>';
         };
-        const currentCanvas = trackNode.querySelector(".image-canvas");
+        const currentCanvas = existingCanvas;
         if (currentCanvas?.dataset?.mediaKey === mediaKey) {
           currentCanvas.style.transform = cameraTransform;
           if (isTiles) { currentCanvas.querySelector('.tile-layer')?.remove(); currentCanvas.insertAdjacentHTML('afterbegin',tileMarkup()); }
