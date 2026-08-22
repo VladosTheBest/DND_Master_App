@@ -97,10 +97,11 @@ type publicFogRegion struct {
 }
 
 type publicDisplayWall struct {
-	ID       string         `json:"id"`
-	Start    publicFogPoint `json:"start"`
-	End      publicFogPoint `json:"end"`
-	Disabled bool           `json:"disabled,omitempty"`
+	ID       string           `json:"id"`
+	Start    publicFogPoint   `json:"start"`
+	End      publicFogPoint   `json:"end"`
+	Disabled bool             `json:"disabled,omitempty"`
+	Points   []publicFogPoint `json:"points,omitempty"`
 }
 
 type publicDisplayToken struct {
@@ -1308,8 +1309,11 @@ var (
         const radius = Math.max(0.03, Number(token.visionRadius || 0.22));
         const aspect = Math.max(0.2, Number(aspectRatio || 1));
         const angles = Array.from({ length: 180 }, (_, index) => (Math.PI * 2 * index) / 180);
-        const blockingWalls = (walls || []).filter((wall) => !wall?.disabled);
-        blockingWalls.forEach((wall) => [wall.start, wall.end].forEach((point) => {
+        const wallSegments = (walls || []).filter((wall) => !wall?.disabled).flatMap((wall) => {
+          const points = Array.isArray(wall?.points) && wall.points.length >= 2 ? wall.points : [wall.start, wall.end];
+          return points.slice(1).map((end, index) => ({ start: points[index], end }));
+        });
+        wallSegments.forEach((wall) => [wall.start, wall.end].forEach((point) => {
           const angle = Math.atan2((Number(point.y) - origin.y) / aspect, Number(point.x) - origin.x);
           angles.push(angle - 0.0001, angle, angle + 0.0001);
         }));
@@ -1319,7 +1323,7 @@ var (
         return normalizedAngles.map((angle) => {
           const ray = { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius * aspect };
           let distance = 1;
-          blockingWalls.forEach((wall) => {
+          wallSegments.forEach((wall) => {
             const q = wall.start, segment = { x: wall.end.x - q.x, y: wall.end.y - q.y };
             const cross = ray.x * segment.y - ray.y * segment.x;
             if (Math.abs(cross) < 1e-9) return;
@@ -2561,12 +2565,24 @@ func sanitizePublicDisplayWalls(walls []publicDisplayWall) []publicDisplayWall {
 		if id == "" {
 			id = fmt.Sprintf("wall-%d", index+1)
 		}
-		start := publicFogPoint{X: max(0, min(wall.Start.X, 1)), Y: max(0, min(wall.Start.Y, 1))}
-		end := publicFogPoint{X: max(0, min(wall.End.X, 1)), Y: max(0, min(wall.End.Y, 1))}
-		if start == end {
+		points := wall.Points
+		if len(points) < 2 {
+			points = []publicFogPoint{wall.Start, wall.End}
+		}
+		if len(points) > 512 {
+			points = points[:512]
+		}
+		cleanPoints := make([]publicFogPoint, 0, len(points))
+		for _, point := range points {
+			point = publicFogPoint{X: max(0, min(point.X, 1)), Y: max(0, min(point.Y, 1))}
+			if len(cleanPoints) == 0 || cleanPoints[len(cleanPoints)-1] != point {
+				cleanPoints = append(cleanPoints, point)
+			}
+		}
+		if len(cleanPoints) < 2 {
 			continue
 		}
-		result = append(result, publicDisplayWall{ID: id, Start: start, End: end, Disabled: wall.Disabled})
+		result = append(result, publicDisplayWall{ID: id, Start: cleanPoints[0], End: cleanPoints[len(cleanPoints)-1], Points: cleanPoints, Disabled: wall.Disabled})
 	}
 	return result
 }

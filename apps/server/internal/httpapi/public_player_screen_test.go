@@ -154,10 +154,14 @@ func TestPublicDisplaySanitizesFreeformFogRegions(t *testing.T) {
 func TestPublicDisplaySanitizesWallsAndVisionToken(t *testing.T) {
 	walls := sanitizePublicDisplayWalls([]publicDisplayWall{
 		{ID: " wall ", Start: publicFogPoint{X: -2, Y: .2}, End: publicFogPoint{X: .8, Y: 2}, Disabled: true},
+		{ID: "curve", Points: []publicFogPoint{{X: -.2, Y: .1}, {X: .4, Y: .6}, {X: 1.4, Y: .9}}},
 		{ID: "empty", Start: publicFogPoint{X: .5, Y: .5}, End: publicFogPoint{X: .5, Y: .5}},
 	})
-	if len(walls) != 1 || walls[0].ID != "wall" || walls[0].Start.X != 0 || walls[0].End.Y != 1 || !walls[0].Disabled {
-		t.Fatalf("expected one normalized wall, got %+v", walls)
+	if len(walls) != 2 || walls[0].ID != "wall" || walls[0].Start.X != 0 || walls[0].End.Y != 1 || !walls[0].Disabled {
+		t.Fatalf("expected normalized walls, got %+v", walls)
+	}
+	if len(walls[1].Points) != 3 || walls[1].Start.X != 0 || walls[1].End.X != 1 || walls[1].Points[1].Y != .6 {
+		t.Fatalf("expected freehand wall points to be retained and clamped, got %+v", walls[1])
 	}
 	token := sanitizePublicDisplayToken(&publicDisplayToken{X: -1, Y: 2, VisionRadius: 10})
 	if token == nil || token.X != 0 || token.Y != 1 || token.VisionRadius != 1.5 {
