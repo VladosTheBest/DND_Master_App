@@ -1386,10 +1386,13 @@ var (
         const gridSize = Math.max(12, Math.min(300, Number(grid?.size || .08) * 1000));
         const gridColor = /^#[0-9a-f]{6}$/i.test(String(grid?.color || '')) ? grid.color : '#ffffff';
         const gridOpacity = Math.max(0, Math.min(1, Number(grid?.opacity ?? .35)));
+        const hexWidth = gridSize * 1.732;
+        const hexPath = (cx, cy) => 'M ' + cx + ' ' + (cy-gridSize) + ' L ' + (cx+hexWidth/2) + ' ' + (cy-gridSize/2) + ' L ' + (cx+hexWidth/2) + ' ' + (cy+gridSize/2) + ' L ' + cx + ' ' + (cy+gridSize) + ' L ' + (cx-hexWidth/2) + ' ' + (cy+gridSize/2) + ' L ' + (cx-hexWidth/2) + ' ' + (cy-gridSize/2) + ' Z ';
+        const hexes = hexPath(hexWidth/2,gridSize) + hexPath(hexWidth*1.5,gridSize) + hexPath(0,gridSize*2.5) + hexPath(hexWidth,gridSize*2.5) + hexPath(hexWidth*2,gridSize*2.5);
         const gridPattern = grid?.type === 'square'
           ? '<pattern id="session-grid" patternUnits="userSpaceOnUse" width="' + gridSize + '" height="' + gridSize + '"><path d="M ' + gridSize + ' 0 H 0 V ' + gridSize + '" fill="none" stroke="' + gridColor + '" stroke-width="1.5"/></pattern>'
           : grid?.type === 'hex'
-            ? '<pattern id="session-grid" patternUnits="userSpaceOnUse" width="' + (gridSize * 1.5) + '" height="' + (gridSize * 1.732) + '"><path d="M 0 ' + (gridSize*.866) + ' L ' + (gridSize*.5) + ' 0 L ' + (gridSize*1.5) + ' 0 L ' + (gridSize*2) + ' ' + (gridSize*.866) + ' L ' + (gridSize*1.5) + ' ' + (gridSize*1.732) + ' L ' + (gridSize*.5) + ' ' + (gridSize*1.732) + ' Z" fill="none" stroke="' + gridColor + '" stroke-width="1.5"/></pattern>'
+            ? '<pattern id="session-grid" patternUnits="userSpaceOnUse" width="' + (hexWidth * 2) + '" height="' + (gridSize * 3) + '"><path d="' + hexes + '" fill="none" stroke="' + gridColor + '" stroke-width="1.5"/></pattern>'
             : '';
         const mapGrid = gridPattern ? '<svg class="map-grid-overlay" style="opacity:' + gridOpacity + '" viewBox="0 0 1000 1000" preserveAspectRatio="none"><defs>' + gridPattern + '</defs><rect width="1000" height="1000" fill="url(#session-grid)"/></svg>' : '';
         const visionPoints = visibilityPolygon(token, walls, image?.mapAspectRatio).map((point) => (point.x * 1000) + ',' + (point.y * 1000)).join(' ');
@@ -2392,7 +2395,7 @@ func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 	if mode == publicScreenModeImage && snapshot.Image != nil {
 		fmt.Fprintf(
 			&builder,
-			"image|%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|%v|%v|%f|",
+			"image|%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|%v|%v|%f|%v|",
 			snapshot.Image.URL,
 			snapshot.Image.Title,
 			snapshot.Image.Alt,
@@ -2407,6 +2410,7 @@ func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 			snapshot.Image.Walls,
 			snapshot.Image.Token,
 			snapshot.Image.MapAspectRatio,
+			snapshot.Image.Grid,
 		)
 		return builder.String()
 	}
@@ -2506,7 +2510,7 @@ func publicDisplaySnapshotFingerprint(snapshot publicDisplaySnapshot) string {
 
 	fmt.Fprintf(
 		&builder,
-		"%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|%v|%v|%f|",
+		"%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|%v|%v|%f|%v|",
 		snapshot.Image.URL,
 		snapshot.Image.Title,
 		snapshot.Image.Alt,
@@ -2521,6 +2525,7 @@ func publicDisplaySnapshotFingerprint(snapshot publicDisplaySnapshot) string {
 		snapshot.Image.Walls,
 		snapshot.Image.Token,
 		snapshot.Image.MapAspectRatio,
+		snapshot.Image.Grid,
 	)
 	return builder.String()
 }
