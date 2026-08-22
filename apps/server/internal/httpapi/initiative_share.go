@@ -1386,13 +1386,15 @@ var (
         const gridSize = Math.max(12, Math.min(300, Number(grid?.size || .08) * 1000));
         const gridColor = /^#[0-9a-f]{6}$/i.test(String(grid?.color || '')) ? grid.color : '#ffffff';
         const gridOpacity = Math.max(0, Math.min(1, Number(grid?.opacity ?? .35)));
+        const gridAspect = Math.max(.2, Math.min(5, Number(image?.mapAspectRatio || 1)));
         const hexWidth = gridSize * 1.732;
-        const hexPath = (cx, cy) => 'M ' + cx + ' ' + (cy-gridSize) + ' L ' + (cx+hexWidth/2) + ' ' + (cy-gridSize/2) + ' L ' + (cx+hexWidth/2) + ' ' + (cy+gridSize/2) + ' L ' + cx + ' ' + (cy+gridSize) + ' L ' + (cx-hexWidth/2) + ' ' + (cy+gridSize/2) + ' L ' + (cx-hexWidth/2) + ' ' + (cy-gridSize/2) + ' Z ';
+        const gridY = (value) => value * gridAspect;
+        const hexPath = (cx, cy) => 'M ' + cx + ' ' + gridY(cy-gridSize) + ' L ' + (cx+hexWidth/2) + ' ' + gridY(cy-gridSize/2) + ' L ' + (cx+hexWidth/2) + ' ' + gridY(cy+gridSize/2) + ' L ' + cx + ' ' + gridY(cy+gridSize) + ' L ' + (cx-hexWidth/2) + ' ' + gridY(cy+gridSize/2) + ' L ' + (cx-hexWidth/2) + ' ' + gridY(cy-gridSize/2) + ' Z ';
         const hexes = hexPath(hexWidth/2,gridSize) + hexPath(hexWidth*1.5,gridSize) + hexPath(0,gridSize*2.5) + hexPath(hexWidth,gridSize*2.5) + hexPath(hexWidth*2,gridSize*2.5);
         const gridPattern = grid?.type === 'square'
-          ? '<pattern id="session-grid" patternUnits="userSpaceOnUse" width="' + gridSize + '" height="' + gridSize + '"><path d="M ' + gridSize + ' 0 H 0 V ' + gridSize + '" fill="none" stroke="' + gridColor + '" stroke-width="1.5"/></pattern>'
+          ? '<pattern id="session-grid" patternUnits="userSpaceOnUse" width="' + gridSize + '" height="' + (gridSize * gridAspect) + '"><path d="M ' + gridSize + ' 0 H 0 V ' + (gridSize * gridAspect) + '" fill="none" stroke="' + gridColor + '" stroke-width="1.5" vector-effect="non-scaling-stroke"/></pattern>'
           : grid?.type === 'hex'
-            ? '<pattern id="session-grid" patternUnits="userSpaceOnUse" width="' + (hexWidth * 2) + '" height="' + (gridSize * 3) + '"><path d="' + hexes + '" fill="none" stroke="' + gridColor + '" stroke-width="1.5"/></pattern>'
+            ? '<pattern id="session-grid" patternUnits="userSpaceOnUse" width="' + (hexWidth * 2) + '" height="' + (gridSize * 3 * gridAspect) + '"><path d="' + hexes + '" fill="none" stroke="' + gridColor + '" stroke-width="1.5" vector-effect="non-scaling-stroke"/></pattern>'
             : '';
         const mapGrid = gridPattern ? '<svg class="map-grid-overlay" style="opacity:' + gridOpacity + '" viewBox="0 0 1000 1000" preserveAspectRatio="none"><defs>' + gridPattern + '</defs><rect width="1000" height="1000" fill="url(#session-grid)"/></svg>' : '';
         const visionPoints = visibilityPolygon(token, walls, image?.mapAspectRatio).map((point) => (point.x * 1000) + ',' + (point.y * 1000)).join(' ');
