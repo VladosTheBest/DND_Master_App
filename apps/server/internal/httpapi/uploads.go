@@ -12,13 +12,15 @@ import (
 	"strings"
 )
 
-const maxImageUploadSize = 10 << 20
+const maxImageUploadSize = 200 << 20
 
 var uploadImageExtensions = map[string]string{
 	"image/gif":  ".gif",
 	"image/jpeg": ".jpg",
 	"image/png":  ".png",
 	"image/webp": ".webp",
+	"video/mp4":  ".mp4",
+	"video/webm": ".webm",
 }
 
 type uploadImageResult struct {
@@ -85,8 +87,8 @@ func (srv *server) handleCampaignUpload(writer http.ResponseWriter, request *htt
 		message := "Не удалось разобрать форму загрузки."
 		var maxBytesErr *http.MaxBytesError
 		if errors.As(err, &maxBytesErr) {
-			code = "image_too_large"
-			message = "Изображение слишком большое. Загружай файлы до 10 МБ."
+			code = "file_too_large"
+			message = "Файл слишком большой. Загружай карты до 200 МБ."
 		}
 		writeError(writer, status, code, message)
 		return
@@ -94,12 +96,12 @@ func (srv *server) handleCampaignUpload(writer http.ResponseWriter, request *htt
 
 	file, header, err := request.FormFile("file")
 	if err != nil {
-		writeError(writer, http.StatusBadRequest, "missing_file", "Выбери изображение перед загрузкой.")
+		writeError(writer, http.StatusBadRequest, "missing_file", "Выбери изображение или видео перед загрузкой.")
 		return
 	}
 	defer file.Close()
 
-	contentType, extension, err := detectUploadedImage(file)
+	contentType, extension, err := detectUploadedMedia(file)
 	if err != nil {
 		writeError(writer, http.StatusBadRequest, "unsupported_image", err.Error())
 		return
@@ -143,21 +145,26 @@ func (srv *server) handleCampaignUpload(writer http.ResponseWriter, request *htt
 	})
 }
 
-func detectUploadedImage(file multipart.File) (string, string, error) {
+func detectUploadedMedia(file multipart.File) (string, string, error) {
 	header := make([]byte, 512)
 	readBytes, err := file.Read(header)
 	if err != nil && err != io.EOF {
-		return "", "", fmt.Errorf("не удалось прочитать изображение перед сохранением")
+		return "", "", fmt.Errorf("не удалось прочитать файл перед сохранением")
 	}
 
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
-		return "", "", fmt.Errorf("не удалось подготовить изображение к сохранению")
+		return "", "", fmt.Errorf("не удалось подготовить файл к сохранению")
 	}
 
 	contentType := http.DetectContentType(header[:readBytes])
+	if readBytes >= 12 && string(header[4:8]) == "ftyp" {
+		contentType = "video/mp4"
+	} else if readBytes >= 4 && header[0] == 0x1a && header[1] == 0x45 && header[2] == 0xdf && header[3] == 0xa3 {
+		contentType = "video/webm"
+	}
 	extension, ok := uploadImageExtensions[contentType]
 	if !ok {
-		return "", "", fmt.Errorf("поддерживаются только PNG, JPG, GIF и WEBP")
+		return "", "", fmt.Errorf("поддерживаются PNG, JPG, GIF, WEBP, MP4 и WEBM")
 	}
 
 	return contentType, extension, nil

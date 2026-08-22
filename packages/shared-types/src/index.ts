@@ -773,7 +773,7 @@ export interface PlayerDisplayImageInput {
   revealed?: number[];
   showGrid?: boolean;
   sessionMap?: boolean;
-  mediaType?: "image" | "youtube";
+  mediaType?: "image" | "youtube" | "video";
   fogRegions?: PlayerDisplayFogRegion[];
   walls?: PlayerDisplayWall[];
   token?: PlayerDisplayToken;

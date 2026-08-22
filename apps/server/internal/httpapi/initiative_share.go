@@ -629,12 +629,14 @@ var (
         width: min(100%, calc(76vh * 16 / 9));
         aspect-ratio: 16 / 9;
       }
-      .image-canvas iframe {
+      .image-canvas iframe,
+      .image-canvas video {
         width: 100%;
         height: 100%;
         display: block;
         border: 0;
         pointer-events: none;
+        object-fit: contain;
       }
       body.media-only {
         height: 100vh;
@@ -1422,6 +1424,7 @@ var (
             ? '<div class="fog-grid' + (image?.showGrid ? ' show-grid' : '') + '" style="grid-template-columns:repeat(' + columns + ',1fr);grid-template-rows:repeat(' + rows + ',1fr)">' + fogCells + '</div>'
             : "";
         const isYoutube = image?.mediaType === "youtube";
+        const isVideo = image?.mediaType === "video";
         const mediaKey = String(image?.mediaType || "image") + "|" + String(image?.url || "");
         const currentCanvas = trackNode.querySelector(".image-canvas");
         if (currentCanvas?.dataset?.mediaKey === mediaKey) {
@@ -1436,9 +1439,11 @@ var (
         }
         const media = isYoutube
           ? '<iframe allow="autoplay; encrypted-media; fullscreen" allowfullscreen title="' + escapeHtml(title || UI.imageAlt) + '" src="' + escapeHtml(image?.url || "") + '"></iframe>'
-          : '<img alt="' + escapeHtml(image?.alt || title || UI.imageAlt) + '" src="' + escapeHtml(image?.url || "") + '">';
+          : isVideo
+            ? '<video autoplay loop muted playsinline src="' + escapeHtml(image?.url || "") + '"></video>'
+            : '<img alt="' + escapeHtml(image?.alt || title || UI.imageAlt) + '" src="' + escapeHtml(image?.url || "") + '">';
         trackNode.innerHTML =
-          '<figure class="image-state"><div class="image-canvas' + (isYoutube ? ' video-canvas' : '') + '" data-media-key="' + escapeHtml(mediaKey) + '">' +
+          '<figure class="image-state"><div class="image-canvas' + (isYoutube || isVideo ? ' video-canvas' : '') + '" data-media-key="' + escapeHtml(mediaKey) + '">' +
           media +
           mapGrid +
           fog +
@@ -2544,6 +2549,10 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 			return nil
 		}
 		url = fmt.Sprintf("https://www.youtube-nocookie.com/embed/%s?autoplay=1&mute=1&loop=1&playlist=%s&controls=0&disablekb=1&fs=0&playsinline=1&rel=0", videoID, videoID)
+	} else if mediaType == "video" {
+		if !strings.HasSuffix(strings.ToLower(url), ".mp4") && !strings.HasSuffix(strings.ToLower(url), ".webm") {
+			return nil
+		}
 	} else {
 		mediaType = "image"
 	}
