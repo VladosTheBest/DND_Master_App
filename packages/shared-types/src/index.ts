@@ -756,6 +756,13 @@ export interface PlayerDisplayToken {
   visionRadius: number;
 }
 
+export interface PlayerDisplayGridSettings {
+  type: "none" | "square" | "hex";
+  size: number;
+  color: string;
+  opacity: number;
+}
+
 export interface PlayerDisplayImageInput {
   url: string;
   title?: string;
@@ -771,6 +778,7 @@ export interface PlayerDisplayImageInput {
   walls?: PlayerDisplayWall[];
   token?: PlayerDisplayToken;
   mapAspectRatio?: number;
+  grid?: PlayerDisplayGridSettings;
 }
 
 export interface AuthSessionResult {

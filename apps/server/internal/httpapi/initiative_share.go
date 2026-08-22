@@ -83,6 +83,7 @@ type playerDisplayImageInput struct {
 	Walls          []publicDisplayWall `json:"walls"`
 	Token          *publicDisplayToken `json:"token"`
 	MapAspectRatio float64             `json:"mapAspectRatio"`
+	Grid           *publicDisplayGrid  `json:"grid"`
 }
 
 type publicFogPoint struct {
@@ -110,6 +111,13 @@ type publicDisplayToken struct {
 	VisionRadius float64 `json:"visionRadius"`
 }
 
+type publicDisplayGrid struct {
+	Type    string  `json:"type"`
+	Size    float64 `json:"size"`
+	Color   string  `json:"color"`
+	Opacity float64 `json:"opacity"`
+}
+
 type publicDisplayImage struct {
 	URL            string              `json:"url"`
 	Title          string              `json:"title,omitempty"`
@@ -125,6 +133,7 @@ type publicDisplayImage struct {
 	Walls          []publicDisplayWall `json:"walls,omitempty"`
 	Token          *publicDisplayToken `json:"token,omitempty"`
 	MapAspectRatio float64             `json:"mapAspectRatio,omitempty"`
+	Grid           *publicDisplayGrid  `json:"grid,omitempty"`
 }
 
 type publicDisplaySnapshot struct {
@@ -685,6 +694,14 @@ var (
         position: absolute;
         inset: 0;
         z-index: 2;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+      .map-grid-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 1;
         width: 100%;
         height: 100%;
         pointer-events: none;
@@ -1365,6 +1382,16 @@ var (
         const regions = Array.isArray(image?.fogRegions) ? image.fogRegions : [];
         const walls = Array.isArray(image?.walls) ? image.walls : [];
         const token = image?.token || null;
+        const grid = image?.grid || null;
+        const gridSize = Math.max(12, Math.min(300, Number(grid?.size || .08) * 1000));
+        const gridColor = /^#[0-9a-f]{6}$/i.test(String(grid?.color || '')) ? grid.color : '#ffffff';
+        const gridOpacity = Math.max(0, Math.min(1, Number(grid?.opacity ?? .35)));
+        const gridPattern = grid?.type === 'square'
+          ? '<pattern id="session-grid" patternUnits="userSpaceOnUse" width="' + gridSize + '" height="' + gridSize + '"><path d="M ' + gridSize + ' 0 H 0 V ' + gridSize + '" fill="none" stroke="' + gridColor + '" stroke-width="1.5"/></pattern>'
+          : grid?.type === 'hex'
+            ? '<pattern id="session-grid" patternUnits="userSpaceOnUse" width="' + (gridSize * 1.5) + '" height="' + (gridSize * 1.732) + '"><path d="M 0 ' + (gridSize*.866) + ' L ' + (gridSize*.5) + ' 0 L ' + (gridSize*1.5) + ' 0 L ' + (gridSize*2) + ' ' + (gridSize*.866) + ' L ' + (gridSize*1.5) + ' ' + (gridSize*1.732) + ' L ' + (gridSize*.5) + ' ' + (gridSize*1.732) + ' Z" fill="none" stroke="' + gridColor + '" stroke-width="1.5"/></pattern>'
+            : '';
+        const mapGrid = gridPattern ? '<svg class="map-grid-overlay" style="opacity:' + gridOpacity + '" viewBox="0 0 1000 1000" preserveAspectRatio="none"><defs>' + gridPattern + '</defs><rect width="1000" height="1000" fill="url(#session-grid)"/></svg>' : '';
         const visionPoints = visibilityPolygon(token, walls, image?.mapAspectRatio).map((point) => (point.x * 1000) + ',' + (point.y * 1000)).join(' ');
         const regionShapes = regions.map((region) => {
           const points = Array.isArray(region?.points)
@@ -1394,6 +1421,8 @@ var (
         const currentCanvas = trackNode.querySelector(".image-canvas");
         if (currentCanvas?.dataset?.mediaKey === mediaKey) {
           currentCanvas.querySelector(".fog-regions, .fog-grid")?.remove();
+          currentCanvas.querySelector(".map-grid-overlay")?.remove();
+          if (mapGrid) currentCanvas.insertAdjacentHTML("beforeend", mapGrid);
           if (fog) {
             currentCanvas.insertAdjacentHTML("beforeend", fog);
           }
@@ -1406,6 +1435,7 @@ var (
         trackNode.innerHTML =
           '<figure class="image-state"><div class="image-canvas' + (isYoutube ? ' video-canvas' : '') + '" data-media-key="' + escapeHtml(mediaKey) + '">' +
           media +
+          mapGrid +
           fog +
           '</div>' +
           overlay +
@@ -2209,6 +2239,7 @@ func (manager *initiativeShareManager) showPlayerDisplayImage(
 		Walls:          input.Walls,
 		Token:          input.Token,
 		MapAspectRatio: input.MapAspectRatio,
+		Grid:           input.Grid,
 	})
 
 	publicSnapshot := manager.currentSnapshotLocked(campaign)
@@ -2536,6 +2567,7 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 	if image.MapAspectRatio == 0 {
 		aspectRatio = 1
 	}
+	grid := sanitizePublicDisplayGrid(image.Grid)
 
 	return &publicDisplayImage{
 		URL:            url,
@@ -2552,7 +2584,20 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 		Walls:          walls,
 		Token:          token,
 		MapAspectRatio: aspectRatio,
+		Grid:           grid,
 	}
+}
+
+func sanitizePublicDisplayGrid(grid *publicDisplayGrid) *publicDisplayGrid {
+	if grid == nil || (grid.Type != "square" && grid.Type != "hex") {
+		return nil
+	}
+	color := strings.ToLower(strings.TrimSpace(grid.Color))
+	matched, _ := regexp.MatchString(`^#[0-9a-f]{6}$`, color)
+	if !matched {
+		color = "#ffffff"
+	}
+	return &publicDisplayGrid{Type: grid.Type, Size: max(.012, min(grid.Size, .3)), Color: color, Opacity: max(0, min(grid.Opacity, 1))}
 }
 
 func sanitizePublicDisplayWalls(walls []publicDisplayWall) []publicDisplayWall {

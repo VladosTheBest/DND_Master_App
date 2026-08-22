@@ -173,6 +173,16 @@ func TestPublicDisplaySanitizesWallsAndVisionToken(t *testing.T) {
 	}
 }
 
+func TestPublicDisplaySanitizesMapGrid(t *testing.T) {
+	grid := sanitizePublicDisplayGrid(&publicDisplayGrid{Type: "hex", Size: 2, Color: " not-a-color ", Opacity: -1})
+	if grid == nil || grid.Type != "hex" || grid.Size != .3 || grid.Color != "#ffffff" || grid.Opacity != 0 {
+		t.Fatalf("expected normalized map grid, got %+v", grid)
+	}
+	if sanitizePublicDisplayGrid(&publicDisplayGrid{Type: "triangle"}) != nil {
+		t.Fatal("expected unsupported grid type to be removed")
+	}
+}
+
 func TestPublicScreenResultStaysUntilNewImageIsShown(t *testing.T) {
 	store, campaign := newPublicScreenTestStore(t)
 	manager := newInitiativeShareManager(store, "https://players.example")
