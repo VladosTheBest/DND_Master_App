@@ -1460,8 +1460,8 @@ var (
           const level=Math.max(0,Math.min(source.maxLevel,Math.ceil(Math.log2(Math.max(innerWidth,innerHeight)*zoom))));
           const divisor=Math.pow(2,source.maxLevel-level),w=Math.ceil(source.width/divisor),h=Math.ceil(source.height/divisor),size=source.tileSize;
           const left=Math.max(0,.5+(-.5-Number(viewport.x||0))/zoom),right=Math.min(1,.5+(.5-Number(viewport.x||0))/zoom),top=Math.max(0,.5+(-.5-Number(viewport.y||0))/zoom),bottom=Math.min(1,.5+(.5-Number(viewport.y||0))/zoom);
-          const c0=Math.max(0,Math.floor(left*w/size)-1),c1=Math.min(Math.ceil(w/size)-1,Math.floor(right*w/size)+1),r0=Math.max(0,Math.floor(top*h/size)-1),r1=Math.min(Math.ceil(h/size)-1,Math.floor(bottom*h/size)+1);
-          let html='<div class="tile-layer">'; for(let row=r0;row<=r1;row++)for(let col=c0;col<=c1;col++){const tw=Math.min(size,w-col*size),th=Math.min(size,h-row*size);html+='<img alt="" src="'+escapeHtml(source.tileBaseUrl+'/'+level+'/'+col+'_'+row+'.'+source.format)+'" style="left:'+(col*size/w*100)+'%;top:'+(row*size/h*100)+'%;width:'+(tw/w*100)+'%;height:'+(th/h*100)+'%">';} return html+'</div>';
+          const c0=Math.max(0,Math.floor(left*w/size)-8),c1=Math.min(Math.ceil(w/size)-1,Math.floor(right*w/size)+8),r0=Math.max(0,Math.floor(top*h/size)-8),r1=Math.min(Math.ceil(h/size)-1,Math.floor(bottom*h/size)+8);
+          let html='<div class="tile-layer">'; for(let row=r0;row<=r1;row++)for(let col=c0;col<=c1;col++){const tw=Math.min(size,w-col*size),th=Math.min(size,h-row*size);html+='<img alt="" src="'+escapeHtml(source.tileBaseUrl+'/'+level+'/'+col+'_'+row+'.'+source.format)+'" style="left:'+(col*size/w*100)+'%;top:'+(row*size/h*100)+'%;width:calc('+(tw/w*100)+'% + 1px);height:calc('+(th/h*100)+'% + 1px)">';} return html+'</div>';
         };
         const currentCanvas = trackNode.querySelector(".image-canvas");
         if (currentCanvas?.dataset?.mediaKey === mediaKey) {
