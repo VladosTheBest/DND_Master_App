@@ -84,6 +84,7 @@ type playerDisplayImageInput struct {
 	Token          *publicDisplayToken `json:"token"`
 	MapAspectRatio float64             `json:"mapAspectRatio"`
 	Grid           *publicDisplayGrid  `json:"grid"`
+	Viewport       *publicViewport     `json:"viewport"`
 }
 
 type publicFogPoint struct {
@@ -118,6 +119,12 @@ type publicDisplayGrid struct {
 	Opacity float64 `json:"opacity"`
 }
 
+type publicViewport struct {
+	Zoom float64 `json:"zoom"`
+	X    float64 `json:"x"`
+	Y    float64 `json:"y"`
+}
+
 type publicDisplayImage struct {
 	URL            string              `json:"url"`
 	Title          string              `json:"title,omitempty"`
@@ -134,6 +141,7 @@ type publicDisplayImage struct {
 	Token          *publicDisplayToken `json:"token,omitempty"`
 	MapAspectRatio float64             `json:"mapAspectRatio,omitempty"`
 	Grid           *publicDisplayGrid  `json:"grid,omitempty"`
+	Viewport       *publicViewport     `json:"viewport,omitempty"`
 }
 
 type publicDisplaySnapshot struct {
@@ -617,6 +625,8 @@ var (
         max-width: 100%;
         max-height: 100%;
         line-height: 0;
+        transform-origin: center;
+        will-change: transform;
       }
       .image-canvas img {
         max-width: 100%;
@@ -1425,9 +1435,12 @@ var (
             : "";
         const isYoutube = image?.mediaType === "youtube";
         const isVideo = image?.mediaType === "video";
+        const viewport = image?.viewport || { zoom: 1, x: 0, y: 0 };
+        const cameraTransform = 'translate(' + (Number(viewport.x || 0) * 100) + '%, ' + (Number(viewport.y || 0) * 100) + '%) scale(' + Math.max(1, Number(viewport.zoom || 1)) + ')';
         const mediaKey = String(image?.mediaType || "image") + "|" + String(image?.url || "");
         const currentCanvas = trackNode.querySelector(".image-canvas");
         if (currentCanvas?.dataset?.mediaKey === mediaKey) {
+          currentCanvas.style.transform = cameraTransform;
           currentCanvas.querySelector(".fog-regions, .fog-grid")?.remove();
           currentCanvas.querySelector(".map-grid-overlay")?.remove();
           if (mapGrid) currentCanvas.insertAdjacentHTML("beforeend", mapGrid);
@@ -1443,7 +1456,7 @@ var (
             ? '<video autoplay loop muted playsinline src="' + escapeHtml(image?.url || "") + '"></video>'
             : '<img alt="' + escapeHtml(image?.alt || title || UI.imageAlt) + '" src="' + escapeHtml(image?.url || "") + '">';
         trackNode.innerHTML =
-          '<figure class="image-state"><div class="image-canvas' + (isYoutube || isVideo ? ' video-canvas' : '') + '" data-media-key="' + escapeHtml(mediaKey) + '">' +
+          '<figure class="image-state"><div class="image-canvas' + (isYoutube || isVideo ? ' video-canvas' : '') + '" data-media-key="' + escapeHtml(mediaKey) + '" style="transform:' + cameraTransform + '">' +
           media +
           mapGrid +
           fog +
@@ -2250,6 +2263,7 @@ func (manager *initiativeShareManager) showPlayerDisplayImage(
 		Token:          input.Token,
 		MapAspectRatio: input.MapAspectRatio,
 		Grid:           input.Grid,
+		Viewport:       input.Viewport,
 	})
 
 	publicSnapshot := manager.currentSnapshotLocked(campaign)
@@ -2402,7 +2416,7 @@ func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 	if mode == publicScreenModeImage && snapshot.Image != nil {
 		fmt.Fprintf(
 			&builder,
-			"image|%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|%v|%v|%f|%v|",
+			"image|%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|%v|%v|%f|%v|%v|",
 			snapshot.Image.URL,
 			snapshot.Image.Title,
 			snapshot.Image.Alt,
@@ -2418,6 +2432,7 @@ func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 			snapshot.Image.Token,
 			snapshot.Image.MapAspectRatio,
 			snapshot.Image.Grid,
+			snapshot.Image.Viewport,
 		)
 		return builder.String()
 	}
@@ -2517,7 +2532,7 @@ func publicDisplaySnapshotFingerprint(snapshot publicDisplaySnapshot) string {
 
 	fmt.Fprintf(
 		&builder,
-		"%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|%v|%v|%f|%v|",
+		"%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|%v|%v|%f|%v|%v|",
 		snapshot.Image.URL,
 		snapshot.Image.Title,
 		snapshot.Image.Alt,
@@ -2533,6 +2548,7 @@ func publicDisplaySnapshotFingerprint(snapshot publicDisplaySnapshot) string {
 		snapshot.Image.Token,
 		snapshot.Image.MapAspectRatio,
 		snapshot.Image.Grid,
+		snapshot.Image.Viewport,
 	)
 	return builder.String()
 }
@@ -2584,6 +2600,7 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 		aspectRatio = 1
 	}
 	grid := sanitizePublicDisplayGrid(image.Grid)
+	viewport := sanitizePublicViewport(image.Viewport)
 
 	return &publicDisplayImage{
 		URL:            url,
@@ -2601,7 +2618,15 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 		Token:          token,
 		MapAspectRatio: aspectRatio,
 		Grid:           grid,
+		Viewport:       viewport,
 	}
+}
+
+func sanitizePublicViewport(viewport *publicViewport) *publicViewport {
+	if viewport == nil {
+		return &publicViewport{Zoom: 1}
+	}
+	return &publicViewport{Zoom: max(1, min(viewport.Zoom, 6)), X: max(-1, min(viewport.X, 1)), Y: max(-1, min(viewport.Y, 1))}
 }
 
 func sanitizePublicDisplayGrid(grid *publicDisplayGrid) *publicDisplayGrid {

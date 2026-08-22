@@ -763,6 +763,12 @@ export interface PlayerDisplayGridSettings {
   opacity: number;
 }
 
+export interface PlayerDisplayViewport {
+  zoom: number;
+  x: number;
+  y: number;
+}
+
 export interface PlayerDisplayImageInput {
   url: string;
   title?: string;
@@ -779,6 +785,7 @@ export interface PlayerDisplayImageInput {
   token?: PlayerDisplayToken;
   mapAspectRatio?: number;
   grid?: PlayerDisplayGridSettings;
+  viewport?: PlayerDisplayViewport;
 }
 
 export interface AuthSessionResult {

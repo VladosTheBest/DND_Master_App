@@ -183,6 +183,17 @@ func TestPublicDisplaySanitizesMapGrid(t *testing.T) {
 	}
 }
 
+func TestPublicDisplaySanitizesViewport(t *testing.T) {
+	viewport := sanitizePublicViewport(&publicViewport{Zoom: 20, X: -4, Y: 3})
+	if viewport.Zoom != 6 || viewport.X != -1 || viewport.Y != 1 {
+		t.Fatalf("expected clamped viewport, got %+v", viewport)
+	}
+	defaults := sanitizePublicViewport(nil)
+	if defaults.Zoom != 1 || defaults.X != 0 || defaults.Y != 0 {
+		t.Fatalf("expected default viewport, got %+v", defaults)
+	}
+}
+
 func TestPublicScreenResultStaysUntilNewImageIsShown(t *testing.T) {
 	store, campaign := newPublicScreenTestStore(t)
 	manager := newInitiativeShareManager(store, "https://players.example")
