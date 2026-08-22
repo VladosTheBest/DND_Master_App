@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-const maxImageUploadSize = 200 << 20
+const maxImageUploadSize = 300 << 20
 
 var uploadImageExtensions = map[string]string{
 	"image/gif":  ".gif",
@@ -88,7 +88,7 @@ func (srv *server) handleCampaignUpload(writer http.ResponseWriter, request *htt
 		var maxBytesErr *http.MaxBytesError
 		if errors.As(err, &maxBytesErr) {
 			code = "file_too_large"
-			message = "Файл слишком большой. Загружай карты до 200 МБ."
+			message = "Файл слишком большой. Загружай карты до 300 МБ."
 		}
 		writeError(writer, status, code, message)
 		return
