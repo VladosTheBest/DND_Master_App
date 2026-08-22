@@ -85,6 +85,17 @@ type playerDisplayImageInput struct {
 	MapAspectRatio float64             `json:"mapAspectRatio"`
 	Grid           *publicDisplayGrid  `json:"grid"`
 	Viewport       *publicViewport     `json:"viewport"`
+	DeepZoom       *publicDeepZoom     `json:"deepZoom"`
+}
+
+type publicDeepZoom struct {
+	DescriptorURL string `json:"descriptorUrl"`
+	TileBaseURL   string `json:"tileBaseUrl"`
+	Width         int    `json:"width"`
+	Height        int    `json:"height"`
+	TileSize      int    `json:"tileSize"`
+	Format        string `json:"format"`
+	MaxLevel      int    `json:"maxLevel"`
 }
 
 type publicFogPoint struct {
@@ -142,6 +153,7 @@ type publicDisplayImage struct {
 	MapAspectRatio float64             `json:"mapAspectRatio,omitempty"`
 	Grid           *publicDisplayGrid  `json:"grid,omitempty"`
 	Viewport       *publicViewport     `json:"viewport,omitempty"`
+	DeepZoom       *publicDeepZoom     `json:"deepZoom,omitempty"`
 }
 
 type publicDisplaySnapshot struct {
@@ -635,10 +647,13 @@ var (
         object-fit: contain;
         object-position: center;
       }
+      .tile-layer { position:absolute; inset:0; overflow:hidden; }
+      .tile-layer img { position:absolute; max-width:none; pointer-events:none; }
       .image-canvas.video-canvas {
         width: min(100%, calc(76vh * 16 / 9));
         aspect-ratio: 16 / 9;
       }
+      .image-canvas.tile-canvas { width:min(100%,76vh); aspect-ratio:var(--tile-aspect,1); }
       .image-canvas iframe,
       .image-canvas video {
         width: 100%;
@@ -1435,12 +1450,23 @@ var (
             : "";
         const isYoutube = image?.mediaType === "youtube";
         const isVideo = image?.mediaType === "video";
+        const isTiles = image?.mediaType === "tiles" && image?.deepZoom;
         const viewport = image?.viewport || { zoom: 1, x: 0, y: 0 };
         const cameraTransform = 'translate(' + (Number(viewport.x || 0) * 100) + '%, ' + (Number(viewport.y || 0) * 100) + '%) scale(' + Math.max(1, Number(viewport.zoom || 1)) + ')';
         const mediaKey = String(image?.mediaType || "image") + "|" + String(image?.url || "");
+        const tileMarkup = () => {
+          if (!isTiles) return "";
+          const source=image.deepZoom, zoom=Math.max(1,Number(viewport.zoom||1));
+          const level=Math.max(0,Math.min(source.maxLevel,Math.ceil(Math.log2(Math.max(innerWidth,innerHeight)*zoom))));
+          const divisor=Math.pow(2,source.maxLevel-level),w=Math.ceil(source.width/divisor),h=Math.ceil(source.height/divisor),size=source.tileSize;
+          const left=Math.max(0,.5+(-.5-Number(viewport.x||0))/zoom),right=Math.min(1,.5+(.5-Number(viewport.x||0))/zoom),top=Math.max(0,.5+(-.5-Number(viewport.y||0))/zoom),bottom=Math.min(1,.5+(.5-Number(viewport.y||0))/zoom);
+          const c0=Math.max(0,Math.floor(left*w/size)-1),c1=Math.min(Math.ceil(w/size)-1,Math.floor(right*w/size)+1),r0=Math.max(0,Math.floor(top*h/size)-1),r1=Math.min(Math.ceil(h/size)-1,Math.floor(bottom*h/size)+1);
+          let html='<div class="tile-layer">'; for(let row=r0;row<=r1;row++)for(let col=c0;col<=c1;col++){const tw=Math.min(size,w-col*size),th=Math.min(size,h-row*size);html+='<img alt="" src="'+escapeHtml(source.tileBaseUrl+'/'+level+'/'+col+'_'+row+'.'+source.format)+'" style="left:'+(col*size/w*100)+'%;top:'+(row*size/h*100)+'%;width:'+(tw/w*100)+'%;height:'+(th/h*100)+'%">';} return html+'</div>';
+        };
         const currentCanvas = trackNode.querySelector(".image-canvas");
         if (currentCanvas?.dataset?.mediaKey === mediaKey) {
           currentCanvas.style.transform = cameraTransform;
+          if (isTiles) { currentCanvas.querySelector('.tile-layer')?.remove(); currentCanvas.insertAdjacentHTML('afterbegin',tileMarkup()); }
           currentCanvas.querySelector(".fog-regions, .fog-grid")?.remove();
           currentCanvas.querySelector(".map-grid-overlay")?.remove();
           if (mapGrid) currentCanvas.insertAdjacentHTML("beforeend", mapGrid);
@@ -1450,13 +1476,13 @@ var (
           setPublishedStatus(snapshot?.updatedAt);
           return;
         }
-        const media = isYoutube
+        const media = isTiles ? tileMarkup() : isYoutube
           ? '<iframe allow="autoplay; encrypted-media; fullscreen" allowfullscreen title="' + escapeHtml(title || UI.imageAlt) + '" src="' + escapeHtml(image?.url || "") + '"></iframe>'
           : isVideo
             ? '<video autoplay loop muted playsinline src="' + escapeHtml(image?.url || "") + '"></video>'
             : '<img alt="' + escapeHtml(image?.alt || title || UI.imageAlt) + '" src="' + escapeHtml(image?.url || "") + '">';
         trackNode.innerHTML =
-          '<figure class="image-state"><div class="image-canvas' + (isYoutube || isVideo ? ' video-canvas' : '') + '" data-media-key="' + escapeHtml(mediaKey) + '" style="transform:' + cameraTransform + '">' +
+          '<figure class="image-state"><div class="image-canvas' + (isYoutube || isVideo ? ' video-canvas' : isTiles ? ' tile-canvas' : '') + '" data-media-key="' + escapeHtml(mediaKey) + '" style="transform:' + cameraTransform + (isTiles?';--tile-aspect:'+(image.deepZoom.width/image.deepZoom.height):'') + '">' +
           media +
           mapGrid +
           fog +
@@ -2264,6 +2290,7 @@ func (manager *initiativeShareManager) showPlayerDisplayImage(
 		MapAspectRatio: input.MapAspectRatio,
 		Grid:           input.Grid,
 		Viewport:       input.Viewport,
+		DeepZoom:       input.DeepZoom,
 	})
 
 	publicSnapshot := manager.currentSnapshotLocked(campaign)
@@ -2532,7 +2559,7 @@ func publicDisplaySnapshotFingerprint(snapshot publicDisplaySnapshot) string {
 
 	fmt.Fprintf(
 		&builder,
-		"%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|%v|%v|%f|%v|%v|",
+		"%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|%v|%v|%f|%v|%v|%v|",
 		snapshot.Image.URL,
 		snapshot.Image.Title,
 		snapshot.Image.Alt,
@@ -2549,6 +2576,7 @@ func publicDisplaySnapshotFingerprint(snapshot publicDisplaySnapshot) string {
 		snapshot.Image.MapAspectRatio,
 		snapshot.Image.Grid,
 		snapshot.Image.Viewport,
+		snapshot.Image.DeepZoom,
 	)
 	return builder.String()
 }
@@ -2567,6 +2595,10 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 		url = fmt.Sprintf("https://www.youtube-nocookie.com/embed/%s?autoplay=1&mute=1&loop=1&playlist=%s&controls=0&disablekb=1&fs=0&playsinline=1&rel=0", videoID, videoID)
 	} else if mediaType == "video" {
 		if !strings.HasSuffix(strings.ToLower(url), ".mp4") && !strings.HasSuffix(strings.ToLower(url), ".webm") {
+			return nil
+		}
+	} else if mediaType == "tiles" {
+		if image.DeepZoom == nil || image.DeepZoom.Width <= 0 || image.DeepZoom.Height <= 0 || image.DeepZoom.TileSize <= 0 || image.DeepZoom.MaxLevel <= 0 || strings.TrimSpace(image.DeepZoom.TileBaseURL) == "" {
 			return nil
 		}
 	} else {
@@ -2619,6 +2651,7 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 		MapAspectRatio: aspectRatio,
 		Grid:           grid,
 		Viewport:       viewport,
+		DeepZoom:       image.DeepZoom,
 	}
 }
 

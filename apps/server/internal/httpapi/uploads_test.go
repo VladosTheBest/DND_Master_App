@@ -1,7 +1,13 @@
 package httpapi
 
 import (
+	"bytes"
+	"mime/multipart"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
 	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -34,4 +40,78 @@ func TestDetectUploadedVideoFormats(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRequiresImageNormalization(t *testing.T) {
+	if !requiresImageNormalization(26400, 26400) {
+		t.Fatal("expected Dungeon Alchemist-sized image to require normalization")
+	}
+	if requiresImageNormalization(8192, 7800) {
+		t.Fatal("expected browser-safe image not to require normalization")
+	}
+}
+
+func TestCampaignUploadReturnsReachableUploadURL(t *testing.T) {
+	uploadDir := filepath.Join(t.TempDir(), "uploads")
+	handler, err := NewServer(Options{
+		DataFile:  filepath.Join(t.TempDir(), "store.json"),
+		UploadDir: uploadDir,
+	})
+	if err != nil {
+		t.Fatalf("NewServer() error = %v", err)
+	}
+
+	cookies := registerAccountTestUser(t, handler, "upload-gm")
+	created := accountTestRequest(t, handler, http.MethodPost, "/api/campaigns", `{"title":"Upload campaign","system":"D&D 5e","settingName":"Test","inWorldDate":"1 Hammer","summary":"Test"}`, cookies)
+	if created.Code != http.StatusCreated {
+		t.Fatalf("create campaign status = %d, body = %s", created.Code, created.Body.String())
+	}
+	campaign := decodeAccountTestData[campaignData](t, created)
+
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	part, err := writer.CreateFormFile("file", "map.png")
+	if err != nil {
+		t.Fatalf("CreateFormFile() error = %v", err)
+	}
+	if _, err := part.Write([]byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'}); err != nil {
+		t.Fatalf("write upload fixture: %v", err)
+	}
+	if err := writer.Close(); err != nil {
+		t.Fatalf("close multipart writer: %v", err)
+	}
+
+	uploadRequest := httptest.NewRequest(http.MethodPost, "/api/campaigns/"+campaign.ID+"/uploads", &body)
+	uploadRequest.Host = "localhost:5173"
+	uploadRequest.Header.Set("Content-Type", writer.FormDataContentType())
+	for _, cookie := range cookies {
+		uploadRequest.AddCookie(cookie)
+	}
+	uploadResponse := httptest.NewRecorder()
+	handler.ServeHTTP(uploadResponse, uploadRequest)
+	if uploadResponse.Code != http.StatusCreated {
+		t.Fatalf("upload status = %d, body = %s", uploadResponse.Code, uploadResponse.Body.String())
+	}
+
+	result := decodeAccountTestData[uploadImageResult](t, uploadResponse)
+	parsedURL, err := url.Parse(result.URL)
+	if err != nil {
+		t.Fatalf("parse upload URL %q: %v", result.URL, err)
+	}
+	if parsedURL.Scheme != "http" || parsedURL.Host != "localhost:5173" {
+		t.Fatalf("upload URL = %q, want local app origin", result.URL)
+	}
+
+	fileResponse := httptest.NewRecorder()
+	handler.ServeHTTP(fileResponse, httptest.NewRequest(http.MethodGet, parsedURL.RequestURI(), nil))
+	if fileResponse.Code != http.StatusOK {
+		t.Fatalf("uploaded file GET status = %d, body = %s", fileResponse.Code, fileResponse.Body.String())
+	}
+	if got := fileResponse.Header().Get("Content-Type"); got != "image/png" {
+		t.Fatalf("uploaded file Content-Type = %q, want image/png", got)
+	}
+	if !bytes.Equal(fileResponse.Body.Bytes(), []byte{0x89, 'P', 'N', 'G', '\r', '\n', 0x1a, '\n'}) {
+		t.Fatal("uploaded file response does not match the saved file")
+	}
+
 }

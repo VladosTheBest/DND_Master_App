@@ -637,6 +637,17 @@ export interface UploadImageResult {
   fileName: string;
   contentType: string;
   size: number;
+  deepZoom?: DeepZoomSource;
+}
+
+export interface DeepZoomSource {
+  descriptorUrl: string;
+  tileBaseUrl: string;
+  width: number;
+  height: number;
+  tileSize: number;
+  format: string;
+  maxLevel: number;
 }
 
 export interface AddCombatantItem {
@@ -779,7 +790,8 @@ export interface PlayerDisplayImageInput {
   revealed?: number[];
   showGrid?: boolean;
   sessionMap?: boolean;
-  mediaType?: "image" | "youtube" | "video";
+  mediaType?: "image" | "youtube" | "video" | "tiles";
+  deepZoom?: DeepZoomSource;
   fogRegions?: PlayerDisplayFogRegion[];
   walls?: PlayerDisplayWall[];
   token?: PlayerDisplayToken;

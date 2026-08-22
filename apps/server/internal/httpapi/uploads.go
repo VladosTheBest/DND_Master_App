@@ -1,18 +1,26 @@
 package httpapi
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"image"
+	_ "image/jpeg"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 const maxImageUploadSize = 300 << 20
+const maxBrowserImagePixels = 64_000_000
+const maxBrowserImageDimension = 8192
 
 var uploadImageExtensions = map[string]string{
 	"image/gif":  ".gif",
@@ -24,10 +32,21 @@ var uploadImageExtensions = map[string]string{
 }
 
 type uploadImageResult struct {
-	URL         string `json:"url"`
-	FileName    string `json:"fileName"`
-	ContentType string `json:"contentType"`
-	Size        int64  `json:"size"`
+	URL         string          `json:"url"`
+	FileName    string          `json:"fileName"`
+	ContentType string          `json:"contentType"`
+	Size        int64           `json:"size"`
+	DeepZoom    *deepZoomSource `json:"deepZoom,omitempty"`
+}
+
+type deepZoomSource struct {
+	DescriptorURL string `json:"descriptorUrl"`
+	TileBaseURL   string `json:"tileBaseUrl"`
+	Width         int    `json:"width"`
+	Height        int    `json:"height"`
+	TileSize      int    `json:"tileSize"`
+	Format        string `json:"format"`
+	MaxLevel      int    `json:"maxLevel"`
 }
 
 func newUploadsHandler(uploadDir string) (http.Handler, error) {
@@ -130,11 +149,42 @@ func (srv *server) handleCampaignUpload(writer http.ResponseWriter, request *htt
 		writeError(writer, http.StatusInternalServerError, "upload_write_failed", "Не удалось записать изображение на диск.")
 		return
 	}
+	var deepZoom *deepZoomSource
+	if contentType == "image/jpeg" {
+		stored, err := os.Open(filePath)
+		if err != nil {
+			writeError(writer, http.StatusInternalServerError, "upload_open_failed", "Не удалось проверить сохранённую карту.")
+			return
+		}
+		config, _, decodeErr := image.DecodeConfig(stored)
+		_ = stored.Close()
+		if decodeErr != nil {
+			writeError(writer, http.StatusBadRequest, "invalid_image", "Не удалось прочитать размеры JPEG-карты.")
+			return
+		}
+		if requiresImageNormalization(config.Width, config.Height) {
+			descriptorName := strings.TrimSuffix(fileName, extension) + ".dzi"
+			descriptorPath := filepath.Join(campaignDir, descriptorName)
+			generated, generateErr := generateDeepZoom(request.Context(), filePath, descriptorPath)
+			if generateErr != nil {
+				_ = os.Remove(descriptorPath)
+				_ = os.RemoveAll(strings.TrimSuffix(descriptorPath, ".dzi") + "_files")
+				writeError(writer, http.StatusInternalServerError, "tile_generation_failed", "Большая карта сохранена, но не удалось подготовить тайлы для быстрого просмотра.")
+				return
+			}
+			publicDir := path.Join("/uploads", userSegment, campaignSegment)
+			deepZoom = &deepZoomSource{DescriptorURL: path.Join(publicDir, descriptorName), TileBaseURL: path.Join(publicDir, strings.TrimSuffix(descriptorName, ".dzi")+"_files"), Width: generated.Width, Height: generated.Height, TileSize: generated.TileSize, Format: generated.Format, MaxLevel: generated.MaxLevel}
+		}
+	}
 
 	publicPath := path.Join("/uploads", userSegment, campaignSegment, fileName)
 	baseURL := strings.TrimRight(publicBaseURLFromRequest(request), "/")
 	if baseURL != "" {
 		publicPath = baseURL + publicPath
+		if deepZoom != nil {
+			deepZoom.DescriptorURL = baseURL + deepZoom.DescriptorURL
+			deepZoom.TileBaseURL = baseURL + deepZoom.TileBaseURL
+		}
 	}
 
 	writeJSON(writer, http.StatusCreated, uploadImageResult{
@@ -142,7 +192,46 @@ func (srv *server) handleCampaignUpload(writer http.ResponseWriter, request *htt
 		FileName:    fallbackUploadFileName(header, fileName),
 		ContentType: contentType,
 		Size:        size,
+		DeepZoom:    deepZoom,
 	})
+}
+
+type deepZoomWorkerResult struct {
+	Width    int    `json:"width"`
+	Height   int    `json:"height"`
+	TileSize int    `json:"tileSize"`
+	Format   string `json:"format"`
+	MaxLevel int    `json:"maxLevel"`
+}
+
+func generateDeepZoom(parent context.Context, input, output string) (*deepZoomWorkerResult, error) {
+	ctx, cancel := context.WithTimeout(parent, 10*time.Minute)
+	defer cancel()
+	worker := strings.TrimSpace(os.Getenv("SHADOW_EDGE_DEEP_ZOOM_WORKER"))
+	if worker == "" {
+		worker = filepath.Join("scripts", "generate-deep-zoom.mjs")
+	}
+	node := strings.TrimSpace(os.Getenv("SHADOW_EDGE_NODE_BINARY"))
+	if node == "" {
+		node = "node"
+	}
+	cmd := exec.CommandContext(ctx, node, worker, input, output)
+	stdout, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("generate deep zoom: %w", err)
+	}
+	var result deepZoomWorkerResult
+	if err := json.Unmarshal(stdout, &result); err != nil {
+		return nil, fmt.Errorf("decode deep zoom result: %w", err)
+	}
+	if result.Width <= 0 || result.Height <= 0 || result.TileSize <= 0 || result.MaxLevel <= 0 || result.Format == "" {
+		return nil, fmt.Errorf("invalid deep zoom result")
+	}
+	return &result, nil
+}
+
+func requiresImageNormalization(width, height int) bool {
+	return width > maxBrowserImageDimension || height > maxBrowserImageDimension || int64(width)*int64(height) > maxBrowserImagePixels
 }
 
 func detectUploadedMedia(file multipart.File) (string, string, error) {

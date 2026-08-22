@@ -37,9 +37,9 @@ COPY apps/server apps/server
 RUN go build -o /out/shadow-edge-server ./apps/server/cmd/server
 
 
-FROM alpine:3.21
+FROM node:22-bookworm-slim
 
-RUN apk add --no-cache ca-certificates
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
@@ -48,6 +48,15 @@ ENV SHADOW_EDGE_WEB_DIR=/app/apps/web/dist
 ENV SHADOW_EDGE_DATA_FILE=/data/store.json
 ENV SHADOW_EDGE_BESTIARY_CACHE_FILE=/data/dndsu-bestiary.json
 ENV SHADOW_EDGE_UPLOAD_DIR=/data/uploads
+ENV SHADOW_EDGE_DEEP_ZOOM_WORKER=/app/scripts/generate-deep-zoom.mjs
+
+COPY package.json package-lock.json ./
+COPY apps/web/package.json apps/web/package.json
+COPY packages/api-client/package.json packages/api-client/package.json
+COPY packages/design-tokens/package.json packages/design-tokens/package.json
+COPY packages/shared-types/package.json packages/shared-types/package.json
+RUN npm ci --omit=dev
+COPY scripts/generate-deep-zoom.mjs /app/scripts/generate-deep-zoom.mjs
 
 COPY --from=server-build /out/shadow-edge-server /app/shadow-edge-server
 COPY --from=web-build /app/apps/web/dist /app/apps/web/dist
