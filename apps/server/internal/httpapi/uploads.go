@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,11 +33,51 @@ var uploadImageExtensions = map[string]string{
 }
 
 type uploadImageResult struct {
-	URL         string          `json:"url"`
-	FileName    string          `json:"fileName"`
-	ContentType string          `json:"contentType"`
-	Size        int64           `json:"size"`
-	DeepZoom    *deepZoomSource `json:"deepZoom,omitempty"`
+	URL         string           `json:"url"`
+	FileName    string           `json:"fileName"`
+	ContentType string           `json:"contentType"`
+	Size        int64            `json:"size"`
+	DeepZoom    *deepZoomSource  `json:"deepZoom,omitempty"`
+	VTT         *vttImportResult `json:"vtt,omitempty"`
+}
+
+type vttPoint struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+}
+type vttWall struct {
+	ID       string     `json:"id"`
+	Start    vttPoint   `json:"start"`
+	End      vttPoint   `json:"end"`
+	Points   []vttPoint `json:"points,omitempty"`
+	Disabled bool       `json:"disabled,omitempty"`
+}
+type vttImportResult struct {
+	Walls         []vttWall `json:"walls"`
+	GridSize      float64   `json:"gridSize"`
+	MapWidth      int       `json:"mapWidth"`
+	MapHeight     int       `json:"mapHeight"`
+	PortalCount   int       `json:"portalCount"`
+	LightCount    int       `json:"lightCount"`
+	BakedLighting bool      `json:"bakedLighting"`
+}
+type universalVTTFile struct {
+	Format     float64 `json:"format"`
+	Resolution struct {
+		MapOrigin     vttPoint `json:"map_origin"`
+		MapSize       vttPoint `json:"map_size"`
+		PixelsPerGrid int      `json:"pixels_per_grid"`
+	} `json:"resolution"`
+	LineOfSight [][]vttPoint `json:"line_of_sight"`
+	Portals     []struct {
+		Bounds []vttPoint `json:"bounds"`
+		Closed bool       `json:"closed"`
+	} `json:"portals"`
+	Lights      []json.RawMessage `json:"lights"`
+	Environment struct {
+		BakedLighting bool `json:"baked_lighting"`
+	} `json:"environment"`
+	Image string `json:"image"`
 }
 
 type deepZoomSource struct {
@@ -119,6 +160,10 @@ func (srv *server) handleCampaignUpload(writer http.ResponseWriter, request *htt
 		return
 	}
 	defer file.Close()
+	if strings.EqualFold(filepath.Ext(header.Filename), ".dd2vtt") {
+		srv.handleUniversalVTTUpload(writer, request, file, header, userID, campaignID)
+		return
+	}
 
 	contentType, extension, err := detectUploadedMedia(file)
 	if err != nil {
@@ -194,6 +239,87 @@ func (srv *server) handleCampaignUpload(writer http.ResponseWriter, request *htt
 		Size:        size,
 		DeepZoom:    deepZoom,
 	})
+}
+
+func (srv *server) handleUniversalVTTUpload(writer http.ResponseWriter, request *http.Request, file multipart.File, header *multipart.FileHeader, userID, campaignID string) {
+	var source universalVTTFile
+	if err := json.NewDecoder(io.LimitReader(file, maxImageUploadSize)).Decode(&source); err != nil || source.Format <= 0 || source.Resolution.MapSize.X <= 0 || source.Resolution.MapSize.Y <= 0 || source.Image == "" {
+		writeError(writer, http.StatusBadRequest, "invalid_vtt", "Не удалось прочитать Universal VTT. Экспортируй карту из Dungeon Alchemist в формате Universal VTT.")
+		return
+	}
+	imageBytes, err := base64.StdEncoding.DecodeString(source.Image)
+	if err != nil {
+		writeError(writer, http.StatusBadRequest, "invalid_vtt_image", "В Universal VTT повреждено встроенное изображение карты.")
+		return
+	}
+	userSegment, campaignSegment := sanitizeUploadPathSegment(userID), sanitizeUploadPathSegment(campaignID)
+	campaignDir := filepath.Join(srv.uploadDir, userSegment, campaignSegment)
+	if err := os.MkdirAll(campaignDir, 0o755); err != nil {
+		writeError(writer, http.StatusInternalServerError, "upload_prepare_failed", "Не удалось подготовить директорию для загрузки.")
+		return
+	}
+	fileName := newID("upload") + ".jpg"
+	filePath := filepath.Join(campaignDir, fileName)
+	if err := os.WriteFile(filePath, imageBytes, 0o644); err != nil {
+		writeError(writer, http.StatusInternalServerError, "upload_write_failed", "Не удалось извлечь карту из Universal VTT.")
+		return
+	}
+	stored, err := os.Open(filePath)
+	if err != nil {
+		writeError(writer, http.StatusInternalServerError, "upload_open_failed", "Не удалось проверить карту.")
+		return
+	}
+	config, _, decodeErr := image.DecodeConfig(stored)
+	_ = stored.Close()
+	if decodeErr != nil {
+		_ = os.Remove(filePath)
+		writeError(writer, http.StatusBadRequest, "invalid_vtt_image", "Встроенное изображение карты имеет неподдерживаемый формат.")
+		return
+	}
+	var deepZoom *deepZoomSource
+	if requiresImageNormalization(config.Width, config.Height) {
+		descriptorName := strings.TrimSuffix(fileName, ".jpg") + ".dzi"
+		descriptorPath := filepath.Join(campaignDir, descriptorName)
+		generated, generateErr := generateDeepZoom(request.Context(), filePath, descriptorPath)
+		if generateErr != nil {
+			_ = os.Remove(filePath)
+			writeError(writer, http.StatusInternalServerError, "tile_generation_failed", "Карта извлечена, но не удалось подготовить тайлы.")
+			return
+		}
+		publicDir := path.Join("/uploads", userSegment, campaignSegment)
+		deepZoom = &deepZoomSource{DescriptorURL: path.Join(publicDir, descriptorName), TileBaseURL: path.Join(publicDir, strings.TrimSuffix(descriptorName, ".dzi")+"_files"), Width: generated.Width, Height: generated.Height, TileSize: generated.TileSize, Format: generated.Format, MaxLevel: generated.MaxLevel}
+	}
+	normalize := func(point vttPoint) vttPoint {
+		return vttPoint{X: (point.X - source.Resolution.MapOrigin.X) / source.Resolution.MapSize.X, Y: (point.Y - source.Resolution.MapOrigin.Y) / source.Resolution.MapSize.Y}
+	}
+	walls := make([]vttWall, 0, len(source.LineOfSight)+len(source.Portals))
+	for index, line := range source.LineOfSight {
+		if len(line) < 2 {
+			continue
+		}
+		points := make([]vttPoint, len(line))
+		for i, p := range line {
+			points[i] = normalize(p)
+		}
+		walls = append(walls, vttWall{ID: fmt.Sprintf("vtt-wall-%d", index+1), Start: points[0], End: points[len(points)-1], Points: points})
+	}
+	for index, portal := range source.Portals {
+		if len(portal.Bounds) < 2 {
+			continue
+		}
+		start, end := normalize(portal.Bounds[0]), normalize(portal.Bounds[len(portal.Bounds)-1])
+		walls = append(walls, vttWall{ID: fmt.Sprintf("vtt-door-%d", index+1), Start: start, End: end, Points: []vttPoint{start, end}, Disabled: !portal.Closed})
+	}
+	publicPath := path.Join("/uploads", userSegment, campaignSegment, fileName)
+	baseURL := strings.TrimRight(publicBaseURLFromRequest(request), "/")
+	if baseURL != "" {
+		publicPath = baseURL + publicPath
+		if deepZoom != nil {
+			deepZoom.DescriptorURL = baseURL + deepZoom.DescriptorURL
+			deepZoom.TileBaseURL = baseURL + deepZoom.TileBaseURL
+		}
+	}
+	writeJSON(writer, http.StatusCreated, uploadImageResult{URL: publicPath, FileName: fallbackUploadFileName(header, fileName), ContentType: "image/jpeg", Size: int64(len(imageBytes)), DeepZoom: deepZoom, VTT: &vttImportResult{Walls: walls, GridSize: 1 / source.Resolution.MapSize.X, MapWidth: int(source.Resolution.MapSize.X), MapHeight: int(source.Resolution.MapSize.Y), PortalCount: len(source.Portals), LightCount: len(source.Lights), BakedLighting: source.Environment.BakedLighting}})
 }
 
 type deepZoomWorkerResult struct {

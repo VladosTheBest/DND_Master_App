@@ -638,6 +638,15 @@ export interface UploadImageResult {
   contentType: string;
   size: number;
   deepZoom?: DeepZoomSource;
+  vtt?: {
+    walls: PlayerDisplayWall[];
+    gridSize: number;
+    mapWidth: number;
+    mapHeight: number;
+    portalCount: number;
+    lightCount: number;
+    bakedLighting: boolean;
+  };
 }
 
 export interface DeepZoomSource {
