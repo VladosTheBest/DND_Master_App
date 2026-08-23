@@ -175,8 +175,12 @@ func TestPublicDisplaySanitizesWallsAndVisionToken(t *testing.T) {
 
 func TestPublicDisplaySanitizesMapGrid(t *testing.T) {
 	grid := sanitizePublicDisplayGrid(&publicDisplayGrid{Type: "hex", Size: 2, Color: " not-a-color ", Opacity: -1})
-	if grid == nil || grid.Type != "hex" || grid.Size != .3 || grid.Color != "#ffffff" || grid.Opacity != 0 {
+	if grid == nil || grid.Type != "hex" || grid.Size != .2 || grid.Color != "#ffffff" || grid.Opacity != 0 {
 		t.Fatalf("expected normalized map grid, got %+v", grid)
+	}
+	small := sanitizePublicDisplayGrid(&publicDisplayGrid{Type: "square", Size: .001, Color: "#123456", Opacity: .5})
+	if small == nil || small.Size != .005 {
+		t.Fatalf("expected minimum grid size .005, got %+v", small)
 	}
 	if sanitizePublicDisplayGrid(&publicDisplayGrid{Type: "triangle"}) != nil {
 		t.Fatal("expected unsupported grid type to be removed")

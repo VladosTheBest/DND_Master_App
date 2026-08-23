@@ -1414,7 +1414,7 @@ var (
         const walls = Array.isArray(image?.walls) ? image.walls : [];
         const token = image?.token || null;
         const grid = image?.grid || null;
-        const gridSize = Math.max(12, Math.min(300, Number(grid?.size || .08) * 1000));
+        const gridSize = Math.max(5, Math.min(200, Number(grid?.size || .08) * 1000));
         const gridColor = /^#[0-9a-f]{6}$/i.test(String(grid?.color || '')) ? grid.color : '#ffffff';
         const gridOpacity = Math.max(0, Math.min(1, Number(grid?.opacity ?? .35)));
         const gridAspect = Math.max(.2, Math.min(5, Number(image?.mapAspectRatio || 1)));
@@ -2679,7 +2679,7 @@ func sanitizePublicDisplayGrid(grid *publicDisplayGrid) *publicDisplayGrid {
 	if !matched {
 		color = "#ffffff"
 	}
-	return &publicDisplayGrid{Type: grid.Type, Size: max(.012, min(grid.Size, .3)), Color: color, Opacity: max(0, min(grid.Opacity, 1))}
+	return &publicDisplayGrid{Type: grid.Type, Size: max(.005, min(grid.Size, .2)), Color: color, Opacity: max(0, min(grid.Opacity, 1))}
 }
 
 func sanitizePublicDisplayWalls(walls []publicDisplayWall) []publicDisplayWall {
