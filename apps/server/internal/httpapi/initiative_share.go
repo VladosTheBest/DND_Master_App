@@ -1447,9 +1447,8 @@ var (
           ? '<path class="vision-fog" d="' + visionPath + '" fill-rule="evenodd"></path>'
           : '';
         const tokenZoom = Math.max(1, Number(image?.viewport?.zoom || 1));
-        const tokenSize = 44 / tokenZoom;
         const tokenShape = token
-          ? '<image class="player-token-image" href="/session-token.png" x="' + ((Number(token.x) * 1000) - tokenSize / 2) + '" y="' + ((Number(token.y) * 1000) - tokenSize / 2) + '" width="' + tokenSize + '" height="' + tokenSize + '" preserveAspectRatio="xMidYMid meet"></image>'
+          ? '<image class="player-token-image" href="/session-token.png" x="-22" y="-22" width="44" height="44" transform="translate(' + (Number(token.x) * 1000) + ' ' + (Number(token.y) * 1000) + ') scale(' + (1 / tokenZoom) + ')" preserveAspectRatio="xMidYMid meet"></image>'
           : '';
         const manualFog = token ? '' : regionShapes;
         const fog = manualFog || visionFog || tokenShape
