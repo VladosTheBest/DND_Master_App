@@ -750,7 +750,7 @@ var (
         opacity: 0;
       }
       .vision-fog { fill: #020308; opacity: 0.995; }
-      .player-token { fill: #e6b85f; stroke: #fff2be; stroke-width: 4; filter: drop-shadow(0 0 10px rgba(230,184,95,.9)); }
+      .player-token-image { pointer-events: none; filter: drop-shadow(0 0 8px rgba(230,184,95,.8)); }
       .fog-cell {
         min-width: 0;
         min-height: 0;
@@ -1446,8 +1446,10 @@ var (
         const visionFog = visionPath
           ? '<path class="vision-fog" d="' + visionPath + '" fill-rule="evenodd"></path>'
           : '';
+        const tokenZoom = Math.max(1, Number(image?.viewport?.zoom || 1));
+        const tokenSize = 44 / tokenZoom;
         const tokenShape = token
-          ? '<circle class="player-token" cx="' + (Number(token.x) * 1000) + '" cy="' + (Number(token.y) * 1000) + '" r="' + (13 / Math.max(1, Number(image?.viewport?.zoom || 1))) + '"></circle>'
+          ? '<image class="player-token-image" href="/session-token.png" x="' + ((Number(token.x) * 1000) - tokenSize / 2) + '" y="' + ((Number(token.y) * 1000) - tokenSize / 2) + '" width="' + tokenSize + '" height="' + tokenSize + '" preserveAspectRatio="xMidYMid meet"></image>'
           : '';
         const manualFog = token ? '' : regionShapes;
         const fog = manualFog || visionFog || tokenShape
