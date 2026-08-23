@@ -47,6 +47,7 @@ type vttPoint struct {
 }
 type vttWall struct {
 	ID       string     `json:"id"`
+	Kind     string     `json:"kind,omitempty"`
 	Start    vttPoint   `json:"start"`
 	End      vttPoint   `json:"end"`
 	Points   []vttPoint `json:"points,omitempty"`
@@ -301,14 +302,14 @@ func (srv *server) handleUniversalVTTUpload(writer http.ResponseWriter, request 
 		for i, p := range line {
 			points[i] = normalize(p)
 		}
-		walls = append(walls, vttWall{ID: fmt.Sprintf("vtt-wall-%d", index+1), Start: points[0], End: points[len(points)-1], Points: points})
+		walls = append(walls, vttWall{ID: fmt.Sprintf("vtt-wall-%d", index+1), Kind: "wall", Start: points[0], End: points[len(points)-1], Points: points})
 	}
 	for index, portal := range source.Portals {
 		if len(portal.Bounds) < 2 {
 			continue
 		}
 		start, end := normalize(portal.Bounds[0]), normalize(portal.Bounds[len(portal.Bounds)-1])
-		walls = append(walls, vttWall{ID: fmt.Sprintf("vtt-door-%d", index+1), Start: start, End: end, Points: []vttPoint{start, end}, Disabled: !portal.Closed})
+		walls = append(walls, vttWall{ID: fmt.Sprintf("vtt-door-%d", index+1), Kind: "door", Start: start, End: end, Points: []vttPoint{start, end}, Disabled: !portal.Closed})
 	}
 	publicPath := path.Join("/uploads", userSegment, campaignSegment, fileName)
 	baseURL := strings.TrimRight(publicBaseURLFromRequest(request), "/")

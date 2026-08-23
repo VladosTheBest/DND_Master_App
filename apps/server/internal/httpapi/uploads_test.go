@@ -72,6 +72,9 @@ func TestCampaignUploadImportsUniversalVTT(t *testing.T) {
 	if result.VTT.GridSize != .1 || !result.VTT.Walls[1].Disabled {
 		t.Fatalf("unexpected imported grid or open portal: %#v", result.VTT)
 	}
+	if result.VTT.Walls[0].Kind != "wall" || result.VTT.Walls[1].Kind != "door" {
+		t.Fatalf("unexpected imported wall kinds: %#v", result.VTT.Walls)
+	}
 }
 
 func TestDetectUploadedVideoFormats(t *testing.T) {

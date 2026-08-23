@@ -764,6 +764,7 @@ export interface PlayerDisplayFogRegion {
 
 export interface PlayerDisplayWall {
   id: string;
+  kind?: "wall" | "door";
   start: PlayerDisplayFogPoint;
   end: PlayerDisplayFogPoint;
   disabled?: boolean;
