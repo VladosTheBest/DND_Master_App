@@ -111,6 +111,7 @@ type publicFogRegion struct {
 
 type publicDisplayWall struct {
 	ID       string           `json:"id"`
+	Kind     string           `json:"kind,omitempty"`
 	Start    publicFogPoint   `json:"start"`
 	End      publicFogPoint   `json:"end"`
 	Disabled bool             `json:"disabled,omitempty"`
@@ -2683,9 +2684,6 @@ func sanitizePublicDisplayGrid(grid *publicDisplayGrid) *publicDisplayGrid {
 }
 
 func sanitizePublicDisplayWalls(walls []publicDisplayWall) []publicDisplayWall {
-	if len(walls) > 256 {
-		walls = walls[:256]
-	}
 	result := make([]publicDisplayWall, 0, len(walls))
 	for index, wall := range walls {
 		id := strings.TrimSpace(wall.ID)
@@ -2709,7 +2707,11 @@ func sanitizePublicDisplayWalls(walls []publicDisplayWall) []publicDisplayWall {
 		if len(cleanPoints) < 2 {
 			continue
 		}
-		result = append(result, publicDisplayWall{ID: id, Start: cleanPoints[0], End: cleanPoints[len(cleanPoints)-1], Points: cleanPoints, Disabled: wall.Disabled})
+		kind := strings.ToLower(strings.TrimSpace(wall.Kind))
+		if kind != "door" {
+			kind = "wall"
+		}
+		result = append(result, publicDisplayWall{ID: id, Kind: kind, Start: cleanPoints[0], End: cleanPoints[len(cleanPoints)-1], Points: cleanPoints, Disabled: wall.Disabled})
 	}
 	return result
 }
