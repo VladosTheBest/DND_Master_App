@@ -743,6 +743,13 @@ var (
         transition: opacity 380ms ease;
       }
       .roof-overlay.inside { opacity: 0; }
+      .roof-overlay img {
+        width: 100%;
+        height: 100%;
+        max-width: none;
+        max-height: none;
+        object-fit: fill;
+      }
       .token-overlay {
         position: absolute;
         inset: 0;
@@ -1529,9 +1536,10 @@ var (
             : "";
         const roofPolygon = wallHull(walls);
         const roofPoints = roofPolygon.map((point) => (Number(point.x)*1000)+','+(Number(point.y)*1000)).join(' ');
+        const roofClip = roofPolygon.map((point) => (Number(point.x)*100)+'% '+(Number(point.y)*100)+'%').join(',');
         const tokenInsideRoof = Boolean(token && roofPolygon.length > 2 && pointInPolygon(token, roofPolygon));
         const roofShape = image?.roofUrl && roofPoints
-          ? '<svg class="roof-overlay' + (tokenInsideRoof ? ' inside' : '') + '" preserveAspectRatio="none" viewBox="0 0 1000 1000"><defs><clipPath id="roof-clip"><polygon points="' + roofPoints + '"></polygon></clipPath></defs><image href="' + escapeHtml(image.roofUrl) + '" width="1000" height="1000" preserveAspectRatio="none" clip-path="url(#roof-clip)"></image></svg>'
+          ? '<div class="roof-overlay' + (tokenInsideRoof ? ' inside' : '') + '" style="clip-path:polygon(' + roofClip + ')"><img alt="" src="' + escapeHtml(image.roofUrl) + '"></div>'
           : '';
         const tokenOverlay = tokenShape ? '<svg class="token-overlay" preserveAspectRatio="none" viewBox="0 0 1000 1000">' + tokenShape + '</svg>' : '';
         const isYoutube = image?.mediaType === "youtube";
