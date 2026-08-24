@@ -1385,6 +1385,33 @@ var (
         });
       };
 
+      let displayedSessionToken = null;
+      let sessionTokenAnimationFrame = 0;
+      const animateSessionToken = (canvas, target, walls, aspect, zoom) => {
+        cancelAnimationFrame(sessionTokenAnimationFrame);
+        if (!target) { displayedSessionToken = null; return; }
+        const start = displayedSessionToken || target;
+        const distance = Math.hypot(Number(target.x)-Number(start.x), Number(target.y)-Number(start.y));
+        const duration = Math.min(650, Math.max(240, distance * 1100));
+        const startedAt = performance.now();
+        const tokenNode = canvas.querySelector('.player-token-image');
+        const fogNode = canvas.querySelector('.vision-fog');
+        const draw = (now) => {
+          const raw = Math.min(1, (now-startedAt)/duration);
+          const eased = 1-Math.pow(1-raw,3);
+          const current = {...target,x:Number(start.x)+(Number(target.x)-Number(start.x))*eased,y:Number(start.y)+(Number(target.y)-Number(start.y))*eased};
+          displayedSessionToken = current;
+          tokenNode?.setAttribute('transform','translate('+(current.x*1000)+' '+(current.y*1000)+') scale('+(1/zoom)+')');
+          if (fogNode) {
+            const points = visibilityPolygon(current,walls,aspect).map((point)=>(point.x*1000)+','+(point.y*1000)).join(' L ');
+            fogNode.setAttribute('d',points?'M 0 0 H 1000 V 1000 H 0 Z M '+points+' Z':'');
+          }
+          if (raw<1) sessionTokenAnimationFrame=requestAnimationFrame(draw);
+          else displayedSessionToken=target;
+        };
+        sessionTokenAnimationFrame=requestAnimationFrame(draw);
+      };
+
       const renderImage = (snapshot, image) => {
         const isSessionMap = Boolean(image?.sessionMap);
         roundBannerNode.hidden = isSessionMap;
@@ -1481,6 +1508,7 @@ var (
           if (fog) {
             currentCanvas.insertAdjacentHTML("beforeend", fog);
           }
+          animateSessionToken(currentCanvas, token, walls, renderedAspect, tokenZoom);
           setPublishedStatus(snapshot?.updatedAt);
           return;
         }
@@ -1497,6 +1525,7 @@ var (
           '</div>' +
           overlay +
           '</figure>';
+        animateSessionToken(trackNode.querySelector('.image-canvas'), token, walls, renderedAspect, tokenZoom);
         setPublishedStatus(snapshot?.updatedAt);
       };
 
@@ -2077,11 +2106,14 @@ var playerDisplayViewerTemplate = template.Must(template.New("player-display-vie
         statusNode.textContent = error instanceof Error ? error.message : "Не удалось обновить экран игроков.";
       });
 
+      let displayUpdateInFlight = false;
       window.setInterval(() => {
+        if (displayUpdateInFlight) return;
+        displayUpdateInFlight = true;
         void checkForUpdates().catch((error) => {
           statusNode.textContent = error instanceof Error ? error.message : "Не удалось проверить обновления экрана игроков.";
-        });
-      }, 1400);
+        }).finally(() => { displayUpdateInFlight = false; });
+      }, 300);
     </script>
   </body>
 </html>`))
