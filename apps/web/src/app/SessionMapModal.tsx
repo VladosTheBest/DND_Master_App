@@ -1074,11 +1074,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
                       onClick={() => selectLevel(index)}
                       type="button"
                     >
-                      {index === 0
-                        ? "Нижний"
-                        : index === levels.length - 1
-                          ? "Верхний"
-                          : `${index + 1}-й`}
+                      {`${index + 1}-й этаж`}
                     </button>
                   ))}
                 </div>
