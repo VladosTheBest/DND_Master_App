@@ -1445,6 +1445,7 @@ var (
         const tokenNode = canvas.querySelector('.player-token-image');
         const fogNode = canvas.querySelector('.vision-fog');
         const roofNode = canvas.querySelector('.roof-overlay');
+        const roofCutoutNode = canvas.querySelector('.roof-vision-cutout');
         const roofPolygon = wallHull(walls);
         const draw = (now) => {
           const raw = Math.min(1, (now-startedAt)/duration);
@@ -1455,6 +1456,10 @@ var (
           if (fogNode) {
             const points = visibilityPolygon(current,walls,aspect).map((point)=>(point.x*1000)+','+(point.y*1000)).join(' L ');
             fogNode.setAttribute('d',points?'M 0 0 H 1000 V 1000 H 0 Z M '+points+' Z':'');
+          }
+          if (roofCutoutNode) {
+            const points = visibilityPolygon(current,walls,aspect).map((point)=>(point.x*1000)+','+(point.y*1000)).join(' ');
+            roofCutoutNode.setAttribute('points', points);
           }
           if (roofNode) roofNode.classList.toggle('inside', roofPolygon.length > 2 && pointInPolygon(current, roofPolygon));
           if (raw<1) sessionTokenAnimationFrame=requestAnimationFrame(draw);
@@ -1536,10 +1541,9 @@ var (
             : "";
         const roofPolygon = wallHull(walls);
         const roofPoints = roofPolygon.map((point) => (Number(point.x)*1000)+','+(Number(point.y)*1000)).join(' ');
-        const roofClip = roofPolygon.map((point) => (Number(point.x)*100)+'% '+(Number(point.y)*100)+'%').join(',');
         const tokenInsideRoof = Boolean(token && roofPolygon.length > 2 && pointInPolygon(token, roofPolygon));
         const roofShape = image?.roofUrl && roofPoints
-          ? '<div class="roof-overlay' + (tokenInsideRoof ? ' inside' : '') + '" style="clip-path:polygon(' + roofClip + ')"><img alt="" src="' + escapeHtml(image.roofUrl) + '"></div>'
+          ? '<svg class="roof-overlay' + (tokenInsideRoof ? ' inside' : '') + '" preserveAspectRatio="none" viewBox="0 0 1000 1000"><defs><mask id="roof-visibility-mask"><rect width="1000" height="1000" fill="black"></rect><polygon points="' + roofPoints + '" fill="white"></polygon>' + (visionPoints ? '<polygon class="roof-vision-cutout" points="' + visionPoints + '" fill="black"></polygon>' : '') + '</mask></defs><image href="' + escapeHtml(image.roofUrl) + '" width="1000" height="1000" preserveAspectRatio="none" mask="url(#roof-visibility-mask)"></image></svg>'
           : '';
         const tokenOverlay = tokenShape ? '<svg class="token-overlay" preserveAspectRatio="none" viewBox="0 0 1000 1000">' + tokenShape + '</svg>' : '';
         const isYoutube = image?.mediaType === "youtube";
