@@ -2740,6 +2740,7 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 
 	return &publicDisplayImage{
 		URL:            url,
+		RoofURL:        strings.TrimSpace(image.RoofURL),
 		Title:          strings.TrimSpace(image.Title),
 		Alt:            strings.TrimSpace(image.Alt),
 		Caption:        strings.TrimSpace(image.Caption),

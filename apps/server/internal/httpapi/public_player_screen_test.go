@@ -138,6 +138,16 @@ func TestPublicDisplaySanitizesYouTubeMap(t *testing.T) {
 	}
 }
 
+func TestPublicDisplayPreservesRoofLayer(t *testing.T) {
+	image := sanitizePublicDisplayImage(publicDisplayImage{
+		URL:     "/uploads/interior.jpg",
+		RoofURL: "/uploads/roof.jpg",
+	})
+	if image == nil || image.RoofURL != "/uploads/roof.jpg" {
+		t.Fatalf("expected roof layer URL to survive sanitization, got %+v", image)
+	}
+}
+
 func TestPublicDisplaySanitizesFreeformFogRegions(t *testing.T) {
 	regions := sanitizePublicFogRegions([]publicFogRegion{
 		{ID: " room ", Points: []publicFogPoint{{X: -1, Y: 0.2}, {X: 0.5, Y: 2}, {X: 0.8, Y: 0.7}}, Revealed: true},
