@@ -70,6 +70,7 @@ type publicInitiativeMeta struct {
 
 type playerDisplayImageInput struct {
 	URL            string              `json:"url"`
+	RoofURL        string              `json:"roofUrl"`
 	Title          string              `json:"title"`
 	Alt            string              `json:"alt"`
 	Caption        string              `json:"caption"`
@@ -139,6 +140,7 @@ type publicViewport struct {
 
 type publicDisplayImage struct {
 	URL            string              `json:"url"`
+	RoofURL        string              `json:"roofUrl,omitempty"`
 	Title          string              `json:"title,omitempty"`
 	Alt            string              `json:"alt,omitempty"`
 	Caption        string              `json:"caption,omitempty"`
@@ -726,6 +728,25 @@ var (
         position: absolute;
         inset: 0;
         z-index: 2;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+      }
+      .roof-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 3;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        opacity: 1;
+        transition: opacity 380ms ease;
+      }
+      .roof-overlay.inside { opacity: 0; }
+      .token-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 4;
         width: 100%;
         height: 100%;
         pointer-events: none;
@@ -1385,6 +1406,26 @@ var (
         });
       };
 
+      const wallHull = (walls) => {
+        const points = (walls || []).flatMap((wall) => Array.isArray(wall?.points) && wall.points.length ? wall.points : [wall?.start, wall?.end]).filter(Boolean);
+        if (points.length < 3) return [];
+        const sorted = [...points].sort((a,b) => Number(a.x)-Number(b.x) || Number(a.y)-Number(b.y));
+        const cross = (o,a,b) => (Number(a.x)-Number(o.x))*(Number(b.y)-Number(o.y))-(Number(a.y)-Number(o.y))*(Number(b.x)-Number(o.x));
+        const lower = [], upper = [];
+        sorted.forEach((point) => { while (lower.length > 1 && cross(lower[lower.length-2],lower[lower.length-1],point) <= 0) lower.pop(); lower.push(point); });
+        sorted.reverse().forEach((point) => { while (upper.length > 1 && cross(upper[upper.length-2],upper[upper.length-1],point) <= 0) upper.pop(); upper.push(point); });
+        return lower.slice(0,-1).concat(upper.slice(0,-1));
+      };
+
+      const pointInPolygon = (point, polygon) => {
+        let inside = false;
+        for (let i=0,j=polygon.length-1;i<polygon.length;j=i++) {
+          const a=polygon[i],b=polygon[j];
+          if (((Number(a.y)>Number(point.y)) !== (Number(b.y)>Number(point.y))) && Number(point.x) < (Number(b.x)-Number(a.x))*(Number(point.y)-Number(a.y))/(Number(b.y)-Number(a.y))+Number(a.x)) inside=!inside;
+        }
+        return inside;
+      };
+
       let displayedSessionToken = null;
       let sessionTokenAnimationFrame = 0;
       const animateSessionToken = (canvas, target, walls, aspect, zoom) => {
@@ -1396,6 +1437,8 @@ var (
         const startedAt = performance.now();
         const tokenNode = canvas.querySelector('.player-token-image');
         const fogNode = canvas.querySelector('.vision-fog');
+        const roofNode = canvas.querySelector('.roof-overlay');
+        const roofPolygon = wallHull(walls);
         const draw = (now) => {
           const raw = Math.min(1, (now-startedAt)/duration);
           const eased = 1-Math.pow(1-raw,3);
@@ -1406,6 +1449,7 @@ var (
             const points = visibilityPolygon(current,walls,aspect).map((point)=>(point.x*1000)+','+(point.y*1000)).join(' L ');
             fogNode.setAttribute('d',points?'M 0 0 H 1000 V 1000 H 0 Z M '+points+' Z':'');
           }
+          if (roofNode) roofNode.classList.toggle('inside', roofPolygon.length > 2 && pointInPolygon(current, roofPolygon));
           if (raw<1) sessionTokenAnimationFrame=requestAnimationFrame(draw);
           else displayedSessionToken=target;
         };
@@ -1478,17 +1522,24 @@ var (
           ? '<image class="player-token-image" href="/session-token.png" x="-22" y="-22" width="44" height="44" transform="translate(' + (Number(token.x) * 1000) + ' ' + (Number(token.y) * 1000) + ') scale(' + (1 / tokenZoom) + ')" preserveAspectRatio="xMidYMid meet"></image>'
           : '';
         const manualFog = token ? '' : regionShapes;
-        const fog = manualFog || visionFog || tokenShape
-          ? '<svg class="fog-regions" preserveAspectRatio="none" viewBox="0 0 1000 1000">' + visionFog + manualFog + tokenShape + '</svg>'
+        const fog = manualFog || visionFog
+          ? '<svg class="fog-regions" preserveAspectRatio="none" viewBox="0 0 1000 1000">' + visionFog + manualFog + '</svg>'
           : fogCells
             ? '<div class="fog-grid' + (image?.showGrid ? ' show-grid' : '') + '" style="grid-template-columns:repeat(' + columns + ',1fr);grid-template-rows:repeat(' + rows + ',1fr)">' + fogCells + '</div>'
             : "";
+        const roofPolygon = wallHull(walls);
+        const roofPoints = roofPolygon.map((point) => (Number(point.x)*1000)+','+(Number(point.y)*1000)).join(' ');
+        const tokenInsideRoof = Boolean(token && roofPolygon.length > 2 && pointInPolygon(token, roofPolygon));
+        const roofShape = image?.roofUrl && roofPoints
+          ? '<svg class="roof-overlay' + (tokenInsideRoof ? ' inside' : '') + '" preserveAspectRatio="none" viewBox="0 0 1000 1000"><defs><clipPath id="roof-clip"><polygon points="' + roofPoints + '"></polygon></clipPath></defs><image href="' + escapeHtml(image.roofUrl) + '" width="1000" height="1000" preserveAspectRatio="none" clip-path="url(#roof-clip)"></image></svg>'
+          : '';
+        const tokenOverlay = tokenShape ? '<svg class="token-overlay" preserveAspectRatio="none" viewBox="0 0 1000 1000">' + tokenShape + '</svg>' : '';
         const isYoutube = image?.mediaType === "youtube";
         const isVideo = image?.mediaType === "video";
         const isTiles = image?.mediaType === "tiles" && image?.deepZoom;
         const viewport = image?.viewport || { zoom: 1, x: 0, y: 0 };
         const cameraTransform = 'translate(' + (Number(viewport.x || 0) * 100) + '%, ' + (Number(viewport.y || 0) * 100) + '%) scale(' + Math.max(1, Number(viewport.zoom || 1)) + ')';
-        const mediaKey = String(image?.mediaType || "image") + "|" + String(image?.url || "");
+        const mediaKey = String(image?.mediaType || "image") + "|" + String(image?.url || "") + "|" + String(image?.roofUrl || "");
         const tileMarkup = () => {
           if (!isTiles) return "";
           const source=image.deepZoom, zoom=Math.max(1,Number(viewport.zoom||1));
@@ -1502,12 +1553,14 @@ var (
         if (currentCanvas?.dataset?.mediaKey === mediaKey) {
           currentCanvas.style.transform = cameraTransform;
           if (isTiles) { currentCanvas.querySelector('.tile-layer')?.remove(); currentCanvas.insertAdjacentHTML('afterbegin',tileMarkup()); }
-          currentCanvas.querySelector(".fog-regions, .fog-grid")?.remove();
+          currentCanvas.querySelectorAll(".fog-regions, .fog-grid, .roof-overlay, .token-overlay").forEach((node) => node.remove());
           currentCanvas.querySelector(".map-grid-overlay")?.remove();
           if (mapGrid) currentCanvas.insertAdjacentHTML("beforeend", mapGrid);
           if (fog) {
             currentCanvas.insertAdjacentHTML("beforeend", fog);
           }
+          if (roofShape) currentCanvas.insertAdjacentHTML("beforeend", roofShape);
+          if (tokenOverlay) currentCanvas.insertAdjacentHTML("beforeend", tokenOverlay);
           animateSessionToken(currentCanvas, token, walls, renderedAspect, tokenZoom);
           setPublishedStatus(snapshot?.updatedAt);
           return;
@@ -1522,6 +1575,8 @@ var (
           media +
           mapGrid +
           fog +
+          roofShape +
+          tokenOverlay +
           '</div>' +
           overlay +
           '</figure>';
@@ -2315,6 +2370,7 @@ func (manager *initiativeShareManager) showPlayerDisplayImage(
 
 	manager.currentDisplaySnapshotLocked(campaign, &publicDisplayImage{
 		URL:            resolvePublicDisplayAssetURL(strings.TrimSpace(input.URL), baseURL),
+		RoofURL:        resolvePublicDisplayAssetURL(strings.TrimSpace(input.RoofURL), baseURL),
 		Title:          strings.TrimSpace(input.Title),
 		Alt:            strings.TrimSpace(input.Alt),
 		Caption:        strings.TrimSpace(input.Caption),

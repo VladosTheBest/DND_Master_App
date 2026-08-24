@@ -792,6 +792,7 @@ export interface PlayerDisplayViewport {
 
 export interface PlayerDisplayImageInput {
   url: string;
+  roofUrl?: string;
   title?: string;
   alt?: string;
   caption?: string;
