@@ -82,6 +82,27 @@ const clampViewport = (value: PlayerDisplayViewport): PlayerDisplayViewport => {
     y: Math.max(-limit, Math.min(limit, value.y)),
   };
 };
+const preloadDeepZoom = (
+  source: DeepZoomSource | null,
+  targetPixels = 1400,
+) => {
+  if (!source || typeof Image === "undefined") return;
+  const level = Math.max(
+    0,
+    Math.min(source.maxLevel, Math.ceil(Math.log2(targetPixels))),
+  );
+  const divisor = 2 ** (source.maxLevel - level);
+  const columns = Math.ceil(source.width / divisor / source.tileSize);
+  const rows = Math.ceil(source.height / divisor / source.tileSize);
+  if (columns * rows > 48) return;
+  for (let row = 0; row < rows; row += 1) {
+    for (let column = 0; column < columns; column += 1) {
+      const image = new Image();
+      image.decoding = "async";
+      image.src = `${source.tileBaseUrl}/${level}/${column}_${row}.${source.format}`;
+    }
+  }
+};
 const wallHull = (walls: PlayerDisplayWall[]) => {
   const points = walls.flatMap((w) =>
     w.points?.length ? w.points : [w.start, w.end],
@@ -187,8 +208,11 @@ function DeepZoomLayer({
       tiles.push(
         <img
           alt=""
+          decoding="async"
           draggable={false}
+          fetchPriority="high"
           key={`${level}-${col}-${row}`}
+          loading="eager"
           src={`${source.tileBaseUrl}/${level}/${col}_${row}.${source.format}`}
           style={{
             position: "absolute",
@@ -435,6 +459,12 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
           token: null,
         }));
         const first = nextLevels[0];
+        nextLevels.forEach((level, index) =>
+          window.setTimeout(
+            () => preloadDeepZoom(level.deepZoom, index === 0 ? 1600 : 1100),
+            index * 120,
+          ),
+        );
         setLevels(nextLevels);
         setActiveLevel(0);
         setImageUrl(first.imageUrl);
@@ -524,6 +554,11 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
     setNotice(
       `${level.name} активирован. На телевизоре будет показан только этот этаж.`,
     );
+    preloadDeepZoom(
+      level.deepZoom,
+      Math.max(1400, (mapShell.current?.clientWidth ?? 1000) * 2),
+    );
+    preloadDeepZoom(levels[index + 1]?.deepZoom ?? null, 1000);
     if (displayUrl)
       void publish(
         [],
