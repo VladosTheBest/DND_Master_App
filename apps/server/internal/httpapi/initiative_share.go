@@ -2327,6 +2327,35 @@ func (srv *server) handlePlayerDisplay(writer http.ResponseWriter, request *http
 	writeJSON(writer, http.StatusOK, result)
 }
 
+func (srv *server) handlePlayerDisplayRotate(writer http.ResponseWriter, request *http.Request, campaignID string) {
+	if request.Method != http.MethodPost {
+		writeError(writer, http.StatusMethodNotAllowed, "method_not_allowed", "Only POST is supported")
+		return
+	}
+	result, err := srv.shares.rotatePlayerDisplayShare(campaignID, request)
+	if err != nil {
+		writeError(writer, http.StatusInternalServerError, "player_display_rotate_failed", err.Error())
+		return
+	}
+	writeJSON(writer, http.StatusOK, result)
+}
+
+func (manager *initiativeShareManager) ensureDisplayTokenLocked(campaign campaignData) (string, error) {
+	token := manager.campaignToToken[campaign.ID]
+	if token == "" {
+		token = strings.TrimSpace(campaign.PlayerDisplayToken)
+	}
+	if token == "" {
+		token = newInitiativeShareToken()
+		if err := manager.store.setPlayerDisplayToken(campaign.ID, token); err != nil {
+			return "", err
+		}
+	}
+	manager.campaignToToken[campaign.ID] = token
+	manager.tokenToCampaign[token] = campaign.ID
+	return token, nil
+}
+
 func (manager *initiativeShareManager) ensureShare(campaignID string, request *http.Request) (initiativeShareResponse, error) {
 	campaign, err := manager.store.getCampaign(campaignID)
 	if err != nil {
@@ -2336,11 +2365,9 @@ func (manager *initiativeShareManager) ensureShare(campaignID string, request *h
 	manager.mu.Lock()
 	defer manager.mu.Unlock()
 
-	token := manager.campaignToToken[campaignID]
-	if token == "" {
-		token = newInitiativeShareToken()
-		manager.campaignToToken[campaignID] = token
-		manager.tokenToCampaign[token] = campaignID
+	token, err := manager.ensureDisplayTokenLocked(campaign)
+	if err != nil {
+		return initiativeShareResponse{}, err
 	}
 	snapshot := manager.currentSnapshotLocked(campaign)
 	baseURL, provider, err := manager.resolvePublicBaseURLLocked(request)
@@ -2368,11 +2395,9 @@ func (manager *initiativeShareManager) showPlayerDisplayImage(
 	manager.mu.Lock()
 	defer manager.mu.Unlock()
 
-	token := manager.campaignToToken[campaignID]
-	if token == "" {
-		token = newInitiativeShareToken()
-		manager.campaignToToken[campaignID] = token
-		manager.tokenToCampaign[token] = campaignID
+	token, err := manager.ensureDisplayTokenLocked(campaign)
+	if err != nil {
+		return initiativeShareResponse{}, err
 	}
 
 	baseURL, provider, err := manager.resolvePublicBaseURLLocked(request)
@@ -2403,6 +2428,30 @@ func (manager *initiativeShareManager) showPlayerDisplayImage(
 
 	publicSnapshot := manager.currentSnapshotLocked(campaign)
 	return manager.shareResponseLocked(campaignID, token, publicSnapshot, baseURL, provider), nil
+}
+
+func (manager *initiativeShareManager) rotatePlayerDisplayShare(campaignID string, request *http.Request) (initiativeShareResponse, error) {
+	campaign, err := manager.store.getCampaign(campaignID)
+	if err != nil {
+		return initiativeShareResponse{}, err
+	}
+	manager.mu.Lock()
+	defer manager.mu.Unlock()
+	if previous := manager.campaignToToken[campaignID]; previous != "" {
+		delete(manager.tokenToCampaign, previous)
+	}
+	token := newInitiativeShareToken()
+	if err := manager.store.setPlayerDisplayToken(campaignID, token); err != nil {
+		return initiativeShareResponse{}, err
+	}
+	manager.campaignToToken[campaignID] = token
+	manager.tokenToCampaign[token] = campaignID
+	baseURL, provider, err := manager.resolvePublicBaseURLLocked(request)
+	if err != nil {
+		return initiativeShareResponse{}, err
+	}
+	snapshot := manager.currentSnapshotLocked(campaign)
+	return manager.shareResponseLocked(campaignID, token, snapshot, baseURL, provider), nil
 }
 
 func (manager *initiativeShareManager) shareResponseLocked(

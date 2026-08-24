@@ -268,6 +268,8 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 		srv.handleInitiativeSharePublish(writer, request, campaignID)
 	case len(segments) == 2 && segments[1] == "player-display":
 		srv.handlePlayerDisplay(writer, request, campaignID)
+	case len(segments) == 3 && segments[1] == "player-display" && segments[2] == "rotate":
+		srv.handlePlayerDisplayRotate(writer, request, campaignID)
 	case len(segments) == 2 && segments[1] == "events":
 		switch request.Method {
 		case http.MethodPost:

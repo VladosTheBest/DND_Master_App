@@ -871,5 +871,6 @@ export interface ApiClient {
   createInitiativeShare(campaignId: string): Promise<InitiativeShareResult>;
   publishInitiativeShare(campaignId: string): Promise<InitiativeShareResult>;
   showPlayerDisplayImage(campaignId: string, input: PlayerDisplayImageInput): Promise<PlayerDisplayShareResult>;
+  rotatePlayerDisplayLink(campaignId: string): Promise<PlayerDisplayShareResult>;
   search(campaignId: string, query: string): Promise<SearchResult[]>;
 }

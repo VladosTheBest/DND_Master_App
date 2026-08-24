@@ -148,6 +148,33 @@ func TestPublicDisplayPreservesRoofLayer(t *testing.T) {
 	}
 }
 
+func TestPlayerDisplayLinkPersistsUntilRotated(t *testing.T) {
+	store, campaign := newPublicScreenTestStore(t)
+	request := httptest.NewRequest(http.MethodPost, "/api/campaigns/"+campaign.ID+"/player-display", nil)
+	firstManager := newInitiativeShareManager(store, "https://players.example")
+	first, err := firstManager.showPlayerDisplayImage(campaign.ID, request, playerDisplayImageInput{URL: "/map-one.jpg"})
+	if err != nil {
+		t.Fatalf("showPlayerDisplayImage() error = %v", err)
+	}
+
+	secondManager := newInitiativeShareManager(store, "https://players.example")
+	second, err := secondManager.showPlayerDisplayImage(campaign.ID, request, playerDisplayImageInput{URL: "/map-two.jpg"})
+	if err != nil {
+		t.Fatalf("showPlayerDisplayImage() after restart error = %v", err)
+	}
+	if second.Token != first.Token || second.URL != first.URL {
+		t.Fatalf("expected stable display link, first=%+v second=%+v", first, second)
+	}
+
+	rotated, err := secondManager.rotatePlayerDisplayShare(campaign.ID, request)
+	if err != nil {
+		t.Fatalf("rotatePlayerDisplayShare() error = %v", err)
+	}
+	if rotated.Token == first.Token || rotated.URL == first.URL {
+		t.Fatalf("expected rotated display link, first=%+v rotated=%+v", first, rotated)
+	}
+}
+
 func TestPublicDisplaySanitizesFreeformFogRegions(t *testing.T) {
 	regions := sanitizePublicFogRegions([]publicFogRegion{
 		{ID: " room ", Points: []publicFogPoint{{X: -1, Y: 0.2}, {X: 0.5, Y: 2}, {X: 0.8, Y: 0.7}}, Revealed: true},

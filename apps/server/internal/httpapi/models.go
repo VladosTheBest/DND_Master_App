@@ -294,28 +294,29 @@ type userAccount struct {
 }
 
 type campaignData struct {
-	ID                string                  `json:"id"`
-	OwnerID           string                  `json:"ownerId,omitempty"`
-	Title             string                  `json:"title"`
-	System            string                  `json:"system"`
-	SettingName       string                  `json:"settingName"`
-	InWorldDate       string                  `json:"inWorldDate"`
-	Summary           string                  `json:"summary"`
-	Modules           []appModule             `json:"modules"`
-	DashboardCards    []dashboardCard         `json:"dashboardCards"`
-	Locations         []knowledgeEntity       `json:"locations"`
-	Players           []knowledgeEntity       `json:"players"`
-	NPCs              []knowledgeEntity       `json:"npcs"`
-	Monsters          []knowledgeEntity       `json:"monsters"`
-	Quests            []knowledgeEntity       `json:"quests"`
-	Lore              []knowledgeEntity       `json:"lore"`
-	Events            []worldEvent            `json:"events"`
-	SessionPrep       []sessionPrepItem       `json:"sessionPrep"`
-	Shops             []campaignShop          `json:"shops"`
-	CombatPlaylist    []playlistTrack         `json:"combatPlaylist"`
-	PreparedCombat    *campaignPreparedCombat `json:"preparedCombat,omitempty"`
-	ActiveCombat      *activeCombat           `json:"activeCombat,omitempty"`
-	LastCombatSummary *lastCombatSummary      `json:"lastCombatSummary,omitempty"`
+	ID                 string                  `json:"id"`
+	OwnerID            string                  `json:"ownerId,omitempty"`
+	Title              string                  `json:"title"`
+	System             string                  `json:"system"`
+	SettingName        string                  `json:"settingName"`
+	InWorldDate        string                  `json:"inWorldDate"`
+	Summary            string                  `json:"summary"`
+	Modules            []appModule             `json:"modules"`
+	DashboardCards     []dashboardCard         `json:"dashboardCards"`
+	Locations          []knowledgeEntity       `json:"locations"`
+	Players            []knowledgeEntity       `json:"players"`
+	NPCs               []knowledgeEntity       `json:"npcs"`
+	Monsters           []knowledgeEntity       `json:"monsters"`
+	Quests             []knowledgeEntity       `json:"quests"`
+	Lore               []knowledgeEntity       `json:"lore"`
+	Events             []worldEvent            `json:"events"`
+	SessionPrep        []sessionPrepItem       `json:"sessionPrep"`
+	Shops              []campaignShop          `json:"shops"`
+	CombatPlaylist     []playlistTrack         `json:"combatPlaylist"`
+	PreparedCombat     *campaignPreparedCombat `json:"preparedCombat,omitempty"`
+	ActiveCombat       *activeCombat           `json:"activeCombat,omitempty"`
+	LastCombatSummary  *lastCombatSummary      `json:"lastCombatSummary,omitempty"`
+	PlayerDisplayToken string                  `json:"playerDisplayToken,omitempty"`
 }
 
 type campaignSummary struct {

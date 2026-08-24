@@ -296,6 +296,11 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
       body: JSON.stringify(input satisfies PlayerDisplayImageInput)
     });
   },
+  async rotatePlayerDisplayLink(campaignId) {
+    return requestJson<PlayerDisplayShareResult>(`${baseUrl}/api/campaigns/${campaignId}/player-display/rotate`, {
+      method: "POST"
+    });
+  },
   async generateCombat(campaignId, input) {
     return requestJson<GenerateCombatResult>(`${baseUrl}/api/campaigns/${campaignId}/combat/generate`, {
       method: "POST",

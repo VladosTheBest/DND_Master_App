@@ -624,6 +624,21 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
     setViewport(next);
     if (displayUrl) void publish(regions, walls, token, false, grid, next);
   };
+  const rotateDisplayLink = async () => {
+    setBusy(true);
+    try {
+      const share = await api.rotatePlayerDisplayLink(campaignId);
+      setDisplayUrl(share.url);
+      const copied = await navigator.clipboard?.writeText(share.url).then(() => true).catch(() => false);
+      setNotice(copied
+        ? "Создана новая ссылка на телевизор и скопирована. Старая ссылка больше не работает."
+        : "Создана новая ссылка на телевизор. Старая ссылка больше не работает.");
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Не удалось создать новую ссылку.");
+    } finally {
+      setBusy(false);
+    }
+  };
   const cameraStyle: CSSProperties = {
     transform: `translate(${viewport.x * 100}%,${viewport.y * 100}%) scale(${viewport.zoom})`,
     transformOrigin: "center",
@@ -1199,10 +1214,14 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
                   : "Запустить сцену"}
             </button>
             {displayUrl ? (
-              <p className="session-map-tip">
-                Туман, стены и положение фишки автоматически появляются на
-                телевизоре.
-              </p>
+              <>
+                <button className="ghost" disabled={busy} onClick={() => void rotateDisplayLink()} type="button">
+                  Создать новую ссылку
+                </button>
+                <p className="session-map-tip">
+                  Эта ссылка сохраняется для всех карт и после перезапуска приложения. Туман, стены и положение фишки обновляются автоматически.
+                </p>
+              </>
             ) : null}
             {notice ? <p className="session-map-notice">{notice}</p> : null}
           </aside>

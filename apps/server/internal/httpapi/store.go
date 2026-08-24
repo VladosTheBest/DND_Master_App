@@ -440,6 +440,19 @@ func (store *campaignStore) getCampaign(id string) (campaignData, error) {
 	return campaignData{}, fmt.Errorf("campaign %q not found", id)
 }
 
+func (store *campaignStore) setPlayerDisplayToken(id string, token string) error {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+
+	for index := range store.data.Campaigns {
+		if store.data.Campaigns[index].ID == id {
+			store.data.Campaigns[index].PlayerDisplayToken = strings.TrimSpace(token)
+			return store.saveLocked()
+		}
+	}
+	return fmt.Errorf("campaign %q not found", id)
+}
+
 func (store *campaignStore) getCampaignForUser(userID string, id string) (campaignData, error) {
 	store.mu.RLock()
 	defer store.mu.RUnlock()
