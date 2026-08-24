@@ -140,10 +140,11 @@ func TestPublicDisplaySanitizesYouTubeMap(t *testing.T) {
 
 func TestPublicDisplayPreservesRoofLayer(t *testing.T) {
 	image := sanitizePublicDisplayImage(publicDisplayImage{
-		URL:     "/uploads/interior.jpg",
-		RoofURL: "/uploads/roof.jpg",
+		URL:            "/uploads/interior.jpg",
+		RoofURL:        "/uploads/roof.jpg",
+		RoofVisionOnly: true,
 	})
-	if image == nil || image.RoofURL != "/uploads/roof.jpg" {
+	if image == nil || image.RoofURL != "/uploads/roof.jpg" || !image.RoofVisionOnly {
 		t.Fatalf("expected roof layer URL to survive sanitization, got %+v", image)
 	}
 }

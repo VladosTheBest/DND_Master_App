@@ -358,6 +358,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
             : "image"
           : mediaType,
         roofUrl: publishedRoofUrl || undefined,
+        roofVisionOnly: levels.length > 0 || Boolean(nextLevel),
         sessionMap: true,
         title,
         url: publishedImageUrl,
@@ -447,7 +448,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
           id: `${item.file.name}-${index}`,
           name: `Уровень ${index + 1}`,
           imageUrl: item.result.url,
-          roofUrl: vttLayers[index + 1]?.result.url ?? "",
+          roofUrl: vttLayers.at(-1)?.result.url ?? "",
           deepZoom: item.result.deepZoom ?? null,
           walls: item.result.vtt?.walls ?? [],
           grid: {

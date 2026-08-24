@@ -1,6 +1,17 @@
-export type ModuleId = "dashboard" | "locations" | "players" | "npcs" | "monsters" | "combat" | "quests" | "lore" | "rules";
-export type EntityKind = "location" | "player" | "npc" | "monster" | "quest" | "lore";
-export type QuickFactTone = "default" | "accent" | "success" | "warning" | "danger";
+export type ModuleId =
+  | "dashboard"
+  | "locations"
+  | "players"
+  | "npcs"
+  | "monsters"
+  | "combat"
+  | "quests"
+  | "lore"
+  | "rules";
+export type EntityKind =
+  "location" | "player" | "npc" | "monster" | "quest" | "lore";
+export type QuickFactTone =
+  "default" | "accent" | "success" | "warning" | "danger";
 export type AbilityKey = "str" | "dex" | "con" | "int" | "wis" | "cha";
 export type CombatDifficulty = "easy" | "medium" | "hard" | "deadly" | "custom";
 
@@ -264,7 +275,8 @@ export type ItemCatalogCategory =
   | "focus"
   | "clothing"
   | "other";
-export type ItemCatalogArmorType = "light" | "medium" | "heavy" | "shield" | null;
+export type ItemCatalogArmorType =
+  "light" | "medium" | "heavy" | "shield" | null;
 
 export interface ItemCatalogFilterOption {
   value: string;
@@ -346,7 +358,13 @@ export interface LoreEntity extends KnowledgeEntityBase {
   visibility: "gm_only" | "player_safe";
 }
 
-export type KnowledgeEntity = LocationEntity | PlayerEntity | NpcEntity | MonsterEntity | QuestEntity | LoreEntity;
+export type KnowledgeEntity =
+  | LocationEntity
+  | PlayerEntity
+  | NpcEntity
+  | MonsterEntity
+  | QuestEntity
+  | LoreEntity;
 export type CombatEntity = PlayerEntity | NpcEntity | MonsterEntity;
 
 export interface CombatThresholds {
@@ -414,7 +432,8 @@ export interface DashboardCard {
   tone?: QuickFactTone;
 }
 
-export type WorldEventType = "funny" | "combat" | "heist" | "social" | "oddity" | "danger";
+export type WorldEventType =
+  "funny" | "combat" | "heist" | "social" | "oddity" | "danger";
 export type WorldEventOrigin = "manual" | "ai";
 
 export interface WorldEventDialogueBranch {
@@ -550,11 +569,18 @@ export interface CreateEntityInput {
   danger?: LocationEntity["danger"];
   parentId?: string;
   role?: string;
-  status?: PlayerEntity["status"] | NpcEntity["status"] | MonsterEntity["status"] | QuestEntity["status"];
+  status?:
+    | PlayerEntity["status"]
+    | NpcEntity["status"]
+    | MonsterEntity["status"]
+    | QuestEntity["status"];
   level?: number;
   importance?: NpcEntity["importance"] | MonsterEntity["importance"];
   locationId?: string;
-  statBlock?: PlayerEntity["statBlock"] | NpcEntity["statBlock"] | MonsterEntity["statBlock"];
+  statBlock?:
+    | PlayerEntity["statBlock"]
+    | NpcEntity["statBlock"]
+    | MonsterEntity["statBlock"];
   rewardProfile?: RewardProfile;
   urgency?: QuestEntity["urgency"];
   issuerId?: string;
@@ -793,6 +819,7 @@ export interface PlayerDisplayViewport {
 export interface PlayerDisplayImageInput {
   url: string;
   roofUrl?: string;
+  roofVisionOnly?: boolean;
   title?: string;
   alt?: string;
   caption?: string;
@@ -836,7 +863,10 @@ export interface ApiClient {
   listCampaigns(): Promise<CampaignSummary[]>;
   getCampaign(campaignId: string): Promise<CampaignData>;
   createCampaign(input: CreateCampaignInput): Promise<CampaignData>;
-  updateCampaign(campaignId: string, input: UpdateCampaignInput): Promise<CampaignData>;
+  updateCampaign(
+    campaignId: string,
+    input: UpdateCampaignInput,
+  ): Promise<CampaignData>;
   browseBestiary(params?: {
     q?: string;
     challenge?: string;
@@ -852,25 +882,75 @@ export interface ApiClient {
     armorType?: Exclude<ItemCatalogArmorType, null>;
   }): Promise<ItemCatalogBrowseResult>;
   getCatalogItem(itemId: string): Promise<ItemCatalogDetail>;
-  importBestiaryMonster(campaignId: string, monsterId: string): Promise<CreateEntityResult>;
+  importBestiaryMonster(
+    campaignId: string,
+    monsterId: string,
+  ): Promise<CreateEntityResult>;
   uploadImage(campaignId: string, file: File): Promise<UploadImageResult>;
-  createEntity(campaignId: string, input: CreateEntityInput): Promise<CreateEntityResult>;
-  updateEntity(campaignId: string, entityId: string, input: UpdateEntityInput): Promise<CreateEntityResult>;
-  deleteEntity(campaignId: string, entityId: string): Promise<DeleteEntityResult>;
-  generateEntityDraft(campaignId: string, input: GenerateEntityDraftInput): Promise<GenerateEntityDraftResult>;
-  formatPlayerFacingCard(campaignId: string, input: FormatPlayerFacingCardInput): Promise<FormatPlayerFacingCardResult>;
-  createWorldEvent(campaignId: string, input: WorldEventInput): Promise<WorldEventResult>;
-  updateWorldEvent(campaignId: string, eventId: string, input: WorldEventInput): Promise<WorldEventResult>;
-  deleteWorldEvent(campaignId: string, eventId: string): Promise<DeleteWorldEventResult>;
-  generateWorldEvent(campaignId: string, input: GenerateWorldEventInput): Promise<GenerateWorldEventResult>;
-  startCombat(campaignId: string, input: StartCombatInput): Promise<CombatResult>;
-  updateCombatState(campaignId: string, input: UpdateCombatStateInput): Promise<CombatResult>;
-  updateCombatEntry(campaignId: string, entryId: string, input: UpdateCombatEntryInput): Promise<CombatResult>;
+  createEntity(
+    campaignId: string,
+    input: CreateEntityInput,
+  ): Promise<CreateEntityResult>;
+  updateEntity(
+    campaignId: string,
+    entityId: string,
+    input: UpdateEntityInput,
+  ): Promise<CreateEntityResult>;
+  deleteEntity(
+    campaignId: string,
+    entityId: string,
+  ): Promise<DeleteEntityResult>;
+  generateEntityDraft(
+    campaignId: string,
+    input: GenerateEntityDraftInput,
+  ): Promise<GenerateEntityDraftResult>;
+  formatPlayerFacingCard(
+    campaignId: string,
+    input: FormatPlayerFacingCardInput,
+  ): Promise<FormatPlayerFacingCardResult>;
+  createWorldEvent(
+    campaignId: string,
+    input: WorldEventInput,
+  ): Promise<WorldEventResult>;
+  updateWorldEvent(
+    campaignId: string,
+    eventId: string,
+    input: WorldEventInput,
+  ): Promise<WorldEventResult>;
+  deleteWorldEvent(
+    campaignId: string,
+    eventId: string,
+  ): Promise<DeleteWorldEventResult>;
+  generateWorldEvent(
+    campaignId: string,
+    input: GenerateWorldEventInput,
+  ): Promise<GenerateWorldEventResult>;
+  startCombat(
+    campaignId: string,
+    input: StartCombatInput,
+  ): Promise<CombatResult>;
+  updateCombatState(
+    campaignId: string,
+    input: UpdateCombatStateInput,
+  ): Promise<CombatResult>;
+  updateCombatEntry(
+    campaignId: string,
+    entryId: string,
+    input: UpdateCombatEntryInput,
+  ): Promise<CombatResult>;
   finishCombat(campaignId: string): Promise<FinishCombatResult>;
-  generateCombat(campaignId: string, input: GenerateCombatInput): Promise<GenerateCombatResult>;
+  generateCombat(
+    campaignId: string,
+    input: GenerateCombatInput,
+  ): Promise<GenerateCombatResult>;
   createInitiativeShare(campaignId: string): Promise<InitiativeShareResult>;
   publishInitiativeShare(campaignId: string): Promise<InitiativeShareResult>;
-  showPlayerDisplayImage(campaignId: string, input: PlayerDisplayImageInput): Promise<PlayerDisplayShareResult>;
-  rotatePlayerDisplayLink(campaignId: string): Promise<PlayerDisplayShareResult>;
+  showPlayerDisplayImage(
+    campaignId: string,
+    input: PlayerDisplayImageInput,
+  ): Promise<PlayerDisplayShareResult>;
+  rotatePlayerDisplayLink(
+    campaignId: string,
+  ): Promise<PlayerDisplayShareResult>;
   search(campaignId: string, query: string): Promise<SearchResult[]>;
 }

@@ -71,6 +71,7 @@ type publicInitiativeMeta struct {
 type playerDisplayImageInput struct {
 	URL            string              `json:"url"`
 	RoofURL        string              `json:"roofUrl"`
+	RoofVisionOnly bool                `json:"roofVisionOnly"`
 	Title          string              `json:"title"`
 	Alt            string              `json:"alt"`
 	Caption        string              `json:"caption"`
@@ -141,6 +142,7 @@ type publicViewport struct {
 type publicDisplayImage struct {
 	URL            string              `json:"url"`
 	RoofURL        string              `json:"roofUrl,omitempty"`
+	RoofVisionOnly bool                `json:"roofVisionOnly,omitempty"`
 	Title          string              `json:"title,omitempty"`
 	Alt            string              `json:"alt,omitempty"`
 	Caption        string              `json:"caption,omitempty"`
@@ -1461,7 +1463,7 @@ var (
             const points = visibilityPolygon(current,walls,aspect).map((point)=>(point.x*1000)+','+(point.y*1000)).join(' ');
             roofCutoutNode.setAttribute('points', points);
           }
-          if (roofNode) roofNode.classList.toggle('inside', roofPolygon.length > 2 && pointInPolygon(current, roofPolygon));
+          if (roofNode) roofNode.classList.toggle('inside', !roofNode.classList.contains('vision-only') && roofPolygon.length > 2 && pointInPolygon(current, roofPolygon));
           if (raw<1) sessionTokenAnimationFrame=requestAnimationFrame(draw);
           else displayedSessionToken=target;
         };
@@ -1542,8 +1544,11 @@ var (
         const roofPolygon = wallHull(walls);
         const roofPoints = roofPolygon.map((point) => (Number(point.x)*1000)+','+(Number(point.y)*1000)).join(' ');
         const tokenInsideRoof = Boolean(token && roofPolygon.length > 2 && pointInPolygon(token, roofPolygon));
+        const roofVisionOnly = Boolean(image?.roofVisionOnly && visionPoints);
         const roofShape = image?.roofUrl && roofPoints
-          ? '<svg class="roof-overlay' + (tokenInsideRoof ? ' inside' : '') + '" preserveAspectRatio="none" viewBox="0 0 1000 1000"><defs><mask id="roof-visibility-mask"><rect width="1000" height="1000" fill="black"></rect><polygon points="' + roofPoints + '" fill="white"></polygon>' + (visionPoints ? '<polygon class="roof-vision-cutout" points="' + visionPoints + '" fill="black"></polygon>' : '') + '</mask></defs><image href="' + escapeHtml(image.roofUrl) + '" width="1000" height="1000" preserveAspectRatio="none" mask="url(#roof-visibility-mask)"></image></svg>'
+          ? roofVisionOnly
+            ? '<svg class="roof-overlay vision-only" preserveAspectRatio="none" viewBox="0 0 1000 1000"><defs><clipPath id="roof-footprint-clip"><polygon points="' + roofPoints + '"></polygon></clipPath><mask id="roof-visibility-mask"><rect width="1000" height="1000" fill="black"></rect><polygon class="roof-vision-cutout" points="' + visionPoints + '" fill="white"></polygon></mask></defs><image href="' + escapeHtml(image.roofUrl) + '" width="1000" height="1000" preserveAspectRatio="none" clip-path="url(#roof-footprint-clip)" mask="url(#roof-visibility-mask)"></image></svg>'
+            : '<svg class="roof-overlay' + (tokenInsideRoof ? ' inside' : '') + '" preserveAspectRatio="none" viewBox="0 0 1000 1000"><defs><mask id="roof-visibility-mask"><rect width="1000" height="1000" fill="black"></rect><polygon points="' + roofPoints + '" fill="white"></polygon>' + (visionPoints ? '<polygon class="roof-vision-cutout" points="' + visionPoints + '" fill="black"></polygon>' : '') + '</mask></defs><image href="' + escapeHtml(image.roofUrl) + '" width="1000" height="1000" preserveAspectRatio="none" mask="url(#roof-visibility-mask)"></image></svg>'
           : '';
         const tokenOverlay = tokenShape ? '<svg class="token-overlay" preserveAspectRatio="none" viewBox="0 0 1000 1000">' + tokenShape + '</svg>' : '';
         const isYoutube = image?.mediaType === "youtube";
@@ -2408,6 +2413,7 @@ func (manager *initiativeShareManager) showPlayerDisplayImage(
 	manager.currentDisplaySnapshotLocked(campaign, &publicDisplayImage{
 		URL:            resolvePublicDisplayAssetURL(strings.TrimSpace(input.URL), baseURL),
 		RoofURL:        resolvePublicDisplayAssetURL(strings.TrimSpace(input.RoofURL), baseURL),
+		RoofVisionOnly: input.RoofVisionOnly,
 		Title:          strings.TrimSpace(input.Title),
 		Alt:            strings.TrimSpace(input.Alt),
 		Caption:        strings.TrimSpace(input.Caption),
@@ -2794,6 +2800,7 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 	return &publicDisplayImage{
 		URL:            url,
 		RoofURL:        strings.TrimSpace(image.RoofURL),
+		RoofVisionOnly: image.RoofVisionOnly,
 		Title:          strings.TrimSpace(image.Title),
 		Alt:            strings.TrimSpace(image.Alt),
 		Caption:        strings.TrimSpace(image.Caption),
