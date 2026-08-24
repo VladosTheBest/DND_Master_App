@@ -17,10 +17,21 @@ import type {
   PlayerDisplayToken,
   PlayerDisplayViewport,
   PlayerDisplayWall,
+  UploadImageResult,
 } from "@shadow-edge/shared-types";
 import { api } from "./api";
 
 type Props = { campaignId: string; open: boolean; onClose: () => void };
+type SessionMapLevel = {
+  id: string;
+  name: string;
+  imageUrl: string;
+  roofUrl: string;
+  deepZoom: DeepZoomSource | null;
+  walls: PlayerDisplayWall[];
+  grid: PlayerDisplayGridSettings;
+  token: PlayerDisplayToken | null;
+};
 const youtubeId = (raw: string) => {
   try {
     const u = new URL(raw.trim());
@@ -202,6 +213,8 @@ function DeepZoomLayer({
 export function SessionMapModal({ campaignId, open, onClose }: Props) {
   const [imageUrl, setImageUrl] = useState("");
   const [roofUrl, setRoofUrl] = useState("");
+  const [levels, setLevels] = useState<SessionMapLevel[]>([]);
+  const [activeLevel, setActiveLevel] = useState(0);
   const [mediaType, setMediaType] = useState<
     "image" | "youtube" | "video" | "tiles"
   >("image");
@@ -284,8 +297,12 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
     openDisplay = false,
     nextGrid = grid,
     nextViewport = viewport,
+    nextLevel?: SessionMapLevel,
   ) => {
-    if (!imageUrl) {
+    const publishedImageUrl = nextLevel?.imageUrl ?? imageUrl;
+    const publishedRoofUrl = nextLevel?.roofUrl ?? roofUrl;
+    const publishedDeepZoom = nextLevel?.deepZoom ?? deepZoom;
+    if (!publishedImageUrl) {
       setNotice("Сначала загрузите или подключите карту.");
       return;
     }
@@ -293,8 +310,9 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
       ? window.open("about:blank", "shadow-edge-session-display")
       : null;
     const shell = mapShell.current;
-    const mapAspectRatio =
-      mediaType === "youtube"
+    const mapAspectRatio = publishedDeepZoom
+      ? publishedDeepZoom.width / publishedDeepZoom.height
+      : mediaType === "youtube"
         ? 16 / 9
         : shell && shell.clientHeight
           ? shell.clientWidth / shell.clientHeight
@@ -303,18 +321,22 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
     try {
       const share = await api.showPlayerDisplayImage(campaignId, {
         alt: title || "Карта игровой сессии",
-        deepZoom: deepZoom ?? undefined,
+        deepZoom: publishedDeepZoom ?? undefined,
         fogRegions: nextRegions,
         grid: nextGrid,
         viewport: nextViewport,
         walls: nextWalls,
         token: nextToken ?? undefined,
-          mapAspectRatio,
-          mediaType,
-          roofUrl: roofUrl || undefined,
-          sessionMap: true,
+        mapAspectRatio,
+        mediaType: nextLevel
+          ? nextLevel.deepZoom
+            ? "tiles"
+            : "image"
+          : mediaType,
+        roofUrl: publishedRoofUrl || undefined,
+        sessionMap: true,
         title,
-        url: imageUrl,
+        url: publishedImageUrl,
       });
       setDisplayUrl(share.url);
       if (openDisplay && displayWindow) {
@@ -343,14 +365,29 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
   };
   const updateWalls = (next: PlayerDisplayWall[]) => {
     setWalls(next);
+    setLevels((current) =>
+      current.map((level, index) =>
+        index === activeLevel ? { ...level, walls: next } : level,
+      ),
+    );
     if (displayUrl) void publish(regions, next, token);
   };
   const updateToken = (next: PlayerDisplayToken | null) => {
     setToken(next);
+    setLevels((current) =>
+      current.map((level, index) =>
+        index === activeLevel ? { ...level, token: next } : level,
+      ),
+    );
     if (displayUrl) void publish(regions, walls, next);
   };
   const updateGrid = (next: PlayerDisplayGridSettings) => {
     setGrid(next);
+    setLevels((current) =>
+      current.map((level, index) =>
+        index === activeLevel ? { ...level, grid: next } : level,
+      ),
+    );
     if (displayUrl) void publish(regions, walls, token, false, next);
   };
   const resetFog = () => {
@@ -361,20 +398,77 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
     draftRef.current = [];
   };
   const upload = async (event: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? []).slice(0, 2);
+    const files = Array.from(event.target.files ?? []).slice(0, 12);
     if (!files.length) return;
     setBusy(true);
     try {
-      const uploaded = await Promise.all(
-        files.map(async (file) => ({ file, result: await api.uploadImage(campaignId, file) })),
+      const uploaded: { file: File; result: UploadImageResult }[] =
+        await Promise.all(
+          files.map(async (file) => ({
+            file,
+            result: await api.uploadImage(campaignId, file),
+          })),
+        );
+      uploaded.sort((a, b) =>
+        a.file.name.localeCompare(b.file.name, undefined, { numeric: true }),
       );
+      const vttLayers = uploaded.filter((item) => item.result.vtt);
+      if (vttLayers.length > 2) {
+        const playable = vttLayers.filter(
+          (item, index) =>
+            (item.result.vtt?.walls.length ?? 0) > 0 ||
+            index < vttLayers.length - 1,
+        );
+        const nextLevels = playable.map((item, index): SessionMapLevel => ({
+          id: `${item.file.name}-${index}`,
+          name: `Уровень ${index + 1}`,
+          imageUrl: item.result.url,
+          roofUrl: vttLayers[index + 1]?.result.url ?? "",
+          deepZoom: item.result.deepZoom ?? null,
+          walls: item.result.vtt?.walls ?? [],
+          grid: {
+            type: "square",
+            size: item.result.vtt?.gridSize ?? 0.08,
+            color: "#ffffff",
+            opacity: 0.35,
+          },
+          token: null,
+        }));
+        const first = nextLevels[0];
+        setLevels(nextLevels);
+        setActiveLevel(0);
+        setImageUrl(first.imageUrl);
+        setRoofUrl(first.roofUrl);
+        setDeepZoom(first.deepZoom);
+        setMediaType(first.deepZoom ? "tiles" : "image");
+        setWalls(first.walls);
+        setGrid(first.grid);
+        setToken(null);
+        setRegions([]);
+        setViewport({ zoom: 1, x: 0, y: 0 });
+        setTitle(
+          files[0].name.replace(/_\d+\.dd2vtt$/i, "") || "Многоэтажная карта",
+        );
+        setNotice(
+          `Многоэтажная сцена импортирована: ${nextLevels.length} уровня и ${vttLayers.length - nextLevels.length} слой крыши.`,
+        );
+        return;
+      }
       const base = uploaded.reduce((best, item) =>
-        (item.result.vtt?.walls.length ?? 0) > (best.result.vtt?.walls.length ?? 0) ? item : best,
+        (item.result.vtt?.walls.length ?? 0) >
+        (best.result.vtt?.walls.length ?? 0)
+          ? item
+          : best,
       );
-      const roof = uploaded.length > 1 ? uploaded.find((item) => item !== base) : undefined;
+      const roof =
+        uploaded.length > 1
+          ? uploaded.find((item) => item !== base)
+          : undefined;
       const { file, result } = base;
       const video = result.contentType.startsWith("video/");
       setImageUrl(result.url);
+      setLevels([]);
+      setActiveLevel(0);
       setRoofUrl(roof?.result.url ?? "");
       setDeepZoom(result.deepZoom ?? null);
       setMediaType(result.deepZoom ? "tiles" : video ? "video" : "image");
@@ -389,9 +483,11 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
           color: "#ffffff",
           opacity: 0.35,
         });
-        setNotice(roof
-          ? `Пара Universal VTT импортирована: интерьер, крыша и ${result.vtt.walls.length} стен и дверей.`
-          : `Universal VTT импортирован: ${result.vtt.walls.length} стен и дверей, карта ${result.vtt.mapWidth}×${result.vtt.mapHeight} клеток.`);
+        setNotice(
+          roof
+            ? `Пара Universal VTT импортирована: интерьер, крыша и ${result.vtt.walls.length} стен и дверей.`
+            : `Universal VTT импортирован: ${result.vtt.walls.length} стен и дверей, карта ${result.vtt.mapWidth}×${result.vtt.mapHeight} клеток.`,
+        );
       } else
         setNotice(
           video
@@ -406,6 +502,38 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
       setBusy(false);
       event.target.value = "";
     }
+  };
+  const selectLevel = (index: number) => {
+    const level = levels[index];
+    if (!level || index === activeLevel) return;
+    setLevels((current) =>
+      current.map((item, itemIndex) =>
+        itemIndex === activeLevel ? { ...item, walls, grid, token } : item,
+      ),
+    );
+    setActiveLevel(index);
+    setImageUrl(level.imageUrl);
+    setRoofUrl(level.roofUrl);
+    setDeepZoom(level.deepZoom);
+    setMediaType(level.deepZoom ? "tiles" : "image");
+    setWalls(level.walls);
+    setGrid(level.grid);
+    setToken(level.token);
+    setRegions([]);
+    setViewport({ zoom: 1, x: 0, y: 0 });
+    setNotice(
+      `${level.name} активирован. На телевизоре будет показан только этот этаж.`,
+    );
+    if (displayUrl)
+      void publish(
+        [],
+        level.walls,
+        level.token,
+        false,
+        level.grid,
+        { zoom: 1, x: 0, y: 0 },
+        level,
+      );
   };
   const useUrl = () => {
     const value = sourceUrl.trim();
@@ -629,12 +757,21 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
     try {
       const share = await api.rotatePlayerDisplayLink(campaignId);
       setDisplayUrl(share.url);
-      const copied = await navigator.clipboard?.writeText(share.url).then(() => true).catch(() => false);
-      setNotice(copied
-        ? "Создана новая ссылка на телевизор и скопирована. Старая ссылка больше не работает."
-        : "Создана новая ссылка на телевизор. Старая ссылка больше не работает.");
+      const copied = await navigator.clipboard
+        ?.writeText(share.url)
+        .then(() => true)
+        .catch(() => false);
+      setNotice(
+        copied
+          ? "Создана новая ссылка на телевизор и скопирована. Старая ссылка больше не работает."
+          : "Создана новая ссылка на телевизор. Старая ссылка больше не работает.",
+      );
     } catch (error) {
-      setNotice(error instanceof Error ? error.message : "Не удалось создать новую ссылку.");
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "Не удалось создать новую ссылку.",
+      );
     } finally {
       setBusy(false);
     }
@@ -921,6 +1058,36 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
               Название сцены
               <input onChange={(e) => setTitle(e.target.value)} value={title} />
             </label>
+            {levels.length > 1 ? (
+              <section className="session-map-levels" aria-label="Этажи сцены">
+                <div>
+                  <strong>Этажи</strong>
+                  <span>
+                    {activeLevel + 1} из {levels.length}
+                  </span>
+                </div>
+                <div className="session-map-level-buttons">
+                  {levels.map((level, index) => (
+                    <button
+                      className={index === activeLevel ? "primary" : "ghost"}
+                      key={level.id}
+                      onClick={() => selectLevel(index)}
+                      type="button"
+                    >
+                      {index === 0
+                        ? "Нижний"
+                        : index === levels.length - 1
+                          ? "Верхний"
+                          : `${index + 1}-й`}
+                    </button>
+                  ))}
+                </div>
+                <small>
+                  На телевизоре показывается только выбранный этаж; следующий
+                  слой работает как крыша.
+                </small>
+              </section>
+            ) : null}
             {mediaType === "youtube" || mediaType === "video" ? (
               <button
                 className="ghost"
@@ -1215,11 +1382,18 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
             </button>
             {displayUrl ? (
               <>
-                <button className="ghost" disabled={busy} onClick={() => void rotateDisplayLink()} type="button">
+                <button
+                  className="ghost"
+                  disabled={busy}
+                  onClick={() => void rotateDisplayLink()}
+                  type="button"
+                >
                   Создать новую ссылку
                 </button>
                 <p className="session-map-tip">
-                  Эта ссылка сохраняется для всех карт и после перезапуска приложения. Туман, стены и положение фишки обновляются автоматически.
+                  Эта ссылка сохраняется для всех карт и после перезапуска
+                  приложения. Туман, стены и положение фишки обновляются
+                  автоматически.
                 </p>
               </>
             ) : null}

@@ -251,6 +251,32 @@
 .session-map-camera-row button {
   padding: 0.42rem 0.65rem;
 }
+.session-map-levels {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.7rem;
+  border: 1px solid rgba(160, 119, 211, 0.24);
+  border-radius: 0.75rem;
+  background: rgba(12, 12, 25, 0.55);
+}
+.session-map-levels > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.session-map-levels > div:first-child span,
+.session-map-levels small {
+  color: #a899b7;
+  font-size: 0.76rem;
+}
+.session-map-level-buttons {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(4.5rem, 1fr));
+  gap: 0.4rem;
+}
+.session-map-level-buttons button {
+  padding: 0.5rem 0.4rem;
+}
 .session-map-settings {
   border: 1px solid rgba(160, 119, 211, 0.24);
   border-radius: 0.75rem;
