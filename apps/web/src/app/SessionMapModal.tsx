@@ -427,7 +427,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
           deepZoom: item.result.deepZoom ?? null,
           walls: item.result.vtt?.walls ?? [],
           grid: {
-            type: "square",
+            type: "none",
             size: item.result.vtt?.gridSize ?? 0.08,
             color: "#ffffff",
             opacity: 0.35,
