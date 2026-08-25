@@ -81,7 +81,18 @@ func main() {
 		log.Printf("shadow-edge AI provider requested: %s", aiProvider)
 	}
 	log.Printf("shadow-edge server listening on http://localhost:%s", port)
-	if err := http.ListenAndServe(":"+port, server); err != nil {
+	// VTT imports contain a base64 map and can take minutes on slower links.
+	// Bound connections explicitly without cutting off valid large uploads.
+	httpServer := &http.Server{
+		Addr:              ":" + port,
+		Handler:           server,
+		ReadHeaderTimeout: 15 * time.Second,
+		ReadTimeout:       5 * time.Minute,
+		WriteTimeout:      5 * time.Minute,
+		IdleTimeout:       2 * time.Minute,
+		MaxHeaderBytes:    1 << 20,
+	}
+	if err := httpServer.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}
 }

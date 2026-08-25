@@ -56,10 +56,27 @@ class ApiError extends Error {
 }
 
 const ensureJson = async <T>(response: Response): Promise<T> => {
-  const payload = (await response.json()) as ApiEnvelope<T>;
+  // A restart/proxy failure can legitimately return an empty HTML/body. Do not
+  // leak a JSON parser exception to the GM UI in that case.
+  const body = await response.text();
+  let payload: ApiEnvelope<T> | undefined;
+  if (body.trim()) {
+    try {
+      payload = JSON.parse(body) as ApiEnvelope<T>;
+    } catch {
+      throw new ApiError(
+        `Server returned an invalid response (status ${response.status})`,
+        response.status,
+      );
+    }
+  }
 
   if (!response.ok) {
-    throw new ApiError(payload.error?.message ?? `Request failed with status ${response.status}`, response.status, payload.error?.code);
+    throw new ApiError(payload?.error?.message ?? `Request failed with status ${response.status}`, response.status, payload?.error?.code);
+  }
+
+  if (!payload) {
+    throw new ApiError("Server returned an empty response", response.status);
   }
 
   return payload.data;

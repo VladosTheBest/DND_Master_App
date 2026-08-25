@@ -1914,12 +1914,17 @@ var (
         });
       };
 
+      const readJSON = async (response) => {
+        const body = await response.text();
+        if (!body.trim()) throw new Error(UI.refreshFailed);
+        try { return JSON.parse(body); } catch { throw new Error(UI.refreshFailed); }
+      };
       const fetchSnapshot = async (force) => {
         const response = await fetch("/api/initiative/" + encodeURIComponent(token), {
           cache: "no-store",
           headers: { Accept: "application/json" }
         });
-        const payload = await response.json();
+        const payload = await readJSON(response);
         if (!response.ok) {
           throw new Error(payload?.error?.message || UI.refreshFailed);
         }
@@ -1937,7 +1942,7 @@ var (
           cache: "no-store",
           headers: { Accept: "application/json" }
         });
-        const payload = await response.json();
+        const payload = await readJSON(response);
         if (!response.ok) {
           throw new Error(payload?.error?.message || UI.refreshFailed);
         }
@@ -2175,12 +2180,17 @@ var playerDisplayViewerTemplate = template.Must(template.New("player-display-vie
         }
       };
 
+      const readJSON = async (response) => {
+        const body = await response.text();
+        if (!body.trim()) throw new Error("Экран игроков временно недоступен.");
+        try { return JSON.parse(body); } catch { throw new Error("Экран игроков временно недоступен."); }
+      };
       const fetchSnapshot = async (force) => {
         const response = await fetch("/api/display/" + encodeURIComponent(token), {
           cache: "no-store",
           headers: { Accept: "application/json" }
         });
-        const payload = await response.json();
+        const payload = await readJSON(response);
         if (!response.ok) {
           throw new Error(payload?.error?.message || "Не удалось обновить экран игроков.");
         }
@@ -2200,7 +2210,7 @@ var playerDisplayViewerTemplate = template.Must(template.New("player-display-vie
           cache: "no-store",
           headers: { Accept: "application/json" }
         });
-        const payload = await response.json();
+        const payload = await readJSON(response);
         if (!response.ok) {
           throw new Error(payload?.error?.message || "Не удалось проверить обновления экрана игроков.");
         }

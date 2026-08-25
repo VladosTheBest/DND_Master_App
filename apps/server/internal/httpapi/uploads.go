@@ -19,7 +19,10 @@ import (
 	"time"
 )
 
-const maxImageUploadSize = 300 << 20
+// Keep the wire limit comfortably above a two-layer VTT import (~90 MiB) while
+// retaining a hard server-side ceiling. Multipart files spill to disk early.
+const maxImageUploadSize = 512 << 20
+const multipartMemoryLimit = 16 << 20
 const maxBrowserImagePixels = 64_000_000
 const maxBrowserImageDimension = 8192
 
@@ -142,14 +145,14 @@ func (srv *server) handleCampaignUpload(writer http.ResponseWriter, request *htt
 	}
 
 	request.Body = http.MaxBytesReader(writer, request.Body, maxImageUploadSize)
-	if err := request.ParseMultipartForm(maxImageUploadSize); err != nil {
+	if err := request.ParseMultipartForm(multipartMemoryLimit); err != nil {
 		status := http.StatusBadRequest
 		code := "bad_request"
 		message := "Не удалось разобрать форму загрузки."
 		var maxBytesErr *http.MaxBytesError
 		if errors.As(err, &maxBytesErr) {
 			code = "file_too_large"
-			message = "Файл слишком большой. Загружай карты до 300 МБ."
+			message = "Файл слишком большой. Загружай карты до 512 МБ."
 		}
 		writeError(writer, status, code, message)
 		return
