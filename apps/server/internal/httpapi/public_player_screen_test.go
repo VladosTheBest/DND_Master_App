@@ -143,8 +143,9 @@ func TestPublicDisplayPreservesRoofLayer(t *testing.T) {
 		URL:            "/uploads/interior.jpg",
 		RoofURL:        "/uploads/roof.jpg",
 		RoofVisionOnly: true,
+		RoofZones:      []publicRoofZone{{ID: "house", Points: []publicFogPoint{{X: -.2, Y: .2}, {X: .8, Y: .2}, {X: .8, Y: 1.2}}}},
 	})
-	if image == nil || image.RoofURL != "/uploads/roof.jpg" || !image.RoofVisionOnly {
+	if image == nil || image.RoofURL != "/uploads/roof.jpg" || !image.RoofVisionOnly || len(image.RoofZones) != 1 || image.RoofZones[0].Points[0].X != 0 || image.RoofZones[0].Points[2].Y != 1 {
 		t.Fatalf("expected roof layer URL to survive sanitization, got %+v", image)
 	}
 }

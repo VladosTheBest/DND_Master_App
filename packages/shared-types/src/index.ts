@@ -788,6 +788,13 @@ export interface PlayerDisplayFogRegion {
   revealed: boolean;
 }
 
+/** A roof footprint is explicit: it must never be inferred from unrelated walls. */
+export interface PlayerDisplayRoofZone {
+  id: string;
+  points: PlayerDisplayFogPoint[];
+  openings?: PlayerDisplayFogPoint[][];
+}
+
 export interface PlayerDisplayWall {
   id: string;
   kind?: "wall" | "door";
@@ -820,6 +827,7 @@ export interface PlayerDisplayImageInput {
   url: string;
   roofUrl?: string;
   roofVisionOnly?: boolean;
+  roofZones?: PlayerDisplayRoofZone[];
   title?: string;
   alt?: string;
   caption?: string;
@@ -833,6 +841,10 @@ export interface PlayerDisplayImageInput {
   fogRegions?: PlayerDisplayFogRegion[];
   walls?: PlayerDisplayWall[];
   token?: PlayerDisplayToken;
+  /** Precomputed by the GM map renderer so TV uses identical LOS geometry. */
+  visionPolygon?: PlayerDisplayFogPoint[];
+  /** Precomputed hard FOV boundary in the same normalized coordinate space. */
+  fovPolygon?: PlayerDisplayFogPoint[];
   mapAspectRatio?: number;
   grid?: PlayerDisplayGridSettings;
   viewport?: PlayerDisplayViewport;

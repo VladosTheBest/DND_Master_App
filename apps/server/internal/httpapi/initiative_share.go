@@ -72,6 +72,7 @@ type playerDisplayImageInput struct {
 	URL            string              `json:"url"`
 	RoofURL        string              `json:"roofUrl"`
 	RoofVisionOnly bool                `json:"roofVisionOnly"`
+	RoofZones      []publicRoofZone    `json:"roofZones"`
 	Title          string              `json:"title"`
 	Alt            string              `json:"alt"`
 	Caption        string              `json:"caption"`
@@ -84,6 +85,8 @@ type playerDisplayImageInput struct {
 	FogRegions     []publicFogRegion   `json:"fogRegions"`
 	Walls          []publicDisplayWall `json:"walls"`
 	Token          *publicDisplayToken `json:"token"`
+	VisionPolygon  []publicFogPoint    `json:"visionPolygon"`
+	FOVPolygon     []publicFogPoint    `json:"fovPolygon"`
 	MapAspectRatio float64             `json:"mapAspectRatio"`
 	Grid           *publicDisplayGrid  `json:"grid"`
 	Viewport       *publicViewport     `json:"viewport"`
@@ -109,6 +112,12 @@ type publicFogRegion struct {
 	ID       string           `json:"id"`
 	Points   []publicFogPoint `json:"points"`
 	Revealed bool             `json:"revealed"`
+}
+
+type publicRoofZone struct {
+	ID       string             `json:"id"`
+	Points   []publicFogPoint   `json:"points"`
+	Openings [][]publicFogPoint `json:"openings,omitempty"`
 }
 
 type publicDisplayWall struct {
@@ -143,6 +152,7 @@ type publicDisplayImage struct {
 	URL            string              `json:"url"`
 	RoofURL        string              `json:"roofUrl,omitempty"`
 	RoofVisionOnly bool                `json:"roofVisionOnly,omitempty"`
+	RoofZones      []publicRoofZone    `json:"roofZones,omitempty"`
 	Title          string              `json:"title,omitempty"`
 	Alt            string              `json:"alt,omitempty"`
 	Caption        string              `json:"caption,omitempty"`
@@ -155,6 +165,8 @@ type publicDisplayImage struct {
 	FogRegions     []publicFogRegion   `json:"fogRegions,omitempty"`
 	Walls          []publicDisplayWall `json:"walls,omitempty"`
 	Token          *publicDisplayToken `json:"token,omitempty"`
+	VisionPolygon  []publicFogPoint    `json:"visionPolygon,omitempty"`
+	FOVPolygon     []publicFogPoint    `json:"fovPolygon,omitempty"`
 	MapAspectRatio float64             `json:"mapAspectRatio,omitempty"`
 	Grid           *publicDisplayGrid  `json:"grid,omitempty"`
 	Viewport       *publicViewport     `json:"viewport,omitempty"`
@@ -760,6 +772,17 @@ var (
         height: 100%;
         pointer-events: none;
       }
+      .player-token-image {
+        position: absolute;
+        width: 44px;
+        height: 44px;
+        aspect-ratio: 1 / 1;
+        max-width: none;
+        max-height: none;
+        display: block;
+        object-fit: contain;
+        transform-origin: center;
+      }
       .map-grid-overlay {
         position: absolute;
         inset: 0;
@@ -779,7 +802,7 @@ var (
       .fog-region.revealed {
         opacity: 0;
       }
-      .vision-fog { fill: #020308; opacity: 0.995; }
+      .vision-fog { fill: #020308; opacity: 1; }
       .player-token-image { pointer-events: none; filter: drop-shadow(0 0 8px rgba(230,184,95,.8)); }
       .fog-cell {
         min-width: 0;
@@ -1415,15 +1438,14 @@ var (
         });
       };
 
-      const wallHull = (walls) => {
-        const points = (walls || []).flatMap((wall) => Array.isArray(wall?.points) && wall.points.length ? wall.points : [wall?.start, wall?.end]).filter(Boolean);
-        if (points.length < 3) return [];
-        const sorted = [...points].sort((a,b) => Number(a.x)-Number(b.x) || Number(a.y)-Number(b.y));
-        const cross = (o,a,b) => (Number(a.x)-Number(o.x))*(Number(b.y)-Number(o.y))-(Number(a.y)-Number(o.y))*(Number(b.x)-Number(o.x));
-        const lower = [], upper = [];
-        sorted.forEach((point) => { while (lower.length > 1 && cross(lower[lower.length-2],lower[lower.length-1],point) <= 0) lower.pop(); lower.push(point); });
-        sorted.reverse().forEach((point) => { while (upper.length > 1 && cross(upper[upper.length-2],upper[upper.length-1],point) <= 0) upper.pop(); upper.push(point); });
-        return lower.slice(0,-1).concat(upper.slice(0,-1));
+      // FOV is a hard radius independent of line-of-sight.  LOS still shapes
+      // the fog (and the matching roof cut-out), while this clip ensures that
+      // no layer of the map leaks beyond the token's actual range.
+      const fovClipPath = (token, aspectRatio) => {
+        if (!token) return 'none';
+        const radius = Math.max(0.03, Number(token.visionRadius || 0.22));
+        const aspect = Math.max(0.2, Number(aspectRatio || 1));
+        return 'ellipse(' + (radius * 100) + '% ' + (radius * aspect * 100) + '% at ' + (Number(token.x) * 100) + '% ' + (Number(token.y) * 100) + '%)';
       };
 
       const pointInPolygon = (point, polygon) => {
@@ -1437,7 +1459,7 @@ var (
 
       let displayedSessionToken = null;
       let sessionTokenAnimationFrame = 0;
-      const animateSessionToken = (canvas, target, walls, aspect, zoom) => {
+      const animateSessionToken = (canvas, target, walls, aspect, zoom, publishedVisionPoints, publishedFovClip) => {
         cancelAnimationFrame(sessionTokenAnimationFrame);
         if (!target) { displayedSessionToken = null; return; }
         const start = displayedSessionToken || target;
@@ -1446,24 +1468,27 @@ var (
         const startedAt = performance.now();
         const tokenNode = canvas.querySelector('.player-token-image');
         const fogNode = canvas.querySelector('.vision-fog');
-        const roofNode = canvas.querySelector('.roof-overlay');
-        const roofCutoutNode = canvas.querySelector('.roof-vision-cutout');
-        const roofPolygon = wallHull(walls);
+        const roofCutoutNodes = canvas.querySelectorAll('.roof-vision-cutout');
         const draw = (now) => {
           const raw = Math.min(1, (now-startedAt)/duration);
           const eased = 1-Math.pow(1-raw,3);
           const current = {...target,x:Number(start.x)+(Number(target.x)-Number(start.x))*eased,y:Number(start.y)+(Number(target.y)-Number(start.y))*eased};
           displayedSessionToken = current;
-          tokenNode?.setAttribute('transform','translate('+(current.x*1000)+' '+(current.y*1000)+') scale('+(1/zoom)+')');
+          if (tokenNode) {
+            tokenNode.style.left = (current.x * 100) + '%';
+            tokenNode.style.top = (current.y * 100) + '%';
+            tokenNode.style.transform = 'translate(-50%,-50%) scale(' + (1 / zoom) + ')';
+          }
           if (fogNode) {
-            const points = visibilityPolygon(current,walls,aspect).map((point)=>(point.x*1000)+','+(point.y*1000)).join(' L ');
+            const points = String(publishedVisionPoints || '').trim().split(/\s+/).join(' L ');
             fogNode.setAttribute('d',points?'M 0 0 H 1000 V 1000 H 0 Z M '+points+' Z':'');
           }
-          if (roofCutoutNode) {
-            const points = visibilityPolygon(current,walls,aspect).map((point)=>(point.x*1000)+','+(point.y*1000)).join(' ');
-            roofCutoutNode.setAttribute('points', points);
+          // Geometry comes from the GM renderer; do not rederive it here.
+          canvas.style.clipPath = publishedFovClip || fovClipPath(current, aspect);
+          if (roofCutoutNodes.length) {
+            const points = String(publishedVisionPoints || '');
+            roofCutoutNodes.forEach((node) => node.setAttribute('points', points));
           }
-          if (roofNode) roofNode.classList.toggle('inside', !roofNode.classList.contains('vision-only') && roofPolygon.length > 2 && pointInPolygon(current, roofPolygon));
           if (raw<1) sessionTokenAnimationFrame=requestAnimationFrame(draw);
           else displayedSessionToken=target;
         };
@@ -1516,7 +1541,13 @@ var (
         const mapGrid = gridPattern ? '<svg class="map-grid-overlay" style="opacity:' + gridOpacity + '" viewBox="0 0 1000 1000" preserveAspectRatio="none"><defs>' + gridPattern + '</defs><rect width="1000" height="1000" fill="url(#session-grid)"/></svg>' : '';
         const existingCanvas = trackNode.querySelector(".image-canvas");
         const renderedAspect = existingCanvas?.clientHeight ? existingCanvas.clientWidth / existingCanvas.clientHeight : image?.mapAspectRatio;
-        const visionPoints = visibilityPolygon(token, walls, renderedAspect).map((point) => (point.x * 1000) + ',' + (point.y * 1000)).join(' ');
+        const suppliedVisionPoints = Array.isArray(image?.visionPolygon) && image.visionPolygon.length > 2
+          ? image.visionPolygon.map((point) => (Number(point.x) * 1000) + ',' + (Number(point.y) * 1000)).join(' ')
+          : '';
+        const visionPoints = suppliedVisionPoints || visibilityPolygon(token, walls, renderedAspect).map((point) => (point.x * 1000) + ',' + (point.y * 1000)).join(' ');
+        const visionClip = Array.isArray(image?.fovPolygon) && image.fovPolygon.length > 2
+          ? 'polygon(' + image.fovPolygon.map((point) => (Number(point.x) * 100) + '% ' + (Number(point.y) * 100) + '%').join(',') + ')'
+          : fovClipPath(token, renderedAspect);
         const regionShapes = regions.map((region) => {
           const points = Array.isArray(region?.points)
             ? region.points.map((point) => (Math.max(0, Math.min(1, Number(point?.x || 0))) * 1000) + ',' + (Math.max(0, Math.min(1, Number(point?.y || 0))) * 1000)).join(' ')
@@ -1533,7 +1564,7 @@ var (
           : '';
         const tokenZoom = Math.max(1, Number(image?.viewport?.zoom || 1));
         const tokenShape = token
-          ? '<image class="player-token-image" href="/session-token.png" x="-22" y="-22" width="44" height="44" transform="translate(' + (Number(token.x) * 1000) + ' ' + (Number(token.y) * 1000) + ') scale(' + (1 / tokenZoom) + ')" preserveAspectRatio="xMidYMid meet"></image>'
+          ? '<img class="player-token-image" alt="" src="/session-token.png" style="left:' + (Number(token.x) * 100) + '%;top:' + (Number(token.y) * 100) + '%;transform:translate(-50%,-50%) scale(' + (1 / tokenZoom) + ')">'
           : '';
         const manualFog = token ? '' : regionShapes;
         const fog = manualFog || visionFog
@@ -1541,16 +1572,24 @@ var (
           : fogCells
             ? '<div class="fog-grid' + (image?.showGrid ? ' show-grid' : '') + '" style="grid-template-columns:repeat(' + columns + ',1fr);grid-template-rows:repeat(' + rows + ',1fr)">' + fogCells + '</div>'
             : "";
-        const roofPolygon = wallHull(walls);
-        const roofPoints = roofPolygon.map((point) => (Number(point.x)*1000)+','+(Number(point.y)*1000)).join(' ');
-        const tokenInsideRoof = Boolean(token && roofPolygon.length > 2 && pointInPolygon(token, roofPolygon));
-        const roofVisionOnly = Boolean(image?.roofVisionOnly && visionPoints);
-        const roofShape = image?.roofUrl && roofPoints
-          ? roofVisionOnly
-            ? '<svg class="roof-overlay vision-only" preserveAspectRatio="none" viewBox="0 0 1000 1000"><defs><clipPath id="roof-footprint-clip"><polygon points="' + roofPoints + '"></polygon></clipPath><mask id="roof-visibility-mask"><rect width="1000" height="1000" fill="black"></rect><polygon class="roof-vision-cutout" points="' + visionPoints + '" fill="white"></polygon></mask></defs><image href="' + escapeHtml(image.roofUrl) + '" width="1000" height="1000" preserveAspectRatio="none" clip-path="url(#roof-footprint-clip)" mask="url(#roof-visibility-mask)"></image></svg>'
-            : '<svg class="roof-overlay' + (tokenInsideRoof ? ' inside' : '') + '" preserveAspectRatio="none" viewBox="0 0 1000 1000"><defs><mask id="roof-visibility-mask"><rect width="1000" height="1000" fill="black"></rect><polygon points="' + roofPoints + '" fill="white"></polygon>' + (visionPoints ? '<polygon class="roof-vision-cutout" points="' + visionPoints + '" fill="black"></polygon>' : '') + '</mask></defs><image href="' + escapeHtml(image.roofUrl) + '" width="1000" height="1000" preserveAspectRatio="none" mask="url(#roof-visibility-mask)"></image></svg>'
+        // Paired VTTs are geometrically identical. With a token, roof is the
+        // roof-layer in the LOS-dark part of the hard FOV; visible LOS remains
+        // the base/current-floor. This is automatic and never requires zones.
+        const roofZones = Array.isArray(image?.roofZones) ? image.roofZones.filter((zone) => Array.isArray(zone?.points) && zone.points.length > 2) : [];
+        const roofShape = image?.roofUrl
+          ? (() => {
+              if (token && visionPoints) {
+                return '<svg class="roof-overlay vision-only" preserveAspectRatio="none" viewBox="0 0 1000 1000"><defs><mask id="roof-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="0" y="0" width="1000" height="1000"><rect width="1000" height="1000" fill="white"></rect><polygon class="roof-vision-cutout" points="' + visionPoints + '" fill="black"></polygon></mask></defs><image href="' + escapeHtml(image.roofUrl) + '" width="1000" height="1000" preserveAspectRatio="none" mask="url(#roof-mask)"></image></svg>';
+              }
+              const visibleZones = roofZones.filter((zone) => !token || !pointInPolygon(token, zone.points));
+              if (!visibleZones.length) return '';
+              const footprints = visibleZones.map((zone) => '<polygon points="' + zone.points.map((point) => (Number(point.x) * 1000) + ',' + (Number(point.y) * 1000)).join(' ') + '"></polygon>').join('');
+              const openings = visibleZones.flatMap((zone) => Array.isArray(zone.openings) ? zone.openings : []).filter((opening) => Array.isArray(opening) && opening.length > 2).map((opening) => '<polygon points="' + opening.map((point) => (Number(point.x) * 1000) + ',' + (Number(point.y) * 1000)).join(' ') + '" fill="black"></polygon>').join('');
+              const mask = '<mask id="roof-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="0" y="0" width="1000" height="1000"><rect width="1000" height="1000" fill="' + (visionPoints ? 'black' : 'white') + '"></rect>' + (visionPoints ? '<polygon class="roof-vision-cutout" points="' + visionPoints + '" fill="white"></polygon>' : '') + openings + '</mask>';
+              return '<svg class="roof-overlay' + (visionPoints ? ' vision-only' : '') + '" preserveAspectRatio="none" viewBox="0 0 1000 1000"><defs><clipPath id="roof-footprint-clip" clipPathUnits="userSpaceOnUse">' + footprints + '</clipPath>' + mask + '</defs><image href="' + escapeHtml(image.roofUrl) + '" width="1000" height="1000" preserveAspectRatio="none" clip-path="url(#roof-footprint-clip)" mask="url(#roof-mask)"></image></svg>';
+            })()
           : '';
-        const tokenOverlay = tokenShape ? '<svg class="token-overlay" preserveAspectRatio="none" viewBox="0 0 1000 1000">' + tokenShape + '</svg>' : '';
+        const tokenOverlay = tokenShape ? '<div class="token-overlay">' + tokenShape + '</div>' : '';
         const isYoutube = image?.mediaType === "youtube";
         const isVideo = image?.mediaType === "video";
         const isTiles = image?.mediaType === "tiles" && image?.deepZoom;
@@ -1569,6 +1608,7 @@ var (
         const currentCanvas = existingCanvas;
         if (currentCanvas?.dataset?.mediaKey === mediaKey) {
           currentCanvas.style.transform = cameraTransform;
+          currentCanvas.style.clipPath = visionClip || 'none';
           if (isTiles) { currentCanvas.querySelector('.tile-layer')?.remove(); currentCanvas.insertAdjacentHTML('afterbegin',tileMarkup()); }
           currentCanvas.querySelectorAll(".fog-regions, .fog-grid, .roof-overlay, .token-overlay").forEach((node) => node.remove());
           currentCanvas.querySelector(".map-grid-overlay")?.remove();
@@ -1578,7 +1618,7 @@ var (
           }
           if (roofShape) currentCanvas.insertAdjacentHTML("beforeend", roofShape);
           if (tokenOverlay) currentCanvas.insertAdjacentHTML("beforeend", tokenOverlay);
-          animateSessionToken(currentCanvas, token, walls, renderedAspect, tokenZoom);
+          animateSessionToken(currentCanvas, token, walls, renderedAspect, tokenZoom, visionPoints, visionClip);
           setPublishedStatus(snapshot?.updatedAt);
           return;
         }
@@ -1588,7 +1628,7 @@ var (
             ? '<video autoplay loop muted playsinline src="' + escapeHtml(image?.url || "") + '"></video>'
             : '<img alt="' + escapeHtml(image?.alt || title || UI.imageAlt) + '" src="' + escapeHtml(image?.url || "") + '">';
         trackNode.innerHTML =
-          '<figure class="image-state"><div class="image-canvas' + (isYoutube || isVideo ? ' video-canvas' : isTiles ? ' tile-canvas' : '') + '" data-media-key="' + escapeHtml(mediaKey) + '" style="transform:' + cameraTransform + (isTiles?';--tile-aspect:'+(image.deepZoom.width/image.deepZoom.height):'') + '">' +
+          '<figure class="image-state"><div class="image-canvas' + (isYoutube || isVideo ? ' video-canvas' : isTiles ? ' tile-canvas' : '') + '" data-media-key="' + escapeHtml(mediaKey) + '" style="transform:' + cameraTransform + ';clip-path:' + (visionClip || 'none') + (isTiles?';--tile-aspect:'+(image.deepZoom.width/image.deepZoom.height):'') + '">' +
           media +
           mapGrid +
           fog +
@@ -1597,7 +1637,7 @@ var (
           '</div>' +
           overlay +
           '</figure>';
-        animateSessionToken(trackNode.querySelector('.image-canvas'), token, walls, renderedAspect, tokenZoom);
+        animateSessionToken(trackNode.querySelector('.image-canvas'), token, walls, renderedAspect, tokenZoom, visionPoints, visionClip);
         setPublishedStatus(snapshot?.updatedAt);
       };
 
@@ -2414,6 +2454,7 @@ func (manager *initiativeShareManager) showPlayerDisplayImage(
 		URL:            resolvePublicDisplayAssetURL(strings.TrimSpace(input.URL), baseURL),
 		RoofURL:        resolvePublicDisplayAssetURL(strings.TrimSpace(input.RoofURL), baseURL),
 		RoofVisionOnly: input.RoofVisionOnly,
+		RoofZones:      input.RoofZones,
 		Title:          strings.TrimSpace(input.Title),
 		Alt:            strings.TrimSpace(input.Alt),
 		Caption:        strings.TrimSpace(input.Caption),
@@ -2426,6 +2467,8 @@ func (manager *initiativeShareManager) showPlayerDisplayImage(
 		FogRegions:     input.FogRegions,
 		Walls:          input.Walls,
 		Token:          input.Token,
+		VisionPolygon:  input.VisionPolygon,
+		FOVPolygon:     input.FOVPolygon,
 		MapAspectRatio: input.MapAspectRatio,
 		Grid:           input.Grid,
 		Viewport:       input.Viewport,
@@ -2722,8 +2765,11 @@ func publicDisplaySnapshotFingerprint(snapshot publicDisplaySnapshot) string {
 
 	fmt.Fprintf(
 		&builder,
-		"%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|%v|%v|%f|%v|%v|%v|",
+		"%s|%s|%t|%v|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|%v|%v|%f|%v|%v|%v|",
 		snapshot.Image.URL,
+		snapshot.Image.RoofURL,
+		snapshot.Image.RoofVisionOnly,
+		snapshot.Image.RoofZones,
 		snapshot.Image.Title,
 		snapshot.Image.Alt,
 		snapshot.Image.Caption,
@@ -2788,8 +2834,11 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 	}
 	slices.Sort(revealed)
 	regions := sanitizePublicFogRegions(image.FogRegions)
+	roofZones := sanitizePublicRoofZones(image.RoofZones)
 	walls := sanitizePublicDisplayWalls(image.Walls)
 	token := sanitizePublicDisplayToken(image.Token)
+	visionPolygon := sanitizePublicPolygon(image.VisionPolygon)
+	fovPolygon := sanitizePublicPolygon(image.FOVPolygon)
 	aspectRatio := max(0.2, min(image.MapAspectRatio, 5))
 	if image.MapAspectRatio == 0 {
 		aspectRatio = 1
@@ -2801,6 +2850,7 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 		URL:            url,
 		RoofURL:        strings.TrimSpace(image.RoofURL),
 		RoofVisionOnly: image.RoofVisionOnly,
+		RoofZones:      roofZones,
 		Title:          strings.TrimSpace(image.Title),
 		Alt:            strings.TrimSpace(image.Alt),
 		Caption:        strings.TrimSpace(image.Caption),
@@ -2813,6 +2863,8 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 		FogRegions:     regions,
 		Walls:          walls,
 		Token:          token,
+		VisionPolygon:  visionPolygon,
+		FOVPolygon:     fovPolygon,
 		MapAspectRatio: aspectRatio,
 		Grid:           grid,
 		Viewport:       viewport,
@@ -2903,6 +2955,62 @@ func sanitizePublicFogRegions(regions []publicFogRegion) []publicFogRegion {
 			id = fmt.Sprintf("region-%d", regionIndex+1)
 		}
 		result = append(result, publicFogRegion{ID: id, Points: clean, Revealed: region.Revealed})
+	}
+	return result
+}
+
+func sanitizePublicRoofZones(zones []publicRoofZone) []publicRoofZone {
+	if len(zones) > 64 {
+		zones = zones[:64]
+	}
+	result := make([]publicRoofZone, 0, len(zones))
+	for index, zone := range zones {
+		if len(zone.Points) < 3 {
+			continue
+		}
+		points := zone.Points
+		if len(points) > 256 {
+			points = points[:256]
+		}
+		clean := make([]publicFogPoint, 0, len(points))
+		for _, point := range points {
+			clean = append(clean, publicFogPoint{X: max(0, min(point.X, 1)), Y: max(0, min(point.Y, 1))})
+		}
+		id := strings.TrimSpace(zone.ID)
+		if id == "" {
+			id = fmt.Sprintf("roof-%d", index+1)
+		}
+		openings := make([][]publicFogPoint, 0, len(zone.Openings))
+		for _, opening := range zone.Openings {
+			if len(opening) < 3 {
+				continue
+			}
+			if len(opening) > 256 {
+				opening = opening[:256]
+			}
+			cleanOpening := make([]publicFogPoint, 0, len(opening))
+			for _, point := range opening {
+				cleanOpening = append(cleanOpening, publicFogPoint{X: max(0, min(point.X, 1)), Y: max(0, min(point.Y, 1))})
+			}
+			openings = append(openings, cleanOpening)
+		}
+		result = append(result, publicRoofZone{ID: id, Points: clean, Openings: openings})
+	}
+	return result
+}
+
+// Geometry is calculated by the master renderer and sent normalized. Keeping
+// this sanitizer generic lets the TV reuse exactly those coordinates.
+func sanitizePublicPolygon(points []publicFogPoint) []publicFogPoint {
+	if len(points) < 3 {
+		return nil
+	}
+	if len(points) > 2048 {
+		points = points[:2048]
+	}
+	result := make([]publicFogPoint, 0, len(points))
+	for _, point := range points {
+		result = append(result, publicFogPoint{X: max(0, min(point.X, 1)), Y: max(0, min(point.Y, 1))})
 	}
 	return result
 }

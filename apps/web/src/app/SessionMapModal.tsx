@@ -14,6 +14,7 @@ import type {
   PlayerDisplayFogPoint,
   PlayerDisplayFogRegion,
   PlayerDisplayGridSettings,
+  PlayerDisplayRoofZone,
   PlayerDisplayToken,
   PlayerDisplayViewport,
   PlayerDisplayWall,
@@ -27,10 +28,14 @@ type SessionMapLevel = {
   name: string;
   imageUrl: string;
   roofUrl: string;
+  roofZones: PlayerDisplayRoofZone[];
   deepZoom: DeepZoomSource | null;
   walls: PlayerDisplayWall[];
   grid: PlayerDisplayGridSettings;
-  token: PlayerDisplayToken | null;
+};
+const numberedLayerSuffix = (fileName: string) => {
+  const match = fileName.match(/(?:^|[-_])(\d+)(?:\.[^.]+)?$/);
+  return match ? Number(match[1]) : null;
 };
 const youtubeId = (raw: string) => {
   try {
@@ -103,31 +108,6 @@ const preloadDeepZoom = (
     }
   }
 };
-const wallHull = (walls: PlayerDisplayWall[]) => {
-  const points = walls.flatMap((w) =>
-    w.points?.length ? w.points : [w.start, w.end],
-  );
-  if (points.length < 3) return [];
-  const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y),
-    cross = (
-      o: PlayerDisplayFogPoint,
-      a: PlayerDisplayFogPoint,
-      b: PlayerDisplayFogPoint,
-    ) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x),
-    lower: PlayerDisplayFogPoint[] = [],
-    upper: PlayerDisplayFogPoint[] = [];
-  for (const p of sorted) {
-    while (lower.length > 1 && cross(lower.at(-2)!, lower.at(-1)!, p) <= 0)
-      lower.pop();
-    lower.push(p);
-  }
-  for (const p of sorted.reverse()) {
-    while (upper.length > 1 && cross(upper.at(-2)!, upper.at(-1)!, p) <= 0)
-      upper.pop();
-    upper.push(p);
-  }
-  return lower.slice(0, -1).concat(upper.slice(0, -1));
-};
 const pointInPolygon = (
   point: PlayerDisplayFogPoint,
   polygon: PlayerDisplayFogPoint[],
@@ -143,6 +123,74 @@ const pointInPolygon = (
       inside = !inside;
   }
   return inside;
+};
+// VTT roof layers do not carry a footprint. Use one stable building footprint
+// around the imported wall extents so the roof is a continuous layer, not a
+// collection of room fragments.
+const suggestedRoofZones = (walls: PlayerDisplayWall[]): PlayerDisplayRoofZone[] => {
+  const points = walls.filter((wall) => !wall.disabled).flatMap((wall) =>
+    wall.points?.length ? wall.points : [wall.start, wall.end],
+  );
+  if (points.length < 3) return [];
+  const minX = Math.max(0, Math.min(...points.map((point) => point.x)) - 0.006);
+  const maxX = Math.min(1, Math.max(...points.map((point) => point.x)) + 0.006);
+  const minY = Math.max(0, Math.min(...points.map((point) => point.y)) - 0.006);
+  const maxY = Math.min(1, Math.max(...points.map((point) => point.y)) + 0.006);
+  return maxX - minX >= 0.025 && maxY - minY >= 0.025
+    ? [{ id: "imported-roof-footprint", points: [{ x: minX, y: minY }, { x: maxX, y: minY }, { x: maxX, y: maxY }, { x: minX, y: maxY }] }]
+    : [];
+};
+// Keep the master preview aligned with the player screen: walls trim the vision polygon.
+const visibilityPolygon = (
+  token: PlayerDisplayToken,
+  walls: PlayerDisplayWall[],
+  aspectRatio: number,
+) => {
+  const origin = { x: token.x, y: token.y };
+  const radius = Math.max(0.03, token.visionRadius || 0.22);
+  const aspect = Math.max(0.2, aspectRatio || 1);
+  const angles = Array.from({ length: 180 }, (_, index) => (Math.PI * 2 * index) / 180);
+  const segments = walls
+    .filter((wall) => !wall.disabled)
+    .flatMap((wall) => {
+      const points = wall.points?.length ? wall.points : [wall.start, wall.end];
+      return points.slice(1).map((end, index) => ({ start: points[index], end }));
+    });
+  segments.forEach((wall) => [wall.start, wall.end].forEach((point) => {
+    const angle = Math.atan2((point.y - origin.y) / aspect, point.x - origin.x);
+    angles.push(angle - 0.0001, angle, angle + 0.0001);
+  }));
+  return angles
+    .map((angle) => ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2))
+    .sort((a, b) => a - b)
+    .map((angle) => {
+      const ray = { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius * aspect };
+      let distance = 1;
+      segments.forEach((wall) => {
+        const segment = { x: wall.end.x - wall.start.x, y: wall.end.y - wall.start.y };
+        const cross = ray.x * segment.y - ray.y * segment.x;
+        if (Math.abs(cross) < 1e-9) return;
+        const offset = { x: wall.start.x - origin.x, y: wall.start.y - origin.y };
+        const t = (offset.x * segment.y - offset.y * segment.x) / cross;
+        const u = (offset.x * ray.y - offset.y * ray.x) / cross;
+        if (t >= 0 && t <= distance && u >= 0 && u <= 1) distance = t;
+      });
+      return { x: origin.x + ray.x * distance, y: origin.y + ray.y * distance };
+    });
+};
+
+// This boundary is published with LOS so the television never derives a
+// different ellipse from its own viewport dimensions.
+const fovPolygon = (token: PlayerDisplayToken, aspectRatio: number) => {
+  const radius = Math.max(0.03, token.visionRadius || 0.22);
+  const aspect = Math.max(0.2, aspectRatio || 1);
+  return Array.from({ length: 180 }, (_, index) => {
+    const angle = (Math.PI * 2 * index) / 180;
+    return {
+      x: Math.max(0, Math.min(1, token.x + Math.cos(angle) * radius)),
+      y: Math.max(0, Math.min(1, token.y + Math.sin(angle) * radius * aspect)),
+    };
+  });
 };
 
 function DeepZoomLayer({
@@ -246,9 +294,10 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
   const [sourceUrl, setSourceUrl] = useState("");
   const [title, setTitle] = useState("Карта приключения");
   const [regions, setRegions] = useState<PlayerDisplayFogRegion[]>([]);
+  const [roofZones, setRoofZones] = useState<PlayerDisplayRoofZone[]>([]);
   const [walls, setWalls] = useState<PlayerDisplayWall[]>([]);
   const [token, setToken] = useState<PlayerDisplayToken | null>(null);
-  const [tool, setTool] = useState<"fog" | "wall" | "door" | "token" | null>(
+  const [tool, setTool] = useState<"fog" | "roof" | "roofOpening" | "wall" | "door" | "token" | null>(
     null,
   );
   const [draft, setDraft] = useState<PlayerDisplayFogPoint[]>([]);
@@ -267,7 +316,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
     y: 0,
   });
   const [regionMenu, setRegionMenu] = useState<{
-    kind: "region" | "wall";
+    kind: "region" | "roof" | "wall";
     id: string;
     x: number;
     y: number;
@@ -296,10 +345,13 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
         ? deepZoom.width / deepZoom.height
         : imageAspect;
   const visionCellSize = grid.type === "none" ? 0.01 : grid.size;
-  const roofPolygon = wallHull(walls);
-  const tokenInsideRoof = Boolean(
-    token && roofPolygon.length > 2 && pointInPolygon(token, roofPolygon),
+  const roofZonesToRender = (roofZones.length ? roofZones : suggestedRoofZones(walls)).filter(
+    (zone) => !token || !pointInPolygon(token, zone.points),
   );
+  const masterVisionPoints = token ? visibilityPolygon(token, walls, mapAspect) : [];
+  const masterFovClip = token
+    ? `ellipse(${token.visionRadius * 100}% ${token.visionRadius * mapAspect * 100}% at ${token.x * 100}% ${token.y * 100}%)`
+    : undefined;
 
   useEffect(() => {
     if (!open) return;
@@ -322,6 +374,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
     nextGrid = grid,
     nextViewport = viewport,
     nextLevel?: SessionMapLevel,
+    nextRoofZones = roofZones,
   ) => {
     const publishedImageUrl = nextLevel?.imageUrl ?? imageUrl;
     const publishedRoofUrl = nextLevel?.roofUrl ?? roofUrl;
@@ -341,6 +394,12 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
         : shell && shell.clientHeight
           ? shell.clientWidth / shell.clientHeight
           : 1;
+    const publishedVisionPolygon = nextToken
+      ? visibilityPolygon(nextToken, nextWalls, mapAspectRatio)
+      : undefined;
+    const publishedFovPolygon = nextToken
+      ? fovPolygon(nextToken, mapAspectRatio)
+      : undefined;
     setBusy(true);
     try {
       const share = await api.showPlayerDisplayImage(campaignId, {
@@ -351,6 +410,8 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
         viewport: nextViewport,
         walls: nextWalls,
         token: nextToken ?? undefined,
+        visionPolygon: publishedVisionPolygon,
+        fovPolygon: publishedFovPolygon,
         mapAspectRatio,
         mediaType: nextLevel
           ? nextLevel.deepZoom
@@ -358,7 +419,10 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
             : "image"
           : mediaType,
         roofUrl: publishedRoofUrl || undefined,
-        roofVisionOnly: levels.length > 0 || Boolean(nextLevel),
+        // The player renderer derives the roof automatically from paired VTT
+        // layers plus current-floor LOS. Zones are optional manual overrides.
+        roofVisionOnly: Boolean(nextToken),
+        roofZones: nextRoofZones.length ? nextRoofZones : suggestedRoofZones(nextWalls),
         sessionMap: true,
         title,
         url: publishedImageUrl,
@@ -397,13 +461,17 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
     );
     if (displayUrl) void publish(regions, next, token);
   };
-  const updateToken = (next: PlayerDisplayToken | null) => {
-    setToken(next);
+  const updateRoofZones = (next: PlayerDisplayRoofZone[]) => {
+    setRoofZones(next);
     setLevels((current) =>
       current.map((level, index) =>
-        index === activeLevel ? { ...level, token: next } : level,
+        index === activeLevel ? { ...level, roofZones: next } : level,
       ),
     );
+    if (displayUrl) void publish(regions, walls, token, false, grid, viewport, undefined, next);
+  };
+  const updateToken = (next: PlayerDisplayToken | null) => {
+    setToken(next);
     if (displayUrl) void publish(regions, walls, next);
   };
   const updateGrid = (next: PlayerDisplayGridSettings) => {
@@ -418,6 +486,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
   const resetFog = () => {
     setRegions([]);
     setWalls([]);
+    setRoofZones([]);
     setToken(null);
     setDraft([]);
     draftRef.current = [];
@@ -434,21 +503,31 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
             result: await api.uploadImage(campaignId, file),
           })),
         );
-      uploaded.sort((a, b) =>
-        a.file.name.localeCompare(b.file.name, undefined, { numeric: true }),
-      );
       const vttLayers = uploaded.filter((item) => item.result.vtt);
-      if (vttLayers.length > 2) {
-        const playable = vttLayers.filter(
-          (item, index) =>
-            (item.result.vtt?.walls.length ?? 0) > 0 ||
-            index < vttLayers.length - 1,
+      if (vttLayers.length >= 2) {
+        const numberedLayers = vttLayers.map((item, inputIndex) => ({
+          item,
+          inputIndex,
+          suffix: numberedLayerSuffix(item.file.name),
+        }));
+        const hasNumericSuffixes = numberedLayers.every(
+          (layer) => layer.suffix !== null,
         );
+        // Numeric suffixes define floor order; this keeps -10 after -9 and
+        // selects the greatest suffix as the roof regardless of picker order.
+        const orderedLayers = hasNumericSuffixes
+          ? [...numberedLayers].sort(
+              (a, b) => a.suffix! - b.suffix! || a.inputIndex - b.inputIndex,
+            )
+          : numberedLayers;
+        const roofLayer = orderedLayers.at(-1)!.item;
+        const playable = orderedLayers.slice(0, -1).map((layer) => layer.item);
         const nextLevels = playable.map((item, index): SessionMapLevel => ({
           id: `${item.file.name}-${index}`,
           name: `Уровень ${index + 1}`,
           imageUrl: item.result.url,
-          roofUrl: vttLayers.at(-1)?.result.url ?? "",
+          roofUrl: roofLayer.result.url,
+          roofZones: suggestedRoofZones(item.result.vtt?.walls ?? []),
           deepZoom: item.result.deepZoom ?? null,
           walls: item.result.vtt?.walls ?? [],
           grid: {
@@ -457,7 +536,6 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
             color: "#ffffff",
             opacity: 0.35,
           },
-          token: null,
         }));
         const first = nextLevels[0];
         nextLevels.forEach((level, index) =>
@@ -473,6 +551,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
         setDeepZoom(first.deepZoom);
         setMediaType(first.deepZoom ? "tiles" : "image");
         setWalls(first.walls);
+        setRoofZones(first.roofZones);
         setGrid(first.grid);
         setToken(null);
         setRegions([]);
@@ -481,7 +560,9 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
           files[0].name.replace(/_\d+\.dd2vtt$/i, "") || "Многоэтажная карта",
         );
         setNotice(
-          `Многоэтажная сцена импортирована: ${nextLevels.length} уровня и ${vttLayers.length - nextLevels.length} слой крыши.`,
+          hasNumericSuffixes
+            ? `Многоэтажная сцена импортирована: ${nextLevels.length} уровня; файл с максимальным числовым суффиксом используется как крыша.`
+            : `Многоэтажная сцена импортирована: ${nextLevels.length} уровня; в именах не найден числовой суффикс, поэтому крышей выбран последний файл в порядке выбора.`,
         );
         return;
       }
@@ -517,7 +598,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
         setNotice(
           roof
             ? `Пара Universal VTT импортирована: интерьер, крыша и ${result.vtt.walls.length} стен и дверей.`
-            : `Universal VTT импортирован: ${result.vtt.walls.length} стен и дверей, карта ${result.vtt.mapWidth}×${result.vtt.mapHeight} клеток.`,
+            : `Universal VTT импортирован: ${result.vtt.walls.length} стен и дверей, карта ${result.vtt.mapWidth}×${result.vtt.mapHeight} клеток. Для крыши загрузите отдельный VTT-файл с большим числовым суффиксом.`,
         );
       } else
         setNotice(
@@ -539,7 +620,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
     if (!level || index === activeLevel) return;
     setLevels((current) =>
       current.map((item, itemIndex) =>
-        itemIndex === activeLevel ? { ...item, walls, grid, token } : item,
+        itemIndex === activeLevel ? { ...item, walls, grid } : item,
       ),
     );
     setActiveLevel(index);
@@ -548,8 +629,8 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
     setDeepZoom(level.deepZoom);
     setMediaType(level.deepZoom ? "tiles" : "image");
     setWalls(level.walls);
+    setRoofZones(level.roofZones);
     setGrid(level.grid);
-    setToken(level.token);
     setRegions([]);
     setViewport({ zoom: 1, x: 0, y: 0 });
     setNotice(
@@ -564,11 +645,12 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
       void publish(
         [],
         level.walls,
-        level.token,
+        token,
         false,
         level.grid,
         { zoom: 1, x: 0, y: 0 },
         level,
+        level.roofZones,
       );
   };
   const useUrl = () => {
@@ -713,6 +795,27 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
       setNotice("Нарисуйте область чуть длиннее.");
       return;
     }
+    if (tool === "roof") {
+      const next = [
+        ...roofZones,
+        { id: crypto.randomUUID?.() ?? `roof-${Date.now()}`, points },
+      ];
+      updateRoofZones(next);
+      setNotice(`Добавлена зона крыши ${next.length}.`);
+      return;
+    }
+    if (tool === "roofOpening") {
+      const zone = roofZones.find((candidate) => pointInPolygon(points[0], candidate.points));
+      if (!zone) {
+        setNotice("Начните проём внутри нарисованной зоны крыши.");
+        return;
+      }
+      updateRoofZones(roofZones.map((candidate) => candidate.id === zone.id
+        ? { ...candidate, openings: [...(candidate.openings ?? []), points] }
+        : candidate));
+      setNotice("Добавлен проём в зоне крыши.");
+      return;
+    }
     const next = [
       ...regions,
       {
@@ -754,7 +857,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
   };
   const openRegionMenu = (
     event: ReactMouseEvent<SVGElement>,
-    kind: "region" | "wall",
+    kind: "region" | "roof" | "wall",
     id: string,
   ) => {
     event.preventDefault();
@@ -769,6 +872,8 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
     if (!regionMenu) return;
     if (regionMenu.kind === "wall")
       updateWalls(walls.filter((wall) => wall.id !== regionMenu.id));
+    else if (regionMenu.kind === "roof")
+      updateRoofZones(roofZones.filter((zone) => zone.id !== regionMenu.id));
     else updateRegions(regions.filter((region) => region.id !== regionMenu.id));
     setRegionMenu(null);
   };
@@ -968,6 +1073,22 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
                       <title>{`Область ${i + 1}`}</title>
                     </polygon>
                   ))}
+                  {roofZones.map((zone, index) => (
+                    <g key={zone.id}>
+                      <polygon
+                        className="roof-zone"
+                        onContextMenu={(event) => openRegionMenu(event, "roof", zone.id)}
+                        points={svgPoints(zone.points)}
+                      >
+                        <title>{`Зона крыши ${index + 1}`}</title>
+                      </polygon>
+                      {(zone.openings ?? []).map((opening, openingIndex) => (
+                        <polygon className="roof-opening" key={`${zone.id}-${openingIndex}`} points={svgPoints(opening)}>
+                          <title>{`Проём ${openingIndex + 1}`}</title>
+                        </polygon>
+                      ))}
+                    </g>
+                  ))}
                   {walls.map((w) => {
                     const points = w.points?.length
                       ? w.points
@@ -1011,28 +1132,33 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
                       className={
                         tool === "wall" || tool === "door"
                           ? "draft wall-draft"
-                          : "draft"
+                          : tool === "roof"
+                            ? "draft roof-zone"
+                            : tool === "roofOpening"
+                              ? "draft roof-opening"
+                            : "draft"
                       }
                       points={svgPoints(draft)}
                     />
                   ) : null}
                 </svg>
-                {roofUrl && roofPolygon.length > 2 ? (
+                {roofUrl && token && masterVisionPoints.length ? (
                   <svg
-                    className={`session-map-roof ${tokenInsideRoof ? "inside" : ""}`}
+                    className="session-map-roof"
                     preserveAspectRatio="none"
-                    style={cameraStyle}
+                    style={{ ...cameraStyle, clipPath: masterFovClip }}
                     viewBox="0 0 1000 1000"
                   >
                     <defs>
-                      <clipPath id="master-roof-clip">
-                        <polygon points={svgPoints(roofPolygon)} />
-                      </clipPath>
+                      <mask id="master-roof-mask">
+                        <rect fill="white" height="1000" width="1000" />
+                        <polygon fill="black" points={svgPoints(masterVisionPoints)} />
+                      </mask>
                     </defs>
                     <image
-                      clipPath="url(#master-roof-clip)"
                       height="1000"
                       href={roofUrl}
+                      mask="url(#master-roof-mask)"
                       preserveAspectRatio="none"
                       width="1000"
                     />
@@ -1139,6 +1265,22 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
                 type="button"
               >
                 Туман
+              </button>
+              <button
+                className={tool === "roof" ? "primary" : "ghost"}
+                disabled={!imageUrl || !roofUrl}
+                onClick={() => setTool(tool === "roof" ? null : "roof")}
+                type="button"
+              >
+                Нарисовать зону крыши
+              </button>
+              <button
+                className={tool === "roofOpening" ? "primary" : "ghost"}
+                disabled={!imageUrl || !roofUrl || !roofZones.length}
+                onClick={() => setTool(tool === "roofOpening" ? null : "roofOpening")}
+                type="button"
+              >
+                Нарисовать проём крыши
               </button>
               <button
                 className={tool === "wall" ? "primary" : "ghost"}
@@ -1293,6 +1435,35 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
               Зажмите мышь и обведите комнату или зону. Контур замкнётся
               автоматически.
             </p>
+            {roofUrl ? (
+              <div className="session-map-region-list">
+                {roofZones.map((zone, index) => (
+                  <div className="session-map-region-row" key={zone.id}>
+                    <span>Зона крыши {index + 1} · проёмов: {(zone.openings ?? []).length}</span>
+                    <button
+                      aria-label={`Удалить зону крыши ${index + 1}`}
+                      className="ghost danger"
+                      onClick={() => updateRoofZones(roofZones.filter((item) => item.id !== zone.id))}
+                      type="button"
+                    >
+                      Удалить
+                    </button>
+                  </div>
+                ))}
+                {!roofZones.length ? (
+                  <>
+                    <p className="session-map-tip">Для старой VTT-сцены можно автоматически создать отдельные зоны по связным группам стен.</p>
+                    <button className="ghost" onClick={() => updateRoofZones(suggestedRoofZones(walls))} type="button">Создать зоны крыши из стен</button>
+                  </>
+                ) : null}
+                {roofZones.flatMap((zone, zoneIndex) => (zone.openings ?? []).map((opening, openingIndex) => (
+                  <div className="session-map-region-row" key={`${zone.id}-opening-${openingIndex}`}>
+                    <span>Проём {openingIndex + 1} · зона {zoneIndex + 1}</span>
+                    <button className="ghost danger" onClick={() => updateRoofZones(roofZones.map((candidate) => candidate.id === zone.id ? { ...candidate, openings: (candidate.openings ?? []).filter((_, index) => index !== openingIndex) } : candidate))} type="button">Удалить</button>
+                  </div>
+                )))}
+              </div>
+            ) : null}
             <div className="session-map-region-list">
               {regions.map((r, i) => (
                 <div className="session-map-region-row" key={r.id}>
@@ -1456,7 +1627,9 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
                   "door"
                   ? "Удалить дверь"
                   : "Удалить стену"
-                : "Удалить область"}
+                : regionMenu.kind === "roof"
+                  ? "Удалить зону крыши"
+                  : "Удалить область"}
             </button>
           </div>
         ) : null}

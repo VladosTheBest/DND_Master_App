@@ -152,6 +152,16 @@
   stroke: rgba(191, 131, 255, 0.55);
   stroke-dasharray: 8 6;
 }
+.session-map-region-editor polygon.roof-zone {
+  fill: rgba(255, 166, 70, 0.18);
+  stroke: #ffad52;
+  stroke-dasharray: 7 5;
+}
+.session-map-region-editor polygon.roof-opening {
+  fill: rgba(67, 210, 255, 0.32);
+  stroke: #76e6ff;
+  stroke-dasharray: 4 3;
+}
 .session-map-region-editor .draft {
   fill: rgba(133, 72, 187, 0.28);
   stroke: #f1bdff;
