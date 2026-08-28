@@ -1572,28 +1572,19 @@ var (
           : fogCells
             ? '<div class="fog-grid' + (image?.showGrid ? ' show-grid' : '') + '" style="grid-template-columns:repeat(' + columns + ',1fr);grid-template-rows:repeat(' + rows + ',1fr)">' + fogCells + '</div>'
             : "";
-        // Paired VTTs are geometrically identical. With a token, the base map
-        // is visible only through LOS and the fog keeps every other FOV area
-        // dark. The roof may replace that fog only inside a building footprint
-        // while the token is outside it. In particular, never use the entire
-        // LOS-dark FOV as a roof mask: roof images also contain ground and
-        // would otherwise reveal the map through blocking walls.
+        // Paired VTTs are geometrically identical. With a token, roof is the
+        // roof-layer in the LOS-dark part of the hard FOV; visible LOS remains
+        // the base/current-floor. This is automatic and never requires zones.
         const roofZones = Array.isArray(image?.roofZones) ? image.roofZones.filter((zone) => Array.isArray(zone?.points) && zone.points.length > 2) : [];
         const roofShape = image?.roofUrl
           ? (() => {
+              if (token && visionPoints) {
+                return '<svg class="roof-overlay vision-only" preserveAspectRatio="none" viewBox="0 0 1000 1000"><defs><mask id="roof-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="0" y="0" width="1000" height="1000"><rect width="1000" height="1000" fill="white"></rect><polygon class="roof-vision-cutout" points="' + visionPoints + '" fill="black"></polygon></mask></defs><image href="' + escapeHtml(image.roofUrl) + '" width="1000" height="1000" preserveAspectRatio="none" mask="url(#roof-mask)"></image></svg>';
+              }
               const visibleZones = roofZones.filter((zone) => !token || !pointInPolygon(token, zone.points));
-              // A token inside the building opens its interior. This must be
-              // evaluated from the same normalized footprint published by the
-              // master, before the LOS-derived roof layer is considered.
-              if (token && visibleZones.length !== roofZones.length) return '';
+              if (!visibleZones.length) return '';
               const footprints = visibleZones.map((zone) => '<polygon points="' + zone.points.map((point) => (Number(point.x) * 1000) + ',' + (Number(point.y) * 1000)).join(' ') + '"></polygon>').join('');
               const openings = visibleZones.flatMap((zone) => Array.isArray(zone.openings) ? zone.openings : []).filter((opening) => Array.isArray(opening) && opening.length > 2).map((opening) => '<polygon points="' + opening.map((point) => (Number(point.x) * 1000) + ',' + (Number(point.y) * 1000)).join(' ') + '" fill="black"></polygon>').join('');
-              if (token && visionPoints) {
-                const footprintClip = footprints ? '<clipPath id="roof-footprint-clip" clipPathUnits="userSpaceOnUse">' + footprints + '</clipPath>' : '';
-                const clipAttribute = footprints ? ' clip-path="url(#roof-footprint-clip)"' : '';
-                return '<svg class="roof-overlay vision-only" preserveAspectRatio="none" viewBox="0 0 1000 1000"><defs>' + footprintClip + '<mask id="roof-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="0" y="0" width="1000" height="1000"><rect width="1000" height="1000" fill="white"></rect><polygon class="roof-vision-cutout" points="' + visionPoints + '" fill="black"></polygon>' + openings + '</mask></defs><image href="' + escapeHtml(image.roofUrl) + '" width="1000" height="1000" preserveAspectRatio="none"' + clipAttribute + ' mask="url(#roof-mask)"></image></svg>';
-              }
-              if (!visibleZones.length) return '';
               const mask = '<mask id="roof-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="0" y="0" width="1000" height="1000"><rect width="1000" height="1000" fill="' + (visionPoints ? 'black' : 'white') + '"></rect>' + (visionPoints ? '<polygon class="roof-vision-cutout" points="' + visionPoints + '" fill="white"></polygon>' : '') + openings + '</mask>';
               return '<svg class="roof-overlay' + (visionPoints ? ' vision-only' : '') + '" preserveAspectRatio="none" viewBox="0 0 1000 1000"><defs><clipPath id="roof-footprint-clip" clipPathUnits="userSpaceOnUse">' + footprints + '</clipPath>' + mask + '</defs><image href="' + escapeHtml(image.roofUrl) + '" width="1000" height="1000" preserveAspectRatio="none" clip-path="url(#roof-footprint-clip)" mask="url(#roof-mask)"></image></svg>';
             })()
