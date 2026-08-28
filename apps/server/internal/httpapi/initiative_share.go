@@ -2777,7 +2777,7 @@ func publicDisplaySnapshotFingerprint(snapshot publicDisplaySnapshot) string {
 
 	fmt.Fprintf(
 		&builder,
-		"%s|%s|%t|%v|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|%v|%v|%f|%v|%v|%v|",
+		"%s|%s|%t|%v|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|%v|%v|%v|%v|%f|%v|%v|%v|",
 		snapshot.Image.URL,
 		snapshot.Image.RoofURL,
 		snapshot.Image.RoofVisionOnly,
@@ -2794,6 +2794,8 @@ func publicDisplaySnapshotFingerprint(snapshot publicDisplaySnapshot) string {
 		snapshot.Image.FogRegions,
 		snapshot.Image.Walls,
 		snapshot.Image.Token,
+		snapshot.Image.VisionPolygon,
+		snapshot.Image.FOVPolygon,
 		snapshot.Image.MapAspectRatio,
 		snapshot.Image.Grid,
 		snapshot.Image.Viewport,

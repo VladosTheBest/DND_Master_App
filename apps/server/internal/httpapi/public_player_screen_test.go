@@ -9,6 +9,24 @@ import (
 	"time"
 )
 
+func TestPublicDisplayFingerprintIncludesPublishedVisionGeometry(t *testing.T) {
+	base := publicDisplaySnapshot{Image: &publicDisplayImage{
+		URL:           "https://players.example/uploads/map.png",
+		VisionPolygon: []publicFogPoint{{X: .1, Y: .1}, {X: .2, Y: .1}, {X: .1, Y: .2}},
+		FOVPolygon:    []publicFogPoint{{X: .05, Y: .05}, {X: .3, Y: .05}, {X: .05, Y: .3}},
+	}}
+	changed := base
+	changed.Image = &publicDisplayImage{
+		URL:           base.Image.URL,
+		VisionPolygon: []publicFogPoint{{X: .1, Y: .1}, {X: .25, Y: .1}, {X: .1, Y: .2}},
+		FOVPolygon:    base.Image.FOVPolygon,
+	}
+
+	if publicDisplaySnapshotFingerprint(base) == publicDisplaySnapshotFingerprint(changed) {
+		t.Fatal("published LOS geometry must change the TV snapshot fingerprint")
+	}
+}
+
 func TestPlayerDisplayAndInitiativeShareUseSamePublicURL(t *testing.T) {
 	store, campaign := newPublicScreenTestStore(t)
 	manager := newInitiativeShareManager(store, "https://players.example")
