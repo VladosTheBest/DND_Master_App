@@ -71,7 +71,6 @@ type publicInitiativeMeta struct {
 type playerDisplayImageInput struct {
 	URL            string              `json:"url"`
 	RoofURL        string              `json:"roofUrl"`
-	RoofMaskURL    string              `json:"roofMaskUrl"`
 	RoofVisionOnly bool                `json:"roofVisionOnly"`
 	RoofZones      []publicRoofZone    `json:"roofZones"`
 	Title          string              `json:"title"`
@@ -152,7 +151,6 @@ type publicViewport struct {
 type publicDisplayImage struct {
 	URL            string              `json:"url"`
 	RoofURL        string              `json:"roofUrl,omitempty"`
-	RoofMaskURL    string              `json:"roofMaskUrl,omitempty"`
 	RoofVisionOnly bool                `json:"roofVisionOnly,omitempty"`
 	RoofZones      []publicRoofZone    `json:"roofZones,omitempty"`
 	Title          string              `json:"title,omitempty"`
@@ -1584,17 +1582,13 @@ var (
         // the base/current-floor. This is automatic and never requires zones.
         const roofShape = image?.roofUrl
           ? (() => {
-              const coverage = String(image?.roofMaskUrl || '');
-              const coverageImage = coverage
-                ? '<image href="' + escapeHtml(coverage) + '" width="1000" height="1000" preserveAspectRatio="none"></image>'
-                : '<rect width="1000" height="1000" fill="white"></rect>';
               if (token && visionPoints) {
-                return '<svg class="roof-overlay vision-only" preserveAspectRatio="none" viewBox="0 0 1000 1000"><defs><mask id="roof-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="0" y="0" width="1000" height="1000">' + coverageImage + '<polygon class="roof-vision-cutout" points="' + visionPoints + '" fill="black"></polygon></mask></defs><image href="' + escapeHtml(image.roofUrl) + '" width="1000" height="1000" preserveAspectRatio="none" mask="url(#roof-mask)"></image></svg>';
+                return '<svg class="roof-overlay vision-only" preserveAspectRatio="none" viewBox="0 0 1000 1000"><defs><mask id="roof-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="0" y="0" width="1000" height="1000"><rect width="1000" height="1000" fill="white"></rect><polygon class="roof-vision-cutout" points="' + visionPoints + '" fill="black"></polygon></mask></defs><image href="' + escapeHtml(image.roofUrl) + '" width="1000" height="1000" preserveAspectRatio="none" mask="url(#roof-mask)"></image></svg>';
               }
               // The paired roof VTT is an aligned full-map layer. Never infer
               // its extent from walls or roof zones: those are editor aids,
               // not image geometry, and would crop valid roof pixels.
-              return '<svg class="roof-overlay" preserveAspectRatio="none" viewBox="0 0 1000 1000"><defs><mask id="roof-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="0" y="0" width="1000" height="1000">' + coverageImage + '</mask></defs><image href="' + escapeHtml(image.roofUrl) + '" width="1000" height="1000" preserveAspectRatio="none" mask="url(#roof-mask)"></image></svg>';
+              return '<svg class="roof-overlay" preserveAspectRatio="none" viewBox="0 0 1000 1000"><image href="' + escapeHtml(image.roofUrl) + '" width="1000" height="1000" preserveAspectRatio="none"></image></svg>';
             })()
           : '';
         const tokenOverlay = tokenShape ? '<div class="token-overlay">' + tokenShape + '</div>' : '';
@@ -2867,7 +2861,6 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 	return &publicDisplayImage{
 		URL:            url,
 		RoofURL:        strings.TrimSpace(image.RoofURL),
-		RoofMaskURL:    sanitizeRoofMaskURL(image.RoofMaskURL),
 		RoofVisionOnly: image.RoofVisionOnly,
 		RoofZones:      roofZones,
 		Title:          strings.TrimSpace(image.Title),
@@ -2898,17 +2891,6 @@ func sanitizePublicViewport(viewport *publicViewport) *publicViewport {
 	zoom := max(1, min(viewport.Zoom, 6))
 	limit := (zoom - 1) / 2
 	return &publicViewport{Zoom: zoom, X: max(-limit, min(viewport.X, limit)), Y: max(-limit, min(viewport.Y, limit))}
-}
-
-// Difference masks are generated locally from paired VTT images. Keep the
-// persisted public payload bounded and accept only the PNG data URL we emit.
-func sanitizeRoofMaskURL(raw string) string {
-	value := strings.TrimSpace(raw)
-	const prefix = "data:image/png;base64,"
-	if !strings.HasPrefix(value, prefix) || len(value) > 512*1024 {
-		return ""
-	}
-	return value
 }
 
 func sanitizePublicDisplayGrid(grid *publicDisplayGrid) *publicDisplayGrid {

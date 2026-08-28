@@ -826,8 +826,6 @@ export interface PlayerDisplayViewport {
 export interface PlayerDisplayImageInput {
   url: string;
   roofUrl?: string;
-  /** Low-resolution difference mask for an aligned base/roof VTT pair. */
-  roofMaskUrl?: string;
   roofVisionOnly?: boolean;
   roofZones?: PlayerDisplayRoofZone[];
   title?: string;

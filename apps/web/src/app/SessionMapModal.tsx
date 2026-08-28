@@ -28,7 +28,6 @@ type SessionMapLevel = {
   name: string;
   imageUrl: string;
   roofUrl: string;
-  roofMaskUrl: string;
   roofZones: PlayerDisplayRoofZone[];
   deepZoom: DeepZoomSource | null;
   walls: PlayerDisplayWall[];
@@ -194,46 +193,6 @@ const fovPolygon = (token: PlayerDisplayToken, aspectRatio: number) => {
   });
 };
 
-// The two VTT images share world coordinates. Sample their visual difference
-// into a compact alpha mask so walls never have to stand in for roof geometry.
-const pairedRoofMask = async (baseURL: string, roofURL: string) => {
-  if (!baseURL || !roofURL || typeof document === "undefined") return "";
-  const load = (url: string) => new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = reject;
-    image.src = url;
-  });
-  try {
-    const [base, roof] = await Promise.all([load(baseURL), load(roofURL)]);
-    if (!base.naturalWidth || !base.naturalHeight || base.naturalWidth !== roof.naturalWidth || base.naturalHeight !== roof.naturalHeight) return "";
-    const width = 384, height = Math.max(1, Math.round(width * base.naturalHeight / base.naturalWidth));
-    const canvas = document.createElement("canvas");
-    canvas.width = width; canvas.height = height;
-    const context = canvas.getContext("2d", { willReadFrequently: true });
-    if (!context) return "";
-    context.drawImage(base, 0, 0, width, height);
-    const basePixels = context.getImageData(0, 0, width, height).data;
-    context.clearRect(0, 0, width, height);
-    context.drawImage(roof, 0, 0, width, height);
-    const roofPixels = context.getImageData(0, 0, width, height).data;
-    const output = context.createImageData(width, height);
-    let covered = 0;
-    for (let index = 0; index < output.data.length; index += 4) {
-      const difference = Math.abs(basePixels[index] - roofPixels[index]) + Math.abs(basePixels[index + 1] - roofPixels[index + 1]) + Math.abs(basePixels[index + 2] - roofPixels[index + 2]);
-      const visible = difference >= 72;
-      output.data[index] = output.data[index + 1] = output.data[index + 2] = visible ? 255 : 0;
-      output.data[index + 3] = 255;
-      if (visible) covered += 1;
-    }
-    // An all-black or all-white difference is not useful evidence; retain the
-    // backward-compatible full layer instead of accidentally hiding it.
-    if (covered < width * height * 0.002 || covered > width * height * 0.85) return "";
-    context.putImageData(output, 0, 0);
-    return canvas.toDataURL("image/png");
-  } catch { return ""; }
-};
-
 function DeepZoomLayer({
   source,
   viewport,
@@ -326,7 +285,6 @@ function DeepZoomLayer({
 export function SessionMapModal({ campaignId, open, onClose }: Props) {
   const [imageUrl, setImageUrl] = useState("");
   const [roofUrl, setRoofUrl] = useState("");
-  const [roofMaskUrl, setRoofMaskUrl] = useState("");
   const [levels, setLevels] = useState<SessionMapLevel[]>([]);
   const [activeLevel, setActiveLevel] = useState(0);
   const [mediaType, setMediaType] = useState<
@@ -420,18 +378,10 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
   ) => {
     const publishedImageUrl = nextLevel?.imageUrl ?? imageUrl;
     const publishedRoofUrl = nextLevel?.roofUrl ?? roofUrl;
-    let publishedRoofMaskUrl = nextLevel?.roofMaskUrl ?? roofMaskUrl;
     const publishedDeepZoom = nextLevel?.deepZoom ?? deepZoom;
     if (!publishedImageUrl) {
       setNotice("Сначала загрузите или подключите карту.");
       return;
-    }
-    // Older already-open scenes predate the derived mask. Build it lazily on
-    // their next publish so the current table can be corrected without a
-    // re-import.
-    if (!publishedRoofMaskUrl && publishedRoofUrl) {
-      publishedRoofMaskUrl = await pairedRoofMask(publishedImageUrl, publishedRoofUrl);
-      if (publishedRoofMaskUrl && !nextLevel) setRoofMaskUrl(publishedRoofMaskUrl);
     }
     const displayWindow = openDisplay
       ? window.open("about:blank", "shadow-edge-session-display")
@@ -469,7 +419,6 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
             : "image"
           : mediaType,
         roofUrl: publishedRoofUrl || undefined,
-        roofMaskUrl: publishedRoofMaskUrl || undefined,
         // The player renderer derives the roof automatically from paired VTT
         // layers plus current-floor LOS. Zones are optional manual overrides.
         roofVisionOnly: Boolean(nextToken),
@@ -573,12 +522,11 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
           : numberedLayers;
         const roofLayer = orderedLayers.at(-1)!.item;
         const playable = orderedLayers.slice(0, -1).map((layer) => layer.item);
-        const nextLevels = await Promise.all(playable.map(async (item, index): Promise<SessionMapLevel> => ({
+        const nextLevels = playable.map((item, index): SessionMapLevel => ({
           id: `${item.file.name}-${index}`,
           name: `Уровень ${index + 1}`,
           imageUrl: item.result.url,
           roofUrl: roofLayer.result.url,
-          roofMaskUrl: await pairedRoofMask(item.result.url, roofLayer.result.url),
           roofZones: suggestedRoofZones(item.result.vtt?.walls ?? []),
           deepZoom: item.result.deepZoom ?? null,
           walls: item.result.vtt?.walls ?? [],
@@ -588,7 +536,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
             color: "#ffffff",
             opacity: 0.35,
           },
-        })));
+        }));
         const first = nextLevels[0];
         nextLevels.forEach((level, index) =>
           window.setTimeout(
@@ -600,7 +548,6 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
         setActiveLevel(0);
         setImageUrl(first.imageUrl);
         setRoofUrl(first.roofUrl);
-        setRoofMaskUrl(first.roofMaskUrl);
         setDeepZoom(first.deepZoom);
         setMediaType(first.deepZoom ? "tiles" : "image");
         setWalls(first.walls);
@@ -635,7 +582,6 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
       setLevels([]);
       setActiveLevel(0);
       setRoofUrl(roof?.result.url ?? "");
-      setRoofMaskUrl(roof ? await pairedRoofMask(result.url, roof.result.url) : "");
       setDeepZoom(result.deepZoom ?? null);
       setMediaType(result.deepZoom ? "tiles" : video ? "video" : "image");
       setTitle(file.name.replace(/\.[^.]+$/, "") || "Карта приключения");
@@ -680,7 +626,6 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
     setActiveLevel(index);
     setImageUrl(level.imageUrl);
     setRoofUrl(level.roofUrl);
-    setRoofMaskUrl(level.roofMaskUrl);
     setDeepZoom(level.deepZoom);
     setMediaType(level.deepZoom ? "tiles" : "image");
     setWalls(level.walls);
@@ -715,7 +660,6 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
     if (id) {
       setImageUrl(value);
       setRoofUrl("");
-      setRoofMaskUrl("");
       setDeepZoom(null);
       setMediaType("youtube");
       setTitle("Анимированная карта");
@@ -728,7 +672,6 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
       if (!/^https?:$/.test(parsed.protocol)) throw new Error();
       setImageUrl(value);
       setRoofUrl("");
-      setRoofMaskUrl("");
       setDeepZoom(null);
       setMediaType("image");
       resetFog();
