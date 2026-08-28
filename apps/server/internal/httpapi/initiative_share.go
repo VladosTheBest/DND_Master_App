@@ -1545,9 +1545,14 @@ var (
           ? image.visionPolygon.map((point) => (Number(point.x) * 1000) + ',' + (Number(point.y) * 1000)).join(' ')
           : '';
         const visionPoints = suppliedVisionPoints || visibilityPolygon(token, walls, renderedAspect).map((point) => (point.x * 1000) + ',' + (point.y * 1000)).join(' ');
-        const visionClip = Array.isArray(image?.fovPolygon) && image.fovPolygon.length > 2
-          ? 'polygon(' + image.fovPolygon.map((point) => (Number(point.x) * 100) + '% ' + (Number(point.y) * 100) + '%').join(',') + ')'
-          : fovClipPath(token, renderedAspect);
+        // Match the master preview exactly. A serialized FOV polygon is
+        // clamped to map bounds before publication; using it as CSS polygon
+        // can fold over itself at an edge and produce wedges on TV. The
+        // master uses this unclamped ellipse, while the canvas itself clips it
+        // safely to the map rectangle.
+        const visionClip = token
+          ? fovClipPath(token, Number(image?.mapAspectRatio || renderedAspect))
+          : 'none';
         const regionShapes = regions.map((region) => {
           const points = Array.isArray(region?.points)
             ? region.points.map((point) => (Math.max(0, Math.min(1, Number(point?.x || 0))) * 1000) + ',' + (Math.max(0, Math.min(1, Number(point?.y || 0))) * 1000)).join(' ')
