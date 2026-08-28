@@ -71,6 +71,7 @@ type publicInitiativeMeta struct {
 type playerDisplayImageInput struct {
 	URL            string              `json:"url"`
 	RoofURL        string              `json:"roofUrl"`
+	PairedVTT      bool                `json:"pairedVTT"`
 	RoofVisionOnly bool                `json:"roofVisionOnly"`
 	RoofZones      []publicRoofZone    `json:"roofZones"`
 	Title          string              `json:"title"`
@@ -151,6 +152,7 @@ type publicViewport struct {
 type publicDisplayImage struct {
 	URL            string              `json:"url"`
 	RoofURL        string              `json:"roofUrl,omitempty"`
+	PairedVTT      bool                `json:"pairedVTT,omitempty"`
 	RoofVisionOnly bool                `json:"roofVisionOnly,omitempty"`
 	RoofZones      []publicRoofZone    `json:"roofZones,omitempty"`
 	Title          string              `json:"title,omitempty"`
@@ -1550,7 +1552,7 @@ var (
         // can fold over itself at an edge and produce wedges on TV. The
         // master uses this unclamped ellipse, while the canvas itself clips it
         // safely to the map rectangle.
-        const visionClip = token
+        const visionClip = image?.pairedVTT ? 'none' : token
           ? fovClipPath(token, Number(image?.mapAspectRatio || renderedAspect))
           : 'none';
         const regionShapes = regions.map((region) => {
@@ -1582,6 +1584,7 @@ var (
         // the base/current-floor. This is automatic and never requires zones.
         const roofShape = image?.roofUrl
           ? (() => {
+              if (image?.pairedVTT) return '<svg class="roof-overlay" preserveAspectRatio="none" viewBox="0 0 1000 1000"><image href="' + escapeHtml(image.roofUrl) + '" width="1000" height="1000" preserveAspectRatio="none"></image></svg>';
               if (token && visionPoints) {
                 return '<svg class="roof-overlay vision-only" preserveAspectRatio="none" viewBox="0 0 1000 1000"><defs><mask id="roof-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="0" y="0" width="1000" height="1000"><rect width="1000" height="1000" fill="white"></rect><polygon class="roof-vision-cutout" points="' + visionPoints + '" fill="black"></polygon></mask></defs><image href="' + escapeHtml(image.roofUrl) + '" width="1000" height="1000" preserveAspectRatio="none" mask="url(#roof-mask)"></image></svg>';
               }
@@ -2861,6 +2864,7 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 	return &publicDisplayImage{
 		URL:            url,
 		RoofURL:        strings.TrimSpace(image.RoofURL),
+		PairedVTT:      image.PairedVTT,
 		RoofVisionOnly: image.RoofVisionOnly,
 		RoofZones:      roofZones,
 		Title:          strings.TrimSpace(image.Title),
