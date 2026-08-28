@@ -344,14 +344,33 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
       : deepZoom
         ? deepZoom.width / deepZoom.height
         : imageAspect;
+  // A multi-VTT scene is an automatic base/roof pair. Legacy hand-drawn
+  // zones must never leak into this mode: they are not map geometry and the
+  // roof renderer does not consume them.
+  const pairedVTT = levels.length > 0 && Boolean(roofUrl);
   const visionCellSize = grid.type === "none" ? 0.01 : grid.size;
-  const roofZonesToRender = (roofZones.length ? roofZones : suggestedRoofZones(walls)).filter(
+  const roofZonesToRender = (pairedVTT ? [] : (roofZones.length ? roofZones : suggestedRoofZones(walls))).filter(
     (zone) => !token || !pointInPolygon(token, zone.points),
   );
   const masterVisionPoints = token ? visibilityPolygon(token, walls, mapAspect) : [];
   const masterFovClip = token
     ? `ellipse(${token.visionRadius * 100}% ${token.visionRadius * mapAspect * 100}% at ${token.x * 100}% ${token.y * 100}%)`
     : undefined;
+
+  useEffect(() => {
+    if (!pairedVTT) return;
+    // Migrate an already-open scene created before paired VTTs stopped using
+    // zones. The conditional updates prevent a render loop.
+    if (roofZones.length) setRoofZones([]);
+    if (tool === "roof" || tool === "roofOpening") setTool(null);
+    setDraft([]);
+    draftRef.current = [];
+    setLevels((current) =>
+      current.some((level) => level.roofZones.length)
+        ? current.map((level) => ({ ...level, roofZones: [] }))
+        : current,
+    );
+  }, [pairedVTT, roofZones.length, tool]);
 
   useEffect(() => {
     if (!open) return;
@@ -422,7 +441,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
         // The player renderer derives the roof automatically from paired VTT
         // layers plus current-floor LOS. Zones are optional manual overrides.
         roofVisionOnly: Boolean(nextToken),
-        roofZones: nextRoofZones.length ? nextRoofZones : suggestedRoofZones(nextWalls),
+        roofZones: pairedVTT ? [] : (nextRoofZones.length ? nextRoofZones : suggestedRoofZones(nextWalls)),
         sessionMap: true,
         title,
         url: publishedImageUrl,
@@ -462,6 +481,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
     if (displayUrl) void publish(regions, next, token);
   };
   const updateRoofZones = (next: PlayerDisplayRoofZone[]) => {
+    if (pairedVTT) return;
     setRoofZones(next);
     setLevels((current) =>
       current.map((level, index) =>
@@ -527,7 +547,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
           name: `Уровень ${index + 1}`,
           imageUrl: item.result.url,
           roofUrl: roofLayer.result.url,
-          roofZones: suggestedRoofZones(item.result.vtt?.walls ?? []),
+          roofZones: [],
           deepZoom: item.result.deepZoom ?? null,
           walls: item.result.vtt?.walls ?? [],
           grid: {
@@ -551,7 +571,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
         setDeepZoom(first.deepZoom);
         setMediaType(first.deepZoom ? "tiles" : "image");
         setWalls(first.walls);
-        setRoofZones(first.roofZones);
+        setRoofZones([]);
         setGrid(first.grid);
         setToken(null);
         setRegions([]);
@@ -620,7 +640,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
     if (!level || index === activeLevel) return;
     setLevels((current) =>
       current.map((item, itemIndex) =>
-        itemIndex === activeLevel ? { ...item, walls, grid } : item,
+        itemIndex === activeLevel ? { ...item, walls, grid, roofZones: pairedVTT ? [] : roofZones } : item,
       ),
     );
     setActiveLevel(index);
@@ -629,7 +649,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
     setDeepZoom(level.deepZoom);
     setMediaType(level.deepZoom ? "tiles" : "image");
     setWalls(level.walls);
-    setRoofZones(level.roofZones);
+    setRoofZones(pairedVTT ? [] : level.roofZones);
     setGrid(level.grid);
     setRegions([]);
     setViewport({ zoom: 1, x: 0, y: 0 });
@@ -1073,7 +1093,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
                       <title>{`Область ${i + 1}`}</title>
                     </polygon>
                   ))}
-                  {roofZones.map((zone, index) => (
+                  {!pairedVTT && roofZones.map((zone, index) => (
                     <g key={zone.id}>
                       <polygon
                         className="roof-zone"
@@ -1266,22 +1286,22 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
               >
                 Туман
               </button>
-              <button
+              {!pairedVTT ? <button
                 className={tool === "roof" ? "primary" : "ghost"}
                 disabled={!imageUrl || !roofUrl}
                 onClick={() => setTool(tool === "roof" ? null : "roof")}
                 type="button"
               >
                 Нарисовать зону крыши
-              </button>
-              <button
+              </button> : null}
+              {!pairedVTT ? <button
                 className={tool === "roofOpening" ? "primary" : "ghost"}
                 disabled={!imageUrl || !roofUrl || !roofZones.length}
                 onClick={() => setTool(tool === "roofOpening" ? null : "roofOpening")}
                 type="button"
               >
                 Нарисовать проём крыши
-              </button>
+              </button> : null}
               <button
                 className={tool === "wall" ? "primary" : "ghost"}
                 disabled={!imageUrl}
@@ -1435,7 +1455,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
               Зажмите мышь и обведите комнату или зону. Контур замкнётся
               автоматически.
             </p>
-            {roofUrl ? (
+            {roofUrl && !pairedVTT ? (
               <div className="session-map-region-list">
                 {roofZones.map((zone, index) => (
                   <div className="session-map-region-row" key={zone.id}>
