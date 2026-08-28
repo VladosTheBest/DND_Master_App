@@ -826,7 +826,6 @@ export interface PlayerDisplayViewport {
 export interface PlayerDisplayImageInput {
   url: string;
   roofUrl?: string;
-  pairedVTT?: boolean;
   roofVisionOnly?: boolean;
   roofZones?: PlayerDisplayRoofZone[];
   title?: string;

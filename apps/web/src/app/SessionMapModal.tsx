@@ -28,7 +28,6 @@ type SessionMapLevel = {
   name: string;
   imageUrl: string;
   roofUrl: string;
-  pairedVTT: boolean;
   roofZones: PlayerDisplayRoofZone[];
   deepZoom: DeepZoomSource | null;
   walls: PlayerDisplayWall[];
@@ -286,7 +285,6 @@ function DeepZoomLayer({
 export function SessionMapModal({ campaignId, open, onClose }: Props) {
   const [imageUrl, setImageUrl] = useState("");
   const [roofUrl, setRoofUrl] = useState("");
-  const [pairedVTT, setPairedVTT] = useState(false);
   const [levels, setLevels] = useState<SessionMapLevel[]>([]);
   const [activeLevel, setActiveLevel] = useState(0);
   const [mediaType, setMediaType] = useState<
@@ -421,7 +419,6 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
             : "image"
           : mediaType,
         roofUrl: publishedRoofUrl || undefined,
-        pairedVTT: nextLevel?.pairedVTT ?? pairedVTT,
         // The player renderer derives the roof automatically from paired VTT
         // layers plus current-floor LOS. Zones are optional manual overrides.
         roofVisionOnly: Boolean(nextToken),
@@ -530,8 +527,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
           name: `Уровень ${index + 1}`,
           imageUrl: item.result.url,
           roofUrl: roofLayer.result.url,
-          pairedVTT: true,
-          roofZones: [],
+          roofZones: suggestedRoofZones(item.result.vtt?.walls ?? []),
           deepZoom: item.result.deepZoom ?? null,
           walls: item.result.vtt?.walls ?? [],
           grid: {
@@ -552,7 +548,6 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
         setActiveLevel(0);
         setImageUrl(first.imageUrl);
         setRoofUrl(first.roofUrl);
-        setPairedVTT(true);
         setDeepZoom(first.deepZoom);
         setMediaType(first.deepZoom ? "tiles" : "image");
         setWalls(first.walls);
@@ -631,7 +626,6 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
     setActiveLevel(index);
     setImageUrl(level.imageUrl);
     setRoofUrl(level.roofUrl);
-    setPairedVTT(level.pairedVTT);
     setDeepZoom(level.deepZoom);
     setMediaType(level.deepZoom ? "tiles" : "image");
     setWalls(level.walls);
