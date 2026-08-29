@@ -826,6 +826,10 @@ export interface PlayerDisplayViewport {
 export interface PlayerDisplayImageInput {
   url: string;
   roofUrl?: string;
+  /** Compact roof-only coverage mask derived from an aligned VTT pair. */
+  roofMaskUrl?: string;
+  /** Transparent black removal mask for the complete roof component containing the token. */
+  roofCutoutMaskUrl?: string;
   roofVisionOnly?: boolean;
   roofZones?: PlayerDisplayRoofZone[];
   title?: string;

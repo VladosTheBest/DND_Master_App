@@ -2,13 +2,18 @@ package httpapi
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/rand"
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"html"
 	"html/template"
+	"image/png"
 	"io"
 	"log"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
@@ -69,28 +74,30 @@ type publicInitiativeMeta struct {
 }
 
 type playerDisplayImageInput struct {
-	URL            string              `json:"url"`
-	RoofURL        string              `json:"roofUrl"`
-	RoofVisionOnly bool                `json:"roofVisionOnly"`
-	RoofZones      []publicRoofZone    `json:"roofZones"`
-	Title          string              `json:"title"`
-	Alt            string              `json:"alt"`
-	Caption        string              `json:"caption"`
-	FogRows        int                 `json:"fogRows"`
-	FogColumns     int                 `json:"fogColumns"`
-	Revealed       []int               `json:"revealed"`
-	ShowGrid       bool                `json:"showGrid"`
-	SessionMap     bool                `json:"sessionMap"`
-	MediaType      string              `json:"mediaType"`
-	FogRegions     []publicFogRegion   `json:"fogRegions"`
-	Walls          []publicDisplayWall `json:"walls"`
-	Token          *publicDisplayToken `json:"token"`
-	VisionPolygon  []publicFogPoint    `json:"visionPolygon"`
-	FOVPolygon     []publicFogPoint    `json:"fovPolygon"`
-	MapAspectRatio float64             `json:"mapAspectRatio"`
-	Grid           *publicDisplayGrid  `json:"grid"`
-	Viewport       *publicViewport     `json:"viewport"`
-	DeepZoom       *publicDeepZoom     `json:"deepZoom"`
+	URL               string              `json:"url"`
+	RoofURL           string              `json:"roofUrl"`
+	RoofMaskURL       string              `json:"roofMaskUrl"`
+	RoofCutoutMaskURL string              `json:"roofCutoutMaskUrl"`
+	RoofVisionOnly    bool                `json:"roofVisionOnly"`
+	RoofZones         []publicRoofZone    `json:"roofZones"`
+	Title             string              `json:"title"`
+	Alt               string              `json:"alt"`
+	Caption           string              `json:"caption"`
+	FogRows           int                 `json:"fogRows"`
+	FogColumns        int                 `json:"fogColumns"`
+	Revealed          []int               `json:"revealed"`
+	ShowGrid          bool                `json:"showGrid"`
+	SessionMap        bool                `json:"sessionMap"`
+	MediaType         string              `json:"mediaType"`
+	FogRegions        []publicFogRegion   `json:"fogRegions"`
+	Walls             []publicDisplayWall `json:"walls"`
+	Token             *publicDisplayToken `json:"token"`
+	VisionPolygon     []publicFogPoint    `json:"visionPolygon"`
+	FOVPolygon        []publicFogPoint    `json:"fovPolygon"`
+	MapAspectRatio    float64             `json:"mapAspectRatio"`
+	Grid              *publicDisplayGrid  `json:"grid"`
+	Viewport          *publicViewport     `json:"viewport"`
+	DeepZoom          *publicDeepZoom     `json:"deepZoom"`
 }
 
 type publicDeepZoom struct {
@@ -149,28 +156,30 @@ type publicViewport struct {
 }
 
 type publicDisplayImage struct {
-	URL            string              `json:"url"`
-	RoofURL        string              `json:"roofUrl,omitempty"`
-	RoofVisionOnly bool                `json:"roofVisionOnly,omitempty"`
-	RoofZones      []publicRoofZone    `json:"roofZones,omitempty"`
-	Title          string              `json:"title,omitempty"`
-	Alt            string              `json:"alt,omitempty"`
-	Caption        string              `json:"caption,omitempty"`
-	FogRows        int                 `json:"fogRows,omitempty"`
-	FogColumns     int                 `json:"fogColumns,omitempty"`
-	Revealed       []int               `json:"revealed,omitempty"`
-	ShowGrid       bool                `json:"showGrid,omitempty"`
-	SessionMap     bool                `json:"sessionMap,omitempty"`
-	MediaType      string              `json:"mediaType,omitempty"`
-	FogRegions     []publicFogRegion   `json:"fogRegions,omitempty"`
-	Walls          []publicDisplayWall `json:"walls,omitempty"`
-	Token          *publicDisplayToken `json:"token,omitempty"`
-	VisionPolygon  []publicFogPoint    `json:"visionPolygon,omitempty"`
-	FOVPolygon     []publicFogPoint    `json:"fovPolygon,omitempty"`
-	MapAspectRatio float64             `json:"mapAspectRatio,omitempty"`
-	Grid           *publicDisplayGrid  `json:"grid,omitempty"`
-	Viewport       *publicViewport     `json:"viewport,omitempty"`
-	DeepZoom       *publicDeepZoom     `json:"deepZoom,omitempty"`
+	URL               string              `json:"url"`
+	RoofURL           string              `json:"roofUrl,omitempty"`
+	RoofMaskURL       string              `json:"roofMaskUrl,omitempty"`
+	RoofCutoutMaskURL string              `json:"roofCutoutMaskUrl,omitempty"`
+	RoofVisionOnly    bool                `json:"roofVisionOnly,omitempty"`
+	RoofZones         []publicRoofZone    `json:"roofZones,omitempty"`
+	Title             string              `json:"title,omitempty"`
+	Alt               string              `json:"alt,omitempty"`
+	Caption           string              `json:"caption,omitempty"`
+	FogRows           int                 `json:"fogRows,omitempty"`
+	FogColumns        int                 `json:"fogColumns,omitempty"`
+	Revealed          []int               `json:"revealed,omitempty"`
+	ShowGrid          bool                `json:"showGrid,omitempty"`
+	SessionMap        bool                `json:"sessionMap,omitempty"`
+	MediaType         string              `json:"mediaType,omitempty"`
+	FogRegions        []publicFogRegion   `json:"fogRegions,omitempty"`
+	Walls             []publicDisplayWall `json:"walls,omitempty"`
+	Token             *publicDisplayToken `json:"token,omitempty"`
+	VisionPolygon     []publicFogPoint    `json:"visionPolygon,omitempty"`
+	FOVPolygon        []publicFogPoint    `json:"fovPolygon,omitempty"`
+	MapAspectRatio    float64             `json:"mapAspectRatio,omitempty"`
+	Grid              *publicDisplayGrid  `json:"grid,omitempty"`
+	Viewport          *publicViewport     `json:"viewport,omitempty"`
+	DeepZoom          *publicDeepZoom     `json:"deepZoom,omitempty"`
 }
 
 type publicDisplaySnapshot struct {
@@ -756,6 +765,9 @@ var (
         opacity: 1;
         transition: opacity 380ms ease;
       }
+      /* Indoors, LOS darkness is authoritative and must remain above every
+         roof pixel. Outdoors the regular z-index:3 roof exception remains. */
+      .roof-overlay.inside-roof { z-index: 1; }
       .roof-overlay.inside { opacity: 0; }
       .roof-overlay img {
         width: 100%;
@@ -792,25 +804,23 @@ var (
         pointer-events: none;
       }
       .fog-region {
-        fill: #020308;
-        stroke: rgba(65, 44, 78, 0.42);
+        fill: #000;
+        stroke: none;
         stroke-width: 0.003;
-        opacity: 0.995;
-        filter: drop-shadow(0 0 0.012px #000);
+        opacity: 1;
+        filter: none;
         transition: opacity 520ms ease;
       }
       .fog-region.revealed {
         opacity: 0;
       }
-      .vision-fog { fill: #020308; opacity: 1; }
+      .vision-fog { fill: #000; opacity: 1; }
       .player-token-image { pointer-events: none; filter: drop-shadow(0 0 8px rgba(230,184,95,.8)); }
       .fog-cell {
         min-width: 0;
         min-height: 0;
-        background:
-          radial-gradient(circle at 45% 48%, rgba(34, 25, 49, 0.94), rgba(3, 5, 10, 0.995) 72%),
-          linear-gradient(135deg, rgba(73, 47, 93, 0.24), rgba(0, 0, 0, 0.94));
-        box-shadow: 0 0 18px rgba(0, 0, 0, 0.88) inset;
+        background: #000;
+        box-shadow: none;
         opacity: 1;
         transition: opacity 520ms ease, filter 520ms ease;
       }
@@ -1405,6 +1415,29 @@ var (
         statusNode.textContent = UI.updated + formatUpdatedAt(updatedAt);
       };
 
+      const clipSegmentToVisionCircle = (segment, origin, aspect, radius) => {
+        const start = { x: Number(segment.start.x) - origin.x, y: (Number(segment.start.y) - origin.y) / aspect };
+        const end = { x: Number(segment.end.x) - origin.x, y: (Number(segment.end.y) - origin.y) / aspect };
+        const delta = { x: end.x - start.x, y: end.y - start.y };
+        const a = delta.x * delta.x + delta.y * delta.y;
+        if (a <= 1e-24) return null;
+        const b = 2 * (start.x * delta.x + start.y * delta.y);
+        const c = start.x * start.x + start.y * start.y - radius * radius;
+        let discriminant = b * b - 4 * a * c;
+        const tolerance = 1e-12 * Math.max(1, b * b, Math.abs(4 * a * c));
+        if (discriminant < -tolerance) return null;
+        discriminant = Math.max(0, discriminant);
+        const root = Math.sqrt(discriminant);
+        const enter = Math.max(0, (-b - root) / (2 * a));
+        const exit = Math.min(1, (-b + root) / (2 * a));
+        if (exit - enter <= 1e-10) return null;
+        const pointAt = (value) => ({
+          x: origin.x + start.x + delta.x * value,
+          y: origin.y + (start.y + delta.y * value) * aspect,
+        });
+        return { start: pointAt(enter), end: pointAt(exit) };
+      };
+
       const visibilityPolygon = (token, walls, aspectRatio) => {
         if (!token) return [];
         const origin = { x: Number(token.x || 0), y: Number(token.y || 0) };
@@ -1414,14 +1447,15 @@ var (
         const wallSegments = (walls || []).filter((wall) => !wall?.disabled).flatMap((wall) => {
           const points = Array.isArray(wall?.points) && wall.points.length >= 2 ? wall.points : [wall.start, wall.end];
           return points.slice(1).map((end, index) => ({ start: points[index], end }));
-        });
+        }).map((wall) => clipSegmentToVisionCircle(wall, origin, aspect, radius)).filter(Boolean);
         wallSegments.forEach((wall) => [wall.start, wall.end].forEach((point) => {
           const angle = Math.atan2((Number(point.y) - origin.y) / aspect, Number(point.x) - origin.x);
           angles.push(angle - 0.0001, angle, angle + 0.0001);
         }));
         const normalizedAngles = angles
           .map((angle) => ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2))
-          .sort((a, b) => a - b);
+          .sort((a, b) => a - b)
+          .filter((angle, index, sorted) => index === 0 || Math.abs(angle - sorted[index - 1]) > 1e-12);
         return normalizedAngles.map((angle) => {
           const ray = { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius * aspect };
           let distance = 1;
@@ -1438,9 +1472,9 @@ var (
         });
       };
 
-      // FOV is a hard radius independent of line-of-sight.  LOS still shapes
-      // the fog (and the matching roof cut-out), while this clip ensures that
-      // no layer of the map leaks beyond the token's actual range.
+      // FOV is a hard radius independent of line-of-sight. LOS shapes the fog,
+      // while this clip ensures that no layer of the map leaks beyond the
+      // token's actual range.
       const fovClipPath = (token, aspectRatio) => {
         if (!token) return 'none';
         const radius = Math.max(0.03, Number(token.visionRadius || 0.22));
@@ -1457,43 +1491,9 @@ var (
         return inside;
       };
 
-      let displayedSessionToken = null;
-      let sessionTokenAnimationFrame = 0;
-      const animateSessionToken = (canvas, target, walls, aspect, zoom, publishedVisionPoints, publishedFovClip) => {
-        cancelAnimationFrame(sessionTokenAnimationFrame);
-        if (!target) { displayedSessionToken = null; return; }
-        const start = displayedSessionToken || target;
-        const distance = Math.hypot(Number(target.x)-Number(start.x), Number(target.y)-Number(start.y));
-        const duration = Math.min(650, Math.max(240, distance * 1100));
-        const startedAt = performance.now();
-        const tokenNode = canvas.querySelector('.player-token-image');
-        const fogNode = canvas.querySelector('.vision-fog');
-        const roofCutoutNodes = canvas.querySelectorAll('.roof-vision-cutout');
-        const draw = (now) => {
-          const raw = Math.min(1, (now-startedAt)/duration);
-          const eased = 1-Math.pow(1-raw,3);
-          const current = {...target,x:Number(start.x)+(Number(target.x)-Number(start.x))*eased,y:Number(start.y)+(Number(target.y)-Number(start.y))*eased};
-          displayedSessionToken = current;
-          if (tokenNode) {
-            tokenNode.style.left = (current.x * 100) + '%';
-            tokenNode.style.top = (current.y * 100) + '%';
-            tokenNode.style.transform = 'translate(-50%,-50%) scale(' + (1 / zoom) + ')';
-          }
-          if (fogNode) {
-            const points = String(publishedVisionPoints || '').trim().split(/\s+/).join(' L ');
-            fogNode.setAttribute('d',points?'M 0 0 H 1000 V 1000 H 0 Z M '+points+' Z':'');
-          }
-          // Geometry comes from the GM renderer; do not rederive it here.
-          canvas.style.clipPath = publishedFovClip || fovClipPath(current, aspect);
-          if (roofCutoutNodes.length) {
-            const points = String(publishedVisionPoints || '');
-            roofCutoutNodes.forEach((node) => node.setAttribute('points', points));
-          }
-          if (raw<1) sessionTokenAnimationFrame=requestAnimationFrame(draw);
-          else displayedSessionToken=target;
-        };
-        sessionTokenAnimationFrame=requestAnimationFrame(draw);
-      };
+      const pointInRoofZone = (point, zone) => pointInPolygon(point, zone.points) &&
+        !(Array.isArray(zone?.openings) ? zone.openings : []).some((opening) =>
+          Array.isArray(opening) && opening.length > 2 && pointInPolygon(point, opening));
 
       const renderImage = (snapshot, image) => {
         const isSessionMap = Boolean(image?.sessionMap);
@@ -1577,17 +1577,55 @@ var (
           : fogCells
             ? '<div class="fog-grid' + (image?.showGrid ? ' show-grid' : '') + '" style="grid-template-columns:repeat(' + columns + ',1fr);grid-template-rows:repeat(' + rows + ',1fr)">' + fogCells + '</div>'
             : "";
-        // Paired VTTs are geometrically identical. With a token, roof is the
-        // roof-layer in the LOS-dark part of the hard FOV; visible LOS remains
-        // the base/current-floor. This is automatic and never requires zones.
+        // A paired roof image is an opaque full-map render, not a transparent
+        // roof layer. Only pixels selected by a derived mask or explicit manual
+        // zones may sit above LOS fog; otherwise repeated terrain would reveal
+        // everything behind a wall.
         const roofShape = image?.roofUrl
           ? (() => {
-              if (token && visionPoints) {
-                return '<svg class="roof-overlay vision-only" preserveAspectRatio="none" viewBox="0 0 1000 1000"><defs><mask id="roof-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="0" y="0" width="1000" height="1000"><rect width="1000" height="1000" fill="white"></rect><polygon class="roof-vision-cutout" points="' + visionPoints + '" fill="black"></polygon></mask></defs><image href="' + escapeHtml(image.roofUrl) + '" width="1000" height="1000" preserveAspectRatio="none" mask="url(#roof-mask)"></image></svg>';
+              const maskURL = String(image?.roofMaskUrl || '');
+              const cutoutMaskURL = maskURL ? String(image?.roofCutoutMaskUrl || '') : '';
+              const roofZones = Array.isArray(image?.roofZones)
+                ? image.roofZones.filter((zone) => Array.isArray(zone?.points) && zone.points.length > 2)
+                : [];
+              const footprints = roofZones.map((zone) => '<polygon points="' + zone.points.map((point) => (Number(point.x) * 1000) + ',' + (Number(point.y) * 1000)).join(' ') + '" fill="white"></polygon>').join('');
+              const openings = roofZones.flatMap((zone) => Array.isArray(zone.openings) ? zone.openings : [])
+                .filter((opening) => Array.isArray(opening) && opening.length > 2)
+                .map((opening) => '<polygon points="' + opening.map((point) => (Number(point.x) * 1000) + ',' + (Number(point.y) * 1000)).join(' ') + '" fill="black"></polygon>')
+                .join('');
+              const coverage = maskURL
+                ? '<image href="' + escapeHtml(maskURL) + '" width="1000" height="1000" preserveAspectRatio="none"></image>'
+                : footprints;
+
+              if (token) {
+                if (!visionPoints || !coverage) return '';
+                const activeZones = maskURL
+                  ? []
+                  : roofZones.filter((zone) => pointInRoofZone(token, zone));
+                // Remove the complete roof component containing the token.
+                // The wall-clipped fog below is then authoritative: windows
+                // reveal their rays, while the roof can no longer paint over
+                // darkness behind solid walls.
+                const componentCutout = cutoutMaskURL
+                  ? '<image href="' + escapeHtml(cutoutMaskURL) + '" width="1000" height="1000" preserveAspectRatio="none"></image>'
+                  : activeZones.map((zone) => '<polygon points="' + zone.points.map((point) => (Number(point.x) * 1000) + ',' + (Number(point.y) * 1000)).join(' ') + '" fill="black"></polygon>').join('');
+                const insideRoof = Boolean(image?.roofVisionOnly || componentCutout);
+                // If the active component mask was rejected or unavailable,
+                // fail closed instead of painting a roof above the LOS fog.
+                if (insideRoof && !componentCutout) return '';
+                const visionClip = insideRoof
+                  ? '<clipPath id="roof-los-clip" clipPathUnits="userSpaceOnUse"><polygon points="' + visionPoints + '"></polygon></clipPath>'
+                  : '';
+                const mask = '<mask id="roof-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="0" y="0" width="1000" height="1000" style="mask-type:luminance"><rect width="1000" height="1000" fill="black"></rect>' + coverage + (maskURL ? '' : openings) + componentCutout + '</mask>';
+                return '<svg class="roof-overlay vision-only' + (insideRoof ? ' inside-roof' : '') + '" preserveAspectRatio="none" viewBox="0 0 1000 1000"><defs>' + visionClip + mask + '</defs><image href="' + escapeHtml(image.roofUrl) + '" width="1000" height="1000" preserveAspectRatio="none" mask="url(#roof-mask)"' + (insideRoof ? ' clip-path="url(#roof-los-clip)"' : '') + '></image></svg>';
               }
-              // The paired roof VTT is an aligned full-map layer. Never infer
-              // its extent from walls or roof zones: those are editor aids,
-              // not image geometry, and would crop valid roof pixels.
+
+              if (coverage) {
+                const mask = '<mask id="roof-mask" maskUnits="userSpaceOnUse" maskContentUnits="userSpaceOnUse" x="0" y="0" width="1000" height="1000" style="mask-type:luminance"><rect width="1000" height="1000" fill="black"></rect>' + coverage + (maskURL ? '' : openings) + '</mask>';
+                return '<svg class="roof-overlay" preserveAspectRatio="none" viewBox="0 0 1000 1000"><defs>' + mask + '</defs><image href="' + escapeHtml(image.roofUrl) + '" width="1000" height="1000" preserveAspectRatio="none" mask="url(#roof-mask)"></image></svg>';
+              }
+              // Without a vision token there is no LOS fog to leak through,
+              // so legacy scenes may still show their full roof render.
               return '<svg class="roof-overlay" preserveAspectRatio="none" viewBox="0 0 1000 1000"><image href="' + escapeHtml(image.roofUrl) + '" width="1000" height="1000" preserveAspectRatio="none"></image></svg>';
             })()
           : '';
@@ -1620,7 +1658,6 @@ var (
           }
           if (roofShape) currentCanvas.insertAdjacentHTML("beforeend", roofShape);
           if (tokenOverlay) currentCanvas.insertAdjacentHTML("beforeend", tokenOverlay);
-          animateSessionToken(currentCanvas, token, walls, renderedAspect, tokenZoom, visionPoints, visionClip);
           setPublishedStatus(snapshot?.updatedAt);
           return;
         }
@@ -1639,7 +1676,6 @@ var (
           '</div>' +
           overlay +
           '</figure>';
-        animateSessionToken(trackNode.querySelector('.image-canvas'), token, walls, renderedAspect, tokenZoom, visionPoints, visionClip);
         setPublishedStatus(snapshot?.updatedAt);
       };
 
@@ -2463,28 +2499,30 @@ func (manager *initiativeShareManager) showPlayerDisplayImage(
 	}
 
 	manager.currentDisplaySnapshotLocked(campaign, &publicDisplayImage{
-		URL:            resolvePublicDisplayAssetURL(strings.TrimSpace(input.URL), baseURL),
-		RoofURL:        resolvePublicDisplayAssetURL(strings.TrimSpace(input.RoofURL), baseURL),
-		RoofVisionOnly: input.RoofVisionOnly,
-		RoofZones:      input.RoofZones,
-		Title:          strings.TrimSpace(input.Title),
-		Alt:            strings.TrimSpace(input.Alt),
-		Caption:        strings.TrimSpace(input.Caption),
-		FogRows:        input.FogRows,
-		FogColumns:     input.FogColumns,
-		Revealed:       input.Revealed,
-		ShowGrid:       input.ShowGrid,
-		SessionMap:     input.SessionMap,
-		MediaType:      input.MediaType,
-		FogRegions:     input.FogRegions,
-		Walls:          input.Walls,
-		Token:          input.Token,
-		VisionPolygon:  input.VisionPolygon,
-		FOVPolygon:     input.FOVPolygon,
-		MapAspectRatio: input.MapAspectRatio,
-		Grid:           input.Grid,
-		Viewport:       input.Viewport,
-		DeepZoom:       input.DeepZoom,
+		URL:               resolvePublicDisplayAssetURL(strings.TrimSpace(input.URL), baseURL),
+		RoofURL:           resolvePublicDisplayAssetURL(strings.TrimSpace(input.RoofURL), baseURL),
+		RoofMaskURL:       input.RoofMaskURL,
+		RoofCutoutMaskURL: input.RoofCutoutMaskURL,
+		RoofVisionOnly:    input.RoofVisionOnly,
+		RoofZones:         input.RoofZones,
+		Title:             strings.TrimSpace(input.Title),
+		Alt:               strings.TrimSpace(input.Alt),
+		Caption:           strings.TrimSpace(input.Caption),
+		FogRows:           input.FogRows,
+		FogColumns:        input.FogColumns,
+		Revealed:          input.Revealed,
+		ShowGrid:          input.ShowGrid,
+		SessionMap:        input.SessionMap,
+		MediaType:         input.MediaType,
+		FogRegions:        input.FogRegions,
+		Walls:             input.Walls,
+		Token:             input.Token,
+		VisionPolygon:     input.VisionPolygon,
+		FOVPolygon:        input.FOVPolygon,
+		MapAspectRatio:    input.MapAspectRatio,
+		Grid:              input.Grid,
+		Viewport:          input.Viewport,
+		DeepZoom:          input.DeepZoom,
 	})
 
 	publicSnapshot := manager.currentSnapshotLocked(campaign)
@@ -2659,26 +2697,7 @@ func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 	}
 	fmt.Fprintf(&builder, "%s|%s|%s|", snapshot.CampaignID, snapshot.CampaignTitle, mode)
 	if mode == publicScreenModeImage && snapshot.Image != nil {
-		fmt.Fprintf(
-			&builder,
-			"image|%s|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|%v|%v|%f|%v|%v|",
-			snapshot.Image.URL,
-			snapshot.Image.Title,
-			snapshot.Image.Alt,
-			snapshot.Image.Caption,
-			snapshot.Image.MediaType,
-			snapshot.Image.FogRows,
-			snapshot.Image.FogColumns,
-			snapshot.Image.ShowGrid,
-			snapshot.Image.SessionMap,
-			snapshot.Image.Revealed,
-			snapshot.Image.FogRegions,
-			snapshot.Image.Walls,
-			snapshot.Image.Token,
-			snapshot.Image.MapAspectRatio,
-			snapshot.Image.Grid,
-			snapshot.Image.Viewport,
-		)
+		appendPublicDisplayImageFingerprint(&builder, snapshot.Image)
 		return builder.String()
 	}
 	if snapshot.Combat == nil {
@@ -2770,38 +2789,26 @@ func publicSnapshotFingerprint(snapshot publicInitiativeSnapshot) string {
 func publicDisplaySnapshotFingerprint(snapshot publicDisplaySnapshot) string {
 	var builder strings.Builder
 	fmt.Fprintf(&builder, "%s|%s|", snapshot.CampaignID, snapshot.CampaignTitle)
-	if snapshot.Image == nil {
-		builder.WriteString("empty")
-		return builder.String()
-	}
-
-	fmt.Fprintf(
-		&builder,
-		"%s|%s|%t|%v|%s|%s|%s|%s|%d|%d|%t|%t|%v|%v|%v|%v|%v|%v|%f|%v|%v|%v|",
-		snapshot.Image.URL,
-		snapshot.Image.RoofURL,
-		snapshot.Image.RoofVisionOnly,
-		snapshot.Image.RoofZones,
-		snapshot.Image.Title,
-		snapshot.Image.Alt,
-		snapshot.Image.Caption,
-		snapshot.Image.MediaType,
-		snapshot.Image.FogRows,
-		snapshot.Image.FogColumns,
-		snapshot.Image.ShowGrid,
-		snapshot.Image.SessionMap,
-		snapshot.Image.Revealed,
-		snapshot.Image.FogRegions,
-		snapshot.Image.Walls,
-		snapshot.Image.Token,
-		snapshot.Image.VisionPolygon,
-		snapshot.Image.FOVPolygon,
-		snapshot.Image.MapAspectRatio,
-		snapshot.Image.Grid,
-		snapshot.Image.Viewport,
-		snapshot.Image.DeepZoom,
-	)
+	appendPublicDisplayImageFingerprint(&builder, snapshot.Image)
 	return builder.String()
+}
+
+// Both the unified initiative page and the legacy display page expose the same
+// image payload. Fingerprint its JSON representation once so adding or changing
+// any public image field advances both versions in lockstep.
+func appendPublicDisplayImageFingerprint(builder *strings.Builder, image *publicDisplayImage) {
+	if image == nil {
+		builder.WriteString("image|null|")
+		return
+	}
+	encoded, err := json.Marshal(image)
+	if err != nil {
+		fmt.Fprintf(builder, "image|%#v|", *image)
+		return
+	}
+	builder.WriteString("image|")
+	builder.Write(encoded)
+	builder.WriteByte('|')
 }
 
 func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
@@ -2859,31 +2866,62 @@ func sanitizePublicDisplayImage(image publicDisplayImage) *publicDisplayImage {
 	}
 	grid := sanitizePublicDisplayGrid(image.Grid)
 	viewport := sanitizePublicViewport(image.Viewport)
+	roofMaskURL := sanitizeRoofMaskURL(image.RoofMaskURL)
+	roofCutoutMaskURL := sanitizeRoofMaskURL(image.RoofCutoutMaskURL)
+	if len(roofMaskURL)+len(roofCutoutMaskURL) > maxPublicRoofMaskPayloadLength {
+		roofCutoutMaskURL = ""
+	}
 
 	return &publicDisplayImage{
-		URL:            url,
-		RoofURL:        strings.TrimSpace(image.RoofURL),
-		RoofVisionOnly: image.RoofVisionOnly,
-		RoofZones:      roofZones,
-		Title:          strings.TrimSpace(image.Title),
-		Alt:            strings.TrimSpace(image.Alt),
-		Caption:        strings.TrimSpace(image.Caption),
-		FogRows:        rows,
-		FogColumns:     columns,
-		Revealed:       revealed,
-		ShowGrid:       image.ShowGrid,
-		SessionMap:     image.SessionMap,
-		MediaType:      mediaType,
-		FogRegions:     regions,
-		Walls:          walls,
-		Token:          token,
-		VisionPolygon:  visionPolygon,
-		FOVPolygon:     fovPolygon,
-		MapAspectRatio: aspectRatio,
-		Grid:           grid,
-		Viewport:       viewport,
-		DeepZoom:       image.DeepZoom,
+		URL:               url,
+		RoofURL:           strings.TrimSpace(image.RoofURL),
+		RoofMaskURL:       roofMaskURL,
+		RoofCutoutMaskURL: roofCutoutMaskURL,
+		RoofVisionOnly:    image.RoofVisionOnly,
+		RoofZones:         roofZones,
+		Title:             strings.TrimSpace(image.Title),
+		Alt:               strings.TrimSpace(image.Alt),
+		Caption:           strings.TrimSpace(image.Caption),
+		FogRows:           rows,
+		FogColumns:        columns,
+		Revealed:          revealed,
+		ShowGrid:          image.ShowGrid,
+		SessionMap:        image.SessionMap,
+		MediaType:         mediaType,
+		FogRegions:        regions,
+		Walls:             walls,
+		Token:             token,
+		VisionPolygon:     visionPolygon,
+		FOVPolygon:        fovPolygon,
+		MapAspectRatio:    aspectRatio,
+		Grid:              grid,
+		Viewport:          viewport,
+		DeepZoom:          image.DeepZoom,
 	}
+}
+
+const (
+	maxPublicRoofMaskURLLength     = 192 * 1024
+	maxPublicRoofMaskPayloadLength = 384 * 1024
+	maxPublicPolygonPoints         = 8192
+	maxPublicPolygonCoordinate     = 16
+)
+
+func sanitizeRoofMaskURL(raw string) string {
+	value := strings.TrimSpace(raw)
+	const prefix = "data:image/png;base64,"
+	if !strings.HasPrefix(value, prefix) || len(value) > maxPublicRoofMaskURLLength {
+		return ""
+	}
+	decoded, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(value, prefix))
+	if err != nil || len(decoded) < 8 || !bytes.Equal(decoded[:8], []byte("\x89PNG\r\n\x1a\n")) {
+		return ""
+	}
+	config, err := png.DecodeConfig(bytes.NewReader(decoded))
+	if err != nil || config.Width < 1 || config.Height < 1 || config.Width > 1024 || config.Height > 1024 {
+		return ""
+	}
+	return value
 }
 
 func sanitizePublicViewport(viewport *publicViewport) *publicViewport {
@@ -3013,18 +3051,34 @@ func sanitizePublicRoofZones(zones []publicRoofZone) []publicRoofZone {
 	return result
 }
 
-// Geometry is calculated by the master renderer and sent normalized. Keeping
-// this sanitizer generic lets the TV reuse exactly those coordinates.
+// Geometry is calculated by the master renderer and sent in map-relative
+// coordinates. Vision circles near a map edge legitimately extend beyond
+// [0,1]; clamping their individual vertices folds the polygon and can reveal
+// areas that the master kept behind a wall. Preserve valid coordinates and let
+// the SVG viewport perform the same rectangular clipping as the master.
 func sanitizePublicPolygon(points []publicFogPoint) []publicFogPoint {
 	if len(points) < 3 {
 		return nil
 	}
-	if len(points) > 2048 {
-		points = points[:2048]
+	if len(points) > maxPublicPolygonPoints {
+		sampled := make([]publicFogPoint, maxPublicPolygonPoints)
+		for index := range sampled {
+			// The source polygon is ordered around its perimeter. Sampling by a
+			// proportional index preserves the entire circumference instead of
+			// turning a large polygon into one prefix-shaped sector.
+			sampled[index] = points[index*len(points)/maxPublicPolygonPoints]
+		}
+		points = sampled
 	}
 	result := make([]publicFogPoint, 0, len(points))
 	for _, point := range points {
-		result = append(result, publicFogPoint{X: max(0, min(point.X, 1)), Y: max(0, min(point.Y, 1))})
+		if math.IsNaN(point.X) || math.IsInf(point.X, 0) ||
+			math.IsNaN(point.Y) || math.IsInf(point.Y, 0) ||
+			math.Abs(point.X) > maxPublicPolygonCoordinate ||
+			math.Abs(point.Y) > maxPublicPolygonCoordinate {
+			return nil
+		}
+		result = append(result, point)
 	}
 	return result
 }

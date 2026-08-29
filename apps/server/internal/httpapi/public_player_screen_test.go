@@ -1,9 +1,16 @@
 package httpapi
 
 import (
+	"bytes"
+	"encoding/base64"
+	"image"
+	"image/color"
+	"image/png"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -24,6 +31,80 @@ func TestPublicDisplayFingerprintIncludesPublishedVisionGeometry(t *testing.T) {
 
 	if publicDisplaySnapshotFingerprint(base) == publicDisplaySnapshotFingerprint(changed) {
 		t.Fatal("published LOS geometry must change the TV snapshot fingerprint")
+	}
+	unifiedBase := publicInitiativeSnapshot{CampaignID: "campaign", CampaignTitle: "Campaign", Mode: publicScreenModeImage, Image: base.Image}
+	unifiedChanged := unifiedBase
+	unifiedChanged.Image = changed.Image
+	if publicSnapshotFingerprint(unifiedBase) == publicSnapshotFingerprint(unifiedChanged) {
+		t.Fatal("published LOS geometry must change the unified snapshot fingerprint")
+	}
+}
+
+func TestUnifiedPublicSnapshotVersionTracksVisionAndRoofGeometry(t *testing.T) {
+	store, campaign := newPublicScreenTestStore(t)
+	manager := newInitiativeShareManager(store, "https://players.example")
+	request := httptest.NewRequest(http.MethodPost, "/api/campaigns/"+campaign.ID+"/player-display", nil)
+	input := playerDisplayImageInput{
+		URL:            "/uploads/interior.jpg",
+		RoofURL:        "/uploads/roof.jpg",
+		RoofMaskURL:    testRoofMaskURL(t, 32),
+		RoofVisionOnly: true,
+		SessionMap:     true,
+		Token:          &publicDisplayToken{X: .5, Y: .5, VisionRadius: .2},
+		VisionPolygon: []publicFogPoint{
+			{X: .3, Y: .3}, {X: .7, Y: .3}, {X: .5, Y: .7},
+		},
+		FOVPolygon: []publicFogPoint{
+			{X: .2, Y: .2}, {X: .8, Y: .2}, {X: .5, Y: .8},
+		},
+		RoofZones: []publicRoofZone{{
+			ID: "house",
+			Points: []publicFogPoint{
+				{X: .25, Y: .25}, {X: .75, Y: .25}, {X: .75, Y: .75}, {X: .25, Y: .75},
+			},
+		}},
+	}
+
+	first, err := manager.showPlayerDisplayImage(campaign.ID, request, input)
+	if err != nil {
+		t.Fatalf("initial showPlayerDisplayImage() error = %v", err)
+	}
+
+	input.VisionPolygon = []publicFogPoint{{X: .3, Y: .3}, {X: .72, Y: .3}, {X: .5, Y: .7}}
+	visionChanged, err := manager.showPlayerDisplayImage(campaign.ID, request, input)
+	if err != nil {
+		t.Fatalf("vision update showPlayerDisplayImage() error = %v", err)
+	}
+	if visionChanged.PublishedVersion <= first.PublishedVersion {
+		t.Fatalf("unified version must advance for vision-only geometry changes: first=%d changed=%d", first.PublishedVersion, visionChanged.PublishedVersion)
+	}
+
+	input.RoofMaskURL = testRoofMaskURL(t, 224)
+	roofChanged, err := manager.showPlayerDisplayImage(campaign.ID, request, input)
+	if err != nil {
+		t.Fatalf("roof update showPlayerDisplayImage() error = %v", err)
+	}
+	if roofChanged.PublishedVersion <= visionChanged.PublishedVersion {
+		t.Fatalf("unified version must advance for roof-only geometry changes: vision=%d roof=%d", visionChanged.PublishedVersion, roofChanged.PublishedVersion)
+	}
+
+	input.RoofCutoutMaskURL = testRoofMaskURL(t, 96)
+	cutoutChanged, err := manager.showPlayerDisplayImage(campaign.ID, request, input)
+	if err != nil {
+		t.Fatalf("cutout update showPlayerDisplayImage() error = %v", err)
+	}
+	if cutoutChanged.PublishedVersion <= roofChanged.PublishedVersion {
+		t.Fatalf("unified version must advance for active roof component changes: roof=%d cutout=%d", roofChanged.PublishedVersion, cutoutChanged.PublishedVersion)
+	}
+
+	input.RoofCutoutMaskURL = ""
+	input.RoofVisionOnly = false
+	outsideChanged, err := manager.showPlayerDisplayImage(campaign.ID, request, input)
+	if err != nil {
+		t.Fatalf("outside-roof update showPlayerDisplayImage() error = %v", err)
+	}
+	if outsideChanged.PublishedVersion <= cutoutChanged.PublishedVersion {
+		t.Fatalf("unified version must advance when the token leaves its roof component: cutout=%d outside=%d", cutoutChanged.PublishedVersion, outsideChanged.PublishedVersion)
 	}
 }
 
@@ -157,14 +238,29 @@ func TestPublicDisplaySanitizesYouTubeMap(t *testing.T) {
 }
 
 func TestPublicDisplayPreservesRoofLayer(t *testing.T) {
+	roofMask := testRoofMaskURL(t, 32)
+	roofCutoutMask := testRoofMaskURL(t, 224)
 	image := sanitizePublicDisplayImage(publicDisplayImage{
-		URL:            "/uploads/interior.jpg",
-		RoofURL:        "/uploads/roof.jpg",
-		RoofVisionOnly: true,
-		RoofZones:      []publicRoofZone{{ID: "house", Points: []publicFogPoint{{X: -.2, Y: .2}, {X: .8, Y: .2}, {X: .8, Y: 1.2}}}},
+		URL:               "/uploads/interior.jpg",
+		RoofURL:           "/uploads/roof.jpg",
+		RoofMaskURL:       roofMask,
+		RoofCutoutMaskURL: roofCutoutMask,
+		RoofVisionOnly:    true,
+		RoofZones:         []publicRoofZone{{ID: "house", Points: []publicFogPoint{{X: -.2, Y: .2}, {X: .8, Y: .2}, {X: .8, Y: 1.2}}}},
 	})
-	if image == nil || image.RoofURL != "/uploads/roof.jpg" || !image.RoofVisionOnly || len(image.RoofZones) != 1 || image.RoofZones[0].Points[0].X != 0 || image.RoofZones[0].Points[2].Y != 1 {
+	if image == nil || image.RoofURL != "/uploads/roof.jpg" || image.RoofMaskURL != roofMask || image.RoofCutoutMaskURL != roofCutoutMask || !image.RoofVisionOnly || len(image.RoofZones) != 1 || image.RoofZones[0].Points[0].X != 0 || image.RoofZones[0].Points[2].Y != 1 {
 		t.Fatalf("expected roof layer URL to survive sanitization, got %+v", image)
+	}
+
+	oversized := roofMask + strings.Repeat("A", maxPublicRoofMaskURLLength)
+	if got := sanitizeRoofMaskURL(oversized); got != "" {
+		t.Fatalf("expected oversized roof mask to be removed, got length %d", len(got))
+	}
+	if got := sanitizeRoofMaskURL("data:image/jpeg;base64,AAAA"); got != "" {
+		t.Fatalf("expected non-PNG roof mask to be removed, got %q", got)
+	}
+	if got := sanitizeRoofMaskURL("data:image/png;base64,AAAA"); got != "" {
+		t.Fatalf("expected malformed PNG roof mask to be removed, got %q", got)
 	}
 }
 
@@ -227,6 +323,65 @@ func TestPublicDisplaySanitizesWallsAndVisionToken(t *testing.T) {
 	image := sanitizePublicDisplayImage(publicDisplayImage{URL: "/map.png", MapAspectRatio: 99})
 	if image == nil || image.MapAspectRatio != 5 {
 		t.Fatalf("expected clamped map aspect ratio, got %+v", image)
+	}
+}
+
+func TestPublicDisplayPreservesComplete2964PointVisionPolygon(t *testing.T) {
+	points := testCircularPolygon(2964)
+	got := sanitizePublicPolygon(points)
+	if len(got) != len(points) {
+		t.Fatalf("expected all %d LOS points below the cap, got %d", len(points), len(got))
+	}
+	for index := range points {
+		if got[index] != points[index] {
+			t.Fatalf("LOS point %d changed below the cap: got %+v want %+v", index, got[index], points[index])
+		}
+	}
+}
+
+func TestPublicDisplayPreservesOffMapVisionCoordinates(t *testing.T) {
+	points := []publicFogPoint{
+		{X: -.25, Y: .4},
+		{X: .5, Y: -1.2},
+		{X: 1.4, Y: .7},
+	}
+	got := sanitizePublicPolygon(points)
+	if !slices.Equal(got, points) {
+		t.Fatalf("expected off-map LOS vertices to remain unchanged for SVG clipping, got %+v", got)
+	}
+}
+
+func TestPublicDisplayRejectsUnsafeVisionCoordinates(t *testing.T) {
+	points := []publicFogPoint{{X: 0, Y: 0}, {X: .5, Y: .5}, {X: maxPublicPolygonCoordinate + 1, Y: 1}}
+	if got := sanitizePublicPolygon(points); got != nil {
+		t.Fatalf("expected unsafe LOS coordinates to be rejected, got %+v", got)
+	}
+}
+
+func TestPublicDisplaySamplesOversizedVisionPolygonAcrossFullCircumference(t *testing.T) {
+	points := testCircularPolygon(maxPublicPolygonPoints * 2)
+	got := sanitizePublicPolygon(points)
+	if len(got) != maxPublicPolygonPoints {
+		t.Fatalf("expected oversized LOS polygon to be capped at %d points, got %d", maxPublicPolygonPoints, len(got))
+	}
+
+	var quadrants [4]bool
+	maxAngle := 0.0
+	for _, point := range got {
+		angle := math.Atan2(point.Y-.5, point.X-.5)
+		if angle < 0 {
+			angle += 2 * math.Pi
+		}
+		quadrants[min(3, int(angle/(math.Pi/2)))] = true
+		maxAngle = max(maxAngle, angle)
+	}
+	for quadrant, covered := range quadrants {
+		if !covered {
+			t.Fatalf("uniform LOS sampling omitted angular quadrant %d", quadrant+1)
+		}
+	}
+	if maxAngle < 1.9*math.Pi {
+		t.Fatalf("uniform LOS sampling did not reach the final angular sector: max angle %.3f radians", maxAngle)
 	}
 }
 
@@ -343,11 +498,37 @@ func TestLegacyDisplayRouteServesUnifiedViewer(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Fatalf("expected legacy /display route to stay available, got status %d", recorder.Code)
 	}
-	if !strings.Contains(recorder.Body.String(), "/api/initiative/") {
+	body := recorder.Body.String()
+	if !strings.Contains(body, "/api/initiative/") {
 		t.Fatalf("expected legacy /display route to serve the unified initiative viewer")
 	}
-	if !strings.Contains(recorder.Body.String(), "data-media-key") {
+	if !strings.Contains(body, "data-media-key") {
 		t.Fatalf("expected viewer to preserve the media element while fog updates")
+	}
+	for _, fragment := range []string{
+		"roofCutoutMaskUrl",
+		"pointInRoofZone(token, zone)",
+		"const insideRoof = Boolean(image?.roofVisionOnly || componentCutout);",
+		"if (insideRoof && !componentCutout) return '';",
+		".roof-overlay.inside-roof { z-index: 1; }",
+		".vision-fog { fill: #000; opacity: 1; }",
+		"(insideRoof ? ' inside-roof' : '')",
+		"clip-path=\"url(#roof-los-clip)\"",
+		"if (!visionPoints || !coverage) return '';",
+		"style=\"mask-type:luminance\"",
+	} {
+		if !strings.Contains(body, fragment) {
+			t.Fatalf("expected component-scoped fail-closed roof policy to contain %q", fragment)
+		}
+	}
+	for _, forbidden := range []string{
+		"preserveAspectRatio=\"none\" clip-path=\"url(#roof-los-clip)\"></image>",
+		"fill=\"black\" clip-path=\"url(#roof-los-clip)\"></polygon>",
+		"roof-vision-cutout",
+	} {
+		if strings.Contains(body, forbidden) {
+			t.Fatalf("active roof component itself must be removed completely before the final roof overlay is clipped to LOS; found %q", forbidden)
+		}
 	}
 }
 
@@ -387,4 +568,28 @@ func mutatePublicScreenCampaign(t *testing.T, store *campaignStore, campaignID s
 	}
 
 	t.Fatalf("campaign %q not found", campaignID)
+}
+
+func testCircularPolygon(count int) []publicFogPoint {
+	points := make([]publicFogPoint, count)
+	for index := range points {
+		angle := 2 * math.Pi * float64(index) / float64(count)
+		points[index] = publicFogPoint{X: .5 + math.Cos(angle)*.4, Y: .5 + math.Sin(angle)*.4}
+	}
+	return points
+}
+
+func testRoofMaskURL(t *testing.T, value uint8) string {
+	t.Helper()
+	mask := image.NewGray(image.Rect(0, 0, 2, 2))
+	for y := 0; y < 2; y++ {
+		for x := 0; x < 2; x++ {
+			mask.SetGray(x, y, color.Gray{Y: value})
+		}
+	}
+	var encoded bytes.Buffer
+	if err := png.Encode(&encoded, mask); err != nil {
+		t.Fatalf("encode test roof mask: %v", err)
+	}
+	return "data:image/png;base64," + base64.StdEncoding.EncodeToString(encoded.Bytes())
 }
