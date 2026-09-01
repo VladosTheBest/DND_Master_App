@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -328,6 +329,9 @@ func (service *proposalService) createEntity(ownerID, campaignID string, input e
 		if err != nil {
 			return aiProposal{}, err
 		}
+		if err := validateProposalEntityMedia(candidate, &existing, ownerID, campaign.ID); err != nil {
+			return aiProposal{}, err
+		}
 		after, _ := json.Marshal(candidate)
 		proposal.Kind = "entity_update"
 		proposal.Target = proposalTarget{CampaignID: campaign.ID, EntityID: existing.ID, EntityKind: existing.Kind}
@@ -353,6 +357,9 @@ func (service *proposalService) createEntity(ownerID, campaignID string, input e
 		candidate := materializeEntity(createInput)
 		candidate, validationWarnings, err := normalizeAndValidateEntityCandidate(campaign, candidate, true)
 		if err != nil {
+			return aiProposal{}, err
+		}
+		if err := validateProposalEntityMedia(candidate, nil, ownerID, campaign.ID); err != nil {
 			return aiProposal{}, err
 		}
 		after, _ := json.Marshal(candidate)
@@ -447,6 +454,9 @@ func (service *proposalService) createEvent(ownerID, campaignID string, input ev
 func (service *proposalService) createCampaign(ownerID string, input campaignProposalInput) (aiProposal, error) {
 	blueprint, operations, warnings, err := normalizeCampaignBlueprint(input.Blueprint)
 	if err != nil {
+		return aiProposal{}, err
+	}
+	if err := validateProposalCampaignBlueprintMedia(blueprint, ownerID); err != nil {
 		return aiProposal{}, err
 	}
 	after, err := json.Marshal(blueprint)
@@ -654,6 +664,80 @@ func normalizeAndValidateEntityCandidate(campaign campaignData, candidate knowle
 		}
 	}
 	return normalized, warnings, nil
+}
+
+func validateProposalEntityMedia(candidate knowledgeEntity, before *knowledgeEntity, ownerID, campaignID string) error {
+	allowedExisting := make(map[string]struct{})
+	if before != nil {
+		collectEntityMediaURLs(*before, allowedExisting)
+	}
+	if candidate.Art != nil {
+		if err := validateProposalMediaURL(candidate.Art.URL, allowedExisting, ownerID, campaignID); err != nil {
+			return fmt.Errorf("art: %w", err)
+		}
+	}
+	for _, image := range candidate.Gallery {
+		if err := validateProposalMediaURL(image.URL, allowedExisting, ownerID, campaignID); err != nil {
+			return fmt.Errorf("gallery image %q: %w", image.Title, err)
+		}
+	}
+	for _, track := range candidate.Playlist {
+		if err := validateProposalMediaURL(track.URL, allowedExisting, ownerID, campaignID); err != nil {
+			return fmt.Errorf("playlist track %q: %w", track.Title, err)
+		}
+	}
+	return nil
+}
+
+func validateProposalCampaignBlueprintMedia(blueprint campaignProposalBlueprint, ownerID string) error {
+	for _, item := range blueprint.Entities {
+		candidate := materializeEntity(item.createEntityInput)
+		if err := validateProposalEntityMedia(candidate, nil, ownerID, ""); err != nil {
+			return fmt.Errorf("%s %q: %w", item.Kind, item.Title, err)
+		}
+	}
+	return nil
+}
+
+func collectEntityMediaURLs(entity knowledgeEntity, target map[string]struct{}) {
+	if entity.Art != nil {
+		if value := strings.TrimSpace(entity.Art.URL); value != "" {
+			target[value] = struct{}{}
+		}
+	}
+	for _, image := range entity.Gallery {
+		if value := strings.TrimSpace(image.URL); value != "" {
+			target[value] = struct{}{}
+		}
+	}
+	for _, track := range entity.Playlist {
+		if value := strings.TrimSpace(track.URL); value != "" {
+			target[value] = struct{}{}
+		}
+	}
+}
+
+func validateProposalMediaURL(value string, allowedExisting map[string]struct{}, ownerID, campaignID string) error {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" {
+		return nil
+	}
+	if _, ok := allowedExisting[trimmed]; ok {
+		return nil
+	}
+	parsed, err := url.Parse(trimmed)
+	if err != nil || parsed.IsAbs() || parsed.Host != "" || !strings.HasPrefix(parsed.Path, "/") || strings.HasPrefix(parsed.Path, "//") || strings.Contains(parsed.Path, "\\") {
+		return proposalFailure(400, "invalid_media_url", "New external media URLs are not allowed; stage a local proposal image instead")
+	}
+	cleanPath := path.Clean(parsed.Path)
+	if strings.TrimSpace(campaignID) == "" {
+		return proposalFailure(400, "invalid_media_url", "New campaign media must be staged on the proposal")
+	}
+	expectedPrefix := proposalPublicPath(sanitizeUploadPathSegment(ownerID), sanitizeUploadPathSegment(campaignID)) + "/"
+	if !strings.HasPrefix(cleanPath, expectedPrefix) {
+		return proposalFailure(400, "invalid_media_url", "New media URLs must belong to this campaign's uploads")
+	}
+	return nil
 }
 
 func normalizeWorldEventCandidate(candidate worldEvent, campaign campaignData) worldEvent {
@@ -1234,6 +1318,9 @@ func applyEntityProposalLocked(proposal *aiProposal, campaign *campaignData) (pr
 		candidate.Kind = existing.Kind
 		candidate.Revision = existing.Revision + 1
 		candidate = ensureKnowledgeEntities([]knowledgeEntity{candidate})[0]
+		if err := validateProposalEntityMedia(candidate, &existing, proposal.OwnerID, campaign.ID); err != nil {
+			return proposalActionResult{}, err
+		}
 		if err := validateEntityReferencesStrict(*campaign, candidate); err != nil {
 			return proposalActionResult{}, err
 		}
@@ -1244,6 +1331,9 @@ func applyEntityProposalLocked(proposal *aiProposal, campaign *campaignData) (pr
 		}
 		candidate.Revision = 1
 		candidate = ensureKnowledgeEntities([]knowledgeEntity{candidate})[0]
+		if err := validateProposalEntityMedia(candidate, nil, proposal.OwnerID, campaign.ID); err != nil {
+			return proposalActionResult{}, err
+		}
 		if err := validateEntityReferencesStrict(*campaign, candidate); err != nil {
 			return proposalActionResult{}, err
 		}
@@ -1432,6 +1522,11 @@ func instantiateCampaignBlueprint(proposal aiProposal, ownerID, campaignID strin
 		campaign.Events = append(campaign.Events, event)
 	}
 	campaign = ensureCampaignShape(campaign)
+	for _, entity := range campaignEntities(campaign) {
+		if err := validateProposalEntityMedia(entity, nil, ownerID, campaignID); err != nil {
+			return campaignData{}, err
+		}
+	}
 	if err := validateCampaignReferences(campaign); err != nil {
 		return campaignData{}, err
 	}

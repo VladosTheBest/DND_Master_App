@@ -12,6 +12,7 @@ import (
 )
 
 const maxProposalMediaSize = 32 << 20
+const maxProposalMediaRequestSize = maxProposalMediaSize + (1 << 20)
 
 var proposalImageContentTypes = map[string]struct{}{
 	"image/jpeg": {},
@@ -299,11 +300,14 @@ func (srv *server) handleProposalMediaUpload(writer http.ResponseWriter, request
 		writeProposalHTTPError(writer, err)
 		return
 	}
-	request.Body = http.MaxBytesReader(writer, request.Body, maxProposalMediaSize)
+	// Multipart boundaries and form fields sit outside the file payload. Give
+	// the envelope bounded headroom while enforcing the advertised 32 MiB cap
+	// against the file bytes below.
+	request.Body = http.MaxBytesReader(writer, request.Body, maxProposalMediaRequestSize)
 	if err := request.ParseMultipartForm(multipartMemoryLimit); err != nil {
 		var maxBytesErr *http.MaxBytesError
 		if errors.As(err, &maxBytesErr) {
-			writeError(writer, http.StatusBadRequest, "file_too_large", "Proposal media must be 32 MB or smaller")
+			writeError(writer, http.StatusRequestEntityTooLarge, "file_too_large", "Proposal media must be 32 MiB or smaller")
 			return
 		}
 		writeError(writer, http.StatusBadRequest, "bad_request", "Could not parse proposal media upload")
@@ -343,7 +347,12 @@ func (srv *server) handleProposalMediaUpload(writer http.ResponseWriter, request
 	}
 	size, copyErr := io.Copy(target, io.LimitReader(file, maxProposalMediaSize+1))
 	closeErr := target.Close()
-	if copyErr != nil || closeErr != nil || size > maxProposalMediaSize {
+	if size > maxProposalMediaSize {
+		_ = os.Remove(filePath)
+		writeError(writer, http.StatusRequestEntityTooLarge, "file_too_large", "Proposal media must be 32 MiB or smaller")
+		return
+	}
+	if copyErr != nil || closeErr != nil {
 		_ = os.Remove(filePath)
 		writeError(writer, http.StatusBadRequest, "upload_write_failed", "Could not store proposal media")
 		return

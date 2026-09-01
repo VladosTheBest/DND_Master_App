@@ -243,6 +243,15 @@ func proposalErrorCode(t *testing.T, err error) string {
 	return typed.Code
 }
 
+func proposalTestJSON(t *testing.T, value any) json.RawMessage {
+	t.Helper()
+	body, err := json.Marshal(value)
+	if err != nil {
+		t.Fatalf("marshal proposal test JSON: %v", err)
+	}
+	return body
+}
+
 func TestProposalPersistsAcrossStoreReload(t *testing.T) {
 	store, service, user, campaign := newProposalTestService(t)
 	entity := createProposalTestEntity(t, store, campaign.ID)
@@ -373,6 +382,79 @@ func TestEntityProposalMergePreservesOmittedMediaAndRelationships(t *testing.T) 
 	}
 	if candidate.PlayerContent != entity.PlayerContent || candidate.Status != entity.Status || candidate.Urgency != entity.Urgency {
 		t.Fatalf("omitted scalar fields were not preserved: %#v", candidate)
+	}
+}
+
+func TestProposalMediaURLsRejectNewExternalAndCrossCampaignValuesWhilePreservingExisting(t *testing.T) {
+	store, service, user, campaign := newProposalTestService(t)
+	existingArt := "https://cdn.example.test/existing-art.png"
+	existingGallery := "https://cdn.example.test/existing-gallery.png"
+	existingPlaylist := "https://audio.example.test/existing-theme.mp3"
+	created, err := store.createEntity(campaign.ID, createEntityInput{
+		Kind: "npc", Title: "Mira", Summary: "Guide", Content: "Guide", Tags: []string{"npc"},
+		Art:      &heroArt{URL: existingArt, Alt: "Existing art"},
+		Gallery:  []galleryImage{{Title: "Existing scene", URL: existingGallery}},
+		Playlist: []playlistTrack{{Title: "Existing theme", URL: existingPlaylist}},
+	})
+	if err != nil {
+		t.Fatalf("create entity: %v", err)
+	}
+
+	preserved, err := service.createEntity(user.ID, campaign.ID, entityProposalInput{
+		Mode: "update", Kind: "npc", EntityID: created.Entity.ID, Patch: json.RawMessage(`{"summary":"Updated safely"}`),
+	})
+	if err != nil {
+		t.Fatalf("preserve existing media: %v", err)
+	}
+	var candidate knowledgeEntity
+	if err := json.Unmarshal(preserved.After, &candidate); err != nil {
+		t.Fatalf("decode preserved candidate: %v", err)
+	}
+	if candidate.Art == nil || candidate.Art.URL != existingArt || len(candidate.Gallery) != 1 || candidate.Gallery[0].URL != existingGallery || len(candidate.Playlist) != 1 || candidate.Playlist[0].URL != existingPlaylist {
+		t.Fatalf("existing media changed: %#v", candidate)
+	}
+
+	crossCampaignURL := proposalPublicPath(sanitizeUploadPathSegment(user.ID), "another-campaign", "tracker.png")
+	tests := []struct {
+		name  string
+		patch json.RawMessage
+	}{
+		{name: "external art", patch: proposalTestJSON(t, map[string]any{"art": map[string]any{"url": "https://attacker.example.test/tracker.png"}})},
+		{name: "external gallery", patch: proposalTestJSON(t, map[string]any{"gallery": []galleryImage{{Title: "Tracker", URL: "https://attacker.example.test/gallery.png"}}})},
+		{name: "external playlist", patch: proposalTestJSON(t, map[string]any{"playlist": []playlistTrack{{Title: "Tracker", URL: "https://attacker.example.test/audio.mp3"}}})},
+		{name: "cross campaign upload", patch: proposalTestJSON(t, map[string]any{"art": map[string]any{"url": crossCampaignURL}})},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			_, createErr := service.createEntity(user.ID, campaign.ID, entityProposalInput{
+				Mode: "update", Kind: "npc", EntityID: created.Entity.ID, Patch: test.patch,
+			})
+			if createErr == nil || proposalErrorCode(t, createErr) != "invalid_media_url" {
+				t.Fatalf("new media URL error = %v", createErr)
+			}
+		})
+	}
+
+	sameCampaignURL := proposalPublicPath(sanitizeUploadPathSegment(user.ID), sanitizeUploadPathSegment(campaign.ID), "manual.png")
+	if _, err := service.createEntity(user.ID, campaign.ID, entityProposalInput{
+		Mode: "update", Kind: "npc", EntityID: created.Entity.ID,
+		Patch: proposalTestJSON(t, map[string]any{"art": map[string]any{"url": sameCampaignURL}}),
+	}); err != nil {
+		t.Fatalf("same-campaign upload URL should remain usable: %v", err)
+	}
+
+	_, err = service.createCampaign(user.ID, campaignProposalInput{Blueprint: campaignProposalBlueprint{
+		Campaign: createCampaignInput{Title: "Unsafe media campaign"},
+		Entities: []campaignBlueprintEntity{{
+			TempKey: "guide",
+			createEntityInput: createEntityInput{
+				Kind: "npc", Title: "Guide", Summary: "Guide", Content: "Guide",
+				Art: &heroArt{URL: "https://attacker.example.test/campaign-tracker.png"},
+			},
+		}},
+	}})
+	if err == nil || proposalErrorCode(t, err) != "invalid_media_url" {
+		t.Fatalf("campaign external media error = %v", err)
 	}
 }
 
@@ -1499,6 +1581,90 @@ func TestProposalMediaMultipartRejectsVideoBeforeStaging(t *testing.T) {
 				t.Fatalf("rejected video created proposal staging, stat err = %v", statErr)
 			}
 		})
+	}
+}
+
+func TestProposalMediaMultipartEnforcesFileLimitOutsideMultipartEnvelope(t *testing.T) {
+	root := t.TempDir()
+	uploadDir := filepath.Join(root, "uploads")
+	handler, err := NewServer(Options{DataFile: filepath.Join(root, "store.json"), UploadDir: uploadDir})
+	if err != nil {
+		t.Fatalf("NewServer() error = %v", err)
+	}
+	cookies := registerAccountTestUser(t, handler, "proposal-size-gm")
+	create := accountTestRequest(t, handler, http.MethodPost, "/api/ai/proposals/campaign", `{
+		"prompt":"Prepare bounded proposal media",
+		"blueprint":{
+			"campaign":{"title":"Bounded media campaign"},
+			"entities":[{"tempKey":"subject","kind":"npc","title":"Subject"}]
+		}
+	}`, cookies)
+	if create.Code != http.StatusCreated {
+		t.Fatalf("create proposal status=%d body=%s", create.Code, create.Body.String())
+	}
+	proposal := decodeAccountTestData[aiProposal](t, create)
+
+	upload := func(t *testing.T, fileSize int) *httptest.ResponseRecorder {
+		t.Helper()
+		var requestBody bytes.Buffer
+		requestBody.Grow(fileSize + 1024)
+		form := multipart.NewWriter(&requestBody)
+		part, createErr := form.CreateFormFile("file", "portrait.png")
+		if createErr != nil {
+			t.Fatalf("create media form file: %v", createErr)
+		}
+		signature := []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a}
+		if _, writeErr := part.Write(signature); writeErr != nil {
+			t.Fatalf("write PNG signature: %v", writeErr)
+		}
+		padding := make([]byte, 64<<10)
+		for remaining := fileSize - len(signature); remaining > 0; {
+			chunkSize := len(padding)
+			if remaining < chunkSize {
+				chunkSize = remaining
+			}
+			if _, writeErr := part.Write(padding[:chunkSize]); writeErr != nil {
+				t.Fatalf("write PNG padding: %v", writeErr)
+			}
+			remaining -= chunkSize
+		}
+		if writeErr := form.WriteField("operationKey", "entity:subject"); writeErr != nil {
+			t.Fatalf("write media operation key: %v", writeErr)
+		}
+		if writeErr := form.WriteField("field", "art.url"); writeErr != nil {
+			t.Fatalf("write media field: %v", writeErr)
+		}
+		if closeErr := form.Close(); closeErr != nil {
+			t.Fatalf("close media form: %v", closeErr)
+		}
+
+		request := httptest.NewRequest(http.MethodPost, "/api/ai/proposals/"+proposal.ID+"/media", &requestBody)
+		request.Header.Set("Content-Type", form.FormDataContentType())
+		for _, cookie := range cookies {
+			request.AddCookie(cookie)
+		}
+		response := httptest.NewRecorder()
+		handler.ServeHTTP(response, request)
+		return response
+	}
+
+	oversized := upload(t, maxProposalMediaSize+1)
+	if oversized.Code != http.StatusRequestEntityTooLarge || !strings.Contains(oversized.Body.String(), `"code":"file_too_large"`) {
+		t.Fatalf("oversized upload status=%d body=%s", oversized.Code, oversized.Body.String())
+	}
+	storedResponse := accountTestRequest(t, handler, http.MethodGet, "/api/ai/proposals/"+proposal.ID, "", cookies)
+	stored := decodeAccountTestData[aiProposal](t, storedResponse)
+	if len(stored.MediaIntents) != 0 {
+		t.Fatalf("oversized upload created media intents: %#v", stored.MediaIntents)
+	}
+
+	exact := upload(t, maxProposalMediaSize)
+	if exact.Code != http.StatusCreated {
+		t.Fatalf("exact-limit upload status=%d body=%s", exact.Code, exact.Body.String())
+	}
+	result := decodeAccountTestData[proposalMediaResult](t, exact)
+	if result.Media.Size != maxProposalMediaSize || result.Media.ContentType != "image/png" {
+		t.Fatalf("exact-limit media = %#v", result.Media)
 	}
 }
 
