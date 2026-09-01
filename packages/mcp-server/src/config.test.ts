@@ -52,3 +52,22 @@ test("loadConfig rejects non-loopback plaintext HTTP by default", () => {
     /must use HTTPS outside localhost/,
   );
 });
+
+test("loadConfig enforces the 32 MiB proposal media ceiling", () => {
+  const maximum = loadConfig({
+    DND_MASTER_BASE_URL: "http://localhost:8080",
+    DND_MASTER_SESSION_COOKIE: "session",
+    DND_MASTER_MEDIA_MAX_BYTES: String(32 * 1024 * 1024),
+  });
+  assert.equal(maximum.mediaMaxBytes, 32 * 1024 * 1024);
+
+  assert.throws(
+    () =>
+      loadConfig({
+        DND_MASTER_BASE_URL: "http://localhost:8080",
+        DND_MASTER_SESSION_COOKIE: "session",
+        DND_MASTER_MEDIA_MAX_BYTES: String(32 * 1024 * 1024 + 1),
+      }),
+    /too_big|less than or equal/i,
+  );
+});

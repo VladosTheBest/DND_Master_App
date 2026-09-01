@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { access, mkdtemp, writeFile } from "node:fs/promises";
+import { access, mkdtemp, open, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -262,6 +262,56 @@ test("managed bridge staging rejects and retains paths outside configured roots"
   );
   assert.equal(called, false);
   await access(imagePath);
+});
+
+test("proposal media rejects URI, UNC, and device paths before filesystem or API access", async (t) => {
+  const mediaRoot = await mkdtemp(path.join(os.tmpdir(), "dnd-mcp-path-syntax-"));
+  t.after(() => rm(mediaRoot, { recursive: true, force: true }));
+  let fetchCalls = 0;
+  const client = new DndMasterClient(
+    config({ mediaRoots: [mediaRoot] }),
+    (async () => {
+      fetchCalls += 1;
+      return jsonResponse({});
+    }) as typeof fetch,
+  );
+
+  for (const localPath of [
+    "file:///tmp/portrait.png",
+    "https://example.invalid/portrait.png",
+    String.raw`\\example.invalid\share\portrait.png`,
+    String.raw`\\?\C:\private\portrait.png`,
+    String.raw`\\.\C:\private\portrait.png`,
+  ]) {
+    await assert.rejects(
+      client.stageProposalMedia({ proposalId: "proposal-1", localPath }),
+      (error: unknown) => error instanceof DndApiError && error.code === "media_path_not_allowed",
+    );
+  }
+  assert.equal(fetchCalls, 0);
+});
+
+test("proposal media larger than 32 MiB is rejected before file read or API access", async (t) => {
+  const mediaRoot = await mkdtemp(path.join(os.tmpdir(), "dnd-mcp-media-limit-"));
+  t.after(() => rm(mediaRoot, { recursive: true, force: true }));
+  const imagePath = path.join(mediaRoot, "oversized.png");
+  const image = await open(imagePath, "w");
+  await image.truncate(32 * 1024 * 1024 + 1);
+  await image.close();
+  let fetchCalls = 0;
+  const client = new DndMasterClient(
+    config({ mediaRoots: [mediaRoot], mediaMaxBytes: 50 * 1024 * 1024 }),
+    (async () => {
+      fetchCalls += 1;
+      return jsonResponse({});
+    }) as typeof fetch,
+  );
+
+  await assert.rejects(
+    client.stageProposalMedia({ proposalId: "proposal-1", localPath: imagePath }),
+    (error: unknown) => error instanceof DndApiError && error.code === "media_too_large",
+  );
+  assert.equal(fetchCalls, 0);
 });
 
 test("managed bridge media is deleted only after successful proposal staging", async () => {

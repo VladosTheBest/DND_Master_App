@@ -12,7 +12,7 @@ const ConfigEnvSchema = z
       .number()
       .int()
       .min(1)
-      .max(50 * 1024 * 1024)
+      .max(32 * 1024 * 1024)
       .default(10 * 1024 * 1024),
     DND_MASTER_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1_000).max(120_000).default(30_000),
     DND_MASTER_ALLOW_INSECURE_HTTP: z.enum(["true", "false"]).default("false"),

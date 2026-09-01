@@ -92,6 +92,7 @@ const readableEntityKinds = Object.keys(entityCollections) as ReadableEntityKind
 const outlineItemsPerKind = 12;
 const defaultSearchLimit = 20;
 const maximumSearchLimit = 50;
+const maximumProposalMediaBytes = 32 * 1024 * 1024;
 
 function normalizedText(value: string): string {
   return value.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
@@ -219,6 +220,27 @@ function withMcpSource<T extends { source?: Record<string, unknown> }>(
 function isInsideRoot(filePath: string, rootPath: string): boolean {
   const relative = path.relative(rootPath, filePath);
   return relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative));
+}
+
+function resolveLocalMediaPath(localPath: string, rootPath: string): string {
+  const trimmed = localPath.trim();
+  const slashNormalized = trimmed.replace(/\\/g, "/");
+  const isWindowsDrivePath = /^[a-z]:[\\/]/i.test(trimmed);
+  if (slashNormalized.startsWith("//")) {
+    throw new DndApiError(
+      0,
+      "media_path_not_allowed",
+      "Proposal media must not use a UNC or device path",
+    );
+  }
+  if (!isWindowsDrivePath && /^[a-z][a-z0-9+.-]*:/i.test(trimmed)) {
+    throw new DndApiError(
+      0,
+      "media_path_not_allowed",
+      "Proposal media must be a filesystem path, not a URI",
+    );
+  }
+  return path.isAbsolute(trimmed) ? path.resolve(trimmed) : path.resolve(rootPath, trimmed);
 }
 
 function sniffImageType(bytes: Uint8Array): { contentType: string; extension: string } | undefined {
@@ -487,9 +509,10 @@ export class DndMasterClient {
     contentType: string;
     canonicalPath: string;
   }> {
-    const candidate = path.isAbsolute(localPath)
-      ? path.resolve(localPath)
-      : path.resolve(this.#config.mediaRoots[0] ?? process.cwd(), localPath);
+    const candidate = resolveLocalMediaPath(
+      localPath,
+      this.#config.mediaRoots[0] ?? process.cwd(),
+    );
 
     let canonicalFile: string;
     let canonicalRoots: string[];
@@ -514,11 +537,12 @@ export class DndMasterClient {
     if (!fileStat.isFile()) {
       throw new DndApiError(0, "media_not_file", "The media path is not a regular file");
     }
-    if (fileStat.size > this.#config.mediaMaxBytes) {
+    const mediaMaxBytes = Math.min(this.#config.mediaMaxBytes, maximumProposalMediaBytes);
+    if (fileStat.size > mediaMaxBytes) {
       throw new DndApiError(
         0,
         "media_too_large",
-        `The media file exceeds the configured ${this.#config.mediaMaxBytes}-byte limit`,
+        `The media file exceeds the ${mediaMaxBytes}-byte proposal limit`,
       );
     }
 

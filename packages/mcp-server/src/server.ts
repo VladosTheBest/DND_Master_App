@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult, ToolAnnotations } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { DndApiError, DndMasterClient } from "./client.js";
+import { sanitizeModelOutput } from "./model-output.js";
 import {
   AttachProposalMediaInputSchema,
   GetCampaignInputSchema,
@@ -79,7 +80,6 @@ const StoredMediaIntentSchema = z
 const ProposalSchema = z
   .object({
     id: z.string(),
-    ownerId: z.string(),
     campaignId: z.string().optional(),
     kind: z.enum([
       "campaign_create",
@@ -203,7 +203,7 @@ const MediaOutputSchema = z
 
 function success(structuredContent: Record<string, unknown>, text: string): CallToolResult {
   return {
-    structuredContent,
+    structuredContent: sanitizeModelOutput(structuredContent),
     content: [{ type: "text", text }],
   };
 }

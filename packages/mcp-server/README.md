@@ -23,7 +23,7 @@ Set these environment variables in the process that launches Codex:
 - `DND_MASTER_BASE_URL` — the website origin, for example `http://127.0.0.1:8080` or `https://dnd.example.com`. HTTP is accepted only for loopback by default.
 - `DND_MASTER_SESSION_COOKIE` — either the raw opaque session value or `shadow_edge_session=<value>`. It is never logged or returned by a tool.
 - `DND_MASTER_MEDIA_ROOTS` — optional OS-delimited list of directories from which proposal images may be staged. It defaults to the MCP process working directory. On Windows the delimiter is `;`; on Linux/macOS it is `:`.
-- `DND_MASTER_MEDIA_MAX_BYTES` — optional per-file limit, default 10 MiB and hard-capped at 50 MiB.
+- `DND_MASTER_MEDIA_MAX_BYTES` — optional per-file limit, default 10 MiB and hard-capped at 32 MiB.
 - `DND_MASTER_REQUEST_TIMEOUT_MS` — optional backend timeout, default 30000.
 - `DND_MASTER_SOURCE_TYPE` — optional provenance marker (`mcp` by default). The managed website bridge sets `codex_app_server`; external clients should keep the default.
 

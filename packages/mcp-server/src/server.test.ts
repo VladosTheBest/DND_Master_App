@@ -11,6 +11,7 @@ import {
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { DndMasterClient } from "./client.js";
 import type { DndMcpConfig } from "./config.js";
+import { sanitizeModelOutput } from "./model-output.js";
 import { createDndMcpServer } from "./server.js";
 import {
   AttachProposalMediaInputSchema,
@@ -35,6 +36,161 @@ function response(data: unknown, status = 200): Response {
     headers: { "Content-Type": "application/json" },
   });
 }
+
+test("model output sanitizer removes credentials and private paths recursively", () => {
+  const safe = sanitizeModelOutput({
+    id: "proposal-safe-id",
+    status: "pending",
+    ownerId: "owner-secret",
+    password_hash: "password-secret",
+    nested: {
+      playerDisplayToken: "display-secret",
+      accessToken: "access-secret",
+      clientSecret: "client-secret",
+      API_KEY: "api-key-secret",
+      sessionCookie: "cookie-secret",
+      stagedPath: "C:\\private\\staged.png",
+      canonicalPath: "/private/canonical.png",
+      diff: { path: "art.url" },
+      previewUrl: "/api/ai/proposals/proposal-safe-id/media/image.png",
+      finalUrl: "/uploads/image.png",
+    },
+  });
+
+  assert.deepEqual(safe, {
+    id: "proposal-safe-id",
+    status: "pending",
+    nested: {
+      diff: { path: "art.url" },
+      previewUrl: "/api/ai/proposals/proposal-safe-id/media/image.png",
+      finalUrl: "/uploads/image.png",
+    },
+  });
+});
+
+test("raw campaign and proposal API values are sanitized before reaching MCP model context", async (t) => {
+  const previewUrl = "/api/ai/proposals/proposal-private/media/image.png";
+  const finalUrl = "/uploads/image.png";
+  const rawCampaign = {
+    id: "campaign-private",
+    title: "Safe campaign title",
+    ownerId: "campaign-owner-secret",
+    passwordHash: "campaign-password-secret",
+    playerDisplayToken: "campaign-display-secret",
+    privateState: {
+      apiKey: "campaign-api-key-secret",
+      stagedPath: "C:\\private\\campaign-staged.png",
+      previewUrl,
+    },
+    npcs: [
+      {
+        id: "npc-private",
+        title: "Safe NPC title",
+        refreshToken: "entity-refresh-secret",
+        localFilePath: "C:\\private\\entity.png",
+      },
+    ],
+  };
+  const rawProposal = {
+    id: "proposal-private",
+    ownerId: "proposal-owner-secret",
+    campaignId: "campaign-private",
+    kind: "entity_update",
+    status: "pending",
+    target: { campaignId: "campaign-private", entityId: "npc-private", entityKind: "npc" },
+    baseRevisions: { campaign: 1, "entity:npc-private": 2 },
+    prompt: "Update the NPC.",
+    source: {
+      type: "mcp",
+      metadata: { threadId: "thread-safe", accessToken: "source-access-secret" },
+    },
+    before: { id: "npc-private", password: "before-password-secret" },
+    after: { id: "npc-private", title: "Updated NPC", privatePath: "/private/after.json" },
+    diff: [{ path: "title", before: "Safe NPC title", after: "Updated NPC" }],
+    warnings: [],
+    mediaIntents: [
+      {
+        id: "media-private",
+        status: "staged",
+        previewUrl,
+        finalUrl,
+        stagedPath: "C:\\private\\media-staged.png",
+      },
+    ],
+    operations: [{ key: "entity:npc-private", action: "update", kind: "npc", required: true }],
+    appliedResult: { sessionCookie: "result-cookie-secret", status: "not-applied" },
+    createdAt: "2026-09-02T00:00:00Z",
+    updatedAt: "2026-09-02T00:00:00Z",
+  };
+
+  const mockFetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
+    const url = new URL(input instanceof URL ? input.href : String(input));
+    if (url.pathname === "/api/campaigns/campaign-private" && init?.method === "GET") {
+      return response(rawCampaign);
+    }
+    if (url.pathname === "/api/ai/proposals/proposal-private" && init?.method === "GET") {
+      return response(rawProposal);
+    }
+    if (url.pathname === "/api/ai/proposals/entity" && init?.method === "POST") {
+      return response(rawProposal, 201);
+    }
+    return response([]);
+  }) as typeof fetch;
+
+  const server = createDndMcpServer(new DndMasterClient(testConfig, mockFetch));
+  const client = new Client({ name: "redaction-test-client", version: "1.0.0" });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  t.after(async () => {
+    await client.close();
+    await server.close();
+  });
+  await server.connect(serverTransport);
+  await client.connect(clientTransport);
+
+  const results = [
+    await client.callTool({
+      name: "get_campaign",
+      arguments: { campaignId: "campaign-private" },
+    }),
+    await client.callTool({
+      name: "get_proposal",
+      arguments: { proposalId: "proposal-private" },
+    }),
+    await client.callTool({
+      name: "propose_entity_update",
+      arguments: {
+        campaignId: "campaign-private",
+        entityId: "npc-private",
+        kind: "npc",
+        prompt: "Update the NPC.",
+        patch: { title: "Updated NPC" },
+      },
+    }),
+  ];
+
+  const serialized = results.map((result) => JSON.stringify(result.structuredContent)).join("\n");
+  for (const secret of [
+    "campaign-owner-secret",
+    "campaign-password-secret",
+    "campaign-display-secret",
+    "campaign-api-key-secret",
+    "entity-refresh-secret",
+    "proposal-owner-secret",
+    "source-access-secret",
+    "before-password-secret",
+    "result-cookie-secret",
+    "C:\\private",
+    "/private/",
+  ]) {
+    assert.equal(serialized.includes(secret), false, `model output leaked ${secret}`);
+  }
+  assert.equal(results.every((result) => result.isError === undefined), true);
+  assert.match(serialized, /proposal-private/);
+  assert.match(serialized, /"status":"pending"/);
+  assert.match(serialized, /"path":"title"/);
+  assert.match(serialized, new RegExp(previewUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  assert.match(serialized, new RegExp(finalUrl.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+});
 
 test("proposal media inputs reject server-owned fields and lifecycle states", () => {
   const validInput = {
