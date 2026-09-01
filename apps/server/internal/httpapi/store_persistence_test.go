@@ -9,6 +9,57 @@ import (
 	"testing"
 )
 
+func TestCampaignStoreMigratesAndPersistsLegacyZeroRevisions(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "legacy-store.json")
+	legacy := []byte(`{
+		"campaigns":[{
+			"id":"legacy-campaign",
+			"title":"Legacy campaign",
+			"locations":[{"id":"legacy-location","kind":"location","title":"Old harbor","summary":"Harbor","content":"Harbor"}],
+			"events":[{"id":"legacy-event","title":"Old bell","summary":"Bell","sceneText":"The bell rings."}]
+		}]
+	}`)
+	if err := os.WriteFile(path, legacy, 0o600); err != nil {
+		t.Fatalf("write legacy store: %v", err)
+	}
+
+	store, err := newCampaignStore(path)
+	if err != nil {
+		t.Fatalf("load legacy store: %v", err)
+	}
+	campaign, err := store.getCampaign("legacy-campaign")
+	if err != nil {
+		t.Fatalf("get migrated campaign: %v", err)
+	}
+	if campaign.Revision != 1 || len(campaign.Locations) != 1 || campaign.Locations[0].Revision != 1 || len(campaign.Events) != 1 || campaign.Events[0].Revision != 1 {
+		t.Fatalf("legacy revisions were not initialized: %#v", campaign)
+	}
+
+	persistedBody, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read migrated store: %v", err)
+	}
+	var persisted storageState
+	if err := json.Unmarshal(persistedBody, &persisted); err != nil {
+		t.Fatalf("decode migrated store: %v", err)
+	}
+	if len(persisted.Campaigns) != 1 || persisted.Campaigns[0].Revision != 1 || len(persisted.Campaigns[0].Locations) != 1 || persisted.Campaigns[0].Locations[0].Revision != 1 || len(persisted.Campaigns[0].Events) != 1 || persisted.Campaigns[0].Events[0].Revision != 1 {
+		t.Fatalf("migrated revisions were not persisted: %#v", persisted.Campaigns)
+	}
+
+	reloaded, err := newCampaignStore(path)
+	if err != nil {
+		t.Fatalf("reload migrated store: %v", err)
+	}
+	reloadedCampaign, err := reloaded.getCampaign("legacy-campaign")
+	if err != nil {
+		t.Fatalf("get reloaded campaign: %v", err)
+	}
+	if reloadedCampaign.Revision != 1 || len(reloadedCampaign.Locations) != 1 || reloadedCampaign.Locations[0].Revision != 1 || len(reloadedCampaign.Events) != 1 || reloadedCampaign.Events[0].Revision != 1 {
+		t.Fatalf("persisted migration did not survive reload: %#v", reloadedCampaign)
+	}
+}
+
 func TestCampaignStoreSaveLockedCommitsPrimaryLast(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "store.json")
 	store, err := newCampaignStore(path)

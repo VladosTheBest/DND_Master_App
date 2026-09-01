@@ -487,6 +487,59 @@ func TestProposalApplyRejectsStaleRevision(t *testing.T) {
 	}
 }
 
+func TestProposalHTTPApplyMapsStaleRevisionToConflict(t *testing.T) {
+	handler := newAccountTestServer(t)
+	cookies := registerAccountTestUser(t, handler, "proposal-http-stale-gm")
+
+	createCampaign := accountTestRequest(t, handler, http.MethodPost, "/api/campaigns", `{"title":"Stale proposal","system":"D&D 5e","settingName":"Test","inWorldDate":"1 Hammer","summary":"Test"}`, cookies)
+	if createCampaign.Code != http.StatusCreated {
+		t.Fatalf("create campaign status=%d body=%s", createCampaign.Code, createCampaign.Body.String())
+	}
+	campaign := decodeAccountTestData[campaignData](t, createCampaign)
+
+	entityInput := createEntityInput{Kind: "quest", Title: "Original quest", Summary: "Before", Content: "Before", Tags: []string{}}
+	createEntity := accountTestRequest(t, handler, http.MethodPost, "/api/campaigns/"+campaign.ID+"/entities", string(proposalTestJSON(t, entityInput)), cookies)
+	if createEntity.Code != http.StatusCreated {
+		t.Fatalf("create entity status=%d body=%s", createEntity.Code, createEntity.Body.String())
+	}
+	entity := decodeAccountTestData[createEntityResult](t, createEntity).Entity
+
+	proposalInput := entityProposalInput{
+		Mode: "update", Kind: entity.Kind, EntityID: entity.ID,
+		Patch: json.RawMessage(`{"summary":"AI summary"}`),
+	}
+	createProposal := accountTestRequest(t, handler, http.MethodPost, "/api/campaigns/"+campaign.ID+"/ai/proposals/entities", string(proposalTestJSON(t, proposalInput)), cookies)
+	if createProposal.Code != http.StatusCreated {
+		t.Fatalf("create proposal status=%d body=%s", createProposal.Code, createProposal.Body.String())
+	}
+	proposal := decodeAccountTestData[aiProposal](t, createProposal)
+
+	manualUpdate := entityCreateInputFromData(entity)
+	manualUpdate.Summary = "Manual summary"
+	updateEntity := accountTestRequest(t, handler, http.MethodPatch, "/api/campaigns/"+campaign.ID+"/entities/"+entity.ID, string(proposalTestJSON(t, manualUpdate)), cookies)
+	if updateEntity.Code != http.StatusOK {
+		t.Fatalf("manual entity update status=%d body=%s", updateEntity.Code, updateEntity.Body.String())
+	}
+
+	apply := accountTestRequest(t, handler, http.MethodPost, "/api/ai/proposals/"+proposal.ID+"/apply", `{}`, cookies)
+	if apply.Code != http.StatusConflict {
+		t.Fatalf("stale apply status=%d body=%s", apply.Code, apply.Body.String())
+	}
+	var failure envelope
+	if err := json.Unmarshal(apply.Body.Bytes(), &failure); err != nil {
+		t.Fatalf("decode stale apply response: %v", err)
+	}
+	if failure.Error == nil || failure.Error.Code != "stale_revision" {
+		t.Fatalf("stale apply error=%#v body=%s", failure.Error, apply.Body.String())
+	}
+
+	storedResponse := accountTestRequest(t, handler, http.MethodGet, "/api/ai/proposals/"+proposal.ID, "", cookies)
+	stored := decodeAccountTestData[aiProposal](t, storedResponse)
+	if stored.Status != "pending" {
+		t.Fatalf("stale HTTP apply changed proposal status to %q", stored.Status)
+	}
+}
+
 func TestLiveCombatDoesNotAdvanceProposalAuthoringRevision(t *testing.T) {
 	store, service, user, campaign := newProposalTestService(t)
 	entity := createProposalTestEntity(t, store, campaign.ID)
