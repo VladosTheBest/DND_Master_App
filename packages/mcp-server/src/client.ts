@@ -1,4 +1,5 @@
-import { readFile, realpath, stat, unlink } from "node:fs/promises";
+import { constants as fsConstants, type BigIntStats } from "node:fs";
+import { open, realpath, stat, type FileHandle } from "node:fs/promises";
 import path from "node:path";
 import type { DndMcpConfig } from "./config.js";
 import type {
@@ -222,11 +223,23 @@ function isInsideRoot(filePath: string, rootPath: string): boolean {
   return relative === "" || (!relative.startsWith(`..${path.sep}`) && relative !== ".." && !path.isAbsolute(relative));
 }
 
+function isWindowsDevicePath(value: string): boolean {
+  const slashNormalized = value.replace(/\\/g, "/");
+  if (/^\/(?:\?\?|device|global\?\?|globalroot)(?:\/|$)/i.test(slashNormalized)) return true;
+
+  const withoutDrive = slashNormalized.replace(/^[a-z]:/i, "");
+  return withoutDrive.split("/").some((segment) => {
+    const filename = (segment.split(":", 1)[0] ?? "").replace(/[ .]+$/g, "");
+    const stem = (filename.split(".", 1)[0] ?? "").toUpperCase();
+    return /^(?:CON|PRN|AUX|NUL|CLOCK\$|CONIN\$|CONOUT\$|COM[0-9]|LPT[0-9])$/.test(stem);
+  });
+}
+
 function resolveLocalMediaPath(localPath: string, rootPath: string): string {
   const trimmed = localPath.trim();
   const slashNormalized = trimmed.replace(/\\/g, "/");
   const isWindowsDrivePath = /^[a-z]:[\\/]/i.test(trimmed);
-  if (slashNormalized.startsWith("//")) {
+  if (slashNormalized.startsWith("//") || isWindowsDevicePath(trimmed)) {
     throw new DndApiError(
       0,
       "media_path_not_allowed",
@@ -241,6 +254,27 @@ function resolveLocalMediaPath(localPath: string, rootPath: string): string {
     );
   }
   return path.isAbsolute(trimmed) ? path.resolve(trimmed) : path.resolve(rootPath, trimmed);
+}
+
+function sameFileIdentity(left: BigIntStats, right: BigIntStats): boolean {
+  return left.dev === right.dev && left.ino === right.ino;
+}
+
+async function readBoundedFile(handle: FileHandle, maximumBytes: number): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  let total = 0;
+  while (total <= maximumBytes) {
+    const remaining = maximumBytes + 1 - total;
+    const chunk = Buffer.allocUnsafe(Math.min(64 * 1024, remaining));
+    const { bytesRead } = await handle.read(chunk, 0, chunk.length, total);
+    if (bytesRead === 0) break;
+    chunks.push(chunk.subarray(0, bytesRead));
+    total += bytesRead;
+  }
+  if (total > maximumBytes) {
+    throw new DndApiError(0, "media_too_large", "The proposal media file exceeds the configured limit");
+  }
+  return Buffer.concat(chunks, total);
 }
 
 function sniffImageType(bytes: Uint8Array): { contentType: string; extension: string } | undefined {
@@ -507,7 +541,6 @@ export class DndMasterClient {
     bytes: Uint8Array;
     filename: string;
     contentType: string;
-    canonicalPath: string;
   }> {
     const candidate = resolveLocalMediaPath(
       localPath,
@@ -533,39 +566,98 @@ export class DndMasterClient {
       );
     }
 
-    const fileStat = await stat(canonicalFile);
-    if (!fileStat.isFile()) {
-      throw new DndApiError(0, "media_not_file", "The media path is not a regular file");
-    }
-    const mediaMaxBytes = Math.min(this.#config.mediaMaxBytes, maximumProposalMediaBytes);
-    if (fileStat.size > mediaMaxBytes) {
-      throw new DndApiError(
-        0,
-        "media_too_large",
-        `The media file exceeds the ${mediaMaxBytes}-byte proposal limit`,
+    let handle: FileHandle;
+    try {
+      handle = await open(
+        canonicalFile,
+        fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW | fsConstants.O_NONBLOCK,
       );
+    } catch {
+      throw new DndApiError(0, "media_not_found", "The proposal media file could not be opened");
     }
 
-    const bytes = await readFile(canonicalFile);
-    const detected = sniffImageType(bytes);
-    if (!detected) {
-      throw new DndApiError(
-        0,
-        "unsupported_media_type",
-        "Only PNG, JPEG, and WebP proposal images are supported",
-      );
+    try {
+      const openedStat = await handle.stat({ bigint: true });
+      if (!openedStat.isFile()) {
+        throw new DndApiError(0, "media_not_file", "The media path is not a regular file");
+      }
+
+      let currentCanonical: string;
+      let currentPathStat: BigIntStats;
+      try {
+        [currentCanonical, currentPathStat] = await Promise.all([
+          realpath(canonicalFile),
+          stat(canonicalFile, { bigint: true }),
+        ]);
+      } catch {
+        throw new DndApiError(0, "media_changed", "The proposal media path changed while it was opened");
+      }
+      if (!canonicalRoots.some((root) => isInsideRoot(currentCanonical, root))) {
+        throw new DndApiError(
+          0,
+          "media_path_not_allowed",
+          "The media file moved outside DND_MASTER_MEDIA_ROOTS",
+        );
+      }
+      if (!sameFileIdentity(openedStat, currentPathStat)) {
+        throw new DndApiError(0, "media_changed", "The proposal media path changed while it was opened");
+      }
+
+      const mediaMaxBytes = Math.min(this.#config.mediaMaxBytes, maximumProposalMediaBytes);
+      if (openedStat.size > BigInt(mediaMaxBytes)) {
+        throw new DndApiError(
+          0,
+          "media_too_large",
+          `The media file exceeds the ${mediaMaxBytes}-byte proposal limit`,
+        );
+      }
+
+      let bytes: Buffer;
+      try {
+        bytes = await readBoundedFile(handle, mediaMaxBytes);
+      } catch (error) {
+        if (error instanceof DndApiError) throw error;
+        throw new DndApiError(0, "media_read_failed", "The proposal media file could not be read");
+      }
+      const finalStat = await handle.stat({ bigint: true });
+      if (finalStat.size > BigInt(mediaMaxBytes)) {
+        throw new DndApiError(
+          0,
+          "media_too_large",
+          `The media file exceeds the ${mediaMaxBytes}-byte proposal limit`,
+        );
+      }
+      if (
+        !sameFileIdentity(openedStat, finalStat) ||
+        finalStat.size !== BigInt(bytes.byteLength) ||
+        openedStat.size !== finalStat.size ||
+        openedStat.mtimeNs !== finalStat.mtimeNs ||
+        openedStat.ctimeNs !== finalStat.ctimeNs
+      ) {
+        throw new DndApiError(0, "media_changed", "The proposal media file changed while it was read");
+      }
+
+      const detected = sniffImageType(bytes);
+      if (!detected) {
+        throw new DndApiError(
+          0,
+          "unsupported_media_type",
+          "Only PNG, JPEG, and WebP proposal images are supported",
+        );
+      }
+      const basename = path.basename(canonicalFile, path.extname(canonicalFile));
+      return {
+        bytes,
+        filename: `${basename || "proposal-image"}${detected.extension}`,
+        contentType: detected.contentType,
+      };
+    } finally {
+      await handle.close().catch(() => undefined);
     }
-    const basename = path.basename(canonicalFile, path.extname(canonicalFile));
-    return {
-      bytes,
-      filename: `${basename || "proposal-image"}${detected.extension}`,
-      contentType: detected.contentType,
-      canonicalPath: canonicalFile,
-    };
   }
 
   async stageProposalMedia(input: StageProposalMediaInput): Promise<Record<string, unknown>> {
-    const { bytes, filename, contentType, canonicalPath } = await this.#readAllowedMedia(input.localPath);
+    const { bytes, filename, contentType } = await this.#readAllowedMedia(input.localPath);
     const form = new FormData();
     const arrayBuffer = bytes.buffer.slice(
       bytes.byteOffset,
@@ -583,17 +675,6 @@ export class DndMasterClient {
         form,
       },
     );
-    if (this.#config.sourceType === "codex_app_server") {
-      try {
-        await unlink(canonicalPath);
-      } catch {
-        throw new DndApiError(
-          0,
-          "media_cleanup_failed",
-          "Proposal media was staged, but its private generated-image source could not be removed",
-        );
-      }
-    }
     return result;
   }
 

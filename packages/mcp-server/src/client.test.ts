@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { access, mkdtemp, open, rm, writeFile } from "node:fs/promises";
+import { access, appendFile, mkdtemp, open, readFile, rename, rm, symlink, writeFile } from "node:fs/promises";
+import type { FileHandle } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -282,12 +283,61 @@ test("proposal media rejects URI, UNC, and device paths before filesystem or API
     String.raw`\\example.invalid\share\portrait.png`,
     String.raw`\\?\C:\private\portrait.png`,
     String.raw`\\.\C:\private\portrait.png`,
+    String.raw`\??\C:\private\portrait.png`,
+    String.raw`\Device\HarddiskVolume1\private\portrait.png`,
+    "NUL",
+    "nul.png",
+    "CON",
+    "AUX.txt",
+    String.raw`C:\private\COM1.jpeg`,
+    String.raw`C:\private\lPt9.webp`,
   ]) {
     await assert.rejects(
       client.stageProposalMedia({ proposalId: "proposal-1", localPath }),
       (error: unknown) => error instanceof DndApiError && error.code === "media_path_not_allowed",
     );
   }
+  assert.equal(fetchCalls, 0);
+});
+
+test("proposal media rejects a symlinked directory that resolves outside the configured root", async (t) => {
+  const mediaRoot = await mkdtemp(path.join(os.tmpdir(), "dnd-mcp-symlink-root-"));
+  const outsideRoot = await mkdtemp(path.join(os.tmpdir(), "dnd-mcp-symlink-outside-"));
+  t.after(() => Promise.all([
+    rm(mediaRoot, { recursive: true, force: true }),
+    rm(outsideRoot, { recursive: true, force: true }),
+  ]));
+  const imagePath = path.join(outsideRoot, "portrait.png");
+  await writeFile(
+    imagePath,
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]),
+  );
+  const linkedDirectory = path.join(mediaRoot, "linked");
+  try {
+    await symlink(outsideRoot, linkedDirectory, process.platform === "win32" ? "junction" : "dir");
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "EPERM") {
+      t.skip("directory symlinks are not permitted on this host");
+      return;
+    }
+    throw error;
+  }
+  let fetchCalls = 0;
+  const client = new DndMasterClient(
+    config({ mediaRoots: [mediaRoot] }),
+    (async () => {
+      fetchCalls += 1;
+      return jsonResponse({});
+    }) as typeof fetch,
+  );
+
+  await assert.rejects(
+    client.stageProposalMedia({
+      proposalId: "proposal-1",
+      localPath: path.join(linkedDirectory, "portrait.png"),
+    }),
+    (error: unknown) => error instanceof DndApiError && error.code === "media_path_not_allowed",
+  );
   assert.equal(fetchCalls, 0);
 });
 
@@ -314,7 +364,53 @@ test("proposal media larger than 32 MiB is rejected before file read or API acce
   assert.equal(fetchCalls, 0);
 });
 
-test("managed bridge media is deleted only after successful proposal staging", async () => {
+test("proposal media growth after the opened-file stat is rejected by the bounded handle read", async (t) => {
+  const mediaRoot = await mkdtemp(path.join(os.tmpdir(), "dnd-mcp-media-growth-"));
+  t.after(() => rm(mediaRoot, { recursive: true, force: true }));
+  const imagePath = path.join(mediaRoot, "growing.png");
+  await writeFile(
+    imagePath,
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]),
+  );
+
+  const probe = await open(imagePath, "r");
+  const fileHandlePrototype = Object.getPrototypeOf(probe) as object;
+  await probe.close();
+  const originalStat = Reflect.get(fileHandlePrototype, "stat") as (
+    this: FileHandle,
+    ...args: unknown[]
+  ) => Promise<unknown>;
+  let injectedGrowth = false;
+  Reflect.set(fileHandlePrototype, "stat", async function (this: FileHandle, ...args: unknown[]) {
+    const result = await Reflect.apply(originalStat, this, args);
+    if (!injectedGrowth) {
+      injectedGrowth = true;
+      await appendFile(imagePath, Buffer.alloc(64, 0x41));
+    }
+    return result;
+  });
+  t.after(() => {
+    Reflect.set(fileHandlePrototype, "stat", originalStat);
+  });
+
+  let fetchCalls = 0;
+  const client = new DndMasterClient(
+    config({ mediaRoots: [mediaRoot], mediaMaxBytes: 16 }),
+    (async () => {
+      fetchCalls += 1;
+      return jsonResponse({});
+    }) as typeof fetch,
+  );
+
+  await assert.rejects(
+    client.stageProposalMedia({ proposalId: "proposal-1", localPath: imagePath }),
+    (error: unknown) => error instanceof DndApiError && error.code === "media_too_large",
+  );
+  assert.equal(injectedGrowth, true);
+  assert.equal(fetchCalls, 0);
+});
+
+test("the MCP never deletes managed bridge media paths", async () => {
   const mediaRoot = await mkdtemp(path.join(os.tmpdir(), "dnd-mcp-managed-media-"));
   const successfulImage = path.join(mediaRoot, "successful.png");
   const failedImage = path.join(mediaRoot, "failed.png");
@@ -330,7 +426,7 @@ test("managed bridge media is deleted only after successful proposal staging", a
       })) as typeof fetch,
   );
   await successfulClient.stageProposalMedia({ proposalId: "proposal-1", localPath: successfulImage });
-  await assert.rejects(access(successfulImage), (error: NodeJS.ErrnoException) => error.code === "ENOENT");
+  await access(successfulImage);
 
   const failingClient = new DndMasterClient(
     config({ mediaRoots: [mediaRoot], sourceType: "codex_app_server" }),
@@ -338,6 +434,31 @@ test("managed bridge media is deleted only after successful proposal staging", a
   );
   await assert.rejects(failingClient.stageProposalMedia({ proposalId: "proposal-1", localPath: failedImage }));
   await access(failedImage);
+});
+
+test("a path replacement during staging is never deleted by MCP cleanup", async (t) => {
+  const mediaRoot = await mkdtemp(path.join(os.tmpdir(), "dnd-mcp-media-replacement-"));
+  t.after(() => rm(mediaRoot, { recursive: true, force: true }));
+  const imagePath = path.join(mediaRoot, "source.png");
+  const movedPath = path.join(mediaRoot, "source-original.png");
+  const originalBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x11]);
+  const replacementBytes = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x22]);
+  await writeFile(imagePath, originalBytes);
+  const client = new DndMasterClient(
+    config({ mediaRoots: [mediaRoot], sourceType: "codex_app_server" }),
+    (async () => {
+      await rename(imagePath, movedPath);
+      await writeFile(imagePath, replacementBytes);
+      return jsonResponse({
+        proposal: { id: "proposal-1", status: "pending" },
+        media: { id: "media-1", status: "staged" },
+      });
+    }) as typeof fetch,
+  );
+
+  await client.stageProposalMedia({ proposalId: "proposal-1", localPath: imagePath });
+  assert.deepEqual(await readFile(movedPath), originalBytes);
+  assert.deepEqual(await readFile(imagePath), replacementBytes);
 });
 
 test("external MCP staging retains the caller-owned source image", async () => {

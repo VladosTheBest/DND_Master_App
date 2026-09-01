@@ -201,6 +201,68 @@ const MediaOutputSchema = z
   .object({ proposal: ProposalSchema, media: StoredMediaIntentSchema })
   .strict();
 
+const safeErrorMessages = new Map<string, string>([
+  ["request_too_large", "The proposal request is too large."],
+  ["network_error", "The DND Master API could not be reached."],
+  ["invalid_response", "The DND Master API returned an invalid response."],
+  ["invalid_search_query", "The search query is invalid."],
+  ["invalid_search_kinds", "The requested search kinds are invalid."],
+  ["invalid_search_limit", "The requested search limit is invalid."],
+  ["entity_not_found", "The requested campaign entity was not found."],
+  ["media_path_not_allowed", "The proposal media path is not allowed."],
+  ["media_not_found", "The proposal media file was not found."],
+  ["media_not_file", "The proposal media path is not a regular file."],
+  ["media_changed", "The proposal media file changed while it was being read."],
+  ["media_read_failed", "The proposal media file could not be read."],
+  ["media_too_large", "The proposal media file is too large."],
+  ["file_too_large", "The proposal media file is too large."],
+  ["unsupported_media_type", "The proposal media type is not supported."],
+  ["unsupported_media", "The proposal media type is not supported."],
+  ["media_cleanup_failed", "The media was staged, but its private source could not be safely removed."],
+  ["auth_required", "DND Master authentication is required or has expired."],
+  ["bad_request", "The DND Master API rejected the request."],
+  ["not_found", "The requested DND Master record was not found."],
+  ["proposals_unavailable", "AI proposals are currently unavailable."],
+  ["uploads_disabled", "Proposal media uploads are unavailable."],
+  ["missing_file", "A proposal media file is required."],
+  ["missing_candidate", "A proposal candidate or patch is required."],
+  ["missing_blueprint", "A campaign blueprint is required."],
+  ["invalid_proposal_source", "The proposal source is not allowed."],
+  ["invalid_blueprint", "The campaign blueprint is invalid."],
+  ["invalid_candidate", "The proposal candidate is invalid."],
+  ["invalid_patch", "The proposal patch is invalid."],
+  ["invalid_generated_patch", "The generated proposal patch is invalid."],
+  ["invalid_media_path", "The proposal media target is invalid."],
+  ["invalid_media_url", "The proposal media URL is invalid."],
+  ["invalid_mode", "The requested proposal mode is invalid."],
+  ["invalid_operation", "The requested proposal operation is invalid."],
+  ["invalid_relationship", "The proposal contains an invalid relationship."],
+  ["kind_mismatch", "The proposal entity kind does not match."],
+  ["missing_dependency", "The proposal is missing a required dependency."],
+  ["duplicate_temp_key", "The proposal contains a duplicate temporary key."],
+  ["duplicate_entity", "The proposed entity already exists."],
+  ["duplicate_event", "The proposed event already exists."],
+  ["duplicate_media", "The proposed media is already attached."],
+  ["server_owned_media_fields", "The proposal contains server-owned media fields."],
+  ["server_owned_media_status", "The proposal contains a server-owned media status."],
+  ["unknown_operation", "The requested proposal operation is unknown."],
+  ["unsupported_entity_kind", "The proposal entity kind is not supported."],
+  ["unsupported_media_field", "The proposal media field is not supported."],
+  ["unsupported_media_target", "The proposal media target is not supported."],
+  ["unsupported_proposal_kind", "The proposal kind is not supported."],
+  ["proposal_expired", "The proposal has expired."],
+  ["proposal_not_applied", "The proposal is not applied."],
+  ["proposal_not_pending", "The proposal is not pending."],
+  ["stale_revision", "The proposal conflicts with newer campaign data."],
+  ["generator_unavailable", "The proposal generator is unavailable."],
+  ["generate_proposal_failed", "The proposal generator failed."],
+  ["generate_campaign_proposal_failed", "The campaign proposal generator failed."],
+  ["upload_prepare_failed", "Proposal media staging could not be prepared."],
+  ["upload_open_failed", "Proposal media staging could not be opened."],
+  ["upload_write_failed", "The proposal media file could not be staged."],
+  ["proposal_failed", "The DND Master proposal operation failed."],
+]);
+
 function success(structuredContent: Record<string, unknown>, text: string): CallToolResult {
   return {
     structuredContent: sanitizeModelOutput(structuredContent),
@@ -208,11 +270,36 @@ function success(structuredContent: Record<string, unknown>, text: string): Call
   };
 }
 
+function safeError(error: DndApiError): { code: string; message: string } {
+  const knownMessage = safeErrorMessages.get(error.code);
+  if (knownMessage) return { code: error.code, message: knownMessage };
+  if (error.status === 401) {
+    return { code: "auth_required", message: "DND Master authentication is required or has expired." };
+  }
+  if (error.status === 403) {
+    return { code: "forbidden", message: "The DND Master operation is not allowed." };
+  }
+  if (error.status === 404) {
+    return { code: "not_found", message: "The requested DND Master record was not found." };
+  }
+  if (error.status === 409) {
+    return { code: "conflict", message: "The DND Master operation conflicts with current data." };
+  }
+  if (error.status === 413) {
+    return { code: "request_too_large", message: "The DND Master request is too large." };
+  }
+  if (error.status === 429) {
+    return { code: "rate_limited", message: "The DND Master API rate limit was reached." };
+  }
+  return { code: "api_error", message: "The DND Master API operation failed." };
+}
+
 function failure(error: unknown): CallToolResult {
   if (error instanceof DndApiError) {
+    const safe = safeError(error);
     return {
       isError: true,
-      content: [{ type: "text", text: `${error.code}: ${error.message}` }],
+      content: [{ type: "text", text: `${safe.code}: ${safe.message}` }],
     };
   }
   return {

@@ -37,6 +37,13 @@ function response(data: unknown, status = 200): Response {
   });
 }
 
+function errorResponse(code: string, message: string, status: number): Response {
+  return new Response(JSON.stringify({ data: null, error: { code, message }, meta: {} }), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
 test("model output sanitizer removes credentials and private paths recursively", () => {
   const safe = sanitizeModelOutput({
     id: "proposal-safe-id",
@@ -51,7 +58,7 @@ test("model output sanitizer removes credentials and private paths recursively",
       sessionCookie: "cookie-secret",
       stagedPath: "C:\\private\\staged.png",
       canonicalPath: "/private/canonical.png",
-      diff: { path: "art.url" },
+      diff: [{ path: "art.url", before: "old", after: "new" }],
       previewUrl: "/api/ai/proposals/proposal-safe-id/media/image.png",
       finalUrl: "/uploads/image.png",
     },
@@ -61,11 +68,100 @@ test("model output sanitizer removes credentials and private paths recursively",
     id: "proposal-safe-id",
     status: "pending",
     nested: {
-      diff: { path: "art.url" },
+      diff: [{ path: "art.url", before: "old", after: "new" }],
       previewUrl: "/api/ai/proposals/proposal-safe-id/media/image.png",
       finalUrl: "/uploads/image.png",
     },
   });
+});
+
+test("model output sanitizer closes credential aliases and keeps only safe proposal diff paths", () => {
+  const safe = sanitizeModelOutput({
+    cookies: "plural-cookie-secret",
+    cookieJar: "jar-secret",
+    authorizationHeader: "Bearer authorization-secret",
+    jwt: "jwt-secret",
+    bearerCredential: "bearer-secret",
+    csrf: "csrf-secret",
+    requestNonce: "nonce-secret",
+    sessionId: "session-secret",
+    currentSession: "current-session-secret",
+    sessionPrep: { notes: "Keep this campaign preparation." },
+    workingDirectory: "C:\\private\\workdir",
+    workspace_root: "/private/workspace",
+    generic: { path: "title", status: "safe" },
+    proposal: {
+      diff: [
+        { path: "title", before: "Old", after: "New" },
+        { path: "art.url", before: null, after: "/uploads/art.png" },
+        { path: "$", before: null, after: { status: "pending" } },
+        { path: "C:\\private\\proposal.json", before: null, after: "leak" },
+        { path: "../private/proposal.json", before: null, after: "leak" },
+        { path: "gallery[0].url", before: null, after: "leak" },
+      ],
+    },
+  });
+
+  assert.deepEqual(safe, {
+    sessionPrep: { notes: "Keep this campaign preparation." },
+    generic: { status: "safe" },
+    proposal: {
+      diff: [
+        { path: "title", before: "Old", after: "New" },
+        { path: "art.url", before: null, after: "/uploads/art.png" },
+        { path: "$", before: null, after: { status: "pending" } },
+      ],
+    },
+  });
+});
+
+test("MCP failures expose only allowlisted codes and generic messages", async (t) => {
+  const mockFetch = (async (input: URL | RequestInfo) => {
+    const url = new URL(input instanceof URL ? input.href : String(input));
+    if (url.pathname === "/api/campaigns") {
+      return errorResponse(
+        "authorization_failed_private",
+        "Authorization: Bearer super-secret at C:\\private\\staging.png",
+        500,
+      );
+    }
+    return errorResponse(
+      "not_found",
+      "backend path C:\\private\\campaign.json contained another-secret",
+      404,
+    );
+  }) as typeof fetch;
+  const server = createDndMcpServer(new DndMasterClient(testConfig, mockFetch));
+  const client = new Client({ name: "failure-redaction-client", version: "1.0.0" });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  t.after(async () => {
+    await client.close();
+    await server.close();
+  });
+  await server.connect(serverTransport);
+  await client.connect(clientTransport);
+
+  const unknown = await client.callTool({ name: "list_campaigns", arguments: {} });
+  const known = await client.callTool({
+    name: "get_campaign",
+    arguments: { campaignId: "missing" },
+  });
+  const unknownText = JSON.stringify(unknown.content);
+  const knownText = JSON.stringify(known.content);
+
+  assert.equal(unknown.isError, true);
+  assert.match(unknownText, /api_error: The DND Master API operation failed\./);
+  assert.equal(known.isError, true);
+  assert.match(knownText, /not_found: The requested DND Master record was not found\./);
+  for (const privateValue of [
+    "authorization_failed_private",
+    "Authorization",
+    "super-secret",
+    "C:\\private",
+    "another-secret",
+  ]) {
+    assert.equal(`${unknownText}\n${knownText}`.includes(privateValue), false);
+  }
 });
 
 test("raw campaign and proposal API values are sanitized before reaching MCP model context", async (t) => {

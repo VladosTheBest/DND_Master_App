@@ -58,7 +58,7 @@ For entity updates, call `get_entity` first and send only intentional fields in 
 
 `stage_proposal_media` accepts local paths only. It resolves symlinks, requires the final path to remain inside `DND_MASTER_MEDIA_ROOTS`, enforces size limits, and verifies PNG/JPEG/WebP signatures. It never downloads a remote URL. Staged media remains temporary; the website promotes it only when a proposal is applied and discards it when the proposal is rejected or expires.
 
-When `DND_MASTER_SOURCE_TYPE=codex_app_server`, a successfully staged file is deleted from the bridge user's private generated-image directory so proposal staging is the sole retained copy. Failed uploads keep the source for diagnosis or retry. External `mcp` mode never deletes caller-owned source files.
+The MCP process never deletes caller paths: Node does not provide a cross-platform atomic "unlink this opened file only" operation, so pathname cleanup would be vulnerable to a concurrent replacement. When `DND_MASTER_SOURCE_TYPE=codex_app_server`, the managed bridge owns the private generated-image scope and clears it after the turn is quiescent; failed uploads remain available for retry during that turn. External `mcp` mode never deletes caller-owned source files.
 
 If image generation is unavailable, create a `mediaIntents` placeholder with a `prompt` and `status: "unavailable"` or `"placeholder"` rather than failing the proposal. Campaign-blueprint media must include the target entity operation key in the exact form `entity:<tempKey>` and that entity must exist in the same blueprint; campaign-root and world-event media are intentionally unsupported. Entity media uses only `art.url` or `gallery`.
 
