@@ -1,39 +1,20 @@
 import type {
+  AIProposal,
   CampaignData,
-  CreateEntityInput,
-  KnowledgeEntity,
-  ModuleId,
-  PlayerFacingCard
+  KnowledgeEntity
 } from "@shadow-edge/shared-types";
 import { useState } from "react";
 import { api } from "../../app/api";
-import { sanitizeSinglePlayerFacingCard } from "../player-facing/usePlayerFacingCards";
 
 type UseRandomEventControllerArgs = {
   activeCampaignId: string;
   activeEntity: KnowledgeEntity | null;
   campaign: CampaignData | null;
-  entityToForm: (entity: KnowledgeEntity) => CreateEntityInput;
-  serializeEntityForm: (input: CreateEntityInput) => CreateEntityInput;
-  setActiveEntityId: (value: string) => void;
-  setActiveModule: (value: ModuleId) => void;
-  setActiveRailAlias: (value: null) => void;
-  setActiveTab: (value: string) => void;
   setBootError: (value: string) => void;
-  setPreviewEntityId: (value: string) => void;
-  setSelectedWorldEventId: (value: string) => void;
-  onHydrateCampaign: (campaign: CampaignData, preferredEntityId?: string) => void;
+  onProposalCreated: (proposal: AIProposal) => void;
 };
 
-const truncateText = (value: string, maxLength: number) => {
-  const trimmed = value.trim();
-  if (trimmed.length <= maxLength) {
-    return trimmed;
-  }
-  return `${trimmed.slice(0, maxLength).trimEnd()}...`;
-};
-
-const buildRandomEventPrompt = (locationLabel: string, extraPrompt: string) =>
+const buildSceneBrief = (locationLabel: string, extraPrompt: string) =>
   [
     "Сгенерируй одну подробную сцену для зачитки игрокам в D&D.",
     locationLabel
@@ -42,73 +23,33 @@ const buildRandomEventPrompt = (locationLabel: string, extraPrompt: string) =>
     extraPrompt.trim()
       ? `Описание мастера: ${extraPrompt.trim()}`
       : "Описание мастера: придумай самостоятельную дорожную или городскую сцену, которую легко продолжить.",
-    "Нужно придумать короткое название события и большой player-facing текст для поля sceneText.",
-    "sceneText должен звучать как готовая зачитка: что заметили персонажи, кого встретили, что прямо сейчас происходит, почему сцена цепляет, какие детали поведения и маленькая история видны игрокам.",
-    "Не пиши скрытые заметки мастера, статы, СЛ проверок или полноценный квест. Мастер сам продолжит сцену после зачитки.",
-    "Если схема требует dialogueBranches и loot, оставь их пустыми массивами, если мастер явно не просил обратного."
+    "Текст должен звучать как готовая зачитка: что заметили персонажи, кого встретили, что прямо сейчас происходит, почему сцена цепляет, какие детали поведения и маленькая история видны игрокам.",
+    "Не пиши скрытые заметки мастера, статы, СЛ проверок или полноценный квест. Мастер сам продолжит сцену после зачитки."
   ].join("\n");
 
-const buildSceneCard = (draftTitle: string, draftSceneText: string, fallbackPrompt: string): PlayerFacingCard => {
-  const content =
-    draftSceneText.trim() ||
-    fallbackPrompt.trim() ||
-    "Партия натыкается на короткую, странную и достаточно живую сцену, которую мастер может сразу продолжить за столом.";
+const buildEntityScenePrompt = (entity: KnowledgeEntity, locationLabel: string, extraPrompt: string) =>
+  [
+    buildSceneBrief(locationLabel, extraPrompt),
+    `Обнови существующую запись «${entity.title}» (${entity.kind}).`,
+    "Сохрани все существующие поля, изображения, связи, подготовленные бои и карточки игроков.",
+    "Добавь ровно одну новую карточку в конец массива playerCards: короткое выразительное название и полный текст зачитки в content.",
+    "Не удаляй и не переписывай существующие playerCards. Не меняй остальные поля без необходимости."
+  ].join("\n");
 
-  return {
-    title: truncateText(draftTitle, 80) || "Сцена для зачитки",
-    content,
-    contentHtml: ""
-  };
-};
-
-const buildLoreScenePayload = (card: PlayerFacingCard, selectedLocationLabel: string): CreateEntityInput => ({
-  kind: "lore",
-  title: card.title,
-  subtitle: selectedLocationLabel ? `Зачитка рядом с ${selectedLocationLabel}` : "Карточка сцены для зачитки",
-  summary: truncateText(card.content, 180),
-  content: card.content,
-  playerContent: card.content,
-  playerCards: [card],
-  tags: ["scene", "read-aloud", "event"],
-  quickFacts: [
-    {
-      label: "Формат",
-      value: "Зачитка",
-      tone: "accent"
-    }
-  ],
-  related: [],
-  category: "Rumor",
-  visibility: "player_safe"
-});
-
-const randomEventTargetModule = (entity: KnowledgeEntity): ModuleId =>
-  entity.kind === "location" ? "locations" : entity.kind === "quest" ? "quests" : "lore";
-
-const randomEventTargetTab = (entity: KnowledgeEntity) => {
-  if (entity.kind === "quest") {
-    if (entity.status === "active") return "Активные";
-    if (entity.status === "paused") return "Пауза";
-    if (entity.status === "completed") return "Завершены";
-  }
-
-  return "Все";
-};
+const buildWorldEventPrompt = (locationLabel: string, extraPrompt: string) =>
+  [
+    buildSceneBrief(locationLabel, extraPrompt),
+    "Создай событие кампании с коротким названием, ёмким summary и полным текстом зачитки в sceneText.",
+    "Используй тип social и теги read-aloud и scene, если описание мастера не требует другого.",
+    "Оставь dialogueBranches и loot пустыми массивами, если мастер явно не попросил их добавить."
+  ].join("\n");
 
 export function useRandomEventController({
   activeCampaignId,
   activeEntity,
   campaign,
-  entityToForm,
-  serializeEntityForm,
-  setActiveEntityId,
-  setActiveModule,
-  setActiveRailAlias,
-  setActiveTab,
   setBootError,
-  setPreviewEntityId,
-  setSelectedWorldEventId,
-  onHydrateCampaign
+  onProposalCreated
 }: UseRandomEventControllerArgs) {
   const [randomEventModalOpen, setRandomEventModalOpen] = useState(false);
   const [randomEventDestinationId, setRandomEventDestinationId] = useState("");
@@ -161,63 +102,24 @@ export function useRandomEventController({
             ? campaign?.locations.find((location) => location.id === selectedDestination.locationId) ?? null
             : null;
       const selectedLocationLabel = selectedLocation?.title ?? "";
-      const prompt = buildRandomEventPrompt(selectedLocationLabel, randomEventPrompt);
-      const draft = await api.generateWorldEvent(activeCampaignId, {
-        locationId: selectedLocation?.id || undefined,
-        type: "social",
-        prompt,
-        current: {
-          title: "",
-          date: "",
-          summary: "",
-          type: "social",
-          locationId: selectedLocation?.id || "",
-          locationLabel: selectedLocationLabel,
-          sceneText: "",
-          dialogueBranches: [],
-          loot: [],
-          tags: ["read-aloud", "scene"],
-          origin: "ai"
-        }
-      });
+      const proposal = selectedDestination?.kind === "location" || selectedDestination?.kind === "quest"
+        ? await api.proposeEntity(activeCampaignId, {
+            mode: "update",
+            kind: selectedDestination.kind,
+            entityId: selectedDestination.id,
+            prompt: buildEntityScenePrompt(selectedDestination, selectedLocationLabel, randomEventPrompt),
+            source: { type: "website_ai" }
+          })
+        : await api.proposeWorldEvent(activeCampaignId, {
+            mode: "create",
+            prompt: buildWorldEventPrompt(selectedLocationLabel, randomEventPrompt),
+            source: { type: "website_ai" }
+          });
 
-      const sceneText = draft.event.sceneText || draft.event.summary || randomEventPrompt;
-      const card = buildSceneCard(draft.event.title, sceneText, randomEventPrompt);
-
-      if (selectedDestination?.kind === "location" || selectedDestination?.kind === "quest") {
-        const nextForm = entityToForm(selectedDestination);
-        const nextCard =
-          sanitizeSinglePlayerFacingCard(selectedDestination.kind, card, nextForm.playerCards?.length ?? 0) ?? card;
-        nextForm.playerCards = [...(nextForm.playerCards ?? []), nextCard];
-        nextForm.playerContent = nextForm.playerCards[0]?.content ?? nextCard.content;
-
-        const result = await api.updateEntity(activeCampaignId, selectedDestination.id, serializeEntityForm(nextForm));
-        setRandomEventNotes(draft.notes);
-        onHydrateCampaign(result.campaign, result.entity.id);
-        setActiveModule(randomEventTargetModule(selectedDestination));
-        setActiveRailAlias(null);
-        setActiveTab(randomEventTargetTab(selectedDestination));
-        setActiveEntityId(result.entity.id);
-        setPreviewEntityId(result.entity.id);
-        setSelectedWorldEventId("");
-        closeRandomEventModal();
-        return;
-      }
-
-      const payload = serializeEntityForm(buildLoreScenePayload(card, selectedLocationLabel));
-      const result = await api.createEntity(activeCampaignId, payload);
-
-      setRandomEventNotes(draft.notes);
-      onHydrateCampaign(result.campaign, result.entity.id);
-      setActiveModule("lore");
-      setActiveRailAlias(null);
-      setActiveTab("Все");
-      setActiveEntityId(result.entity.id);
-      setPreviewEntityId(result.entity.id);
-      setSelectedWorldEventId("");
       closeRandomEventModal();
+      onProposalCreated(proposal);
     } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось сгенерировать сцену для зачитки.");
+      setBootError(error instanceof Error ? error.message : "Не удалось подготовить сцену для проверки.");
     } finally {
       setRandomEventGenerating(false);
     }

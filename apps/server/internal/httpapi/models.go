@@ -1,5 +1,7 @@
 package httpapi
 
+import "encoding/json"
+
 type appModule struct {
 	ID    string `json:"id"`
 	Label string `json:"label"`
@@ -143,6 +145,7 @@ type npcStatBlock struct {
 
 type knowledgeEntity struct {
 	ID            string             `json:"id"`
+	Revision      int                `json:"revision"`
 	Kind          string             `json:"kind"`
 	Title         string             `json:"title"`
 	Subtitle      string             `json:"subtitle"`
@@ -183,6 +186,7 @@ type worldEventDialogueBranch struct {
 
 type worldEvent struct {
 	ID               string                     `json:"id"`
+	Revision         int                        `json:"revision"`
 	Title            string                     `json:"title"`
 	Date             string                     `json:"date"`
 	Summary          string                     `json:"summary"`
@@ -294,7 +298,11 @@ type userAccount struct {
 }
 
 type campaignData struct {
-	ID                 string                  `json:"id"`
+	ID string `json:"id"`
+	// Revision tracks authoring changes used by proposal conflict detection.
+	// Ephemeral live-combat state is persisted but deliberately does not make
+	// an otherwise independent content proposal stale.
+	Revision           int                     `json:"revision"`
 	OwnerID            string                  `json:"ownerId,omitempty"`
 	Title              string                  `json:"title"`
 	System             string                  `json:"system"`
@@ -321,6 +329,7 @@ type campaignData struct {
 
 type campaignSummary struct {
 	ID          string `json:"id"`
+	Revision    int    `json:"revision"`
 	Title       string `json:"title"`
 	System      string `json:"system"`
 	SettingName string `json:"settingName"`
@@ -341,9 +350,111 @@ type storageState struct {
 	AuthSecret      string           `json:"authSecret,omitempty"`
 	Users           []userAccount    `json:"users,omitempty"`
 	Campaigns       []campaignData   `json:"campaigns"`
+	AIProposals     []aiProposal     `json:"aiProposals,omitempty"`
+	ProposalAudits  []proposalAudit  `json:"proposalAudits,omitempty"`
 	UpdatedAt       string           `json:"updatedAt"`
 	SurveyInvites   []surveyInvite   `json:"surveyInvites,omitempty"`
 	SurveyResponses []surveyResponse `json:"surveyResponses,omitempty"`
+}
+
+type proposalSource struct {
+	Type     string            `json:"type,omitempty"`
+	Provider string            `json:"provider,omitempty"`
+	Model    string            `json:"model,omitempty"`
+	Metadata map[string]string `json:"metadata,omitempty"`
+}
+
+type proposalTarget struct {
+	CampaignID string `json:"campaignId,omitempty"`
+	EntityID   string `json:"entityId,omitempty"`
+	EventID    string `json:"eventId,omitempty"`
+	EntityKind string `json:"entityKind,omitempty"`
+}
+
+type proposalFieldDiff struct {
+	Path   string `json:"path"`
+	Before any    `json:"before,omitempty"`
+	After  any    `json:"after,omitempty"`
+}
+
+type proposalMediaIntent struct {
+	ID           string `json:"id"`
+	Purpose      string `json:"purpose,omitempty"`
+	OperationKey string `json:"operationKey,omitempty"`
+	Field        string `json:"field,omitempty"`
+	Prompt       string `json:"prompt,omitempty"`
+	Alt          string `json:"alt,omitempty"`
+	Caption      string `json:"caption,omitempty"`
+	PreviewURL   string `json:"previewUrl,omitempty"`
+	FinalURL     string `json:"finalUrl,omitempty"`
+	ContentType  string `json:"contentType,omitempty"`
+	Size         int64  `json:"size,omitempty"`
+	Status       string `json:"status"`
+	Selected     *bool  `json:"selected,omitempty"`
+}
+
+type proposalOperation struct {
+	Key       string   `json:"key"`
+	Action    string   `json:"action"`
+	Kind      string   `json:"kind"`
+	TempKey   string   `json:"tempKey,omitempty"`
+	Title     string   `json:"title,omitempty"`
+	DependsOn []string `json:"dependsOn,omitempty"`
+	Required  bool     `json:"required,omitempty"`
+}
+
+type aiProposal struct {
+	ID               string                `json:"id"`
+	OwnerID          string                `json:"ownerId"`
+	CampaignID       string                `json:"campaignId,omitempty"`
+	Kind             string                `json:"kind"`
+	Status           string                `json:"status"`
+	Target           proposalTarget        `json:"target"`
+	BaseRevisions    map[string]int        `json:"baseRevisions"`
+	AppliedRevisions map[string]int        `json:"appliedRevisions,omitempty"`
+	Prompt           string                `json:"prompt"`
+	Source           proposalSource        `json:"source"`
+	Before           json.RawMessage       `json:"before"`
+	After            json.RawMessage       `json:"after"`
+	Diff             []proposalFieldDiff   `json:"diff"`
+	Warnings         []string              `json:"warnings"`
+	MediaIntents     []proposalMediaIntent `json:"mediaIntents"`
+	Operations       []proposalOperation   `json:"operations"`
+	AppliedResult    json.RawMessage       `json:"appliedResult,omitempty"`
+	CreatedAt        string                `json:"createdAt"`
+	UpdatedAt        string                `json:"updatedAt"`
+	ExpiresAt        string                `json:"expiresAt,omitempty"`
+	AppliedAt        string                `json:"appliedAt,omitempty"`
+	RejectedAt       string                `json:"rejectedAt,omitempty"`
+	UndoneAt         string                `json:"undoneAt,omitempty"`
+}
+
+type proposalAudit struct {
+	ID         string          `json:"id"`
+	ProposalID string          `json:"proposalId"`
+	OwnerID    string          `json:"ownerId"`
+	CampaignID string          `json:"campaignId,omitempty"`
+	Action     string          `json:"action"`
+	Before     json.RawMessage `json:"before,omitempty"`
+	After      json.RawMessage `json:"after,omitempty"`
+	Revisions  map[string]int  `json:"revisions,omitempty"`
+	CreatedAt  string          `json:"createdAt"`
+}
+
+type campaignProposalBlueprint struct {
+	Campaign createCampaignInput       `json:"campaign"`
+	Entities []campaignBlueprintEntity `json:"entities,omitempty"`
+	Events   []campaignBlueprintEvent  `json:"events,omitempty"`
+}
+
+type campaignBlueprintEntity struct {
+	TempKey string `json:"tempKey"`
+	createEntityInput
+}
+
+type campaignBlueprintEvent struct {
+	TempKey string `json:"tempKey"`
+	createWorldEventInput
 }
 
 type surveyInvite struct {

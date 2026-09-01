@@ -195,8 +195,12 @@ func (s *campaignStore) createSurveyInvite(campaignID string, playerName string)
 	if err != nil {
 		return "", err
 	}
+	originalState, err := cloneStorageState(s.data)
+	if err != nil {
+		return "", err
+	}
 	s.data.SurveyInvites = append(s.data.SurveyInvites, surveyInvite{Token: token, CampaignID: campaignID, PlayerName: strings.TrimSpace(playerName), CreatedAt: time.Now().UTC().Format(time.RFC3339)})
-	return token, s.saveLocked()
+	return token, s.saveMutationLocked(originalState)
 }
 func (s *campaignStore) surveyInviteForToken(token string) (surveyInvite, bool) {
 	s.mu.RLock()
@@ -231,9 +235,13 @@ func (s *campaignStore) saveSurveyResponse(token, campaignID string, input surve
 	defer s.mu.Unlock()
 	for n := range s.data.SurveyInvites {
 		if s.data.SurveyInvites[n].Token == token {
+			originalState, err := cloneStorageState(s.data)
+			if err != nil {
+				return err
+			}
 			s.data.SurveyInvites[n].LastSubmissionAt = time.Now().UTC().Format(time.RFC3339)
 			s.data.SurveyResponses = append(s.data.SurveyResponses, surveyResponse{ID: newID("survey"), CampaignID: campaignID, SubmittedAt: s.data.SurveyInvites[n].LastSubmissionAt, Name: strings.TrimSpace(input.Name), InvitedPlayer: strings.TrimSpace(s.data.SurveyInvites[n].PlayerName), Setting: strings.TrimSpace(input.Setting), Inspirations: strings.TrimSpace(input.Inspirations), Character: strings.TrimSpace(input.Character), CharacterName: strings.TrimSpace(input.CharacterName), CharacterClass: strings.TrimSpace(input.CharacterClass), Ancestry: strings.TrimSpace(input.Ancestry), PartyRole: strings.TrimSpace(input.PartyRole), Backstory: strings.TrimSpace(input.Backstory), Tone: strings.TrimSpace(input.Tone), Atmosphere: strings.TrimSpace(input.Atmosphere), Expectations: strings.TrimSpace(input.Expectations), Boundaries: strings.TrimSpace(input.Boundaries)})
-			return s.saveLocked()
+			return s.saveMutationLocked(originalState)
 		}
 	}
 	return fmt.Errorf("survey invite not found")
@@ -254,8 +262,12 @@ func (s *campaignStore) deleteSurveyResponse(campaignID, responseID string) bool
 	defer s.mu.Unlock()
 	for index, response := range s.data.SurveyResponses {
 		if response.CampaignID == campaignID && response.ID == responseID {
+			originalState, err := cloneStorageState(s.data)
+			if err != nil {
+				return false
+			}
 			s.data.SurveyResponses = append(s.data.SurveyResponses[:index], s.data.SurveyResponses[index+1:]...)
-			if err := s.saveLocked(); err != nil {
+			if err := s.saveMutationLocked(originalState); err != nil {
 				return false
 			}
 			return true

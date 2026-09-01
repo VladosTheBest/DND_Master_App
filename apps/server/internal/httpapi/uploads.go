@@ -116,6 +116,13 @@ func newUploadsHandler(uploadDir string) (http.Handler, error) {
 			http.NotFound(writer, request)
 			return
 		}
+		// Proposal staging is private and is served only by the authenticated,
+		// owner-checked proposal preview endpoint. Keep this denial for legacy
+		// installations that may still have a .proposals directory here.
+		if firstSegment := strings.Split(strings.TrimPrefix(cleanPath, "/"), "/")[0]; strings.EqualFold(strings.TrimRight(firstSegment, ". "), ".proposals") {
+			http.NotFound(writer, request)
+			return
+		}
 
 		diskPath := filepath.Join(trimmedDir, filepath.FromSlash(strings.TrimPrefix(cleanPath, "/")))
 		info, err := os.Stat(diskPath)

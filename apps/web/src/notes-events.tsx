@@ -50,7 +50,8 @@ export function EventsWorkspace({
   onRemoveBranch,
   onLootChange,
   onAddLoot,
-  onRemoveLoot
+  onRemoveLoot,
+  readOnly = false
 }: {
   events: WorldEvent[];
   locations: LocationEntity[];
@@ -76,6 +77,7 @@ export function EventsWorkspace({
   onLootChange: (index: number, value: string) => void;
   onAddLoot: () => void;
   onRemoveLoot: (index: number) => void;
+  readOnly?: boolean;
 }) {
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredEvents = useMemo(
@@ -103,7 +105,7 @@ export function EventsWorkspace({
   const isDraft = draftId === NEW_WORLD_EVENT_ID;
 
   return (
-    <div className="notes-workspace events-workspace">
+    <div className={`notes-workspace events-workspace ${readOnly ? "events-workspace-readonly" : ""}`.trim()}>
       <section className="card notes-workspace-head">
         <div className="notes-workspace-copy">
           <p className="eyebrow">События</p>
@@ -113,7 +115,7 @@ export function EventsWorkspace({
             отлично оживляют сессию и дают мгновенную сцену с репликами, лутом и быстрым выбором.
           </p>
         </div>
-        <div className="actions">
+        {!readOnly ? <div className="actions">
           <button className="ghost" onClick={onCreateEvent} type="button">
             Новое событие
           </button>
@@ -123,11 +125,11 @@ export function EventsWorkspace({
           <button className="primary" disabled={saving || generating} onClick={onSave} type="button">
             {saving ? "Сохраняю..." : "Сохранить"}
           </button>
-        </div>
+        </div> : null}
       </section>
 
       <div className="notes-workspace-grid events-workspace-grid">
-        <aside className="card notes-directory-panel">
+        {!readOnly ? <aside className="card notes-directory-panel">
           <div className="row">
             <strong>Все события</strong>
             <small>{filteredEvents.length}</small>
@@ -184,7 +186,7 @@ export function EventsWorkspace({
               </div>
             )}
           </div>
-        </aside>
+        </aside> : null}
 
         <section className="card notes-editor-panel events-editor-panel">
           <div className="notes-editor-head">
@@ -198,7 +200,7 @@ export function EventsWorkspace({
                 {selectedLocation ? `Привязано к локации ${selectedLocation.title}.` : "Можно оставить без привязки к локации."}
               </small>
             </div>
-            {!isDraft ? (
+            {!readOnly && !isDraft ? (
               <button className="ghost danger-action" disabled={saving} onClick={onDelete} type="button">
                 Удалить
               </button>
@@ -213,6 +215,7 @@ export function EventsWorkspace({
               <span>Название</span>
               <input
                 className="input notes-title-input"
+                disabled={readOnly}
                 onChange={(event) => onDraftChange((current) => ({ ...current, title: event.target.value }))}
                 placeholder="Например: Торговец-сквернослов"
                 value={draft.title}
@@ -223,6 +226,7 @@ export function EventsWorkspace({
               <span>Дата в мире</span>
               <input
                 className="input"
+                disabled={readOnly}
                 onChange={(event) => onDraftChange((current) => ({ ...current, date: event.target.value }))}
                 placeholder="17 Nightal, 1492 DR"
                 value={draft.date ?? ""}
@@ -233,6 +237,7 @@ export function EventsWorkspace({
               <span>Локация</span>
               <select
                 className="input"
+                disabled={readOnly}
                 onChange={(event) =>
                   onDraftChange((current) => ({
                     ...current,
@@ -255,6 +260,7 @@ export function EventsWorkspace({
               <span>Тип</span>
               <select
                 className="input"
+                disabled={readOnly}
                 onChange={(event) => onDraftChange((current) => ({ ...current, type: event.target.value as WorldEventType }))}
                 value={draft.type}
               >
@@ -270,6 +276,7 @@ export function EventsWorkspace({
               <span>Коротко о сцене</span>
               <textarea
                 className="input textarea"
+                disabled={readOnly}
                 onChange={(event) => onDraftChange((current) => ({ ...current, summary: event.target.value }))}
                 placeholder="Один короткий абзац: что это за сценка и почему партии не всё равно."
                 value={draft.summary}
@@ -287,27 +294,31 @@ export function EventsWorkspace({
                 <div key={`loot-${index}`} className="event-loot-row">
                   <input
                     className="input"
+                    disabled={readOnly}
                     onChange={(event) => onLootChange(index, event.target.value)}
                     placeholder={index === 0 ? "15 зм" : "Кинжал, пропуск, 2 какашки бабуина"}
                     value={item}
                   />
-                  <button className="ghost" onClick={() => onRemoveLoot(index)} type="button">
-                    Убрать
-                  </button>
+                  {!readOnly ? (
+                    <button className="ghost" onClick={() => onRemoveLoot(index)} type="button">
+                      Убрать
+                    </button>
+                  ) : null}
                 </div>
               ))}
             </div>
-            <div className="actions">
+            {!readOnly ? <div className="actions">
               <button className="ghost" onClick={onAddLoot} type="button">
                 Добавить лут
               </button>
-            </div>
+            </div> : null}
           </section>
 
           <label className="field notes-editor-field">
             <span>Текст сцены</span>
             <textarea
               className="input textarea notes-editor-textarea event-scene-textarea"
+              disabled={readOnly}
               onChange={(event) => onDraftChange((current) => ({ ...current, sceneText: event.target.value }))}
               placeholder="Что происходит прямо сейчас, кто начинает сцену, чем она цепляет игроков и куда может качнуться."
               value={draft.sceneText}
@@ -317,18 +328,22 @@ export function EventsWorkspace({
           <section className="stack event-branch-list">
             <div className="row">
               <strong>Ветки диалога</strong>
-              <button className="ghost" onClick={onAddBranch} type="button">
-                Добавить ветку
-              </button>
+              {!readOnly ? (
+                <button className="ghost" onClick={onAddBranch} type="button">
+                  Добавить ветку
+                </button>
+              ) : null}
             </div>
 
             {(draft.dialogueBranches ?? []).map((branch, index) => (
               <article key={`branch-${index}`} className="card mini event-branch-card">
                 <div className="row">
                   <span className={badge("accent")}>Ветка {index + 1}</span>
-                  <button className="ghost" onClick={() => onRemoveBranch(index)} type="button">
-                    Убрать
-                  </button>
+                  {!readOnly ? (
+                    <button className="ghost" onClick={() => onRemoveBranch(index)} type="button">
+                      Убрать
+                    </button>
+                  ) : null}
                 </div>
 
                 <div className="form-grid">
@@ -336,6 +351,7 @@ export function EventsWorkspace({
                     <span>Заголовок</span>
                     <input
                       className="input"
+                      disabled={readOnly}
                       onChange={(event) => onBranchChange(index, (current) => ({ ...current, title: event.target.value }))}
                       placeholder="Если ответить шуткой"
                       value={branch.title}
@@ -346,6 +362,7 @@ export function EventsWorkspace({
                     <span>Чем кончается</span>
                     <input
                       className="input"
+                      disabled={readOnly}
                       onChange={(event) => onBranchChange(index, (current) => ({ ...current, outcome: event.target.value }))}
                       placeholder="Торговец смягчается и сдаёт слух"
                       value={branch.outcome ?? ""}
@@ -356,6 +373,7 @@ export function EventsWorkspace({
                     <span>Реплики и ходы</span>
                     <textarea
                       className="input textarea"
+                      disabled={readOnly}
                       onChange={(event) =>
                         onBranchChange(index, (current) => ({
                           ...current,
@@ -371,7 +389,7 @@ export function EventsWorkspace({
             ))}
           </section>
 
-          {selectedLocation ? (
+          {!readOnly && selectedLocation ? (
             <div className="actions">
               <button className="ghost" onClick={() => onOpenLocation(selectedLocation.id)} type="button">
                 Открыть локацию
@@ -397,6 +415,7 @@ export function NotesWorkspace({
   onSearchChange,
   onSelectNote,
   onCreateNote,
+  onEditWithAI,
   onSave,
   onOpenPreview,
   onTitleChange,
@@ -416,6 +435,7 @@ export function NotesWorkspace({
   onSearchChange: (value: string) => void;
   onSelectNote: (noteId: string) => void;
   onCreateNote: () => void;
+  onEditWithAI?: (note: LoreNoteEntity) => void;
   onSave: () => void;
   onOpenPreview: (noteId: string) => void;
   onTitleChange: (value: string) => void;
@@ -451,6 +471,11 @@ export function NotesWorkspace({
           <button className="ghost" onClick={onCreateNote} type="button">
             Новая заметка
           </button>
+          {onEditWithAI && selectedNote ? (
+            <button className="ghost ai-edit-button" disabled={saving} onClick={() => onEditWithAI(selectedNote)} type="button">
+              Изменить с AI
+            </button>
+          ) : null}
           <button className="primary" disabled={saving || !canSave} onClick={onSave} type="button">
             {saving ? "Сохраняю..." : "Сохранить"}
           </button>

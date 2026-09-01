@@ -24,6 +24,7 @@ export function QuestPageContainer({
   isEntityPlaylistActive,
   onCopyImageLink,
   onEditEntity,
+  onEditWithAI,
   onOpenDirectory,
   onOpenEntity,
   onOpenGallery,
@@ -38,7 +39,8 @@ export function QuestPageContainer({
   preparedCombatSection,
   quest,
   questScopeEntities,
-  resolveLinkedEntity
+  resolveLinkedEntity,
+  readOnly = false
 }: {
   campaignQuests: QuestEntity[];
   currentPlaybackTrackLabel: string;
@@ -46,6 +48,7 @@ export function QuestPageContainer({
   isEntityPlaylistActive: (entityId?: string) => boolean;
   onCopyImageLink: (url: string) => Promise<void>;
   onEditEntity: (entityId: string) => void;
+  onEditWithAI?: (entity: QuestEntity) => void;
   onOpenDirectory: () => void;
   onOpenEntity: (entityId: string) => void;
   onOpenGallery: (quest: QuestEntity) => void;
@@ -61,6 +64,7 @@ export function QuestPageContainer({
   quest: QuestEntity;
   questScopeEntities: QuestEntity[];
   resolveLinkedEntity: (item: Pick<RelatedEntity, "id" | "label">) => KnowledgeEntity | null;
+  readOnly?: boolean;
 }) {
   const activeQuestLocation = useMemo(() => {
     if (!quest.locationId) {
@@ -168,6 +172,7 @@ export function QuestPageContainer({
       onCreatePlayerCard={() => playerFacing.openNewPlayerFacingEditor(quest)}
       onDeletePlayerCard={(card, index) => playerFacing.requestPlayerFacingCardDeletion(quest, card, index)}
       onEdit={onEditEntity}
+      onEditWithAI={onEditWithAI ? () => onEditWithAI(quest) : undefined}
       onEditPlayerCard={(card, index) => playerFacing.openPlayerFacingEditor(quest, card, index)}
       onOpenDirectory={onOpenDirectory}
       onOpenEntity={onOpenEntity}
@@ -188,6 +193,7 @@ export function QuestPageContainer({
       previousQuest={previousQuest}
       quest={quest}
       relatedQuests={relatedQuests}
+      readOnly={readOnly}
     />
   );
 }

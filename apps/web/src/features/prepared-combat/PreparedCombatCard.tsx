@@ -7,12 +7,14 @@ type PreparedCombatCardProps = {
   card: PreparedCombatCardView;
   onOpen: () => void;
   onStart: () => void;
+  readOnly?: boolean;
 };
 
 export function PreparedCombatCard({
   card,
   onOpen,
-  onStart
+  onStart,
+  readOnly = false
 }: PreparedCombatCardProps) {
   return (
     <article className="card entity-player-facing-panel entity-player-facing-panel-compact entity-prepared-combat-panel">
@@ -27,14 +29,14 @@ export function PreparedCombatCard({
         <p className="entity-prepared-combat-xp">{card.xpText}</p>
       </div>
 
-      <div className="entity-player-facing-actions">
+      {!readOnly ? <div className="entity-player-facing-actions">
         <button className="ghost fill" onClick={onOpen} type="button">
           Посмотреть бой
         </button>
         <button className="primary" disabled={card.startDisabled} onClick={onStart} type="button">
           {card.startLabel || "Начать бой"}
         </button>
-      </div>
+      </div> : null}
     </article>
   );
 }

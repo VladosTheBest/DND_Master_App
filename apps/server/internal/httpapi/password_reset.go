@@ -32,8 +32,12 @@ func ResetAccountPassword(dataFile string, username string, password string) err
 
 	for index := range store.data.Users {
 		if store.data.Users[index].UsernameKey == usernameKey {
+			originalState, err := cloneStorageState(store.data)
+			if err != nil {
+				return err
+			}
 			store.data.Users[index].PasswordHash = passwordHash
-			return store.saveLocked()
+			return store.saveMutationLocked(originalState)
 		}
 	}
 

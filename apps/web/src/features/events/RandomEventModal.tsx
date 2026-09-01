@@ -94,8 +94,8 @@ export function RandomEventModal({
   const selectedLocation = selectedDestination?.kind === "location" ? selectedDestination : null;
   const selectedQuest = selectedDestination?.kind === "quest" ? selectedDestination : null;
   const existingCardCount = selectedDestination?.playerCards?.length ?? 0;
-  const destinationLabel = selectedDestination?.title ?? "Новая заметка в лоре";
-  const destinationTypeLabel = selectedQuest ? "Квест" : selectedLocation ? "Локация" : "Лор";
+  const destinationLabel = selectedDestination?.title ?? "Новое событие кампании";
+  const destinationTypeLabel = selectedQuest ? "Квест" : selectedLocation ? "Локация" : "Событие";
   const promptLength = prompt.trim().length;
 
   return (
@@ -129,11 +129,11 @@ export function RandomEventModal({
                   <RandomEventIcon name="location" />
                 </span>
                 <span className="random-event-select-copy">
-                  <span>Сохранить карточку</span>
+                  <span>Предложить изменение</span>
                   <strong>{destinationLabel}</strong>
                 </span>
                 <select onChange={(event) => onChangeDestinationId(event.target.value)} value={selectedDestinationId}>
-                  <option value="">Отдельной заметкой в лоре</option>
+                  <option value="">Новым событием кампании</option>
                   {campaign?.quests.length ? (
                     <optgroup label="Квесты">
                       {campaign.quests.map((quest) => (
@@ -178,7 +178,7 @@ export function RandomEventModal({
                 </button>
                 <button className="random-event-primary-action" disabled={generating} onClick={onGenerate} type="button">
                   <RandomEventIcon name="spark" />
-                  {generating ? "Генерирую..." : "Сгенерировать"}
+                  {generating ? "Готовлю черновик..." : "Подготовить черновик"}
                 </button>
               </div>
             </section>
@@ -203,15 +203,15 @@ export function RandomEventModal({
                 <div className="random-event-stat-card">
                   <RandomEventIcon name="card" />
                   <strong>{selectedDestination ? existingCardCount + 1 : 1}</strong>
-                  <span>{selectedDestination ? "карточка по счёту" : "новая запись"}</span>
+                  <span>{selectedDestination ? "карточка по счёту" : "новое событие"}</span>
                 </div>
               </div>
 
               <div className="random-event-result-preview">
-                <span className="random-event-preview-kicker">Сохранится как</span>
-                <strong>{selectedDestination ? `Карточка у "${selectedDestination.title}"` : "Lore-запись с карточкой"}</strong>
+                <span className="random-event-preview-kicker">После проверки</span>
+                <strong>{selectedDestination ? `Карточка у "${selectedDestination.title}"` : "Событие кампании"}</strong>
                 <p>
-                  Название и текст зачитки придёт из AI. Скрытые заметки, статы и проверки в карточку не попадут.
+                  AI сначала создаст черновик. Название, текст и все изменения можно проверить перед применением.
                 </p>
               </div>
             </aside>
@@ -219,9 +219,9 @@ export function RandomEventModal({
 
           {generating ? (
             <DndGenerationProgress
-              detail="AI собирает название, встречу, детали происходящего и текст, который можно зачитать за столом."
+              detail="AI собирает название, детали и текст зачитки в отдельный черновик. Данные кампании пока не меняются."
               steps={generationSteps}
-              title="Готовлю сцену для зачитки"
+              title="Готовлю черновик сцены"
             />
           ) : null}
         </div>

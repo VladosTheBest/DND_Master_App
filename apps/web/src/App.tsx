@@ -20,10 +20,7 @@ import {
   sigil,
   toneClass,
   truncateInlineText,
-  worldEventExcerpt,
-  worldEventTypeLabels,
-  worldEventTypeOptions,
-  worldEventTypeTones
+  worldEventTypeOptions
 } from "./app-shared";
 import {
   buildInitiativeHash,
@@ -136,7 +133,7 @@ import {
   targetThresholdValue
 } from "./features/combat/combat.utils";
 import { EntityEditorModal } from "./features/entities/EntityEditorModal";
-import { EntityDetailsPage } from "./features/entities/EntityDetailsPage";
+import { EntityDetailsPage, EntityDetailsRenderer } from "./features/entities/EntityDetailsPage";
 import "./features/entities/entities.css";
 import { EntityActionMenu } from "./features/entity-actions/EntityActionMenu";
 import { EntityDeleteDialog } from "./features/entity-actions/EntityDeleteDialog";
@@ -175,8 +172,12 @@ import {
 } from "./features/entities/entity.utils";
 import { useEntityEditorController } from "./features/entities/useEntityEditorController";
 import { useEntityMediaController } from "./features/entities/useEntityMediaController";
+import { CampaignDashboard } from "./features/campaigns/CampaignDashboard";
 import { RandomEventModal } from "./features/events/RandomEventModal";
 import { useRandomEventController } from "./features/events/useRandomEventController";
+import { AIProposalCenter } from "./features/ai-proposals/AIProposalCenter";
+import { useAIProposalController } from "./features/ai-proposals/useAIProposalController";
+import { QuestPageContainer } from "./features/quests/QuestPageContainer";
 import { GlobalSearchModal } from "./features/global-search/GlobalSearchModal";
 import { useGlobalSearchController } from "./features/global-search/useGlobalSearchController";
 import { PlayerFacingController } from "./features/player-facing/PlayerFacingController";
@@ -1635,6 +1636,25 @@ export default function App() {
     setSaving
   });
 
+  const aiProposalController = useAIProposalController({
+    activeCampaign: campaign,
+    activeCampaignId,
+    authenticated: authState === "authenticated",
+    onCampaignChanged: (nextCampaign, focusEntityId) => hydrateCampaign(nextCampaign, focusEntityId),
+    onCampaignsChanged: (nextCampaigns) => {
+      setCampaigns(nextCampaigns);
+      if (!activeCampaignId || nextCampaigns.some((item) => item.id === activeCampaignId)) return;
+      const fallback = nextCampaigns[0];
+      if (fallback) {
+        void loadCampaign(fallback.id).catch((error) => {
+          setBootError(error instanceof Error ? error.message : "Не удалось открыть оставшуюся кампанию.");
+        });
+      } else {
+        resetCampaignState();
+      }
+    }
+  });
+
   const globalSearchController = useGlobalSearchController({
     activeCampaignId,
     campaign,
@@ -2331,16 +2351,10 @@ export default function App() {
     activeCampaignId,
     activeEntity,
     campaign,
-    entityToForm,
-    onHydrateCampaign: (nextCampaign, preferredEntityId) => hydrateCampaign(nextCampaign, preferredEntityId),
-    serializeEntityForm,
-    setActiveEntityId,
-    setActiveModule,
-    setActiveRailAlias: (value) => setActiveRailAlias(value),
-    setActiveTab,
+    onProposalCreated: (proposal) => {
+      void aiProposalController.openProposal(proposal);
+    },
     setBootError,
-    setPreviewEntityId,
-    setSelectedWorldEventId
   });
 
   const entityCombatSetupTarget =
@@ -2621,8 +2635,6 @@ export default function App() {
   const pinnedEntities = pinnedIds
     .map((id) => entityMap.get(id))
     .filter((entity): entity is KnowledgeEntity => Boolean(entity));
-  const dashboardLocationId = campaign?.locations[0]?.id ?? campaign?.npcs[0]?.id ?? campaign?.monsters[0]?.id ?? "";
-  const dashboardQuestId = campaign?.quests[0]?.id ?? campaign?.lore[0]?.id ?? campaign?.monsters[0]?.id ?? "";
 
   const playPlaylist = ({
     scope,
@@ -4154,6 +4166,121 @@ export default function App() {
       />
     ) : null;
 
+  const renderProposalEntity = (candidate: KnowledgeEntity, proposalCampaign: CampaignData): ReactNode => {
+    const candidateEntities = [
+      ...[
+        ...proposalCampaign.locations,
+        ...proposalCampaign.players,
+        ...proposalCampaign.npcs,
+        ...proposalCampaign.monsters,
+        ...proposalCampaign.quests,
+        ...proposalCampaign.lore
+      ].filter((entity) => entity.id !== candidate.id),
+      candidate
+    ];
+    const candidateEntityMap = new Map(candidateEntities.map((entity) => [entity.id, entity]));
+    const candidateEntityByTitle = new Map(candidateEntities.map((entity) => [entity.title.toLowerCase(), entity]));
+    const resolveCandidateLink = (item: Pick<RelatedEntity, "id" | "label">) =>
+      candidateEntityMap.get(item.id) ?? candidateEntityByTitle.get(item.label.toLowerCase()) ?? null;
+    const noOp = () => undefined;
+    const noOpAsync = async () => undefined;
+    const candidatePreparedCombatSection = isPreparedCombatHostEntity(candidate) ? (
+      <PreparedCombatList
+        entity={candidate}
+        entityMap={candidateEntityMap}
+        hasActiveCombatEntries={false}
+        onCreateCard={noOp}
+        onDeleteCard={noOp}
+        onOpenCard={noOp}
+        onStartCard={noOp}
+        readOnly
+      />
+    ) : null;
+
+    if (candidate.kind === "quest") {
+      const candidateQuests = [
+        ...proposalCampaign.quests.filter((quest) => quest.id !== candidate.id),
+        candidate
+      ];
+      return (
+        <QuestPageContainer
+          campaignQuests={candidateQuests}
+          currentPlaybackTrackLabel=""
+          entityMap={candidateEntityMap}
+          isEntityPlaylistActive={() => false}
+          onCopyImageLink={noOpAsync}
+          onEditEntity={noOp}
+          onOpenDirectory={noOp}
+          onOpenEntity={noOp}
+          onOpenGallery={noOp}
+          onOpenGalleryViewer={noOp}
+          onOpenPlaylist={noOp}
+          onOpenQuest={noOp}
+          onPlayNextPlaylistTrack={noOp}
+          onPlayPlaylist={noOp}
+          onTogglePin={noOp}
+          pinned={false}
+          playerFacing={playerFacing}
+          preparedCombatSection={candidatePreparedCombatSection}
+          quest={candidate}
+          questScopeEntities={candidateQuests}
+          readOnly
+          resolveLinkedEntity={resolveCandidateLink}
+        />
+      );
+    }
+
+    const candidatePlayerCards = normalizePlayerFacingCardsForClient(
+      candidate.kind,
+      candidate.playerCards,
+      candidate.playerContent
+    );
+    const candidateNpcQuests = candidate.kind === "npc"
+      ? proposalCampaign.quests.filter(
+          (quest) => quest.issuerId === candidate.id || quest.related.some((item) => item.id === candidate.id)
+        )
+      : [];
+
+    return (
+      <EntityDetailsRenderer
+        activeEntity={candidate}
+        activeEntityPinned={false}
+        activeEntityPlayerCards={candidatePlayerCards}
+        activeNpcQuests={candidateNpcQuests}
+        composeVisibleQuickFacts={composeVisibleQuickFacts}
+        currentPlaybackTrackLabel=""
+        currentPlaybackTrackUrl=""
+        entityByTitle={candidateEntityByTitle}
+        isEntityPlaylistActive={() => false}
+        locationShops={candidate.kind === "location" ? proposalCampaign.shops.filter((shop) => shop.locationId === candidate.id) : []}
+        onContentContextMenu={noOp}
+        onCopyImageLink={noOpAsync}
+        onCreatePlayerFacingCard={noOp}
+        onDeletePlayerFacingCard={noOp}
+        onEditEntity={noOp}
+        onEditPlayerFacingCard={noOp}
+        onOpenEntityActionMenu={noOp}
+        onOpenGallery={noOp}
+        onOpenGalleryAlbum={noOp}
+        onOpenGalleryViewer={noOp}
+        onOpenNpcQuestModal={noOp}
+        onOpenPlayerFacingCard={noOp}
+        onOpenPlaylistEditor={noOp}
+        onOpenPreview={noOp}
+        onOpenRelatedEntity={noOp}
+        onOpenShop={noOp}
+        onPeekQuest={noOp}
+        onPlayNextPlaylistTrack={noOp}
+        onPlayPlaylist={noOp}
+        onResolveRelatedEntity={resolveCandidateLink}
+        onStopPlayback={noOp}
+        onTogglePin={noOp}
+        preparedCombatSection={candidatePreparedCombatSection}
+        readOnly
+      />
+    );
+  };
+
   if (authState === "checking") {
     return (
       <div className="boot">
@@ -4208,6 +4335,13 @@ export default function App() {
               <button className="primary" onClick={openCampaignModal} type="button">
                 Создать кампанию
               </button>
+              <button className="ghost ai-edit-button" onClick={aiProposalController.requestCampaignProposal} type="button">
+                Создать с AI
+              </button>
+              <button className="ghost ai-proposal-inbox-button" onClick={aiProposalController.openInbox} type="button">
+                AI-черновики
+                {aiProposalController.pendingCount ? <span className="ai-proposal-count">{aiProposalController.pendingCount}</span> : null}
+              </button>
             </div>
           </div>
         </div>
@@ -4215,12 +4349,17 @@ export default function App() {
           form={campaignForm}
           onChange={updateCampaignForm}
           onClose={requestCampaignModalClose}
+          onCreateWithAI={() => {
+            campaignCreation.setCampaignModalOpen(false);
+            aiProposalController.requestCampaignProposal();
+          }}
           onSubmit={() => {
             void submitCampaign();
           }}
           open={campaignModalOpen}
           saving={saving}
         />
+        <AIProposalCenter campaignId={activeCampaignId} controller={aiProposalController} renderEntity={renderProposalEntity} />
       </>
     );
   }
@@ -4325,12 +4464,14 @@ export default function App() {
                   openCombatSetupModal();
                 }}
                 onOpenDirectory={() => openModuleDirectory(activeModule)}
+                onOpenAIProposals={aiProposalController.openInbox}
                 onOpenPinnedEntity={peekEntity}
                 onOpenRandomEvent={openRandomEventModal}
 				onOpenPlayerSurveys={() => { window.open("/master/surveys", "_blank", "noopener,noreferrer"); }}
                 onOpenSessionMap={() => setSessionMapOpen(true)}
                 onOpenSearch={openPalette}
                 pinnedEntities={pinnedEntities}
+                pendingProposalCount={aiProposalController.pendingCount}
                 variant="default"
               />
 
@@ -4364,90 +4505,12 @@ export default function App() {
 
           <section className={`panel content ${isCombatScreen ? "combat-content" : ""}`} ref={contentRef}>
             {activeModule === "dashboard" ? (
-              <div className="stack wide">
-                <section className="card hero">
-                  <div className="hero-copy-block">
-                    <p className="eyebrow">GM Cockpit</p>
-                    <h1>{campaign.title}</h1>
-                    <p className="copy">
-                      Один кабинет для мира, квестов и живой сессии. Сущности открываются в центре без прыжков страницы,
-                      а справа можно держать быстрый preview и закреплённые карточки.
-                    </p>
-                  </div>
-
-                  <div className="actions">
-                    <button className="primary" onClick={() => openEntity(dashboardLocationId)} type="button">
-                      Открыть первую сущность
-                    </button>
-                    <button className="ghost" onClick={() => openPreview(dashboardQuestId)} type="button">
-                      Preview квеста
-                    </button>
-                  </div>
-                </section>
-
-                <section className="stats">
-                  {campaign.dashboardCards.map((card) => (
-                    <article key={card.label} className={`card stat dashboard-stat-card dashboard-stat-${card.tone}`}>
-                      <span aria-hidden="true" className="dashboard-stat-mark">
-                        {card.label === "Локации" ? "⌖" : card.label === "Игроки" ? "♙" : card.label === "НПС" ? "♜" : card.label === "Монстры" ? "♞" : card.label === "Бой" ? "⚔" : "✦"}
-                      </span>
-                      <span className="dashboard-stat-copy">
-                        <span className={badge(card.tone)}>{card.label}</span>
-                        <strong>{card.value}</strong>
-                        <p>{card.detail}</p>
-                      </span>
-                    </article>
-                  ))}
-                </section>
-
-                <section className="split">
-                  <article className="card section-card">
-                    <div className="row muted">
-                      <span>События</span>
-                      <span>{campaign.events.length}</span>
-                    </div>
-                    <div className="stack">
-                      {campaign.events.map((event) => (
-                        <button key={event.id} className="card mini ghost fill" onClick={() => openWorldEvent(event.id)} type="button">
-                          <div className="row">
-                            <strong>{event.title}</strong>
-                            <span className={badge(worldEventTypeTones[event.type])}>{worldEventTypeLabels[event.type]}</span>
-                          </div>
-                          <small>{event.locationLabel ? `${event.locationLabel} • ` : ""}{event.date}</small>
-                          <p>{event.summary}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </article>
-
-                  <article className="card section-card dashboard-hot-entities">
-                    <div className="dashboard-hot-head">
-                      <div>
-                        <span className="eyebrow">В фокусе</span>
-                        <h2>Важные сущности</h2>
-                      </div>
-                      <span className="muted">Быстрый переход</span>
-                    </div>
-                    <div className="dashboard-hot-grid">
-                      {[...campaign.locations, ...campaign.npcs, ...campaign.monsters, ...campaign.quests, ...campaign.lore]
-                        .slice(0, 4)
-                        .map((entity) => (
-                          <button key={entity.id} className="dashboard-hot-card" onClick={() => peekEntity(entity.id)} type="button">
-                            <span className="dashboard-hot-visual">
-                              <img alt="" loading="lazy" src={createPortraitSource(entity)} />
-                            </span>
-                            <span className="dashboard-hot-copy">
-                              <small>{kindTitle[entity.kind]}</small>
-                              <strong>{entity.title}</strong>
-                              <span>{entity.subtitle || entity.summary || "Открыть карточку"}</span>
-                            </span>
-                            <span aria-hidden="true" className="dashboard-hot-arrow">↗</span>
-                          </button>
-                        ))}
-                    </div>
-                  </article>
-                </section>
-              </div>
+              <CampaignDashboard
+                campaign={campaign}
+                onOpenEntity={openEntity}
+                onOpenEvent={openWorldEvent}
+                onOpenPreview={openPreview}
+              />
             ) : activeModule === "combat" ? (
               <CombatPage
                 activeCombat={activeCombat}
@@ -4538,6 +4601,7 @@ export default function App() {
                     onContentContextMenu={(entity, event) => entityLinkController.handleActiveEntityContentContextMenu(entity, "content", event)}
                     onCopyImageLink={handleCopyImageLink}
                     onEditEntity={openEntityEditor}
+                    onEditWithAI={aiProposalController.requestEntityProposal}
                     onOpenDirectory={() => openModuleDirectory("monsters", "Импорт")}
                     onOpenEntity={openEntity}
                     onOpenEntityActionMenu={openEntityActionMenu}
@@ -4572,6 +4636,7 @@ export default function App() {
                 notesContentContextMenu={entityLinkController.handleNoteContentContextMenu}
                 onActiveEventChange={setSelectedWorldEventId}
                 onEditEntity={openEntityEditor}
+                onEditWithAI={aiProposalController.requestEntityProposal}
                 onOpenDirectory={() => openModuleDirectory("quests")}
                 onOpenEntity={openEntity}
                 onOpenEventGenerator={openRandomEventModal}
@@ -4613,6 +4678,7 @@ export default function App() {
                 onCreatePlayerFacingCard={() => openNewPlayerFacingEditor(activeEntity)}
                 onDeletePlayerFacingCard={(card, index) => requestPlayerFacingCardDeletion(activeEntity, card, index)}
                 onEditEntity={() => openEntityEditor(activeEntity.id)}
+                onEditWithAI={() => aiProposalController.requestEntityProposal(activeEntity)}
                 onEditPlayerFacingCard={(card, index) => openPlayerFacingEditor(activeEntity, card, index)}
                 onOpenEntityActionMenu={(event) => openEntityActionMenu(activeEntity, event)}
                 onOpenGallery={() => openEntityGalleryModal(activeEntity)}
@@ -4766,6 +4832,10 @@ export default function App() {
         form={campaignForm}
         onChange={updateCampaignForm}
         onClose={requestCampaignModalClose}
+        onCreateWithAI={() => {
+          campaignCreation.setCampaignModalOpen(false);
+          aiProposalController.requestCampaignProposal();
+        }}
         onSubmit={() => {
           void submitCampaign();
         }}
@@ -5208,6 +5278,8 @@ export default function App() {
 
       <EntityLinkContextMenu controller={entityLinkController} />
       <EntityLinkPickerModal controller={entityLinkController} onClose={requestEntityLinkModalClose} />
+
+      <AIProposalCenter campaignId={activeCampaignId} controller={aiProposalController} renderEntity={renderProposalEntity} />
 
       <CloseConfirmDialog
         onCancel={cancelModalCloseRequest}

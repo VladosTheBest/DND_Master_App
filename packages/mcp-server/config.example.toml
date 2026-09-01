@@ -1,0 +1,31 @@
+# Add this table to ~/.codex/config.toml or a trusted project's .codex/config.toml.
+# Build the package first and replace the two example paths with absolute paths.
+[mcp_servers.dnd_master]
+command = "node"
+args = ["C:/path/to/DND_Master_App/packages/mcp-server/dist/index.js"]
+cwd = "C:/path/to/DND_Master_App"
+env_vars = [
+  "DND_MASTER_BASE_URL",
+  "DND_MASTER_SESSION_COOKIE",
+  "DND_MASTER_MEDIA_ROOTS",
+  "DND_MASTER_SOURCE_TYPE",
+]
+enabled_tools = [
+  "list_campaigns",
+  "get_campaign",
+  "get_campaign_outline",
+  "search_entities",
+  "get_entity",
+  "propose_campaign",
+  "propose_entity_create",
+  "propose_entity_update",
+  "list_proposals",
+  "get_proposal",
+  "stage_proposal_media",
+  "attach_proposal_media",
+]
+startup_timeout_sec = 10
+tool_timeout_sec = 60
+default_tools_approval_mode = "writes"
+
+# Do not put a real session cookie in this file. Set it in the process environment.

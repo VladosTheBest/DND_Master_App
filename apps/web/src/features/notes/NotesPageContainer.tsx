@@ -24,6 +24,7 @@ export function NotesPageContainer({
   hydrateCampaign,
   initialNoteId,
   onContentContextMenu,
+  onEditWithAI,
   onOpenPreview,
   serializeEntityForm
 }: {
@@ -35,6 +36,7 @@ export function NotesPageContainer({
   hydrateCampaign: (campaign: CampaignData, focusEntityId?: string) => void;
   initialNoteId?: string;
   onContentContextMenu: (noteId: string, event: ReactMouseEvent<HTMLTextAreaElement>) => void;
+  onEditWithAI: (entity: LoreNoteEntity) => void;
   onOpenPreview: (id: string) => void;
   serializeEntityForm: (form: CreateEntityInput) => CreateEntityInput;
 }) {
@@ -188,6 +190,7 @@ export function NotesPageContainer({
       }}
       onContentContextMenu={(event) => onContentContextMenu(noteEditorEntityId, event)}
       onCreateNote={startNewLoreNote}
+      onEditWithAI={onEditWithAI}
       onOpenPreview={onOpenPreview}
       onSave={() => void saveLoreNote()}
       onSearchChange={setSearchQuery}

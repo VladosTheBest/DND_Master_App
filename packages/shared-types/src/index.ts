@@ -80,6 +80,8 @@ export interface PlayerFacingCard {
 
 export interface KnowledgeEntityBase {
   id: string;
+  /** Optimistic-concurrency revision. Older persisted records may omit it. */
+  revision?: number;
   kind: EntityKind;
   title: string;
   subtitle: string;
@@ -444,6 +446,8 @@ export interface WorldEventDialogueBranch {
 
 export interface WorldEvent {
   id: string;
+  /** Optimistic-concurrency revision. Older persisted records may omit it. */
+  revision?: number;
   title: string;
   date: string;
   summary: string;
@@ -490,6 +494,8 @@ export interface CampaignShop {
 
 export interface CampaignData {
   id: string;
+  /** Optimistic-concurrency revision. Older persisted records may omit it. */
+  revision?: number;
   title: string;
   system: string;
   settingName: string;
@@ -514,6 +520,8 @@ export interface CampaignData {
 
 export interface CampaignSummary {
   id: string;
+  /** Optimistic-concurrency revision. Older persisted records may omit it. */
+  revision?: number;
   title: string;
   system: string;
   settingName: string;
@@ -608,6 +616,242 @@ export interface GenerateEntityDraftResult {
   notes: string[];
   entity: CreateEntityInput;
   linkedDrafts?: LinkedDraftEntity[];
+}
+
+export type AIProposalKind =
+  | "entity_create"
+  | "entity_update"
+  | "event_create"
+  | "event_update"
+  | "campaign_create";
+
+export type AIProposalStatus =
+  | "pending"
+  | "applied"
+  | "rejected"
+  | "undone"
+  | "expired";
+
+export interface AIProposalTarget {
+  campaignId?: string;
+  entityId?: string;
+  eventId?: string;
+  entityKind?: EntityKind;
+}
+
+export interface AIProposalSource {
+  type?: "openai_api" | "codex_app_server" | "mcp" | "website_ai" | string;
+  provider?: string;
+  model?: string;
+  metadata?: Record<string, string>;
+}
+
+export interface AIProposalFieldDiff {
+  path: string;
+  before?: unknown;
+  after?: unknown;
+}
+
+export type AIProposalMediaStatus =
+  | "intent"
+  | "placeholder"
+  | "staged"
+  | "promoted"
+  | "rejected"
+  | "expired"
+  | "failed"
+  | string;
+
+export interface AIProposalMediaIntent {
+  id: string;
+  purpose?: string;
+  operationKey?: string;
+  field?: string;
+  prompt?: string;
+  alt?: string;
+  caption?: string;
+  previewUrl?: string;
+  finalUrl?: string;
+  contentType?: string;
+  size?: number;
+  status: AIProposalMediaStatus;
+  selected?: boolean;
+}
+
+export interface AIProposalOperation {
+  key: string;
+  action: string;
+  kind: string;
+  tempKey?: string;
+  title?: string;
+  dependsOn?: string[];
+  required?: boolean;
+}
+
+export interface AIProposal {
+  id: string;
+  ownerId: string;
+  campaignId?: string;
+  kind: AIProposalKind;
+  status: AIProposalStatus;
+  target: AIProposalTarget;
+  baseRevisions: Record<string, number>;
+  appliedRevisions?: Record<string, number>;
+  prompt: string;
+  source: AIProposalSource;
+  before: unknown | null;
+  after: unknown;
+  diff: AIProposalFieldDiff[];
+  warnings: string[];
+  mediaIntents: AIProposalMediaIntent[];
+  operations: AIProposalOperation[];
+  createdAt: string;
+  updatedAt: string;
+  expiresAt?: string;
+  appliedAt?: string;
+  rejectedAt?: string;
+  undoneAt?: string;
+  appliedResult?: unknown;
+}
+
+export interface AIProposalListParams {
+  status?: AIProposalStatus;
+  campaignId?: string;
+}
+
+export interface ProposeEntityInput {
+  mode: "create" | "update";
+  kind: EntityKind;
+  entityId?: string;
+  prompt: string;
+  patch?: Partial<CreateEntityInput>;
+  candidate?: CreateEntityInput;
+  source?: AIProposalSource;
+  warnings?: string[];
+  mediaIntents?: AIProposalMediaIntent[];
+}
+
+export interface ProposeWorldEventInput {
+  mode: "create" | "update";
+  eventId?: string;
+  prompt: string;
+  patch?: Partial<WorldEventInput>;
+  candidate?: WorldEventInput;
+  source?: AIProposalSource;
+  warnings?: string[];
+}
+
+export interface AIProposalCampaignBlueprintEntity extends CreateEntityInput {
+  tempKey: string;
+}
+
+export interface AIProposalCampaignBlueprintEvent extends WorldEventInput {
+  tempKey: string;
+}
+
+export interface AIProposalCampaignBlueprint {
+  campaign: CreateCampaignInput;
+  entities: AIProposalCampaignBlueprintEntity[];
+  events: AIProposalCampaignBlueprintEvent[];
+}
+
+export interface ProposeCampaignInput {
+  prompt: string;
+  source?: AIProposalSource;
+  blueprint?: AIProposalCampaignBlueprint;
+  warnings?: string[];
+  mediaIntents?: AIProposalMediaIntent[];
+}
+
+export interface ApplyAIProposalInput {
+  selectedOperationKeys?: string[];
+}
+
+export interface AIProposalMutationResult {
+  proposal: AIProposal;
+  campaign?: CampaignData;
+  entity?: KnowledgeEntity;
+  event?: WorldEvent;
+}
+
+export interface AttachAIProposalMediaInput {
+  mediaId: string;
+  purpose?: string;
+  operationKey?: string;
+  field?: string;
+  prompt?: string;
+  alt?: string;
+  caption?: string;
+  selected?: boolean;
+}
+
+export interface AIProposalMediaResult {
+  proposal: AIProposal;
+  media: AIProposalMediaIntent;
+}
+
+export type CodexConnectionState =
+  | "disabled"
+  | "unavailable"
+  | "disconnected"
+  | "connecting"
+  | "connected"
+  | "error";
+
+export interface CodexProviderMode {
+  id: string;
+  label: string;
+  description: string;
+  available: boolean;
+}
+
+export interface CodexRateLimitWindow {
+  usedPercent: number;
+  windowDurationMins?: number;
+  resetsAt?: number;
+}
+
+export interface CodexRateLimitSnapshot {
+  limitId?: string;
+  limitName?: string;
+  planType?: string;
+  primary?: CodexRateLimitWindow;
+  secondary?: CodexRateLimitWindow;
+  rateLimitReachedType?: string;
+}
+
+export interface CodexConnectionStatus {
+  enabled: boolean;
+  available: boolean;
+  state: CodexConnectionState;
+  authMode?: string;
+  planType?: string;
+  message?: string;
+  rateLimits?: CodexRateLimitSnapshot;
+  rateLimitsByLimitId?: Record<string, CodexRateLimitSnapshot>;
+  modes: CodexProviderMode[];
+}
+
+export interface CodexDeviceCodeResult {
+  status: CodexConnectionStatus;
+  loginId: string;
+  verificationUrl: string;
+  userCode: string;
+}
+
+export interface CodexPromptInput {
+  campaignId?: string;
+  prompt: string;
+  threadId?: string;
+  includeImages?: boolean;
+}
+
+export interface CodexPromptResult {
+  threadId: string;
+  turnId: string;
+  status: string;
+  message?: string;
+  proposalIds: string[];
 }
 
 export interface FormatPlayerFacingCardInput {
@@ -920,6 +1164,31 @@ export interface ApiClient {
     campaignId: string,
     input: GenerateEntityDraftInput,
   ): Promise<GenerateEntityDraftResult>;
+  listAIProposals(params?: AIProposalListParams): Promise<AIProposal[]>;
+  getAIProposal(proposalId: string): Promise<AIProposal>;
+  proposeEntity(
+    campaignId: string,
+    input: ProposeEntityInput,
+  ): Promise<AIProposal>;
+  proposeCampaign(input: ProposeCampaignInput): Promise<AIProposal>;
+  proposeWorldEvent(
+    campaignId: string,
+    input: ProposeWorldEventInput,
+  ): Promise<AIProposal>;
+  applyAIProposal(
+    proposalId: string,
+    input?: ApplyAIProposalInput,
+  ): Promise<AIProposalMutationResult>;
+  rejectAIProposal(proposalId: string): Promise<AIProposalMutationResult>;
+  undoAIProposal(proposalId: string): Promise<AIProposalMutationResult>;
+  attachAIProposalMedia(
+    proposalId: string,
+    input: AttachAIProposalMediaInput,
+  ): Promise<AIProposalMediaResult>;
+  getCodexConnectionStatus(): Promise<CodexConnectionStatus>;
+  connectCodexChatGPT(): Promise<CodexDeviceCodeResult>;
+  disconnectCodexChatGPT(): Promise<CodexConnectionStatus>;
+  runCodexPrompt(input: CodexPromptInput): Promise<CodexPromptResult>;
   formatPlayerFacingCard(
     campaignId: string,
     input: FormatPlayerFacingCardInput,

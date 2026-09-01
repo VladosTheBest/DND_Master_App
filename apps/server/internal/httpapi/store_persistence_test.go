@@ -4,8 +4,39 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
+	"runtime"
 	"testing"
 )
+
+func TestCampaignStoreSaveLockedCommitsPrimaryLast(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "store.json")
+	store, err := newCampaignStore(path)
+	if err != nil {
+		t.Fatalf("newCampaignStore() error = %v", err)
+	}
+
+	writes := make([]string, 0, 3)
+	store.atomicFileWrite = func(target string, body []byte, mode os.FileMode) error {
+		writes = append(writes, "backup")
+		return writeFileAtomically(target, body, mode)
+	}
+	store.atomicFileReplace = func(source, target string) error {
+		writes = append(writes, "primary")
+		return replaceFile(source, target)
+	}
+	store.mu.Lock()
+	err = store.saveLocked()
+	store.mu.Unlock()
+	if err != nil {
+		t.Fatalf("saveLocked() error = %v", err)
+	}
+
+	want := []string{"backup", "primary", "backup"}
+	if !reflect.DeepEqual(writes, want) {
+		t.Fatalf("atomic write order = %#v, want %#v", writes, want)
+	}
+}
 
 func TestCampaignStoreSaveLockedWritesBackup(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "store.json")
@@ -30,6 +61,29 @@ func TestCampaignStoreSaveLockedWritesBackup(t *testing.T) {
 	}
 	if _, err := os.Stat(path + ".bak"); err != nil {
 		t.Fatalf("expected backup store file to exist: %v", err)
+	}
+}
+
+func TestCampaignStoreFilesArePrivate(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows does not expose POSIX permission bits")
+	}
+	path := filepath.Join(t.TempDir(), "private", "store.json")
+	store, err := newCampaignStore(path)
+	if err != nil {
+		t.Fatalf("newCampaignStore() error = %v", err)
+	}
+	if _, err := store.createCampaign(createCampaignInput{Title: "Private storage"}); err != nil {
+		t.Fatalf("createCampaign() error = %v", err)
+	}
+	for _, target := range []string{path, path + ".bak"} {
+		info, err := os.Stat(target)
+		if err != nil {
+			t.Fatalf("stat %s: %v", target, err)
+		}
+		if got := info.Mode().Perm(); got != 0o600 {
+			t.Fatalf("%s permissions = %#o, want 0600", target, got)
+		}
 	}
 }
 

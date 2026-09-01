@@ -1,11 +1,8 @@
 package httpapi
 
 import (
-	"crypto/hmac"
 	"crypto/rand"
-	"crypto/sha256"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -26,12 +23,13 @@ type AuthOptions struct {
 }
 
 type authManager struct {
-	store             *campaignStore
-	cookieName        string
-	sessionTTL        time.Duration
-	sessionSigningKey []byte
+	store      *campaignStore
+	cookieName string
+	sessionTTL time.Duration
 
-	mu       sync.Mutex
+	mu sync.Mutex
+	// sessions is the authoritative allowlist for both browser and ephemeral
+	// bridge tokens. Cookies are opaque references and are never self-validating.
 	sessions map[string]authSession
 }
 
@@ -44,12 +42,6 @@ type authSession struct {
 	UserID    string
 	Username  string
 	ExpiresAt time.Time
-}
-
-type signedSessionPayload struct {
-	UserID    string `json:"userId"`
-	Username  string `json:"username"`
-	ExpiresAt int64  `json:"expiresAt"`
 }
 
 type loginInput struct {
@@ -78,22 +70,16 @@ func newAuthManager(options AuthOptions, store *campaignStore) (*authManager, er
 		return nil, err
 	}
 
-	secret := strings.TrimSpace(store.authSecret())
-	if secret == "" {
-		return nil, fmt.Errorf("auth secret is not initialized")
-	}
-
 	ttl := options.SessionTTL
 	if ttl <= 0 {
 		ttl = 7 * 24 * time.Hour
 	}
 
 	return &authManager{
-		store:             store,
-		cookieName:        "shadow_edge_session",
-		sessionTTL:        ttl,
-		sessionSigningKey: []byte(secret),
-		sessions:          make(map[string]authSession),
+		store:      store,
+		cookieName: "shadow_edge_session",
+		sessionTTL: ttl,
+		sessions:   make(map[string]authSession),
 	}, nil
 }
 
@@ -136,18 +122,9 @@ func (manager *authManager) currentUser(request *http.Request) (authUser, bool) 
 	manager.cleanupExpiredLocked(time.Now())
 	session, ok := manager.sessions[cookie.Value]
 	manager.mu.Unlock()
-	if ok {
-		return authUser{ID: session.UserID, Username: session.Username}, true
-	}
-
-	session, ok = manager.sessionFromToken(cookie.Value)
 	if !ok {
 		return authUser{}, false
 	}
-
-	manager.mu.Lock()
-	manager.sessions[cookie.Value] = session
-	manager.mu.Unlock()
 
 	return authUser{ID: session.UserID, Username: session.Username}, true
 }
@@ -169,18 +146,24 @@ func (manager *authManager) handleSession(writer http.ResponseWriter, request *h
 
 	if cookie, err := request.Cookie(manager.cookieName); err == nil && strings.TrimSpace(cookie.Value) != "" {
 		expiresAt := time.Now().Add(manager.sessionTTL)
-		token, tokenErr := manager.issueSessionToken(user, expiresAt)
+		token, tokenErr := manager.issueOpaqueSessionToken()
 		if tokenErr == nil {
+			rotated := false
 			manager.mu.Lock()
 			manager.cleanupExpiredLocked(time.Now())
-			delete(manager.sessions, cookie.Value)
-			manager.sessions[token] = authSession{
-				UserID:    user.ID,
-				Username:  user.Username,
-				ExpiresAt: expiresAt,
+			if previous, exists := manager.sessions[cookie.Value]; exists && previous.UserID == user.ID {
+				delete(manager.sessions, cookie.Value)
+				manager.sessions[token] = authSession{
+					UserID:    user.ID,
+					Username:  user.Username,
+					ExpiresAt: expiresAt,
+				}
+				rotated = true
 			}
 			manager.mu.Unlock()
-			manager.writeSessionCookie(writer, token, expiresAt, requestIsSecure(request))
+			if rotated {
+				manager.writeSessionCookie(writer, token, expiresAt, requestIsSecure(request))
+			}
 		}
 	}
 
@@ -241,7 +224,7 @@ func (manager *authManager) handleRegister(writer http.ResponseWriter, request *
 
 func (manager *authManager) writeAuthenticatedSession(writer http.ResponseWriter, request *http.Request, user authUser) {
 	expiresAt := time.Now().Add(manager.sessionTTL)
-	token, err := manager.issueSessionToken(user, expiresAt)
+	token, err := manager.issueOpaqueSessionToken()
 	if err != nil {
 		writeError(writer, http.StatusInternalServerError, "session_create_failed", "Не удалось создать сессию.")
 		return
@@ -264,6 +247,31 @@ func (manager *authManager) writeAuthenticatedSession(writer http.ResponseWriter
 		Username:            user.Username,
 		RegistrationEnabled: true,
 	})
+}
+
+func (manager *authManager) issueEphemeralSession(user authUser, expiresAt time.Time) (string, error) {
+	if manager == nil || !manager.enabled() || strings.TrimSpace(user.ID) == "" || !expiresAt.After(time.Now()) {
+		return "", fmt.Errorf("cannot issue ephemeral session")
+	}
+	random, err := randomAuthToken()
+	if err != nil {
+		return "", fmt.Errorf("generate ephemeral session: %w", err)
+	}
+	token := "ephemeral_" + random
+	manager.mu.Lock()
+	manager.cleanupExpiredLocked(time.Now())
+	manager.sessions[token] = authSession{UserID: user.ID, Username: user.Username, ExpiresAt: expiresAt}
+	manager.mu.Unlock()
+	return token, nil
+}
+
+func (manager *authManager) revokeSession(token string) {
+	if manager == nil || strings.TrimSpace(token) == "" {
+		return
+	}
+	manager.mu.Lock()
+	delete(manager.sessions, token)
+	manager.mu.Unlock()
 }
 
 func (manager *authManager) handleLogout(writer http.ResponseWriter, request *http.Request) {
@@ -330,72 +338,18 @@ func requestIsSecure(request *http.Request) bool {
 
 func (manager *authManager) cleanupExpiredLocked(now time.Time) {
 	for token, session := range manager.sessions {
-		if now.After(session.ExpiresAt) {
+		if !now.Before(session.ExpiresAt) {
 			delete(manager.sessions, token)
 		}
 	}
 }
 
-func (manager *authManager) issueSessionToken(user authUser, expiresAt time.Time) (string, error) {
-	payloadBytes, err := json.Marshal(signedSessionPayload{
-		UserID:    user.ID,
-		Username:  user.Username,
-		ExpiresAt: expiresAt.Unix(),
-	})
+func (manager *authManager) issueOpaqueSessionToken() (string, error) {
+	token, err := randomAuthToken()
 	if err != nil {
 		return "", err
 	}
-
-	signature := manager.signSessionPayload(payloadBytes)
-	return base64.RawURLEncoding.EncodeToString(payloadBytes) + "." + base64.RawURLEncoding.EncodeToString(signature), nil
-}
-
-func (manager *authManager) sessionFromToken(token string) (authSession, bool) {
-	payloadToken, signatureToken, ok := strings.Cut(token, ".")
-	if !ok || strings.TrimSpace(payloadToken) == "" || strings.TrimSpace(signatureToken) == "" {
-		return authSession{}, false
-	}
-
-	payloadBytes, err := base64.RawURLEncoding.DecodeString(payloadToken)
-	if err != nil {
-		return authSession{}, false
-	}
-	signatureBytes, err := base64.RawURLEncoding.DecodeString(signatureToken)
-	if err != nil {
-		return authSession{}, false
-	}
-
-	expectedSignature := manager.signSessionPayload(payloadBytes)
-	if !hmac.Equal(signatureBytes, expectedSignature) {
-		return authSession{}, false
-	}
-
-	var payload signedSessionPayload
-	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
-		return authSession{}, false
-	}
-
-	expiresAt := time.Unix(payload.ExpiresAt, 0)
-	if time.Now().After(expiresAt) || strings.TrimSpace(payload.UserID) == "" {
-		return authSession{}, false
-	}
-
-	user, ok := manager.store.getUserByID(payload.UserID)
-	if !ok {
-		return authSession{}, false
-	}
-
-	return authSession{
-		UserID:    user.ID,
-		Username:  user.Username,
-		ExpiresAt: expiresAt,
-	}, true
-}
-
-func (manager *authManager) signSessionPayload(payload []byte) []byte {
-	mac := hmac.New(sha256.New, manager.sessionSigningKey)
-	mac.Write(payload)
-	return mac.Sum(nil)
+	return "session_" + token, nil
 }
 
 func normalizeAccountUsername(value string) (string, string, error) {
@@ -461,7 +415,10 @@ func applyCORSHeaders(writer http.ResponseWriter, request *http.Request) {
 		return
 	}
 
-	if !isAllowedCORSOrigin(origin) {
+	// Cross-origin credentials are needed only for the local Vite development
+	// server. Never reflect a development origin when the API host itself is not
+	// loopback (for example, on a production deployment).
+	if !isLoopbackRequestHost(request) || !isAllowedCORSOrigin(origin) {
 		return
 	}
 
@@ -474,10 +431,79 @@ func applyCORSHeaders(writer http.ResponseWriter, request *http.Request) {
 
 func isAllowedCORSOrigin(origin string) bool {
 	parsed, err := url.Parse(origin)
-	if err != nil {
+	if err != nil || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" || (parsed.Path != "" && parsed.Path != "/") {
 		return false
 	}
 
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return false
+	}
 	host := strings.ToLower(parsed.Hostname())
-	return host == "localhost" || host == "127.0.0.1" || host == "::1"
+	if host != "localhost" && host != "127.0.0.1" && host != "::1" {
+		return false
+	}
+	return parsed.Port() == "5173"
+}
+
+func isLoopbackRequestHost(request *http.Request) bool {
+	if request == nil || strings.TrimSpace(request.Host) == "" {
+		return false
+	}
+	parsed, err := url.Parse("http://" + request.Host)
+	if err != nil {
+		return false
+	}
+	switch strings.ToLower(parsed.Hostname()) {
+	case "localhost", "127.0.0.1", "::1":
+		return true
+	default:
+		return false
+	}
+}
+
+func isTrustedMutationOrigin(request *http.Request) bool {
+	if request == nil {
+		return false
+	}
+	origin := strings.TrimSpace(request.Header.Get("Origin"))
+	if origin == "" {
+		// Non-browser clients and same-origin legacy callers may omit Origin.
+		return true
+	}
+	parsedOrigin, err := url.Parse(origin)
+	if err != nil || parsedOrigin.User != nil || parsedOrigin.RawQuery != "" || parsedOrigin.Fragment != "" || (parsedOrigin.Path != "" && parsedOrigin.Path != "/") {
+		return false
+	}
+	scheme := "http"
+	if requestIsSecure(request) {
+		scheme = "https"
+	}
+	requestOrigin, err := url.Parse(scheme + "://" + request.Host)
+	if err == nil && sameHTTPOrigin(parsedOrigin, requestOrigin) {
+		return true
+	}
+	return isLoopbackRequestHost(request) && isAllowedCORSOrigin(origin)
+}
+
+func sameHTTPOrigin(first, second *url.URL) bool {
+	if first == nil || second == nil || !strings.EqualFold(first.Scheme, second.Scheme) || !strings.EqualFold(first.Hostname(), second.Hostname()) {
+		return false
+	}
+	return effectiveHTTPPort(first) == effectiveHTTPPort(second)
+}
+
+func effectiveHTTPPort(value *url.URL) string {
+	if value == nil {
+		return ""
+	}
+	if port := value.Port(); port != "" {
+		return port
+	}
+	if strings.EqualFold(value.Scheme, "https") {
+		return "443"
+	}
+	if strings.EqualFold(value.Scheme, "http") {
+		return "80"
+	}
+	return ""
 }

@@ -26,7 +26,7 @@ import { GallerySection, PlaylistSection } from "../../media";
 import { PlayerFacingCardStrip } from "../../quests";
 import { RichParagraphs } from "../../rich-text";
 
-type EntityDetailsPageProps = {
+export type EntityDetailsRendererProps = {
   activeEntity: KnowledgeEntity;
   activeEntityPinned: boolean;
   activeEntityPlayerCards: PlayerFacingCard[];
@@ -43,6 +43,7 @@ type EntityDetailsPageProps = {
   onCreatePlayerFacingCard: () => void;
   onDeletePlayerFacingCard: (card: PlayerFacingCard, index: number) => void;
   onEditEntity: () => void;
+  onEditWithAI?: () => void;
   onEditPlayerFacingCard: (card: PlayerFacingCard, index: number) => void;
   onOpenEntityActionMenu: (event: ReactMouseEvent<HTMLElement>) => void;
   onOpenGallery: () => void;
@@ -60,6 +61,7 @@ type EntityDetailsPageProps = {
   onResolveRelatedEntity: (item: Pick<RelatedEntity, "id" | "label">) => KnowledgeEntity | null;
   onStopPlayback: () => void;
   onTogglePin: () => void;
+  readOnly?: boolean;
 };
 
 const formatShopNumber = (value: number) =>
@@ -162,7 +164,7 @@ function MasterKnowledgeCard({
   );
 }
 
-export function EntityDetailsPage({
+export function EntityDetailsRenderer({
   activeEntity,
   activeEntityPinned,
   activeEntityPlayerCards,
@@ -179,6 +181,7 @@ export function EntityDetailsPage({
   onCreatePlayerFacingCard,
   onDeletePlayerFacingCard,
   onEditEntity,
+  onEditWithAI,
   onEditPlayerFacingCard,
   onOpenEntityActionMenu,
   onOpenGallery,
@@ -195,8 +198,9 @@ export function EntityDetailsPage({
   onPlayPlaylist,
   onResolveRelatedEntity,
   onStopPlayback,
-  onTogglePin
-}: EntityDetailsPageProps) {
+  onTogglePin,
+  readOnly = false
+}: EntityDetailsRendererProps) {
   const visibleFacts = composeVisibleQuickFacts(activeEntity);
   const combatProfileEntity =
     activeEntity.kind === "player" || activeEntity.kind === "npc" || activeEntity.kind === "monster" ? activeEntity : null;
@@ -245,7 +249,7 @@ export function EntityDetailsPage({
       <div className="stack wide entity-details-page monster-details-page">
         <div id="monster-combat" onContextMenu={onOpenEntityActionMenu}>
           <CombatEntityStatSheet
-            action={
+            action={readOnly ? undefined : (
               <div className="npc-sheet-toolbar">
                 <button className="ghost" onClick={openMonsterAlbum} type="button">
                   {monsterGalleryAlbum.length ? `Альбом (${monsterGalleryAlbum.length})` : "Добавить арт"}
@@ -256,6 +260,11 @@ export function EntityDetailsPage({
                 <button className="ghost" onClick={onEditEntity} type="button">
                   Редактировать
                 </button>
+                {onEditWithAI ? (
+                  <button className="ghost ai-edit-button" onClick={onEditWithAI} type="button">
+                    Изменить с AI
+                  </button>
+                ) : null}
                 <button className="ghost" onClick={onTogglePin} type="button">
                   {activeEntityPinned ? "Unpin" : "Pin"}
                 </button>
@@ -263,7 +272,7 @@ export function EntityDetailsPage({
                   Открыть в preview
                 </button>
               </div>
-            }
+            )}
             defaultCollapsed={false}
             entity={combatProfileEntity}
             expandSections
@@ -304,6 +313,7 @@ export function EntityDetailsPage({
           onDeleteCard={onDeletePlayerFacingCard}
           onEditCard={onEditPlayerFacingCard}
           onOpenCard={onOpenPlayerFacingCard}
+          readOnly={readOnly}
           title="Заметки мастера"
         />
         </div>
@@ -350,7 +360,7 @@ export function EntityDetailsPage({
           </div>
         </div>
 
-        <div className="actions">
+        {!readOnly ? <div className="actions">
           {activeEntity.playlist?.length ? (
             <button className="ghost" onClick={() => onPlayPlaylist()} type="button">
               {isEntityPlaylistActive(activeEntity.id) ? "Следующий трек" : "Случайный трек"}
@@ -359,13 +369,18 @@ export function EntityDetailsPage({
           <button className="ghost" onClick={onEditEntity} type="button">
             Редактировать
           </button>
+          {onEditWithAI ? (
+            <button className="ghost ai-edit-button" onClick={onEditWithAI} type="button">
+              Изменить с AI
+            </button>
+          ) : null}
           <button className="ghost" onClick={onTogglePin} type="button">
             {activeEntityPinned ? "Unpin" : "Pin"}
           </button>
           <button className="primary" onClick={onOpenPreview} type="button">
             Открыть в preview
           </button>
-        </div>
+        </div> : null}
       </section>
 
       {dossierKind ? (
@@ -392,6 +407,7 @@ export function EntityDetailsPage({
           onDeleteCard={onDeletePlayerFacingCard}
           onEditCard={onEditPlayerFacingCard}
           onOpenCard={onOpenPlayerFacingCard}
+          readOnly={readOnly}
         />
       </div>
 
@@ -472,11 +488,11 @@ export function EntityDetailsPage({
 
       <div className="player-detail-media-grid" id={dossierKind ? `${dossierKind}-media` : undefined}>
       <PlaylistSection
-        action={
+        action={readOnly ? undefined : (
           <button className="ghost" onClick={onOpenPlaylistEditor} type="button">
             Настроить
           </button>
-        }
+        )}
         activeTrackLabel={currentPlaybackTrackLabel}
         activeTrackUrl={currentPlaybackTrackUrl}
         defaultCollapsed={!(activeEntity.playlist ?? []).length}
@@ -491,11 +507,11 @@ export function EntityDetailsPage({
       />
 
       <GallerySection
-        action={
+        action={readOnly ? undefined : (
           <button className="ghost" onClick={onOpenGallery} type="button">
             Настроить
           </button>
-        }
+        )}
         defaultCollapsed={!(activeEntity.gallery ?? []).length}
         hint="Карты, письма, handout-арты и любые изображения, которые можно быстро показать игрокам"
         items={activeEntity.gallery ?? []}
@@ -509,11 +525,11 @@ export function EntityDetailsPage({
         <div id="npc-quests">
         <CollapsibleSection
           key={`${activeEntity.id}-quests`}
-          action={
+          action={readOnly ? undefined : (
             <button className="ghost" onClick={onOpenNpcQuestModal} type="button">
               Создать квест
             </button>
-          }
+          )}
           hint="Квесты, которые этот НПС выдаёт, сопровождает или к которым привязан"
           summary={
             <p className="copy">
@@ -601,4 +617,8 @@ export function EntityDetailsPage({
       </div>
     </div>
   );
+}
+
+export function EntityDetailsPage(props: EntityDetailsRendererProps) {
+  return <EntityDetailsRenderer {...props} />;
 }

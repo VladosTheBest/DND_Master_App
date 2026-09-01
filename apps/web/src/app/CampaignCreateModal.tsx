@@ -6,6 +6,7 @@ type CampaignCreateModalProps = {
   saving: boolean;
   onChange: (patch: Partial<CreateCampaignInput>) => void;
   onClose: () => void;
+  onCreateWithAI: () => void;
   onSubmit: () => void;
 };
 
@@ -15,6 +16,7 @@ export function CampaignCreateModal({
   saving,
   onChange,
   onClose,
+  onCreateWithAI,
   onSubmit
 }: CampaignCreateModalProps) {
   if (!open) {
@@ -83,6 +85,9 @@ export function CampaignCreateModal({
         </div>
 
         <div className="actions">
+          <button className="ghost ai-edit-button" disabled={saving} onClick={onCreateWithAI} type="button">
+            Создать с AI
+          </button>
           <button className="primary" disabled={saving} onClick={onSubmit} type="button">
             {saving ? "Сохраняю..." : "Создать кампанию"}
           </button>

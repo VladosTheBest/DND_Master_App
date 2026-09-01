@@ -130,6 +130,28 @@ func (generator openAIGenerator) Generate(campaign campaignData, input generateE
 	return result, nil
 }
 
+func (generator openAIGenerator) GenerateEntityPatch(campaign campaignData, input generateEntityDraftInput) (generateEntityPatchResult, error) {
+	if requiresOpenAIKey(generator.config.baseURL) && strings.TrimSpace(generator.config.apiToken) == "" {
+		return generateEntityPatchResult{}, fmt.Errorf("OpenAI API key is not configured. Set SHADOW_EDGE_AI_API_KEY or OPENAI_API_KEY in .env.local or the shell environment")
+	}
+	raw, err := generator.requestConstrainedPatch(
+		"shadow_edge_entity_patch",
+		buildOpenAIEntityPatchSystemPrompt(),
+		buildOpenAIEntityPatchUserPrompt(campaign, input),
+		entityPatchSchema(),
+	)
+	if err != nil {
+		return generateEntityPatchResult{}, err
+	}
+	return generateEntityPatchResult{
+		Provider: generator.config.activeProvider,
+		Notes: append(generator.buildNotes(campaign),
+			"Update generated as a constrained field patch; omitted fields remain authoritative and unchanged.",
+		),
+		Patch: raw,
+	}, nil
+}
+
 func (generator openAIGenerator) GenerateWorldEvent(campaign campaignData, input generateWorldEventInput) (generateWorldEventResult, error) {
 	if requiresOpenAIKey(generator.config.baseURL) && strings.TrimSpace(generator.config.apiToken) == "" {
 		return generateWorldEventResult{}, fmt.Errorf("OpenAI API key is not configured. Set SHADOW_EDGE_AI_API_KEY or OPENAI_API_KEY in .env.local or the shell environment")
@@ -146,6 +168,47 @@ func (generator openAIGenerator) GenerateWorldEvent(campaign campaignData, input
 			"Сцена подготовлена как подробная карточка для зачитки игрокам.",
 		),
 		Event: normalizeWorldEventDraftInput(campaign, input, event),
+	}, nil
+}
+
+func (generator openAIGenerator) GenerateCampaignBlueprint(input generateCampaignBlueprintInput) (generateCampaignBlueprintResult, error) {
+	if requiresOpenAIKey(generator.config.baseURL) && strings.TrimSpace(generator.config.apiToken) == "" {
+		return generateCampaignBlueprintResult{}, fmt.Errorf("OpenAI API key is not configured. Set SHADOW_EDGE_AI_API_KEY or OPENAI_API_KEY in .env.local or the shell environment")
+	}
+
+	blueprint, err := generator.requestCampaignBlueprint(input)
+	if err != nil {
+		return generateCampaignBlueprintResult{}, err
+	}
+
+	return generateCampaignBlueprintResult{
+		Provider: generator.config.activeProvider,
+		Notes: append(generator.buildNotes(campaignData{}),
+			"Campaign generation is bounded to locations, NPCs, quests and events; all changes remain a proposal until reviewed.",
+		),
+		Blueprint: normalizeGeneratedCampaignBlueprint(strings.TrimSpace(input.Prompt), blueprint),
+	}, nil
+}
+
+func (generator openAIGenerator) GenerateWorldEventPatch(campaign campaignData, input generateWorldEventInput) (generateWorldEventPatchResult, error) {
+	if requiresOpenAIKey(generator.config.baseURL) && strings.TrimSpace(generator.config.apiToken) == "" {
+		return generateWorldEventPatchResult{}, fmt.Errorf("OpenAI API key is not configured. Set SHADOW_EDGE_AI_API_KEY or OPENAI_API_KEY in .env.local or the shell environment")
+	}
+	raw, err := generator.requestConstrainedPatch(
+		"shadow_edge_event_patch",
+		buildOpenAIEventPatchSystemPrompt(),
+		buildOpenAIEventPatchUserPrompt(campaign, input),
+		worldEventPatchSchema(),
+	)
+	if err != nil {
+		return generateWorldEventPatchResult{}, err
+	}
+	return generateWorldEventPatchResult{
+		Provider: generator.config.activeProvider,
+		Notes: append(generator.buildNotes(campaign),
+			"Event update generated as a constrained field patch; omitted fields remain authoritative and unchanged.",
+		),
+		Patch: raw,
 	}, nil
 }
 
@@ -291,6 +354,75 @@ func (generator openAIGenerator) requestDraft(campaign campaignData, input gener
 	return entity, nil
 }
 
+func (generator openAIGenerator) requestConstrainedPatch(name, systemPrompt, userPrompt string, schema map[string]any) (json.RawMessage, error) {
+	requestBody := openAIChatCompletionRequest{
+		Model: generator.config.model,
+		Messages: []openAIChatMessage{
+			{Role: "system", Content: systemPrompt},
+			{Role: "user", Content: userPrompt},
+		},
+		ResponseFormat: openAIResponseFormat{
+			Type:       "json_schema",
+			JSONSchema: openAIJSONSchemaConfig{Name: name, Strict: true, Schema: schema},
+		},
+	}
+	payload, err := json.Marshal(requestBody)
+	if err != nil {
+		return nil, fmt.Errorf("marshal OpenAI patch request: %w", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	url := strings.TrimRight(generator.config.baseURL, "/") + "/chat/completions"
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
+	if err != nil {
+		return nil, fmt.Errorf("build OpenAI patch request: %w", err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+	if token := strings.TrimSpace(generator.config.apiToken); token != "" {
+		request.Header.Set("Authorization", "Bearer "+token)
+	}
+	response, err := generator.client.Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("request OpenAI patch: %w", err)
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(response.Body, 2<<20))
+	if err != nil {
+		return nil, fmt.Errorf("read OpenAI patch response: %w", err)
+	}
+	if response.StatusCode >= http.StatusBadRequest {
+		var apiError openAIErrorResponse
+		if err := json.Unmarshal(body, &apiError); err == nil && strings.TrimSpace(apiError.Error.Message) != "" {
+			return nil, fmt.Errorf("OpenAI patch request failed (%d): %s", response.StatusCode, apiError.Error.Message)
+		}
+		return nil, fmt.Errorf("OpenAI patch request failed (%d)", response.StatusCode)
+	}
+	var completion openAIChatCompletionResponse
+	if err := json.Unmarshal(body, &completion); err != nil {
+		return nil, fmt.Errorf("decode OpenAI patch response: %w", err)
+	}
+	if len(completion.Choices) == 0 {
+		return nil, fmt.Errorf("OpenAI returned no choices for patch generation")
+	}
+	if refusal := strings.TrimSpace(completion.Choices[0].Message.Refusal); refusal != "" {
+		return nil, fmt.Errorf("OpenAI refused the patch request: %s", refusal)
+	}
+	content, err := extractChatCompletionContent(completion.Choices[0].Message.Content)
+	if err != nil {
+		return nil, err
+	}
+	var values map[string]any
+	if err := json.Unmarshal([]byte(content), &values); err != nil {
+		return nil, fmt.Errorf("decode patch JSON: %w", err)
+	}
+	for key, value := range values {
+		if value == nil {
+			delete(values, key)
+		}
+	}
+	return json.Marshal(values)
+}
+
 func (generator openAIGenerator) requestWorldEvent(campaign campaignData, input generateWorldEventInput) (createWorldEventInput, error) {
 	requestBody := openAIChatCompletionRequest{
 		Model: generator.config.model,
@@ -368,6 +500,77 @@ func (generator openAIGenerator) requestWorldEvent(campaign campaignData, input 
 	}
 
 	return event, nil
+}
+
+func (generator openAIGenerator) requestCampaignBlueprint(input generateCampaignBlueprintInput) (campaignProposalBlueprint, error) {
+	requestBody := openAIChatCompletionRequest{
+		Model: generator.config.model,
+		Messages: []openAIChatMessage{
+			{Role: "system", Content: buildOpenAICampaignBlueprintSystemPrompt()},
+			{Role: "user", Content: buildOpenAICampaignBlueprintUserPrompt(input)},
+		},
+		ResponseFormat: openAIResponseFormat{
+			Type: "json_schema",
+			JSONSchema: openAIJSONSchemaConfig{
+				Name:   "shadow_edge_campaign_blueprint",
+				Strict: true,
+				Schema: campaignBlueprintSchema(),
+			},
+		},
+	}
+
+	payload, err := json.Marshal(requestBody)
+	if err != nil {
+		return campaignProposalBlueprint{}, fmt.Errorf("marshal OpenAI campaign blueprint request: %w", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+	defer cancel()
+	url := strings.TrimRight(generator.config.baseURL, "/") + "/chat/completions"
+	request, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(payload))
+	if err != nil {
+		return campaignProposalBlueprint{}, fmt.Errorf("build OpenAI campaign blueprint request: %w", err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+	if token := strings.TrimSpace(generator.config.apiToken); token != "" {
+		request.Header.Set("Authorization", "Bearer "+token)
+	}
+
+	response, err := generator.client.Do(request)
+	if err != nil {
+		return campaignProposalBlueprint{}, fmt.Errorf("request OpenAI campaign blueprint: %w", err)
+	}
+	defer response.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(response.Body, 2<<20))
+	if err != nil {
+		return campaignProposalBlueprint{}, fmt.Errorf("read OpenAI campaign blueprint response: %w", err)
+	}
+	if response.StatusCode >= http.StatusBadRequest {
+		var apiError openAIErrorResponse
+		if err := json.Unmarshal(body, &apiError); err == nil && strings.TrimSpace(apiError.Error.Message) != "" {
+			return campaignProposalBlueprint{}, fmt.Errorf("OpenAI campaign blueprint request failed (%d): %s", response.StatusCode, apiError.Error.Message)
+		}
+		return campaignProposalBlueprint{}, fmt.Errorf("OpenAI campaign blueprint request failed (%d)", response.StatusCode)
+	}
+
+	var completion openAIChatCompletionResponse
+	if err := json.Unmarshal(body, &completion); err != nil {
+		return campaignProposalBlueprint{}, fmt.Errorf("decode OpenAI campaign blueprint response: %w", err)
+	}
+	if len(completion.Choices) == 0 {
+		return campaignProposalBlueprint{}, fmt.Errorf("OpenAI returned no choices for campaign blueprint generation")
+	}
+	if refusal := strings.TrimSpace(completion.Choices[0].Message.Refusal); refusal != "" {
+		return campaignProposalBlueprint{}, fmt.Errorf("OpenAI refused the campaign blueprint request: %s", refusal)
+	}
+	content, err := extractChatCompletionContent(completion.Choices[0].Message.Content)
+	if err != nil {
+		return campaignProposalBlueprint{}, err
+	}
+	var blueprint campaignProposalBlueprint
+	if err := json.Unmarshal([]byte(content), &blueprint); err != nil {
+		return campaignProposalBlueprint{}, fmt.Errorf("decode campaign blueprint JSON: %w", err)
+	}
+	return blueprint, nil
 }
 
 func (generator openAIGenerator) requestPlayerFacingCardFormat(campaign campaignData, input formatPlayerFacingCardInput) (openAIPlayerFacingCardPayload, error) {
@@ -595,6 +798,34 @@ Return one complete draft object.
 If this is a quest and the current form has no issuerId, keep the issuer concept clear in the text because the server may ask for a separate quest-giver NPC draft after this step.`, input.Kind, firstNonEmpty(strings.TrimSpace(input.Prompt), "Create a useful draft from the current form and campaign context."), marshalAIJSON(input.Current), marshalAIJSON(compactCampaignContext(campaign))))
 }
 
+func buildOpenAIEntityPatchSystemPrompt() string {
+	return strings.TrimSpace(`You prepare a constrained update patch for one existing D&D campaign entity.
+
+Rules:
+- Output only JSON matching the supplied schema.
+- Every schema field is present: use null when that field must remain unchanged.
+- Change only fields clearly requested by the user. Do not improve, rewrite or default unrelated fields.
+- An empty string or empty array means explicitly clear that field; null means preserve it.
+- Preserve identity, kind, media, gallery, playlist, player cards, quick facts, relationships and prepared combats; those are intentionally outside this patch schema.
+- Respect current campaign canon and use the language of the request/current entity.
+- Never invent image URLs or entity IDs.`)
+}
+
+func buildOpenAIEntityPatchUserPrompt(campaign campaignData, input generateEntityDraftInput) string {
+	return strings.TrimSpace(fmt.Sprintf(`Prepare only the requested field changes for this existing %s.
+
+User instruction:
+%s
+
+Authoritative current entity:
+%s
+
+Campaign context:
+%s
+
+Return null for every field the instruction does not require changing.`, input.Kind, strings.TrimSpace(input.Prompt), marshalAIJSON(input.Current), marshalAIJSON(compactCampaignContext(campaign))))
+}
+
 func buildOpenAIWorldEventSystemPrompt() string {
 	return strings.TrimSpace(`You generate detailed read-aloud scene cards for a D&D 5e Game Master's app.
 
@@ -631,6 +862,59 @@ Campaign context:
 %s
 
 Return one complete object. The app will save title and sceneText as a player-facing card, so sceneText must stand alone as vivid read-aloud narration.`, firstNonEmpty(strings.TrimSpace(input.Type), "social"), strings.TrimSpace(input.LocationID), firstNonEmpty(strings.TrimSpace(input.Prompt), "Create a lively, table-ready read-aloud scene."), marshalAIJSON(input.Current), marshalAIJSON(compactCampaignContext(campaign))))
+}
+
+func buildOpenAIEventPatchSystemPrompt() string {
+	return strings.TrimSpace(`You prepare a constrained update patch for one existing D&D campaign event/scene.
+
+Rules:
+- Output only JSON matching the supplied schema.
+- Every schema field is present: use null when that field must remain unchanged.
+- Change only fields clearly requested by the user. Do not rewrite unrelated title, date, location, dialogue, loot or tags.
+- An empty string or empty array means explicitly clear that field; null means preserve it.
+- Keep player-facing scene text free of hidden GM secrets.
+- Never invent permanent entity IDs.`)
+}
+
+func buildOpenAIEventPatchUserPrompt(campaign campaignData, input generateWorldEventInput) string {
+	return strings.TrimSpace(fmt.Sprintf(`Prepare only the requested field changes for this existing event.
+
+User instruction:
+%s
+
+Authoritative current event:
+%s
+
+Campaign context:
+%s
+
+Return null for every field the instruction does not require changing.`, strings.TrimSpace(input.Prompt), marshalAIJSON(input.Current), marshalAIJSON(compactCampaignContext(campaign))))
+}
+
+func buildOpenAICampaignBlueprintSystemPrompt() string {
+	return strings.TrimSpace(`You generate a bounded campaign blueprint for a D&D 5e Game Master's app.
+
+Rules:
+- Output only JSON matching the supplied schema.
+- Create one coherent campaign foundation, not an encyclopedia: 1-4 locations, 1-5 NPCs, 1-4 quests and 1-4 opening events, never more than 12 entities or 8 events total.
+- Entity kind may only be location, npc or quest. Events carry dialogue branches when they make the opening scene more useful.
+- Every entity and event needs a unique short tempKey made from lowercase ASCII letters, digits and hyphens.
+- Relationships, parentId, locationId and issuerId must use those tempKey values, never invented permanent IDs.
+- A reference must point to an item present in this same blueprint. Quests should normally reference a location and an NPC issuer.
+- Keep the campaign internally consistent: locations, NPC motives, quest stakes and opening scenes should reinforce one another.
+- Prefer the dominant language of the user's request; if unclear, use Russian.
+- Make GM content concrete and table-ready. NPCs need motives, secrets and a usable baseline stat block. Quests need hooks, escalation, outcomes and player-safe text.
+- Do not create monsters, lore records, players, shops or combat state in this generation slice.
+- Do not invent image URLs. Art must be null; images can be requested separately during proposal review.
+- The result is only a proposal blueprint. Never claim the campaign has already been created or applied.`)
+}
+
+func buildOpenAICampaignBlueprintUserPrompt(input generateCampaignBlueprintInput) string {
+	return strings.TrimSpace(fmt.Sprintf(`Prepare one reviewable campaign blueprint from this Game Master request:
+
+%s
+
+Return campaign metadata plus a compact linked starting set of locations, NPCs, quests and opening events. Use tempKey references consistently so the server can assign permanent IDs atomically after approval.`, firstNonEmpty(strings.TrimSpace(input.Prompt), "Create a compact fantasy campaign with a strong opening situation.")))
 }
 
 func buildOpenAIPlayerFacingFormatSystemPrompt() string {
@@ -825,6 +1109,110 @@ func entityDraftSchema() map[string]any {
 		"required":             requiredKeys(properties),
 		"properties":           properties,
 	}
+}
+
+func campaignBlueprintSchema() map[string]any {
+	campaignProperties := map[string]any{
+		"title":       map[string]any{"type": "string"},
+		"system":      map[string]any{"type": "string"},
+		"settingName": map[string]any{"type": "string"},
+		"inWorldDate": map[string]any{"type": "string"},
+		"summary":     map[string]any{"type": "string"},
+	}
+	entitySchema := entityDraftSchema()
+	entityProperties, _ := entitySchema["properties"].(map[string]any)
+	entityProperties["tempKey"] = map[string]any{"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"}
+	entityProperties["kind"] = map[string]any{"type": "string", "enum": []string{"location", "npc", "quest"}}
+	entitySchema["required"] = requiredKeys(entityProperties)
+	eventSchema := worldEventDraftSchema()
+	eventProperties, _ := eventSchema["properties"].(map[string]any)
+	eventProperties["tempKey"] = map[string]any{"type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,63}$"}
+	eventSchema["required"] = requiredKeys(eventProperties)
+
+	return map[string]any{
+		"type":                 "object",
+		"additionalProperties": false,
+		"required":             []string{"campaign", "entities", "events"},
+		"properties": map[string]any{
+			"campaign": map[string]any{
+				"type":                 "object",
+				"additionalProperties": false,
+				"required":             requiredKeys(campaignProperties),
+				"properties":           campaignProperties,
+			},
+			"entities": map[string]any{
+				"type":     "array",
+				"minItems": 3,
+				"maxItems": 12,
+				"items":    entitySchema,
+			},
+			"events": map[string]any{
+				"type":     "array",
+				"minItems": 1,
+				"maxItems": 8,
+				"items":    eventSchema,
+			},
+		},
+	}
+}
+
+func entityPatchSchema() map[string]any {
+	full := entityDraftSchema()
+	fullProperties, _ := full["properties"].(map[string]any)
+	delete(fullProperties, "kind")
+	delete(fullProperties, "related")
+	delete(fullProperties, "art")
+	properties := make(map[string]any, len(fullProperties))
+	for key, raw := range fullProperties {
+		property, _ := raw.(map[string]any)
+		properties[key] = nullablePatchSchemaProperty(property)
+	}
+	return map[string]any{
+		"type":                 "object",
+		"additionalProperties": false,
+		"required":             requiredKeys(properties),
+		"properties":           properties,
+	}
+}
+
+func worldEventPatchSchema() map[string]any {
+	full := worldEventDraftSchema()
+	fullProperties, _ := full["properties"].(map[string]any)
+	properties := make(map[string]any, len(fullProperties))
+	for key, raw := range fullProperties {
+		property, _ := raw.(map[string]any)
+		properties[key] = nullablePatchSchemaProperty(property)
+	}
+	return map[string]any{
+		"type":                 "object",
+		"additionalProperties": false,
+		"required":             requiredKeys(properties),
+		"properties":           properties,
+	}
+}
+
+func nullablePatchSchemaProperty(property map[string]any) map[string]any {
+	result := make(map[string]any, len(property)+1)
+	for key, value := range property {
+		result[key] = value
+	}
+	delete(result, "enum")
+	switch typed := result["type"].(type) {
+	case string:
+		result["type"] = []string{typed, "null"}
+	case []string:
+		found := false
+		for _, value := range typed {
+			if value == "null" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			result["type"] = append(append([]string{}, typed...), "null")
+		}
+	}
+	return result
 }
 
 func playerFacingCardFormatSchema() map[string]any {

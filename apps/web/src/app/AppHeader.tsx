@@ -11,11 +11,13 @@ type DefaultHeaderProps = {
   isItemsRail: boolean;
   canOpenDirectory: boolean;
   pinnedEntities: KnowledgeEntity[];
+  pendingProposalCount: number;
   onOpenSearch: () => void;
   onOpenCombat: () => void;
   onOpenDirectory: () => void;
   onOpenPinnedEntity: (entityId: string) => void;
   onOpenRandomEvent: () => void;
+  onOpenAIProposals: () => void;
   onLogout: () => void;
   onCreateEntity: () => void;
   onOpenPlayerSurveys: () => void;
@@ -139,6 +141,10 @@ export function AppHeader(props: AppHeaderProps) {
             Сцена для зачитки
           </button>
         ) : null}
+        <button className="ghost ai-proposal-inbox-button" onClick={props.onOpenAIProposals} type="button">
+          AI-черновики
+          {props.pendingProposalCount ? <span className="ai-proposal-count">{props.pendingProposalCount}</span> : null}
+        </button>
         <button className="ghost" onClick={props.onOpenPlayerSurveys} type="button">Анкеты игроков</button>
         <button className="primary" onClick={props.onOpenSessionMap} type="button">Карта на ТВ</button>
         <button className="ghost" disabled={props.authBusy} onClick={props.onLogout} type="button">

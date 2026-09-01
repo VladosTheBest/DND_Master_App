@@ -1,11 +1,21 @@
 import type {
+  AIProposal,
+  AIProposalListParams,
+  AIProposalMediaResult,
+  AIProposalMutationResult,
   ApiClient,
+  ApplyAIProposalInput,
+  AttachAIProposalMediaInput,
   AuthSessionResult,
   BestiaryBrowseResult,
   BestiaryMonsterDetail,
   CampaignData,
   CampaignSummary,
   CombatResult,
+  CodexConnectionStatus,
+  CodexDeviceCodeResult,
+  CodexPromptInput,
+  CodexPromptResult,
   CreateCampaignInput,
   CreateEntityInput,
   CreateEntityResult,
@@ -26,6 +36,9 @@ import type {
   LoginInput,
   PlayerDisplayImageInput,
   PlayerDisplayShareResult,
+  ProposeCampaignInput,
+  ProposeEntityInput,
+  ProposeWorldEventInput,
   RegisterInput,
   SearchResult,
   StartCombatInput,
@@ -43,7 +56,7 @@ interface ApiEnvelope<T> {
   meta?: unknown;
 }
 
-class ApiError extends Error {
+export class ApiError extends Error {
   status: number;
   code?: string;
 
@@ -54,6 +67,35 @@ class ApiError extends Error {
     this.code = code;
   }
 }
+
+export const isApiError = (error: unknown): error is ApiError => error instanceof ApiError;
+
+const aiProposalRoutes = (baseUrl: string) => {
+  const root = `${baseUrl}/api/ai/proposals`;
+  return {
+    root,
+    campaign: `${root}/campaign`,
+    detail: (proposalId: string) => `${root}/${encodeURIComponent(proposalId)}`,
+    action: (proposalId: string, action: "apply" | "reject" | "undo") =>
+      `${root}/${encodeURIComponent(proposalId)}/${action}`,
+    mediaAttachments: (proposalId: string) =>
+      `${root}/${encodeURIComponent(proposalId)}/media/attachments`,
+    entity: (campaignId: string) =>
+      `${baseUrl}/api/campaigns/${encodeURIComponent(campaignId)}/ai/proposals/entities`,
+    event: (campaignId: string) =>
+      `${baseUrl}/api/campaigns/${encodeURIComponent(campaignId)}/ai/proposals/events`
+  };
+};
+
+const codexBridgeRoutes = (baseUrl: string) => {
+  const root = `${baseUrl}/api/ai/codex`;
+  return {
+    status: `${root}/status`,
+    connect: `${root}/connect`,
+    disconnect: `${root}/disconnect`,
+    prompts: `${root}/prompts`
+  };
+};
 
 const ensureJson = async <T>(response: Response): Promise<T> => {
   // A restart/proxy failure can legitimately return an empty HTML/body. Do not
@@ -96,6 +138,8 @@ const isAuthEndpoint = (input: RequestInfo | URL) => resolveRequestUrl(input).in
 
 export const createHttpApiClient = (baseUrl: string): ApiClient => {
   const sessionUrl = `${baseUrl}/api/auth/session`;
+  const proposalRoutes = aiProposalRoutes(baseUrl);
+  const codexRoutes = codexBridgeRoutes(baseUrl);
 
   const fetchWithSessionRecovery = async (input: RequestInfo | URL, init?: RequestInit) => {
     const execute = () =>
@@ -243,6 +287,75 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
     return requestJson<GenerateEntityDraftResult>(`${baseUrl}/api/campaigns/${campaignId}/ai/drafts`, {
       method: "POST",
       body: JSON.stringify(input satisfies GenerateEntityDraftInput)
+    });
+  },
+  async listAIProposals(params) {
+    const search = new URLSearchParams();
+    if (params?.status) search.set("status", params.status);
+    if (params?.campaignId) search.set("campaignId", params.campaignId);
+    const suffix = search.size ? `?${search.toString()}` : "";
+    return requestJson<AIProposal[]>(`${proposalRoutes.root}${suffix}`);
+  },
+  async getAIProposal(proposalId) {
+    return requestJson<AIProposal>(proposalRoutes.detail(proposalId));
+  },
+  async proposeEntity(campaignId, input) {
+    return requestJson<AIProposal>(proposalRoutes.entity(campaignId), {
+      method: "POST",
+      body: JSON.stringify(input satisfies ProposeEntityInput)
+    });
+  },
+  async proposeCampaign(input) {
+    return requestJson<AIProposal>(proposalRoutes.campaign, {
+      method: "POST",
+      body: JSON.stringify(input satisfies ProposeCampaignInput)
+    });
+  },
+  async proposeWorldEvent(campaignId, input) {
+    return requestJson<AIProposal>(proposalRoutes.event(campaignId), {
+      method: "POST",
+      body: JSON.stringify(input satisfies ProposeWorldEventInput)
+    });
+  },
+  async applyAIProposal(proposalId, input = {}) {
+    return requestJson<AIProposalMutationResult>(proposalRoutes.action(proposalId, "apply"), {
+      method: "POST",
+      body: JSON.stringify(input satisfies ApplyAIProposalInput)
+    });
+  },
+  async rejectAIProposal(proposalId) {
+    return requestJson<AIProposalMutationResult>(proposalRoutes.action(proposalId, "reject"), {
+      method: "POST"
+    });
+  },
+  async undoAIProposal(proposalId) {
+    return requestJson<AIProposalMutationResult>(proposalRoutes.action(proposalId, "undo"), {
+      method: "POST"
+    });
+  },
+  async attachAIProposalMedia(proposalId, input) {
+    return requestJson<AIProposalMediaResult>(proposalRoutes.mediaAttachments(proposalId), {
+      method: "POST",
+      body: JSON.stringify(input satisfies AttachAIProposalMediaInput)
+    });
+  },
+  async getCodexConnectionStatus() {
+    return requestJson<CodexConnectionStatus>(codexRoutes.status);
+  },
+  async connectCodexChatGPT() {
+    return requestJson<CodexDeviceCodeResult>(codexRoutes.connect, {
+      method: "POST"
+    });
+  },
+  async disconnectCodexChatGPT() {
+    return requestJson<CodexConnectionStatus>(codexRoutes.disconnect, {
+      method: "POST"
+    });
+  },
+  async runCodexPrompt(input) {
+    return requestJson<CodexPromptResult>(codexRoutes.prompts, {
+      method: "POST",
+      body: JSON.stringify(input satisfies CodexPromptInput)
     });
   },
   async formatPlayerFacingCard(campaignId, input) {

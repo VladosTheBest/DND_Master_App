@@ -152,6 +152,7 @@ export function PlayerFacingCardStrip({
   onDeleteCard,
   onEditCard,
   onOpenCard,
+  readOnly = false,
   title = "Игроки видят"
 }: {
   cards: PlayerFacingCard[];
@@ -168,6 +169,7 @@ export function PlayerFacingCardStrip({
   onDeleteCard: (card: PlayerFacingCard, index: number) => void;
   onEditCard: (card: PlayerFacingCard, index: number) => void;
   onOpenCard: (card: PlayerFacingCard, index: number) => void;
+  readOnly?: boolean;
   title?: string;
 }) {
   const [contextMenu, setContextMenu] = useState<{ index: number; x: number; y: number } | null>(null);
@@ -181,6 +183,7 @@ export function PlayerFacingCardStrip({
   };
 
   const handleCardContextMenu = (event: ReactMouseEvent<HTMLElement>, index: number) => {
+    if (readOnly) return;
     event.preventDefault();
     event.stopPropagation();
     setContextMenu({
@@ -251,14 +254,14 @@ export function PlayerFacingCardStrip({
                   )}
                 </div>
 
-                <div className="entity-player-facing-actions">
+                {!readOnly ? <div className="entity-player-facing-actions">
                   <button className="ghost fill entity-player-facing-open-button" onClick={() => onOpenCard(card, index)} type="button">
                     Открыть
                   </button>
                   <button className="ghost" onClick={(event) => { event.stopPropagation(); onEditCard(card, index); }} type="button">
                     Редактировать
                   </button>
-                </div>
+                </div> : null}
               </article>
             );
           })
@@ -272,7 +275,7 @@ export function PlayerFacingCardStrip({
           </article>
         )}
 
-        <button
+        {!readOnly ? <button
           className="card entity-player-facing-panel entity-player-facing-panel-compact entity-player-facing-panel-create"
           onClick={onCreateCard}
           type="button"
@@ -280,10 +283,10 @@ export function PlayerFacingCardStrip({
           <span className="entity-player-facing-create-mark">+</span>
           <strong>Создать еще</strong>
           <p className="copy">{createDescription}</p>
-        </button>
+        </button> : null}
       </div>
       </CollapsibleSection>
-      {contextMenu && contextMenuCard ? (
+      {!readOnly && contextMenu && contextMenuCard ? (
         <div className="entity-action-backdrop" onClick={closeContextMenu} role="presentation">
           <div
             className="entity-action-menu"
@@ -946,6 +949,7 @@ export function QuestWorkspace({
   onCreatePlayerCard,
   onDeletePlayerCard,
   onEdit,
+  onEditWithAI,
   onEditPlayerCard,
   onTogglePin,
   onCopyImageLink,
@@ -957,7 +961,8 @@ export function QuestWorkspace({
   onOpenPlaylist,
   onPlayNextPlaylistTrack,
   onPlayPlaylist,
-  onOpenQuest
+  onOpenQuest,
+  readOnly = false
 }: {
   quest: QuestEntity;
   location: LocationEntity | null;
@@ -975,6 +980,7 @@ export function QuestWorkspace({
   onCreatePlayerCard: () => void;
   onDeletePlayerCard: (card: PlayerFacingCard, index: number) => void;
   onEdit: (id: string) => void;
+  onEditWithAI?: () => void;
   onEditPlayerCard: (card: PlayerFacingCard, index: number) => void;
   onTogglePin: (id: string) => void;
   onCopyImageLink: (url: string) => Promise<void>;
@@ -987,6 +993,7 @@ export function QuestWorkspace({
   onPlayNextPlaylistTrack: () => void;
   onPlayPlaylist: () => void;
   onOpenQuest: (id: string) => void;
+  readOnly?: boolean;
 }) {
   const playerSections = useMemo(() => parseQuestTextSections(quest.playerContent), [quest.playerContent]);
   const gmSections = useMemo(() => parseQuestTextSections(quest.content), [quest.content]);
@@ -1081,17 +1088,22 @@ export function QuestWorkspace({
             ) : null}
           </div>
 
-          <div className="quest-hero-actions">
+          {!readOnly ? <div className="quest-hero-actions">
             <button className="ghost" onClick={() => onEdit(quest.id)} type="button">
               Редактировать
             </button>
+            {onEditWithAI ? (
+              <button className="ghost ai-edit-button" onClick={onEditWithAI} type="button">
+                Изменить с AI
+              </button>
+            ) : null}
             <button className="ghost" disabled={!playerCards.length} onClick={() => playerCards[0] && onOpenPlayerCard(playerCards[0], 0)} type="button">
               Показать игрокам
             </button>
             <button className={pinned ? "primary" : "ghost"} onClick={() => onTogglePin(quest.id)} type="button">
               {pinned ? "Закреплено" : "Закрепить"}
             </button>
-          </div>
+          </div> : null}
         </div>
 
         <div className="quest-status-grid">
@@ -1134,16 +1146,17 @@ export function QuestWorkspace({
         onDeleteCard={onDeletePlayerCard}
         onEditCard={onEditPlayerCard}
         onOpenCard={onOpenPlayerCard}
+        readOnly={readOnly}
       />
 
       {preparedCombatSection}
 
       <GallerySection
-        action={
+        action={readOnly ? undefined : (
           <button className="ghost" onClick={() => onOpenGallery(quest)} type="button">
             Настроить
           </button>
-        }
+        )}
         defaultCollapsed={!(quest.gallery ?? []).length}
         hint="Карты, письма, портреты, улики и любые handout-изображения для этого квеста."
         items={quest.gallery ?? []}
@@ -1209,7 +1222,7 @@ export function QuestWorkspace({
               : "У этого квеста пока нет своего плейлиста. Его можно открыть и настроить отдельно, не заходя в общий редактор."}
           </p>
 
-          <div className="quest-story-actions">
+          {!readOnly ? <div className="quest-story-actions">
             <button className="ghost fill" onClick={() => onOpenPlaylist(quest)} type="button">
               Настроить
             </button>
@@ -1218,7 +1231,7 @@ export function QuestWorkspace({
                 {playlistActive ? "Следующий трек" : "Случайный трек"}
               </button>
             ) : null}
-          </div>
+          </div> : null}
         </article>
       </div>
 

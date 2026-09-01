@@ -15,6 +15,7 @@ type Options struct {
 	WebDir               string
 	UploadDir            string
 	AI                   AIOptions
+	Codex                CodexBridgeOptions
 	Auth                 AuthOptions
 	PublicBaseURL        string
 }
@@ -30,6 +31,8 @@ type server struct {
 	uploads   http.Handler
 	uploadDir string
 	surveys   *surveyManager
+	proposals *proposalService
+	codex     *codexBridgeManager
 }
 
 type envelope struct {
@@ -84,6 +87,8 @@ func NewServer(options Options) (http.Handler, error) {
 		web:       webHandler,
 		uploads:   uploadHandler,
 		uploadDir: options.UploadDir,
+		proposals: newProposalService(store, options.UploadDir),
+		codex:     newCodexBridgeManager(options.Codex, auth),
 	}
 	srv.surveys = newSurveyManager(store, options.PublicBaseURL)
 
@@ -104,6 +109,12 @@ func NewServer(options Options) (http.Handler, error) {
 	mux.HandleFunc("/api/auth/logout", srv.auth.handleLogout)
 	mux.HandleFunc("/api/campaigns", srv.handleCampaigns)
 	mux.HandleFunc("/api/campaigns/", srv.handleCampaignByPath)
+	mux.HandleFunc("/api/ai/proposals", srv.handleAIProposals)
+	mux.HandleFunc("/api/ai/proposals/", srv.handleAIProposals)
+	mux.HandleFunc("/api/ai/codex/status", srv.handleCodexStatus)
+	mux.HandleFunc("/api/ai/codex/connect", srv.handleCodexConnect)
+	mux.HandleFunc("/api/ai/codex/disconnect", srv.handleCodexDisconnect)
+	mux.HandleFunc("/api/ai/codex/prompts", srv.handleCodexPrompt)
 	mux.HandleFunc("/api/bestiary", srv.handleBestiary)
 	mux.HandleFunc("/api/bestiary/", srv.handleBestiaryByPath)
 	mux.HandleFunc("/api/items-catalog", srv.handleItemCatalog)
@@ -116,6 +127,10 @@ func NewServer(options Options) (http.Handler, error) {
 		applyCORSHeaders(writer, request)
 		if request.Method == http.MethodOptions {
 			writer.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if requiresTrustedMutationOrigin(srv.auth, request) && !isTrustedMutationOrigin(request) {
+			writeError(writer, http.StatusForbidden, "origin_not_allowed", "Источник запроса не разрешён.")
 			return
 		}
 		if srv.auth.shouldProtect(request.URL.Path) {
@@ -133,6 +148,18 @@ func NewServer(options Options) (http.Handler, error) {
 			http.NotFound(writer, request)
 		}
 	}), nil
+}
+
+func requiresTrustedMutationOrigin(auth *authManager, request *http.Request) bool {
+	if request == nil {
+		return false
+	}
+	switch request.Method {
+	case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
+	default:
+		return false
+	}
+	return strings.HasPrefix(request.URL.Path, "/api/auth/") || (auth != nil && auth.shouldProtect(request.URL.Path))
 }
 
 func isServerManagedPath(path string) bool {
@@ -388,6 +415,12 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 		writeJSON(writer, http.StatusOK, results)
 	case len(segments) == 2 && segments[1] == "uploads":
 		srv.handleCampaignUpload(writer, request, user.ID, campaignID)
+	case len(segments) == 3 && segments[1] == "ai" && segments[2] == "proposals":
+		srv.handleCampaignProposalCollection(writer, request, user, campaignID)
+	case len(segments) == 4 && segments[1] == "ai" && segments[2] == "proposals" && segments[3] == "entities":
+		srv.handleCampaignEntityProposal(writer, request, user, campaignID)
+	case len(segments) == 4 && segments[1] == "ai" && segments[2] == "proposals" && segments[3] == "events":
+		srv.handleCampaignEventProposal(writer, request, user, campaignID)
 	case len(segments) == 2 && segments[1] == "entities":
 		if request.Method != http.MethodPost {
 			writeError(writer, http.StatusMethodNotAllowed, "method_not_allowed", "Only POST is supported")

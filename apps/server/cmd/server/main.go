@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -51,6 +52,21 @@ func main() {
 	aiModel := firstEnv("SHADOW_EDGE_AI_MODEL", "OPENAI_MODEL")
 	aiBaseURL := firstEnv("SHADOW_EDGE_AI_BASE_URL", "OPENAI_BASE_URL")
 	aiToken := firstEnv("SHADOW_EDGE_AI_API_KEY", "OPENAI_API_KEY")
+	codexHomeRoot := firstEnv("SHADOW_EDGE_CODEX_HOME_ROOT")
+	if codexHomeRoot == "" {
+		codexHomeRoot = filepath.Join(filepath.Dir(dataFile), "codex-users")
+	}
+	codexMCPScript := firstEnv("SHADOW_EDGE_CODEX_MCP_SCRIPT")
+	if codexMCPScript == "" {
+		codexMCPScript = filepath.Join("packages", "mcp-server", "dist", "index.js")
+	}
+	if absoluteScript, absoluteErr := filepath.Abs(codexMCPScript); absoluteErr == nil {
+		codexMCPScript = absoluteScript
+	}
+	codexInternalBaseURL := firstEnv("SHADOW_EDGE_CODEX_INTERNAL_BASE_URL")
+	if codexInternalBaseURL == "" {
+		codexInternalBaseURL = "http://127.0.0.1:" + port
+	}
 
 	server, err := httpapi.NewServer(httpapi.Options{
 		DataFile:             dataFile,
@@ -63,6 +79,20 @@ func main() {
 			Model:    aiModel,
 			BaseURL:  aiBaseURL,
 			APIToken: aiToken,
+		},
+		Codex: httpapi.CodexBridgeOptions{
+			Enabled:          envBool("SHADOW_EDGE_CODEX_BRIDGE_ENABLED", true),
+			Command:          firstEnv("SHADOW_EDGE_CODEX_COMMAND", "CODEX_COMMAND"),
+			Args:             []string{"app-server", "--strict-config"},
+			HomeRoot:         codexHomeRoot,
+			MCPCommand:       firstEnv("SHADOW_EDGE_CODEX_MCP_COMMAND"),
+			MCPArgs:          []string{codexMCPScript},
+			InternalBaseURL:  codexInternalBaseURL,
+			RequestTimeout:   4 * time.Minute,
+			IdleTimeout:      time.Duration(envInt("SHADOW_EDGE_CODEX_IDLE_TIMEOUT_MINUTES", 30)) * time.Minute,
+			MaxUserProcesses: envInt("SHADOW_EDGE_CODEX_MAX_USER_PROCESSES", 1),
+			APIKeyConfigured: aiToken != "",
+			AllowedUsername:  firstEnv("SHADOW_EDGE_CODEX_ALLOWED_USERNAME"),
 		},
 		Auth: httpapi.AuthOptions{
 			Username:   firstEnv("SHADOW_EDGE_AUTH_USERNAME"),
@@ -104,6 +134,29 @@ func firstEnv(keys ...string) string {
 		}
 	}
 	return ""
+}
+
+func envBool(key string, fallback bool) bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(key))) {
+	case "1", "true", "yes", "on":
+		return true
+	case "0", "false", "no", "off":
+		return false
+	default:
+		return fallback
+	}
+}
+
+func envInt(key string, fallback int) int {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return fallback
+	}
+	parsed, err := strconv.Atoi(value)
+	if err != nil || parsed <= 0 {
+		return fallback
+	}
+	return parsed
 }
 
 func loadLocalEnvFiles(paths ...string) {

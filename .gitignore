@@ -13,6 +13,8 @@ coverage/
 *.err.log
 *.exe
 data/uploads/
+data/uploads.proposals/
+data/codex-users/
 apps/server/internal/httpapi/*.go.*
 apps/server/data/store.json
 apps/server/data/store.json.bak

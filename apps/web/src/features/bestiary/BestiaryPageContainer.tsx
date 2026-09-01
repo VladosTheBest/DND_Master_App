@@ -35,6 +35,7 @@ type BestiaryPageContainerProps = {
   onContentContextMenu: (entity: MonsterEntity, event: ReactMouseEvent<HTMLElement>) => void;
   onCopyImageLink: (url: string) => Promise<void>;
   onEditEntity: (entityId: string) => void;
+  onEditWithAI: (entity: MonsterEntity) => void;
   onOpenDirectory: () => void;
   onOpenEntity: (entityId: string) => void;
   onOpenEntityActionMenu: (entity: MonsterEntity, event: ReactMouseEvent<HTMLElement>) => void;
@@ -60,6 +61,7 @@ export function BestiaryPageContainer({
   entityByTitle,
   onContentContextMenu,
   onEditEntity,
+  onEditWithAI,
   onOpenDirectory,
   onOpenEntity,
   onOpenEntityActionMenu,
@@ -149,6 +151,9 @@ export function BestiaryPageContainer({
                 </button>
                 <button className="ghost" onClick={() => onEditEntity(activeMonster.id)} type="button">
                   Редактировать
+                </button>
+                <button className="ghost ai-edit-button" onClick={() => onEditWithAI(activeMonster)} type="button">
+                  Изменить с AI
                 </button>
                 <button className="ghost" onClick={() => onTogglePin(activeMonster.id)} type="button">
                   {activeMonsterPinned ? "Unpin" : "Pin"}

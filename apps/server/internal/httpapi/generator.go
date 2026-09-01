@@ -1,6 +1,10 @@
 package httpapi
 
-import "strings"
+import (
+	"encoding/json"
+	"regexp"
+	"strings"
+)
 
 type AIOptions struct {
 	Provider string
@@ -11,8 +15,33 @@ type AIOptions struct {
 
 type entityGenerator interface {
 	Generate(campaign campaignData, input generateEntityDraftInput) (generateEntityDraftResult, error)
+	GenerateEntityPatch(campaign campaignData, input generateEntityDraftInput) (generateEntityPatchResult, error)
+	GenerateCampaignBlueprint(input generateCampaignBlueprintInput) (generateCampaignBlueprintResult, error)
 	GenerateWorldEvent(campaign campaignData, input generateWorldEventInput) (generateWorldEventResult, error)
+	GenerateWorldEventPatch(campaign campaignData, input generateWorldEventInput) (generateWorldEventPatchResult, error)
 	FormatPlayerFacingCard(campaign campaignData, input formatPlayerFacingCardInput) (formatPlayerFacingCardResult, error)
+}
+
+type generateEntityPatchResult struct {
+	Provider string          `json:"provider"`
+	Notes    []string        `json:"notes"`
+	Patch    json.RawMessage `json:"patch"`
+}
+
+type generateWorldEventPatchResult struct {
+	Provider string          `json:"provider"`
+	Notes    []string        `json:"notes"`
+	Patch    json.RawMessage `json:"patch"`
+}
+
+type generateCampaignBlueprintInput struct {
+	Prompt string `json:"prompt"`
+}
+
+type generateCampaignBlueprintResult struct {
+	Provider  string                    `json:"provider"`
+	Notes     []string                  `json:"notes"`
+	Blueprint campaignProposalBlueprint `json:"blueprint"`
 }
 
 type encounterGenerator interface {
@@ -42,6 +71,8 @@ type generatorConfig struct {
 type scaffoldGenerator struct {
 	config generatorConfig
 }
+
+var quotedRequestedTitlePattern = regexp.MustCompile(`[«"“]([^»"”]{1,160})[»"”]`)
 
 func newEntityGenerator(options AIOptions) entityGenerator {
 	requestedProvider := normalizeProvider(options.Provider)
@@ -125,6 +156,94 @@ func (generator scaffoldGenerator) Generate(_ campaignData, input generateEntity
 	}
 
 	return result, nil
+}
+
+func (generator scaffoldGenerator) GenerateEntityPatch(_ campaignData, input generateEntityDraftInput) (generateEntityPatchResult, error) {
+	kind := strings.ToLower(strings.TrimSpace(input.Kind))
+	prompt := strings.TrimSpace(input.Prompt)
+	var draft createEntityInput
+	switch kind {
+	case "location":
+		draft = buildLocationDraft(prompt)
+	case "npc":
+		draft = buildNpcDraft(prompt)
+	case "monster":
+		draft = buildMonsterDraft(prompt)
+	case "quest":
+		draft = buildQuestDraft(prompt)
+	case "lore":
+		draft = buildLoreDraft(prompt)
+	default:
+		draft = createEntityInput{Kind: kind, Summary: prompt, Content: prompt}
+	}
+	patch := buildSafeScaffoldEntityPatch(input.Current, draft, prompt)
+	body, err := json.Marshal(patch)
+	if err != nil {
+		return generateEntityPatchResult{}, err
+	}
+	return generateEntityPatchResult{
+		Provider: generator.config.activeProvider,
+		Notes: append(generator.buildNotes(),
+			"Update generated as a constrained patch; media, relationships, player cards and prepared combats remain unchanged unless supplied explicitly through review tools.",
+		),
+		Patch: body,
+	}, nil
+}
+
+func (generator scaffoldGenerator) GenerateCampaignBlueprint(input generateCampaignBlueprintInput) (generateCampaignBlueprintResult, error) {
+	prompt := strings.TrimSpace(input.Prompt)
+	location := buildLocationDraft(firstNonEmpty(prompt, "Новая кампания") + " — центральная локация")
+	location.Kind = "location"
+	location.Related = []relatedEntity{}
+
+	npc := buildNpcDraft(firstNonEmpty(prompt, "Новая кампания") + " — проводник и квестодатель")
+	npc.Kind = "npc"
+	npc.LocationID = "location-main"
+	npc.Related = []relatedEntity{{ID: "location-main", Kind: "location", Label: location.Title, Reason: "Живёт и действует здесь"}}
+
+	quest := buildQuestDraft(firstNonEmpty(prompt, "Новая кампания") + " — первая угроза")
+	quest.Kind = "quest"
+	quest.LocationID = "location-main"
+	quest.IssuerID = "npc-guide"
+	quest.Related = []relatedEntity{
+		{ID: "location-main", Kind: "location", Label: location.Title, Reason: "Основное место действия"},
+		{ID: "npc-guide", Kind: "npc", Label: npc.Title, Reason: "Выдаёт задание"},
+	}
+
+	blueprint := campaignProposalBlueprint{
+		Campaign: createCampaignInput{
+			Title:       draftTitle(prompt, "Новая AI-кампания"),
+			System:      "D&D 5e",
+			SettingName: draftTitle(prompt, "Новый мир"),
+			InWorldDate: "1 Чес, 1492 DR",
+			Summary:     firstNonEmpty(prompt, "Кампания, подготовленная локальным scaffold-провайдером."),
+		},
+		Entities: []campaignBlueprintEntity{
+			{TempKey: "location-main", createEntityInput: location},
+			{TempKey: "npc-guide", createEntityInput: npc},
+			{TempKey: "quest-main", createEntityInput: quest},
+		},
+		Events: []campaignBlueprintEvent{{
+			TempKey: "event-opening",
+			createWorldEventInput: createWorldEventInput{
+				Title:         "Первый шаг",
+				Date:          "1 Чес, 1492 DR",
+				Summary:       "Стартовая сцена знакомит партию с местом, проводником и первой угрозой.",
+				Type:          "social",
+				LocationID:    "location-main",
+				LocationLabel: location.Title,
+				SceneText:     "Партия прибывает в " + location.Title + ", где " + npc.Title + " сразу даёт понять: обычная жизнь здесь уже нарушена, а времени разобраться остаётся всё меньше.",
+				Tags:          []string{"opening", "ai-draft"},
+				Origin:        "ai",
+			},
+		}},
+	}
+
+	return generateCampaignBlueprintResult{
+		Provider:  generator.config.activeProvider,
+		Notes:     append(generator.buildNotes(), "Campaign blueprint is intentionally bounded to a starting location, NPC, quest and event."),
+		Blueprint: normalizeGeneratedCampaignBlueprint(prompt, blueprint),
+	}, nil
 }
 
 func (generator scaffoldGenerator) GenerateWorldEvent(campaign campaignData, input generateWorldEventInput) (generateWorldEventResult, error) {
@@ -285,6 +404,284 @@ func (generator scaffoldGenerator) buildNotes() []string {
 	}
 
 	return notes
+}
+
+func (generator scaffoldGenerator) GenerateWorldEventPatch(campaign campaignData, input generateWorldEventInput) (generateWorldEventPatchResult, error) {
+	draftInput := input
+	draftInput.Current = nil
+	draft := buildWorldEventDraft(campaign, draftInput)
+	patch := map[string]any{
+		"summary":   draft.Summary,
+		"sceneText": draft.SceneText,
+	}
+	prompt := strings.ToLower(strings.TrimSpace(input.Prompt))
+	if containsAny(prompt, "title", "name", "rename", "назван", "заголов", "переимен") {
+		patch["title"] = firstNonEmpty(requestedTitleFromPrompt(input.Prompt), draft.Title)
+	}
+	if containsAny(prompt, "dialog", "диалог", "реплик", "ветк") {
+		patch["dialogueBranches"] = draft.DialogueBranches
+	}
+	if containsAny(prompt, "loot", "reward", "лут", "добыч", "награ") {
+		patch["loot"] = draft.Loot
+	}
+	if containsAny(prompt, "tag", "тег") {
+		patch["tags"] = draft.Tags
+	}
+	body, err := json.Marshal(patch)
+	if err != nil {
+		return generateWorldEventPatchResult{}, err
+	}
+	return generateWorldEventPatchResult{
+		Provider: generator.config.activeProvider,
+		Notes:    append(generator.buildNotes(), "Event update generated as a constrained patch; date, location and unrelated branches remain unchanged."),
+		Patch:    body,
+	}, nil
+}
+
+func normalizeGeneratedCampaignBlueprint(prompt string, blueprint campaignProposalBlueprint) campaignProposalBlueprint {
+	prompt = strings.TrimSpace(prompt)
+	blueprint.Campaign.Title = firstNonEmpty(strings.TrimSpace(blueprint.Campaign.Title), draftTitle(prompt, "Новая AI-кампания"))
+	blueprint.Campaign.System = firstNonEmpty(strings.TrimSpace(blueprint.Campaign.System), "D&D 5e")
+	blueprint.Campaign.SettingName = firstNonEmpty(strings.TrimSpace(blueprint.Campaign.SettingName), blueprint.Campaign.Title)
+	blueprint.Campaign.InWorldDate = firstNonEmpty(strings.TrimSpace(blueprint.Campaign.InWorldDate), "1 Чес, 1492 DR")
+	blueprint.Campaign.Summary = firstNonEmpty(strings.TrimSpace(blueprint.Campaign.Summary), prompt, "Кампания подготовлена AI и ожидает подтверждения мастера.")
+
+	const maxGeneratedEntities = 12
+	const maxGeneratedEvents = 8
+	filtered := make([]campaignBlueprintEntity, 0, min(len(blueprint.Entities), maxGeneratedEntities))
+	originalToNormalized := make(map[string]string)
+	usedKeys := make(map[string]struct{})
+	for _, item := range blueprint.Entities {
+		kind := strings.ToLower(strings.TrimSpace(item.Kind))
+		if kind != "location" && kind != "npc" && kind != "quest" {
+			continue
+		}
+		if len(filtered) >= maxGeneratedEntities {
+			break
+		}
+		originalKey := strings.TrimSpace(item.TempKey)
+		key := uniqueBlueprintTempKey(firstNonEmpty(originalKey, kind), usedKeys)
+		if originalKey != "" {
+			originalToNormalized[originalKey] = key
+		}
+		item.TempKey = key
+		item.Kind = kind
+		item.Title = firstNonEmpty(strings.TrimSpace(item.Title), fallbackEntityTitle(kind))
+		item.Summary = firstNonEmpty(strings.TrimSpace(item.Summary), item.Title+" — часть стартового набора кампании.")
+		item.Content = firstNonEmpty(strings.TrimSpace(item.Content), item.Summary)
+		item.Tags = sanitizeTags(item.Tags)
+		filtered = append(filtered, item)
+	}
+
+	findKindKey := func(kind string) string {
+		for _, item := range filtered {
+			if item.Kind == kind {
+				return item.TempKey
+			}
+		}
+		return ""
+	}
+	if findKindKey("location") == "" {
+		location := buildLocationDraft(firstNonEmpty(prompt, "Новая кампания") + " — центральная локация")
+		key := uniqueBlueprintTempKey("location-main", usedKeys)
+		filtered = append(filtered, campaignBlueprintEntity{TempKey: key, createEntityInput: location})
+	}
+	locationKey := findKindKey("location")
+	if findKindKey("npc") == "" && len(filtered) < maxGeneratedEntities {
+		npc := buildNpcDraft(firstNonEmpty(prompt, "Новая кампания") + " — проводник")
+		npc.LocationID = locationKey
+		key := uniqueBlueprintTempKey("npc-guide", usedKeys)
+		filtered = append(filtered, campaignBlueprintEntity{TempKey: key, createEntityInput: npc})
+	}
+	npcKey := findKindKey("npc")
+	if findKindKey("quest") == "" && len(filtered) < maxGeneratedEntities {
+		quest := buildQuestDraft(firstNonEmpty(prompt, "Новая кампания") + " — первая угроза")
+		quest.LocationID = locationKey
+		quest.IssuerID = npcKey
+		key := uniqueBlueprintTempKey("quest-main", usedKeys)
+		filtered = append(filtered, campaignBlueprintEntity{TempKey: key, createEntityInput: quest})
+	}
+	for _, item := range filtered {
+		originalToNormalized[item.TempKey] = item.TempKey
+	}
+	knownKeys := make(map[string]struct{}, len(filtered))
+	for _, item := range filtered {
+		knownKeys[item.TempKey] = struct{}{}
+	}
+	for index := range filtered {
+		item := &filtered[index]
+		item.ParentID = normalizeGeneratedTempReference(item.ParentID, originalToNormalized, knownKeys)
+		item.LocationID = normalizeGeneratedTempReference(item.LocationID, originalToNormalized, knownKeys)
+		item.IssuerID = normalizeGeneratedTempReference(item.IssuerID, originalToNormalized, knownKeys)
+		if item.Kind == "npc" && item.LocationID == "" {
+			item.LocationID = locationKey
+		}
+		if item.Kind == "quest" {
+			if item.LocationID == "" {
+				item.LocationID = locationKey
+			}
+			if item.IssuerID == "" {
+				item.IssuerID = npcKey
+			}
+		}
+		related := make([]relatedEntity, 0, len(item.Related))
+		for _, relation := range item.Related {
+			relation.ID = normalizeGeneratedTempReference(relation.ID, originalToNormalized, knownKeys)
+			if relation.ID == "" || relation.ID == item.TempKey {
+				continue
+			}
+			related = append(related, relation)
+		}
+		item.Related = related
+	}
+	blueprint.Entities = filtered
+
+	events := make([]campaignBlueprintEvent, 0, min(len(blueprint.Events), maxGeneratedEvents))
+	for _, item := range blueprint.Events {
+		if len(events) >= maxGeneratedEvents {
+			break
+		}
+		item.TempKey = uniqueBlueprintTempKey(firstNonEmpty(strings.TrimSpace(item.TempKey), "event"), usedKeys)
+		item.Title = firstNonEmpty(strings.TrimSpace(item.Title), "Первая сцена")
+		item.Date = firstNonEmpty(strings.TrimSpace(item.Date), blueprint.Campaign.InWorldDate)
+		item.Summary = firstNonEmpty(strings.TrimSpace(item.Summary), "Стартовая сцена кампании.")
+		item.Type = normalizeWorldEventType(item.Type)
+		item.LocationID = normalizeGeneratedTempReference(item.LocationID, originalToNormalized, knownKeys)
+		if item.LocationID == "" {
+			item.LocationID = locationKey
+		}
+		item.SceneText = firstNonEmpty(strings.TrimSpace(item.SceneText), item.Summary)
+		item.DialogueBranches = sanitizeWorldEventDialogueBranches(item.DialogueBranches)
+		item.Loot = sanitizeStringItems(item.Loot)
+		item.Tags = sanitizeTags(item.Tags)
+		item.Origin = "ai"
+		events = append(events, item)
+	}
+	if len(events) == 0 {
+		events = append(events, campaignBlueprintEvent{
+			TempKey: uniqueBlueprintTempKey("event-opening", usedKeys),
+			createWorldEventInput: createWorldEventInput{
+				Title: "Первый шаг", Date: blueprint.Campaign.InWorldDate, Summary: "Стартовая сцена кампании.", Type: "social",
+				LocationID: locationKey, SceneText: "Партия прибывает в новый край и сразу замечает первый признак надвигающейся угрозы.", Tags: []string{"opening", "ai-draft"}, Origin: "ai",
+			},
+		})
+	}
+	blueprint.Events = events
+	return blueprint
+}
+
+func uniqueBlueprintTempKey(value string, used map[string]struct{}) string {
+	base := strings.Trim(sanitizeUploadPathSegment(value), "-")
+	if base == "" || base == "campaign" {
+		base = "item"
+	}
+	key := base
+	for suffix := 2; ; suffix++ {
+		if _, exists := used[key]; !exists {
+			used[key] = struct{}{}
+			return key
+		}
+		key = base + "-" + intString(suffix)
+	}
+}
+
+func normalizeGeneratedTempReference(value string, mapping map[string]string, known map[string]struct{}) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return ""
+	}
+	if normalized, exists := mapping[value]; exists {
+		return normalized
+	}
+	if _, exists := known[value]; exists {
+		return value
+	}
+	return ""
+}
+
+func buildSafeScaffoldEntityPatch(current *createEntityInput, draft createEntityInput, prompt string) map[string]any {
+	lower := strings.ToLower(strings.TrimSpace(prompt))
+	patch := make(map[string]any)
+	specific := false
+	if containsAny(lower, "title", "name", "rename", "назван", "заголов", "переимен") {
+		patch["title"] = firstNonEmpty(requestedTitleFromPrompt(prompt), draft.Title, func() string {
+			if current != nil {
+				return current.Title
+			}
+			return ""
+		}())
+		specific = true
+	}
+	if containsAny(lower, "subtitle", "подзаголов") {
+		patch["subtitle"] = draft.Subtitle
+		specific = true
+	}
+	if containsAny(lower, "summary", "кратк", "аннотац", "резюме") {
+		patch["summary"] = draft.Summary
+		specific = true
+	}
+	if containsAny(lower, "description", "content", "описан", "подроб", "атмосфер", "мрачн", "светл", "тон") {
+		patch["summary"] = draft.Summary
+		patch["content"] = draft.Content
+		specific = true
+	}
+	if containsAny(lower, "player", "игрок", "handout", "раздат") {
+		patch["playerContent"] = draft.PlayerContent
+		specific = true
+	}
+	if containsAny(lower, "tag", "тег") {
+		patch["tags"] = draft.Tags
+		specific = true
+	}
+	if containsAny(lower, "status", "статус") {
+		patch["status"] = draft.Status
+		specific = true
+	}
+	if containsAny(lower, "urgency", "срочност") {
+		patch["urgency"] = draft.Urgency
+		specific = true
+	}
+	if containsAny(lower, "role", "роль") {
+		patch["role"] = draft.Role
+		specific = true
+	}
+	if containsAny(lower, "category", "категор") {
+		patch["category"] = draft.Category
+		specific = true
+	}
+	if containsAny(lower, "danger", "опасност") {
+		patch["danger"] = draft.Danger
+		specific = true
+	}
+	if containsAny(lower, "visibility", "видимост") {
+		patch["visibility"] = draft.Visibility
+		specific = true
+	}
+	if containsAny(lower, "stat block", "statblock", "характеристик", "статблок", "кб", "хп") {
+		patch["statBlock"] = draft.StatBlock
+		specific = true
+	}
+	if containsAny(lower, "reward", "loot", "награ", "лут", "добыч") {
+		patch["rewardProfile"] = draft.RewardProfile
+		specific = true
+	}
+	if !specific {
+		patch["summary"] = draft.Summary
+		patch["content"] = draft.Content
+	}
+	for key, value := range patch {
+		if generatedValueIsEmpty(value) {
+			delete(patch, key)
+		}
+	}
+	return patch
+}
+
+func requestedTitleFromPrompt(prompt string) string {
+	if match := quotedRequestedTitlePattern.FindStringSubmatch(prompt); len(match) == 2 {
+		return strings.TrimSpace(match[1])
+	}
+	return ""
 }
 
 func buildLocationDraft(prompt string) createEntityInput {

@@ -21,6 +21,7 @@ type PreparedCombatListProps = {
   onDeleteCard?: (plan: PreparedCombatPlan | undefined, index: number, title: string) => void;
   onOpenCard: (plan: PreparedCombatPlan | undefined, index: number) => void;
   onStartCard: (plan: PreparedCombatPlan | undefined, index: number) => void;
+  readOnly?: boolean;
 };
 
 export function PreparedCombatList({
@@ -30,7 +31,8 @@ export function PreparedCombatList({
   onCreateCard,
   onDeleteCard,
   onOpenCard,
-  onStartCard
+  onStartCard,
+  readOnly = false
 }: PreparedCombatListProps) {
   const [contextMenu, setContextMenu] = useState<{ index: number; x: number; y: number } | null>(null);
   const plans = useMemo(() => resolveEntityPreparedCombats(entity), [entity]);
@@ -58,7 +60,7 @@ export function PreparedCombatList({
   };
 
   const handleCardContextMenu = (event: ReactMouseEvent<HTMLElement>, index: number) => {
-    if (!onDeleteCard) {
+    if (readOnly || !onDeleteCard) {
       return;
     }
 
@@ -97,6 +99,7 @@ export function PreparedCombatList({
                   card={card}
                   onOpen={() => onOpenCard(plans[index], index)}
                   onStart={() => onStartCard(plans[index], index)}
+                  readOnly={readOnly}
                 />
               </div>
             ))
@@ -110,7 +113,7 @@ export function PreparedCombatList({
             </article>
           )}
 
-          <button
+          {!readOnly ? <button
             className="card entity-player-facing-panel entity-player-facing-panel-compact entity-player-facing-panel-create entity-prepared-combat-panel-create"
             onClick={onCreateCard}
             type="button"
@@ -118,11 +121,11 @@ export function PreparedCombatList({
             <span className="entity-player-facing-create-mark">+</span>
             <strong>Создать ещё</strong>
             <p className="copy">{copy.createDescription}</p>
-          </button>
+          </button> : null}
         </div>
       </CollapsibleSection>
 
-      {contextMenu && contextMenuCard && onDeleteCard ? (
+      {!readOnly && contextMenu && contextMenuCard && onDeleteCard ? (
         <div className="entity-action-backdrop" onClick={closeContextMenu} role="presentation">
           <div
             className="entity-action-menu"

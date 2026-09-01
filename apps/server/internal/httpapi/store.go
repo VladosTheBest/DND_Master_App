@@ -19,9 +19,11 @@ var idSequence uint64
 var errUsernameTaken = errors.New("username already exists")
 
 type campaignStore struct {
-	mu   sync.RWMutex
-	path string
-	data storageState
+	mu                sync.RWMutex
+	path              string
+	data              storageState
+	atomicFileWrite   func(path string, body []byte, mode os.FileMode) error
+	atomicFileReplace func(sourcePath, targetPath string) error
 }
 
 func newCampaignStore(path string) (*campaignStore, error) {
@@ -57,7 +59,13 @@ func (store *campaignStore) load() error {
 	}
 
 	for index := range store.data.Campaigns {
+		if campaignNeedsRevisionMigration(store.data.Campaigns[index]) {
+			needsSave = true
+		}
 		store.data.Campaigns[index] = ensureCampaignShape(store.data.Campaigns[index])
+	}
+	for index := range store.data.AIProposals {
+		store.data.AIProposals[index] = normalizeStoredProposal(store.data.AIProposals[index])
 	}
 	if store.repairOrphanedSurveyInvitesLocked() {
 		needsSave = true
@@ -78,6 +86,23 @@ func (store *campaignStore) load() error {
 	}
 
 	return nil
+}
+
+func campaignNeedsRevisionMigration(campaign campaignData) bool {
+	if campaign.Revision < 1 {
+		return true
+	}
+	for _, entity := range campaignEntities(campaign) {
+		if entity.Revision < 1 {
+			return true
+		}
+	}
+	for _, event := range campaign.Events {
+		if event.Revision < 1 {
+			return true
+		}
+	}
+	return false
 }
 
 // repairOrphanedSurveyInvitesLocked preserves existing public links when a
@@ -138,7 +163,7 @@ func (store *campaignStore) ensureAuthStorageLocked() (bool, error) {
 func (store *campaignStore) saveLocked() error {
 	store.data.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 
-	if err := os.MkdirAll(filepath.Dir(store.path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(store.path), 0o700); err != nil {
 		return err
 	}
 
@@ -147,13 +172,77 @@ func (store *campaignStore) saveLocked() error {
 		return err
 	}
 
-	if err := writeFileAtomically(store.path, body, 0o644); err != nil {
-		return err
-	}
-	if err := writeFileAtomically(store.backupPath(), body, 0o644); err != nil {
-		return err
+	write := store.atomicFileWrite
+	if write == nil {
+		write = writeFileAtomically
 	}
 
+	primaryTemp, err := stageFileForAtomicReplace(store.path, body, 0o600)
+	if err != nil {
+		return fmt.Errorf("stage primary storage: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = os.Remove(primaryTemp)
+		}
+	}()
+
+	// Preserve the last valid committed primary before replacing it. If the
+	// primary is missing or corrupt during startup recovery, keep the existing
+	// backup instead of overwriting the known-good recovery copy.
+	previousBody, previousIsValid, err := readValidStorageBody(store.path)
+	if err != nil {
+		return fmt.Errorf("read primary storage: %w", err)
+	}
+	if previousIsValid {
+		if err := write(store.backupPath(), previousBody, 0o600); err != nil {
+			return fmt.Errorf("preserve storage backup: %w", err)
+		}
+	}
+
+	replace := store.atomicFileReplace
+	if replace == nil {
+		replace = replaceFile
+	}
+	// This atomic replacement is the only commit point. No error is returned
+	// after it succeeds, so callers never roll memory or media back after the
+	// durable primary has changed.
+	if err := replace(primaryTemp, store.path); err != nil {
+		return fmt.Errorf("replace primary storage: %w", err)
+	}
+	committed = true
+	syncDirectoryBestEffort(filepath.Dir(store.path))
+
+	// A fresh backup improves recovery to the latest commit, but failure here
+	// cannot invalidate the committed primary. The preserved prior primary
+	// remains a valid recovery point.
+	_ = write(store.backupPath(), body, 0o600)
+
+	return nil
+}
+
+func cloneStorageState(state storageState) (storageState, error) {
+	body, err := json.Marshal(state)
+	if err != nil {
+		return storageState{}, err
+	}
+	var cloned storageState
+	if err := json.Unmarshal(body, &cloned); err != nil {
+		return storageState{}, err
+	}
+	return cloned, nil
+}
+
+// saveMutationLocked persists a mutation whose complete pre-mutation state is
+// supplied by the caller. saveLocked only returns errors before its atomic
+// primary-file commit, so restoring here keeps live memory aligned with the
+// durable primary whenever a write fails.
+func (store *campaignStore) saveMutationLocked(originalState storageState) error {
+	if err := store.saveLocked(); err != nil {
+		store.data = originalState
+		return err
+	}
 	return nil
 }
 
@@ -188,8 +277,12 @@ func (store *campaignStore) bootstrapLegacyUser(username string, password string
 	defer store.mu.Unlock()
 
 	if len(store.data.Users) > 0 {
+		originalState, err := cloneStorageState(store.data)
+		if err != nil {
+			return err
+		}
 		if store.assignUnownedCampaignsLocked(store.data.Users[0].ID) {
-			return store.saveLocked()
+			return store.saveMutationLocked(originalState)
 		}
 		return nil
 	}
@@ -201,9 +294,13 @@ func (store *campaignStore) bootstrapLegacyUser(username string, password string
 		PasswordHash: passwordHash,
 		CreatedAt:    time.Now().UTC().Format(time.RFC3339),
 	}
+	originalState, err := cloneStorageState(store.data)
+	if err != nil {
+		return err
+	}
 	store.data.Users = append(store.data.Users, user)
 	store.assignUnownedCampaignsLocked(user.ID)
-	return store.saveLocked()
+	return store.saveMutationLocked(originalState)
 }
 
 func (store *campaignStore) createUser(username string, password string) (userAccount, error) {
@@ -228,6 +325,10 @@ func (store *campaignStore) createUser(username string, password string) (userAc
 			return userAccount{}, errUsernameTaken
 		}
 	}
+	originalState, err := cloneStorageState(store.data)
+	if err != nil {
+		return userAccount{}, err
+	}
 
 	user := userAccount{
 		ID:           newID("user"),
@@ -241,7 +342,7 @@ func (store *campaignStore) createUser(username string, password string) (userAc
 		store.assignUnownedCampaignsLocked(user.ID)
 	}
 
-	if err := store.saveLocked(); err != nil {
+	if err := store.saveMutationLocked(originalState); err != nil {
 		return userAccount{}, err
 	}
 
@@ -342,11 +443,50 @@ func readStorageState(path string) (storageState, error) {
 	return state, nil
 }
 
+func readValidStorageBody(path string) ([]byte, bool, error) {
+	raw, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	trimmed := bytes.TrimPrefix(raw, []byte{0xEF, 0xBB, 0xBF})
+	if len(bytes.TrimSpace(trimmed)) == 0 {
+		return nil, false, nil
+	}
+	var state storageState
+	if err := json.Unmarshal(trimmed, &state); err != nil {
+		return nil, false, nil
+	}
+	return raw, true, nil
+}
+
 func writeFileAtomically(path string, body []byte, mode os.FileMode) error {
+	tempPath, err := stageFileForAtomicReplace(path, body, mode)
+	if err != nil {
+		return err
+	}
+	cleanupTemp := true
+	defer func() {
+		if cleanupTemp {
+			_ = os.Remove(tempPath)
+		}
+	}()
+
+	if err := replaceFile(tempPath, path); err != nil {
+		return err
+	}
+	cleanupTemp = false
+	syncDirectoryBestEffort(filepath.Dir(path))
+	return nil
+}
+
+func stageFileForAtomicReplace(path string, body []byte, mode os.FileMode) (string, error) {
 	dir := filepath.Dir(path)
 	file, err := os.CreateTemp(dir, filepath.Base(path)+".tmp-*")
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	tempPath := file.Name()
@@ -359,36 +499,21 @@ func writeFileAtomically(path string, body []byte, mode os.FileMode) error {
 
 	if _, err := file.Write(body); err != nil {
 		_ = file.Close()
-		return err
+		return "", err
 	}
 	if err := file.Chmod(mode); err != nil {
 		_ = file.Close()
-		return err
+		return "", err
 	}
 	if err := file.Sync(); err != nil {
 		_ = file.Close()
-		return err
+		return "", err
 	}
 	if err := file.Close(); err != nil {
-		return err
-	}
-	if err := replaceFile(tempPath, path); err != nil {
-		return err
+		return "", err
 	}
 	cleanupTemp = false
-
-	syncDirectoryBestEffort(dir)
-	return nil
-}
-
-func replaceFile(sourcePath string, targetPath string) error {
-	if err := os.Rename(sourcePath, targetPath); err == nil {
-		return nil
-	} else if removeErr := os.Remove(targetPath); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
-		return err
-	}
-
-	return os.Rename(sourcePath, targetPath)
+	return tempPath, nil
 }
 
 func syncDirectoryBestEffort(path string) {
@@ -446,8 +571,12 @@ func (store *campaignStore) setPlayerDisplayToken(id string, token string) error
 
 	for index := range store.data.Campaigns {
 		if store.data.Campaigns[index].ID == id {
+			originalState, err := cloneStorageState(store.data)
+			if err != nil {
+				return err
+			}
 			store.data.Campaigns[index].PlayerDisplayToken = strings.TrimSpace(token)
-			return store.saveLocked()
+			return store.saveMutationLocked(originalState)
 		}
 	}
 	return fmt.Errorf("campaign %q not found", id)
@@ -473,6 +602,10 @@ func (store *campaignStore) createCampaign(input createCampaignInput) (campaignD
 func (store *campaignStore) createCampaignForUser(userID string, input createCampaignInput) (campaignData, error) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
+	originalState, err := cloneStorageState(store.data)
+	if err != nil {
+		return campaignData{}, err
+	}
 
 	campaign := ensureCampaignShape(campaignData{
 		ID:          newID("campaign"),
@@ -485,7 +618,7 @@ func (store *campaignStore) createCampaignForUser(userID string, input createCam
 	})
 
 	store.data.Campaigns = append(store.data.Campaigns, campaign)
-	if err := store.saveLocked(); err != nil {
+	if err := store.saveMutationLocked(originalState); err != nil {
 		return campaignData{}, err
 	}
 
@@ -500,6 +633,10 @@ func (store *campaignStore) updateCampaign(campaignID string, input updateCampai
 		if store.data.Campaigns[index].ID != campaignID {
 			continue
 		}
+		originalState, err := cloneStorageState(store.data)
+		if err != nil {
+			return campaignData{}, err
+		}
 
 		campaign := &store.data.Campaigns[index]
 		if input.CombatPlaylist != nil {
@@ -512,8 +649,9 @@ func (store *campaignStore) updateCampaign(campaignID string, input updateCampai
 			campaign.PreparedCombat = normalizeCampaignPreparedCombat(input.PreparedCombat)
 		}
 
+		campaign.Revision++
 		*campaign = ensureCampaignShape(*campaign)
-		if err := store.saveLocked(); err != nil {
+		if err := store.saveMutationLocked(originalState); err != nil {
 			return campaignData{}, err
 		}
 
@@ -531,12 +669,17 @@ func (store *campaignStore) createWorldEvent(campaignID string, input createWorl
 		if store.data.Campaigns[index].ID != campaignID {
 			continue
 		}
+		originalState, err := cloneStorageState(store.data)
+		if err != nil {
+			return worldEventResult{}, err
+		}
 
 		campaign := &store.data.Campaigns[index]
 		event := materializeWorldEvent(input, *campaign, nil)
 		campaign.Events = append(campaign.Events, event)
+		campaign.Revision++
 		*campaign = ensureCampaignShape(*campaign)
-		if err := store.saveLocked(); err != nil {
+		if err := store.saveMutationLocked(originalState); err != nil {
 			return worldEventResult{}, err
 		}
 
@@ -571,12 +714,17 @@ func (store *campaignStore) updateWorldEvent(campaignID string, eventID string, 
 		if eventIndex < 0 {
 			return worldEventResult{}, fmt.Errorf("event %q not found", eventID)
 		}
+		originalState, err := cloneStorageState(store.data)
+		if err != nil {
+			return worldEventResult{}, err
+		}
 
 		event := materializeWorldEvent(input, *campaign, &existing)
 		event.ID = existing.ID
 		campaign.Events[eventIndex] = event
+		campaign.Revision++
 		*campaign = ensureCampaignShape(*campaign)
-		if err := store.saveLocked(); err != nil {
+		if err := store.saveMutationLocked(originalState); err != nil {
 			return worldEventResult{}, err
 		}
 
@@ -609,10 +757,15 @@ func (store *campaignStore) deleteWorldEvent(campaignID string, eventID string) 
 		if eventIndex < 0 {
 			return deleteWorldEventResult{}, fmt.Errorf("event %q not found", eventID)
 		}
+		originalState, err := cloneStorageState(store.data)
+		if err != nil {
+			return deleteWorldEventResult{}, err
+		}
 
 		campaign.Events = append(campaign.Events[:eventIndex], campaign.Events[eventIndex+1:]...)
+		campaign.Revision++
 		*campaign = ensureCampaignShape(*campaign)
-		if err := store.saveLocked(); err != nil {
+		if err := store.saveMutationLocked(originalState); err != nil {
 			return deleteWorldEventResult{}, err
 		}
 
@@ -645,9 +798,15 @@ func (store *campaignStore) createEntity(campaignID string, input createEntityIn
 
 					mergedArt, changed := mergeHeroArt(campaign.Monsters[monsterIndex].Art, entity.Art)
 					if changed {
+						originalState, err := cloneStorageState(store.data)
+						if err != nil {
+							return createEntityResult{}, err
+						}
 						campaign.Monsters[monsterIndex].Art = mergedArt
+						campaign.Monsters[monsterIndex].Revision++
+						campaign.Revision++
 						*campaign = ensureCampaignShape(*campaign)
-						if err := store.saveLocked(); err != nil {
+						if err := store.saveMutationLocked(originalState); err != nil {
 							return createEntityResult{}, err
 						}
 						existing = campaign.Monsters[monsterIndex]
@@ -663,6 +822,16 @@ func (store *campaignStore) createEntity(campaignID string, input createEntityIn
 		}
 
 		switch entity.Kind {
+		case "location", "player", "npc", "monster", "quest", "lore":
+		default:
+			return createEntityResult{}, fmt.Errorf("unsupported entity kind %q", entity.Kind)
+		}
+		originalState, err := cloneStorageState(store.data)
+		if err != nil {
+			return createEntityResult{}, err
+		}
+
+		switch entity.Kind {
 		case "location":
 			campaign.Locations = append(campaign.Locations, entity)
 		case "player":
@@ -675,12 +844,11 @@ func (store *campaignStore) createEntity(campaignID string, input createEntityIn
 			campaign.Quests = append(campaign.Quests, entity)
 		case "lore":
 			campaign.Lore = append(campaign.Lore, entity)
-		default:
-			return createEntityResult{}, fmt.Errorf("unsupported entity kind %q", entity.Kind)
 		}
 
+		campaign.Revision++
 		*campaign = ensureCampaignShape(*campaign)
-		if err := store.saveLocked(); err != nil {
+		if err := store.saveMutationLocked(originalState); err != nil {
 			return createEntityResult{}, err
 		}
 
@@ -714,13 +882,19 @@ func (store *campaignStore) updateEntity(campaignID string, entityID string, inp
 		if input.Kind != existing.Kind {
 			return createEntityResult{}, fmt.Errorf("entity kind mismatch: expected %q, got %q", existing.Kind, input.Kind)
 		}
+		originalState, err := cloneStorageState(store.data)
+		if err != nil {
+			return createEntityResult{}, err
+		}
 
 		entity := materializeEntity(input)
 		entity.ID = existing.ID
+		entity.Revision = existing.Revision + 1
 		(*entities)[entityIndex] = entity
 
+		campaign.Revision++
 		*campaign = ensureCampaignShape(*campaign)
-		if err := store.saveLocked(); err != nil {
+		if err := store.saveMutationLocked(originalState); err != nil {
 			return createEntityResult{}, err
 		}
 
@@ -747,6 +921,10 @@ func (store *campaignStore) deleteEntity(campaignID string, entityID string) (de
 		if entities == nil {
 			return deleteEntityResult{}, fmt.Errorf("entity %q not found", entityID)
 		}
+		originalState, err := cloneStorageState(store.data)
+		if err != nil {
+			return deleteEntityResult{}, err
+		}
 
 		*entities = append((*entities)[:entityIndex], (*entities)[entityIndex+1:]...)
 		if campaign.ActiveCombat != nil {
@@ -764,8 +942,9 @@ func (store *campaignStore) deleteEntity(campaignID string, entityID string) (de
 			}
 		}
 
+		campaign.Revision++
 		*campaign = ensureCampaignShape(*campaign)
-		if err := store.saveLocked(); err != nil {
+		if err := store.saveMutationLocked(originalState); err != nil {
 			return deleteEntityResult{}, err
 		}
 
@@ -786,6 +965,10 @@ func (store *campaignStore) startCombat(campaignID string, input startCombatInpu
 	for index := range store.data.Campaigns {
 		if store.data.Campaigns[index].ID != campaignID {
 			continue
+		}
+		originalState, err := cloneStorageState(store.data)
+		if err != nil {
+			return combatResult{}, err
 		}
 
 		campaign := &store.data.Campaigns[index]
@@ -810,7 +993,7 @@ func (store *campaignStore) startCombat(campaignID string, input startCombatInpu
 		recalculateActiveCombat(campaign.ActiveCombat)
 
 		*campaign = ensureCampaignShape(*campaign)
-		if err := store.saveLocked(); err != nil {
+		if err := store.saveMutationLocked(originalState); err != nil {
 			return combatResult{}, err
 		}
 
@@ -835,6 +1018,10 @@ func (store *campaignStore) updateCombatEntry(campaignID string, entryID string,
 		campaign := &store.data.Campaigns[index]
 		if campaign.ActiveCombat == nil {
 			return combatResult{}, fmt.Errorf("active combat not found")
+		}
+		originalState, err := cloneStorageState(store.data)
+		if err != nil {
+			return combatResult{}, err
 		}
 		campaign.ActiveCombat.Entries = ensureCombatEntries(campaign.ActiveCombat.Entries)
 
@@ -871,7 +1058,7 @@ func (store *campaignStore) updateCombatEntry(campaignID string, entryID string,
 			recalculateActiveCombat(campaign.ActiveCombat)
 
 			*campaign = ensureCampaignShape(*campaign)
-			if err := store.saveLocked(); err != nil {
+			if err := store.saveMutationLocked(originalState); err != nil {
 				return combatResult{}, err
 			}
 
@@ -881,6 +1068,7 @@ func (store *campaignStore) updateCombatEntry(campaignID string, entryID string,
 			}, nil
 		}
 
+		store.data = originalState
 		return combatResult{}, fmt.Errorf("combat entry %q not found", entryID)
 	}
 
@@ -899,6 +1087,10 @@ func (store *campaignStore) updateCombatState(campaignID string, input updateCom
 		campaign := &store.data.Campaigns[index]
 		if campaign.ActiveCombat == nil {
 			return combatResult{}, fmt.Errorf("active combat not found")
+		}
+		originalState, err := cloneStorageState(store.data)
+		if err != nil {
+			return combatResult{}, err
 		}
 
 		campaign.ActiveCombat.Entries = ensureCombatEntries(campaign.ActiveCombat.Entries)
@@ -925,7 +1117,7 @@ func (store *campaignStore) updateCombatState(campaignID string, input updateCom
 		recalculateActiveCombat(campaign.ActiveCombat)
 
 		*campaign = ensureCampaignShape(*campaign)
-		if err := store.saveLocked(); err != nil {
+		if err := store.saveMutationLocked(originalState); err != nil {
 			return combatResult{}, err
 		}
 
@@ -950,6 +1142,10 @@ func (store *campaignStore) finishCombat(campaignID string) (finishCombatResult,
 		campaign := &store.data.Campaigns[index]
 		if campaign.ActiveCombat == nil {
 			return finishCombatResult{}, fmt.Errorf("active combat not found")
+		}
+		originalState, err := cloneStorageState(store.data)
+		if err != nil {
+			return finishCombatResult{}, err
 		}
 
 		report := finishCombatResult{
@@ -994,11 +1190,10 @@ func (store *campaignStore) finishCombat(campaignID string) (finishCombatResult,
 			PlayerRewards:       normalizeCombatRewardShares(playerRewards),
 			FinishedAt:          time.Now().UTC().Format(time.RFC3339),
 		}
-
 		campaign.LastCombatSummary = report.Summary
 		campaign.ActiveCombat = nil
 		*campaign = ensureCampaignShape(*campaign)
-		if err := store.saveLocked(); err != nil {
+		if err := store.saveMutationLocked(originalState); err != nil {
 			return finishCombatResult{}, err
 		}
 
@@ -1110,8 +1305,9 @@ func materializeWorldEvent(input createWorldEventInput, campaign campaignData, e
 	locationID := strings.TrimSpace(input.LocationID)
 	locationLabel := firstNonEmpty(strings.TrimSpace(input.LocationLabel), lookupLocationLabel(campaign.Locations, locationID))
 	event := worldEvent{
-		ID:    newID("event"),
-		Title: title,
+		ID:       newID("event"),
+		Revision: 1,
+		Title:    title,
 		Date: firstNonEmpty(strings.TrimSpace(input.Date), func() string {
 			if existing != nil {
 				return strings.TrimSpace(existing.Date)
@@ -1135,6 +1331,7 @@ func materializeWorldEvent(input createWorldEventInput, campaign campaignData, e
 	}
 	if existing != nil && strings.TrimSpace(existing.ID) != "" {
 		event.ID = existing.ID
+		event.Revision = existing.Revision + 1
 	}
 	return event
 }
@@ -1149,6 +1346,7 @@ func materializeEntity(input createEntityInput) knowledgeEntity {
 
 	entity := knowledgeEntity{
 		ID:              newID(input.Kind),
+		Revision:        1,
 		Kind:            input.Kind,
 		Title:           firstNonEmpty(input.Title, fallbackEntityTitle(input.Kind)),
 		Subtitle:        input.Subtitle,

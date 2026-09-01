@@ -31,6 +31,9 @@ func starterCampaign() campaignData {
 }
 
 func ensureCampaignShape(campaign campaignData) campaignData {
+	if campaign.Revision < 1 {
+		campaign.Revision = 1
+	}
 	campaign.Modules = defaultModules()
 	campaign.Locations = ensureKnowledgeEntities(campaign.Locations)
 	campaign.Players = ensureKnowledgeEntities(campaign.Players)
@@ -115,6 +118,9 @@ func ensureKnowledgeEntities(entities []knowledgeEntity) []knowledgeEntity {
 	}
 
 	for index := range entities {
+		if entities[index].Revision < 1 {
+			entities[index].Revision = 1
+		}
 		entities[index].Level = normalizeEntityLevel(entities[index].Level)
 		if entities[index].Tags == nil {
 			entities[index].Tags = []string{}
@@ -205,6 +211,9 @@ func ensureWorldEvents(events []worldEvent, locations []knowledgeEntity, fallbac
 	}
 
 	for index := range events {
+		if events[index].Revision < 1 {
+			events[index].Revision = 1
+		}
 		events[index].Type = normalizeWorldEventType(events[index].Type)
 		events[index].Title = firstNonEmpty(strings.TrimSpace(events[index].Title), fallbackWorldEventTitle(events[index].Type))
 		events[index].Date = firstNonEmpty(strings.TrimSpace(events[index].Date), strings.TrimSpace(fallbackDate))
@@ -381,6 +390,7 @@ func rebuildDashboardCards(campaign campaignData) []dashboardCard {
 func campaignSummaryFromData(campaign campaignData) campaignSummary {
 	return campaignSummary{
 		ID:          campaign.ID,
+		Revision:    campaign.Revision,
 		Title:       campaign.Title,
 		System:      campaign.System,
 		SettingName: campaign.SettingName,

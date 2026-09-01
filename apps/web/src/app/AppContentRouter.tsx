@@ -46,6 +46,7 @@ export function AppContentRouter({
   notesContentContextMenu,
   onActiveEventChange,
   onEditEntity,
+  onEditWithAI,
   onOpenDirectory,
   onOpenEntity,
   onOpenEventGenerator,
@@ -91,6 +92,7 @@ export function AppContentRouter({
   notesContentContextMenu: (noteId: string, event: ReactMouseEvent<HTMLTextAreaElement>) => void;
   onActiveEventChange?: (eventId: string) => void;
   onEditEntity: (entityId: string) => void;
+  onEditWithAI: (entity: KnowledgeEntity) => void;
   onOpenDirectory: () => void;
   onOpenEntity: (entityId: string) => void;
   onOpenEventGenerator: (suggestions?: { locationId?: string; type?: WorldEventInput["type"] }) => void;
@@ -165,6 +167,7 @@ export function AppContentRouter({
         hydrateCampaign={hydrateCampaign}
         initialNoteId={activeEntity?.kind === "lore" ? activeEntity.id : undefined}
         onContentContextMenu={notesContentContextMenu}
+        onEditWithAI={onEditWithAI}
         onOpenPreview={onOpenPreview}
         serializeEntityForm={serializeEntityForm}
       />
@@ -180,6 +183,7 @@ export function AppContentRouter({
         isEntityPlaylistActive={isEntityPlaylistActive}
         onCopyImageLink={onCopyImageLink}
         onEditEntity={onEditEntity}
+        onEditWithAI={onEditWithAI}
         onOpenDirectory={onOpenDirectory}
         onOpenEntity={onOpenPreview}
         onOpenGallery={onOpenGallery}
