@@ -459,7 +459,7 @@ export function createDndMcpServer(client: DndMasterClient): McpServer {
     {
       title: "Propose a new DND entity",
       description:
-        "Create a persistent proposal for a new location, player, NPC, monster, quest, lore entry, or world event/dialogue scene. This never inserts the entity directly.",
+        "Create one persistent proposal for exactly one new entity or event. Input shape: { campaignId, prompt, kind, candidate, mediaIntents?, warnings? }. kind is location, player, npc, monster, quest, lore, or event; mediaIntents is allowed only for non-event entities. campaignId, prompt, and kind are top-level; candidate is one complete entity and must not contain kind, tempKey, id, or revision. Minimal quest example: {\"campaignId\":\"campaign-id\",\"prompt\":\"Create one quest\",\"kind\":\"quest\",\"candidate\":{\"title\":\"Quest title\",\"summary\":\"Short summary\",\"content\":\"Full quest details\"}}. Put free-form narrative in candidate.content and use simple candidate.title, candidate.summary, and candidate.tags where useful; use nested fields only when their disclosed schemas are known. Do not invent description, objectives, rewards, secrets, or roleplayCues fields. Never send top-level title, entities, entity, data, payload, quest, or entityKind. For a quest plus NPCs plus locations, call this tool separately for each item. This never inserts campaign data directly.",
       inputSchema: ProposeEntityCreateInputSchema,
       outputSchema: ProposalOutputSchema,
       annotations: proposalWriteAnnotations,
@@ -485,7 +485,7 @@ export function createDndMcpServer(client: DndMasterClient): McpServer {
     {
       title: "Propose a DND entity update",
       description:
-        "Create a persistent constrained entity or world-event update proposal. Call get_entity first and send only intentional fields in patch; the server preserves omitted media, relationships, cards, dialogue, and combat data. This never updates campaign data directly.",
+        "Create one persistent update proposal for exactly one existing entity or event. Call get_entity first. Input shape: { campaignId, prompt, kind, entityId, patch, candidate?, mediaIntents?, warnings? }; mediaIntents is allowed only for non-event entities. campaignId, prompt, kind, entityId, and patch are top-level, and patch contains only supported fields intentionally changed. The server preserves omitted media, relationships, cards, dialogue, and combat data. Never send an entity bundle or put kind/entityId inside patch. This never updates campaign data directly.",
       inputSchema: ProposeEntityUpdateInputSchema,
       outputSchema: ProposalOutputSchema,
       annotations: proposalWriteAnnotations,

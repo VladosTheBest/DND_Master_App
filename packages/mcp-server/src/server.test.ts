@@ -534,6 +534,15 @@ test("server advertises focused tools with accurate proposal-only annotations", 
     "stage_proposal_media",
   ]);
   assert.equal(names.some((name) => /apply|reject|undo/.test(name)), false);
+  const createEntityTool = listed.tools.find((tool) => tool.name === "propose_entity_create");
+  assert.match(createEntityTool?.description ?? "", /exactly one new entity/);
+  assert.match(createEntityTool?.description ?? "", /campaignId, prompt, kind, candidate/);
+  assert.match(createEntityTool?.description ?? "", /Minimal quest example/);
+  assert.match(createEntityTool?.description ?? "", /separately for each item/);
+  const updateEntityTool = listed.tools.find((tool) => tool.name === "propose_entity_update");
+  assert.match(updateEntityTool?.description ?? "", /campaignId, prompt, kind, entityId, patch/);
+  assert.match(updateEntityTool?.description ?? "", /mediaIntents\?, warnings\?/);
+  assert.match(updateEntityTool?.description ?? "", /non-event entities/);
 
   for (const tool of listed.tools) {
     assert.equal(tool.annotations?.openWorldHint, false, `${tool.name} must stay closed-world`);

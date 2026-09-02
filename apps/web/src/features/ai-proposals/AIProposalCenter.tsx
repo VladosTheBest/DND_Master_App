@@ -170,8 +170,9 @@ function AIProposalInbox({ controller, campaignId }: { controller: AIProposalCon
           campaignId={campaignId}
           onPromptOutcome={controller.setCodexPromptOutcome}
           onPromptRunningChange={controller.setCodexPromptRunning}
-          onPromptSettled={() => {
-            void controller.refresh(true);
+          onPromptSettled={async () => {
+            const proposals = await controller.refresh(true);
+            return proposals?.filter((proposal) => (proposal.campaignId || proposal.target.campaignId) === campaignId).length;
           }}
           onProposalsCreated={(proposalIds, hasWarning) => {
             if (!hasWarning && proposalIds[0]) void controller.openProposal(proposalIds[0]);

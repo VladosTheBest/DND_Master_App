@@ -536,21 +536,141 @@ func TestBuildCodexProposalPromptMakesImageConsentExplicit(t *testing.T) {
 		Prompt:        "Create a gothic quest",
 		IncludeImages: true,
 	})
-	if !strings.Contains(withImages, "$imagegen") || !strings.Contains(withImages, "stage each output") {
+	if !strings.Contains(withImages, "$imagegen") || !strings.Contains(withImages, "stage each output") || !strings.Contains(withImages, "non-event proposal id") || !strings.Contains(withImages, "create every requested text proposal") {
 		t.Fatalf("image opt-in prompt does not invoke staged built-in generation: %q", withImages)
 	}
 	withoutImages := buildCodexProposalPrompt(codexPromptInput{Prompt: "Create a gothic quest"})
 	if strings.Contains(withoutImages, "$imagegen") || !strings.Contains(withoutImages, "did not opt in") {
 		t.Fatalf("non-opt-in prompt permits image generation: %q", withoutImages)
 	}
-	for _, required := range []string{"never call propose_campaign", "one or more propose_entity_create or propose_entity_update", "do not finish with prose alone"} {
+	for _, required := range []string{"never call propose_campaign", "propose_entity_create stores exactly one new entity", "{campaignId, prompt, kind, candidate, mediaIntents?, warnings?}", "separate call for every requested quest, NPC, location", "supported candidate fields such as summary and content", "do not finish with prose alone", "list pending proposals"} {
 		if !strings.Contains(withImages, required) {
 			t.Fatalf("existing-campaign prompt is missing completion contract %q: %q", required, withImages)
 		}
 	}
-	for _, required := range []string{"A prose-only answer is a failure", "one or more successful persistent propose_* tool calls", "compound existing-campaign request"} {
+	for _, required := range []string{"A prose-only answer is a failure", "propose_entity_create creates exactly one new quest", "call propose_entity_create separately for the quest", "{campaignId, prompt, kind, candidate, mediaIntents?, warnings?}", `"kind":"quest","candidate"`, "Never send top-level title, entities, entity, data, payload, quest, or entityKind", "do not create relationships that target other new, unapplied entities", "Create every requested text proposal", "Never stage or attach media to an event proposal", "never repeat a successful call", "one or two selected portraits"} {
 		if !strings.Contains(codexBridgeInstructions, required) {
 			t.Fatalf("Codex developer instructions are missing completion contract %q", required)
+		}
+	}
+}
+
+func TestVerifiedCodexPromptResultRecoversStoredProposalWithoutObservedResultID(t *testing.T) {
+	store, err := newCampaignStore(filepath.Join(t.TempDir(), "store.json"))
+	if err != nil {
+		t.Fatalf("newCampaignStore() error = %v", err)
+	}
+	account, err := store.createUser("codex-recovery-user", "a-valid-password")
+	if err != nil {
+		t.Fatalf("createUser() error = %v", err)
+	}
+	auth, err := newAuthManager(AuthOptions{SessionTTL: time.Hour}, store)
+	if err != nil {
+		t.Fatalf("newAuthManager() error = %v", err)
+	}
+	campaign, err := store.createCampaignForUser(account.ID, createCampaignInput{Title: "Recovery campaign"})
+	if err != nil {
+		t.Fatalf("createCampaignForUser() error = %v", err)
+	}
+	manager := newCodexBridgeManager(CodexBridgeOptions{}, auth)
+	before := manager.codexProposalIDs(account.ID, campaign.ID)
+	proposal, err := newProposalService(store, t.TempDir()).createEntity(account.ID, campaign.ID, entityProposalInput{
+		Mode:      "create",
+		Kind:      "quest",
+		Prompt:    "Create one recovery quest",
+		Candidate: json.RawMessage(`{"kind":"quest","title":"Recovered quest","summary":"Saved despite a lost tool response","content":"Review me"}`),
+		Source:    proposalSource{Type: "codex_app_server"},
+	})
+	if err != nil {
+		t.Fatalf("createEntity() error = %v", err)
+	}
+
+	observation := codexTurnObservation{
+		proposalToolAttempted: true,
+		proposalToolCompleted: true,
+		proposalIDs:           map[string]struct{}{},
+	}
+	result, ok := manager.verifiedCodexPromptResult(account.ID, campaign.ID, before, observation, "thread-recovery", "turn-recovery", "completed", "")
+	if !ok || len(result.ProposalIDs) != 1 || result.ProposalIDs[0] != proposal.ID {
+		t.Fatalf("verified result = %+v, ok=%v, want stored proposal %s", result, ok, proposal.ID)
+	}
+	if _, ok := manager.verifiedCodexPromptResult(account.ID, campaign.ID, before, codexTurnObservation{}, "thread-no-tool", "turn-no-tool", "completed", ""); ok {
+		t.Fatal("stored proposal was accepted without any proposal tool attempt")
+	}
+	failedObservation := codexTurnObservation{
+		proposalToolAttempted: true,
+		proposalToolFailed:    true,
+		proposalIDs:           map[string]struct{}{},
+	}
+	if _, ok := manager.verifiedCodexPromptResult(account.ID, campaign.ID, before, failedObservation, "thread-failed", "turn-failed", "completed", ""); ok {
+		t.Fatal("stored proposal was accepted after only a failed uncorrelated proposal attempt")
+	}
+	failedObservation.proposalIDs[proposal.ID] = struct{}{}
+	if recovered, ok := manager.verifiedCodexPromptResult(account.ID, campaign.ID, before, failedObservation, "thread-listed", "turn-listed", "completed", ""); !ok || len(recovered.ProposalIDs) != 1 || recovered.ProposalIDs[0] != proposal.ID {
+		t.Fatalf("list-proposals recovery = %+v, ok=%v, want %s", recovered, ok, proposal.ID)
+	}
+}
+
+func TestVerifiedCodexPromptResultUnionsObservedAndStoredProposals(t *testing.T) {
+	store, err := newCampaignStore(filepath.Join(t.TempDir(), "store.json"))
+	if err != nil {
+		t.Fatalf("newCampaignStore() error = %v", err)
+	}
+	account, err := store.createUser("codex-mixed-recovery-user", "a-valid-password")
+	if err != nil {
+		t.Fatalf("createUser() error = %v", err)
+	}
+	auth, err := newAuthManager(AuthOptions{SessionTTL: time.Hour}, store)
+	if err != nil {
+		t.Fatalf("newAuthManager() error = %v", err)
+	}
+	campaign, err := store.createCampaignForUser(account.ID, createCampaignInput{Title: "Mixed recovery campaign"})
+	if err != nil {
+		t.Fatalf("createCampaignForUser() error = %v", err)
+	}
+	manager := newCodexBridgeManager(CodexBridgeOptions{}, auth)
+	before := manager.codexProposalIDs(account.ID, campaign.ID)
+	proposalService := newProposalService(store, t.TempDir())
+	observedProposal, err := proposalService.createEntity(account.ID, campaign.ID, entityProposalInput{
+		Mode:      "create",
+		Kind:      "quest",
+		Prompt:    "Create the observed quest",
+		Candidate: json.RawMessage(`{"kind":"quest","title":"Observed quest","summary":"ID returned normally","content":"Review me"}`),
+		Source:    proposalSource{Type: "codex_app_server"},
+	})
+	if err != nil {
+		t.Fatalf("create observed proposal error = %v", err)
+	}
+	unobservedProposal, err := proposalService.createEntity(account.ID, campaign.ID, entityProposalInput{
+		Mode:      "create",
+		Kind:      "npc",
+		Prompt:    "Create the NPC whose tool response lost its ID",
+		Candidate: json.RawMessage(`{"kind":"npc","title":"Recovered NPC","summary":"Stored despite a lost result ID","content":"Review me"}`),
+		Source:    proposalSource{Type: "codex_app_server"},
+	})
+	if err != nil {
+		t.Fatalf("create unobserved proposal error = %v", err)
+	}
+
+	observation := codexTurnObservation{
+		proposalToolAttempted: true,
+		proposalToolCompleted: true,
+		proposalIDs:           map[string]struct{}{observedProposal.ID: {}},
+	}
+	result, ok := manager.verifiedCodexPromptResult(account.ID, campaign.ID, before, observation, "thread-mixed", "turn-mixed", "completed", "")
+	if !ok {
+		t.Fatal("mixed observed/stored proposals were not verified")
+	}
+	if len(result.ProposalIDs) != 2 {
+		t.Fatalf("proposal IDs = %v, want both mixed proposals", result.ProposalIDs)
+	}
+	got := make(map[string]struct{}, len(result.ProposalIDs))
+	for _, proposalID := range result.ProposalIDs {
+		got[proposalID] = struct{}{}
+	}
+	for _, proposalID := range []string{observedProposal.ID, unobservedProposal.ID} {
+		if _, ok := got[proposalID]; !ok {
+			t.Fatalf("proposal IDs = %v, missing %s", result.ProposalIDs, proposalID)
 		}
 	}
 }
@@ -638,6 +758,26 @@ func TestCodexProposalObservationClassifiesMissingResults(t *testing.T) {
 				t.Fatalf("classified error exposed raw MCP failure: %q", classified.Error())
 			}
 		})
+	}
+
+	listItem, err := json.Marshal(map[string]any{
+		"id": "tool-list", "type": "mcpToolCall", "server": "dnd_master", "tool": "list_proposals", "status": "completed",
+		"result": map[string]any{"structuredContent": map[string]any{"proposals": []any{map[string]any{"id": "proposal-recovered"}}}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	listedObservation := codexTurnObservation{
+		proposalToolAttempted: true,
+		proposalToolFailed:    true,
+		proposalIDs:           make(map[string]struct{}),
+	}
+	observeCodexTurnItem(listItem, &listedObservation)
+	if !listedObservation.proposalToolAttempted || listedObservation.proposalToolCompleted || !listedObservation.proposalToolFailed {
+		t.Fatalf("list_proposals changed proposal attempt state: %+v", listedObservation)
+	}
+	if _, ok := listedObservation.proposalIDs["proposal-recovered"]; !ok {
+		t.Fatalf("list_proposals result id was not observed: %+v", listedObservation.proposalIDs)
 	}
 }
 

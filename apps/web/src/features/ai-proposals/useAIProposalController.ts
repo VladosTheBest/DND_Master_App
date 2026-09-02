@@ -71,7 +71,7 @@ export function useAIProposalController({
   const refresh = useCallback(async (silent = false) => {
     if (!authenticated) {
       setProposals([]);
-      return;
+      return [];
     }
 
     try {
@@ -79,10 +79,12 @@ export function useAIProposalController({
       const next = await api.listAIProposals({ status: "pending" });
       setProposals(next);
       if (!silent) setError("");
+      return next;
     } catch (nextError) {
       if (!silent) {
         setError(nextError instanceof Error ? nextError.message : "Не удалось загрузить AI-черновики.");
       }
+      return undefined;
     } finally {
       if (!silent) setLoading(false);
     }
