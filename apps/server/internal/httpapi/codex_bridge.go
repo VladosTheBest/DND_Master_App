@@ -479,11 +479,22 @@ func (manager *codexBridgeManager) readModels(ctx context.Context, bridge *codex
 
 func matchModelRateLimit(model, id, displayName string, status *codexConnectionStatus) string {
 	for _, value := range []string{model, id, displayName} {
-		normalized := strings.NewReplacer(" ", "-", "_", "-").Replace(strings.ToLower(strings.TrimSpace(value)))
-		for limitID := range status.RateLimitSets {
-			candidate := strings.NewReplacer(" ", "-", "_", "-").Replace(strings.ToLower(strings.TrimSpace(limitID)))
-			if normalized == candidate {
-				return limitID
+		normalized := normalizeCodexCatalogName(value)
+		for mapKey, snapshot := range status.RateLimitSets {
+			candidates := []string{mapKey}
+			if snapshot.LimitID != nil {
+				candidates = append(candidates, *snapshot.LimitID)
+			}
+			if snapshot.LimitName != nil {
+				candidates = append(candidates, *snapshot.LimitName)
+			}
+			for _, candidate := range candidates {
+				if normalized == normalizeCodexCatalogName(candidate) {
+					if snapshot.LimitID != nil && strings.TrimSpace(*snapshot.LimitID) != "" {
+						return *snapshot.LimitID
+					}
+					return mapKey
+				}
 			}
 		}
 	}
@@ -491,6 +502,18 @@ func matchModelRateLimit(model, id, displayName string, status *codexConnectionS
 		return *status.RateLimits.LimitID
 	}
 	return ""
+}
+
+func normalizeCodexCatalogName(value string) string {
+	return strings.Map(func(character rune) rune {
+		if character >= 'A' && character <= 'Z' {
+			return character + ('a' - 'A')
+		}
+		if (character >= 'a' && character <= 'z') || (character >= '0' && character <= '9') {
+			return character
+		}
+		return -1
+	}, strings.TrimSpace(value))
 }
 
 func (manager *codexBridgeManager) startDeviceCode(ctx context.Context, user authUser) (codexDeviceCodeResult, error) {

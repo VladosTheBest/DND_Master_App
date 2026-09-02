@@ -1539,7 +1539,7 @@ func TestCodexBridgeHelperProcess(t *testing.T) {
 					"primary": map[string]any{"usedPercent": 25, "windowDurationMins": 15, "resetsAt": 2000000000},
 				},
 				"rateLimitsByLimitId": map[string]any{
-					"gpt-5.3-codex-spark": map[string]any{"limitId": "gpt-5.3-codex-spark", "limitName": "GPT-5.3-Codex-Spark", "primary": map[string]any{"usedPercent": 0}},
+					"spark-bucket": map[string]any{"limitId": "gpt-5.3-codex-spark", "limitName": "GPT-5.3-Codex-Spark", "primary": map[string]any{"usedPercent": 0}},
 				},
 			})
 		case "model/list":
