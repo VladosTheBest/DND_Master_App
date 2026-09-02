@@ -73,6 +73,9 @@ func TestCodexBridgeDeviceLoginAndProposalPrompt(t *testing.T) {
 	if status.RateLimits == nil || status.RateLimits.Primary == nil || status.RateLimits.Primary.UsedPercent != 25 {
 		t.Fatalf("connected rate limits = %+v", status.RateLimits)
 	}
+	if len(status.Models) != 2 || status.Models[1].RateLimitID != "gpt-5.3-codex-spark" {
+		t.Fatalf("connected models = %+v", status.Models)
+	}
 	manager.mu.Lock()
 	bridge := manager.bridges[user.ID]
 	bridgeSessionToken := bridge.sessionToken
@@ -110,6 +113,7 @@ func TestCodexBridgeDeviceLoginAndProposalPrompt(t *testing.T) {
 	result, err := manager.runPrompt(context.Background(), user, codexPromptInput{
 		CampaignID: campaign.ID,
 		Prompt:     "Create a quest proposal",
+		Model:      "gpt-5.3-codex-spark",
 	})
 	created := <-createdProposal
 	if created.err != nil {
@@ -1534,14 +1538,26 @@ func TestCodexBridgeHelperProcess(t *testing.T) {
 					"limitId": "codex",
 					"primary": map[string]any{"usedPercent": 25, "windowDurationMins": 15, "resetsAt": 2000000000},
 				},
-				"rateLimitsByLimitId": map[string]any{},
+				"rateLimitsByLimitId": map[string]any{
+					"gpt-5.3-codex-spark": map[string]any{"limitId": "gpt-5.3-codex-spark", "limitName": "GPT-5.3-Codex-Spark", "primary": map[string]any{"usedPercent": 0}},
+				},
 			})
+		case "model/list":
+			writeCodexHelperMessage(request.ID, map[string]any{"data": []any{
+				map[string]any{"id": "codex", "model": "gpt-5.3-codex", "displayName": "Codex", "description": "Основная модель", "hidden": false, "isDefault": true},
+				map[string]any{"id": "gpt-5.3-codex-spark", "model": "gpt-5.3-codex-spark", "displayName": "GPT-5.3-Codex-Spark", "description": "Быстрая модель", "hidden": false, "isDefault": false},
+			}})
 		case "thread/start":
 			var params struct {
-				Ephemeral bool `json:"ephemeral"`
+				Ephemeral bool   `json:"ephemeral"`
+				Model     string `json:"model"`
 			}
 			if json.Unmarshal(request.Params, &params) != nil || !params.Ephemeral {
 				writeCodexHelperError(request.ID, -32602, "thread must be ephemeral")
+				continue
+			}
+			if params.Model != "" && params.Model != "gpt-5.3-codex-spark" {
+				writeCodexHelperError(request.ID, -32602, "unexpected model")
 				continue
 			}
 			writeCodexHelperMessage(request.ID, map[string]any{"thread": map[string]any{"id": "thread-test"}})

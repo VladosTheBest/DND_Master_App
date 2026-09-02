@@ -1,6 +1,7 @@
 import type {
   CodexConnectionStatus,
   CodexDeviceCodeResult,
+  CodexModelOption,
   CodexRateLimitSnapshot,
   CodexRateLimitWindow
 } from "@shadow-edge/shared-types";
@@ -20,7 +21,10 @@ type PromptFailure = {
 type ActivePrompt = {
   text: string;
   includeImages: boolean;
+  modelName?: string;
 };
+
+const selectedModelStorageKey = "dnd-master.codex-model";
 
 type PromptKindHint = {
   label: string;
@@ -184,6 +188,7 @@ function CodexPromptProgress({ activePrompt, elapsedSeconds }: { activePrompt: A
       <details className="codex-active-request">
         <summary>Что именно сейчас выполняется</summary>
         <p>{activePrompt.text}</p>
+        {activePrompt.modelName ? <small>Модель: {activePrompt.modelName}</small> : null}
         <small>{activePrompt.includeImages ? "Включена подготовка выбранных изображений — это может занять больше времени." : "Изображения не генерируются."}</small>
       </details>
     </section>
@@ -307,6 +312,64 @@ function RateLimitCard({ snapshot }: { snapshot: CodexRateLimitSnapshot }) {
   );
 }
 
+const remainingPercent = (snapshot?: CodexRateLimitSnapshot) => snapshot?.primary
+  ? Math.max(0, 100 - Math.max(0, Math.min(100, snapshot.primary.usedPercent)))
+  : undefined;
+
+function ModelLimitSummary({ snapshot }: { snapshot?: CodexRateLimitSnapshot }) {
+  const remaining = remainingPercent(snapshot);
+  if (remaining === undefined) return <small>Лимит для модели не сообщён</small>;
+  const used = 100 - remaining;
+  return (
+    <div className={`codex-model-limit ${remaining <= 15 ? "danger" : remaining <= 35 ? "warning" : ""}`}>
+      <span><b>{remaining}% осталось</b><small>{used}% использовано{formatReset(snapshot?.primary?.resetsAt) ? ` · сброс ${formatReset(snapshot?.primary?.resetsAt)}` : ""}</small></span>
+      <i aria-hidden="true"><em style={{ width: `${remaining}%` }} /></i>
+    </div>
+  );
+}
+
+function CodexModelPicker({
+  models,
+  selectedModel,
+  limits,
+  onSelect
+}: {
+  models: CodexModelOption[];
+  selectedModel: string;
+  limits: Map<string, CodexRateLimitSnapshot>;
+  onSelect: (model: string) => void;
+}) {
+  const selected = models.find((model) => model.model === selectedModel) ?? models.find((model) => model.isDefault) ?? models[0];
+  if (!selected) return null;
+  const snapshotFor = (model: CodexModelOption) => model.rateLimitId ? limits.get(model.rateLimitId) : undefined;
+  return (
+    <details className="codex-model-picker">
+      <summary>
+        <span className="codex-model-icon" aria-hidden="true">✦</span>
+        <span><small>Модель для этого запроса</small><strong>{selected.displayName || selected.model}</strong></span>
+        <ModelLimitSummary snapshot={snapshotFor(selected)} />
+        <b aria-hidden="true">⌄</b>
+      </summary>
+      <div className="codex-model-menu">
+        <header><strong>Выбери модель</strong><small>Показываются реальные модели и лимиты подключённого аккаунта ChatGPT.</small></header>
+        {models.map((model) => {
+          const active = model.model === selected.model;
+          return (
+            <button className={active ? "active" : ""} key={model.id || model.model} onClick={(event) => {
+              onSelect(model.model);
+              event.currentTarget.closest("details")?.removeAttribute("open");
+            }} type="button">
+              <span className="codex-model-radio" aria-hidden="true">{active ? "✓" : ""}</span>
+              <span><strong>{model.displayName || model.model}{model.isDefault ? <em>По умолчанию</em> : null}</strong><small>{model.description || "Модель Codex"}</small></span>
+              <ModelLimitSummary snapshot={snapshotFor(model)} />
+            </button>
+          );
+        })}
+      </div>
+    </details>
+  );
+}
+
 export function CodexConnectionPanel({
   campaignId,
   onPromptOutcome,
@@ -328,6 +391,7 @@ export function CodexConnectionPanel({
   const [copied, setCopied] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [includeImages, setIncludeImages] = useState(false);
+  const [selectedModel, setSelectedModel] = useState(() => window.localStorage.getItem(selectedModelStorageKey) || "");
   const [promptBusy, setPromptBusy] = useState(false);
   const [promptNotice, setPromptNotice] = useState("");
   const [promptWarning, setPromptWarning] = useState("");
@@ -385,6 +449,22 @@ export function CodexConnectionPanel({
       .filter((value): value is CodexRateLimitSnapshot => Boolean(value));
     return Array.from(new Map(values.map((value, index) => [value.limitId || value.limitName || String(index), value])).values());
   }, [status]);
+  const limitsById = useMemo(() => new Map(limits.flatMap((limit) => limit.limitId ? [[limit.limitId, limit] as const] : [])), [limits]);
+  const models = status?.models ?? [];
+
+  useEffect(() => {
+    if (!models.length) return;
+    const next = models.some((model) => model.model === selectedModel)
+      ? selectedModel
+      : (models.find((model) => model.isDefault) ?? models[0]).model;
+    if (next !== selectedModel) setSelectedModel(next);
+    window.localStorage.setItem(selectedModelStorageKey, next);
+  }, [models, selectedModel]);
+
+  const chooseModel = (model: string) => {
+    setSelectedModel(model);
+    window.localStorage.setItem(selectedModelStorageKey, model);
+  };
 
   const detectedPromptKinds = useMemo(() => detectPromptKinds(prompt), [prompt]);
   const isCompoundPrompt = Boolean(campaignId) && detectedPromptKinds.length >= 2;
@@ -457,7 +537,8 @@ export function CodexConnectionPanel({
     }
     const startedAt = Date.now();
     const requestIncludesImages = includeImagesOverride ?? includeImages;
-    const requestSnapshot = { text: normalizedPrompt, includeImages: requestIncludesImages };
+    const selectedModelOption = models.find((model) => model.model === selectedModel);
+    const requestSnapshot = { text: normalizedPrompt, includeImages: requestIncludesImages, modelName: selectedModelOption?.displayName || selectedModelOption?.model };
     setPromptBusy(true);
     setPromptStartedAt(startedAt);
     setElapsedSeconds(0);
@@ -472,7 +553,8 @@ export function CodexConnectionPanel({
       const result = await api.runCodexPrompt({
         campaignId: campaignId || undefined,
         prompt: normalizedPrompt,
-        includeImages: requestIncludesImages
+        includeImages: requestIncludesImages,
+        model: selectedModel || undefined
       });
       setPrompt("");
       setIncludeImages(false);
@@ -564,6 +646,7 @@ export function CodexConnectionPanel({
               ) : (
                 <>
                   <label className="codex-prompt-label" htmlFor="codex-proposal-prompt">Что нужно подготовить</label>
+                  <CodexModelPicker limits={limitsById} models={models} onSelect={chooseModel} selectedModel={selectedModel} />
                   <textarea
                     aria-describedby={isCompoundPrompt ? "codex-compound-prompt-guidance" : undefined}
                     className="input textarea"

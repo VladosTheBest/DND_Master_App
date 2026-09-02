@@ -70,7 +70,17 @@ type codexConnectionStatus struct {
 	Message       string                            `json:"message,omitempty"`
 	RateLimits    *codexRateLimitSnapshot           `json:"rateLimits,omitempty"`
 	RateLimitSets map[string]codexRateLimitSnapshot `json:"rateLimitsByLimitId,omitempty"`
+	Models        []codexModelOption                `json:"models,omitempty"`
 	Modes         []codexProviderMode               `json:"modes"`
+}
+
+type codexModelOption struct {
+	ID          string `json:"id"`
+	Model       string `json:"model"`
+	DisplayName string `json:"displayName"`
+	Description string `json:"description,omitempty"`
+	IsDefault   bool   `json:"isDefault"`
+	RateLimitID string `json:"rateLimitId,omitempty"`
 }
 
 type codexDeviceCodeResult struct {
@@ -90,6 +100,7 @@ type codexPromptInput struct {
 	Prompt        string            `json:"prompt"`
 	ThreadID      string            `json:"threadId,omitempty"`
 	IncludeImages bool              `json:"includeImages,omitempty"`
+	Model         string            `json:"model,omitempty"`
 	ImageTarget   *codexImageTarget `json:"imageTarget,omitempty"`
 }
 
@@ -421,6 +432,7 @@ func (manager *codexBridgeManager) status(ctx context.Context, user authUser) co
 
 	if status.State == "connected" && status.AuthMode == "chatgpt" {
 		manager.readRateLimits(ctx, bridge, &status)
+		manager.readModels(ctx, bridge, &status)
 	}
 	return status
 }
@@ -438,6 +450,47 @@ func (manager *codexBridgeManager) readRateLimits(ctx context.Context, bridge *c
 	}
 	status.RateLimits = limits.RateLimits
 	status.RateLimitSets = limits.RateLimitsByLimitID
+}
+
+func (manager *codexBridgeManager) readModels(ctx context.Context, bridge *codexUserBridge, status *codexConnectionStatus) {
+	var catalog struct {
+		Data []struct {
+			ID, Model, DisplayName, Description string
+			Hidden, IsDefault                   bool
+		} `json:"data"`
+	}
+	callCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	err := bridge.client.call(callCtx, "model/list", map[string]any{}, &catalog)
+	cancel()
+	if err != nil {
+		return
+	}
+	for _, model := range catalog.Data {
+		if model.Hidden || strings.TrimSpace(model.Model) == "" {
+			continue
+		}
+		status.Models = append(status.Models, codexModelOption{
+			ID: model.ID, Model: model.Model, DisplayName: model.DisplayName,
+			Description: model.Description, IsDefault: model.IsDefault,
+			RateLimitID: matchModelRateLimit(model.Model, model.ID, model.DisplayName, status),
+		})
+	}
+}
+
+func matchModelRateLimit(model, id, displayName string, status *codexConnectionStatus) string {
+	for _, value := range []string{model, id, displayName} {
+		normalized := strings.NewReplacer(" ", "-", "_", "-").Replace(strings.ToLower(strings.TrimSpace(value)))
+		for limitID := range status.RateLimitSets {
+			candidate := strings.NewReplacer(" ", "-", "_", "-").Replace(strings.ToLower(strings.TrimSpace(limitID)))
+			if normalized == candidate {
+				return limitID
+			}
+		}
+	}
+	if status.RateLimits != nil && status.RateLimits.LimitID != nil {
+		return *status.RateLimits.LimitID
+	}
+	return ""
 }
 
 func (manager *codexBridgeManager) startDeviceCode(ctx context.Context, user authUser) (codexDeviceCodeResult, error) {
@@ -560,6 +613,19 @@ func (manager *codexBridgeManager) runPrompt(ctx context.Context, user authUser,
 	if status.State != "connected" || status.AuthMode != "chatgpt" {
 		return codexPromptResult{}, fmt.Errorf("Сначала подключи ChatGPT через Codex App Server.")
 	}
+	input.Model = strings.TrimSpace(input.Model)
+	if input.Model != "" {
+		allowed := false
+		for _, model := range status.Models {
+			if model.Model == input.Model {
+				allowed = true
+				break
+			}
+		}
+		if !allowed {
+			return codexPromptResult{}, &codexPromptPublicError{code: "codex_model_unavailable", message: "Выбранная модель больше недоступна. Обнови список и выбери другую."}
+		}
+	}
 
 	manager.mu.Lock()
 	if manager.bridges[user.ID] != bridge || !bridge.client.running() {
@@ -599,6 +665,9 @@ func (manager *codexBridgeManager) runPrompt(ctx context.Context, user authUser,
 			"developerInstructions": codexBridgeInstructions,
 			"serviceName":           "dnd_master_web",
 			"config":                threadConfig,
+		}
+		if input.Model != "" {
+			params["model"] = input.Model
 		}
 		callCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		err = bridge.client.call(callCtx, "thread/start", params, &started)

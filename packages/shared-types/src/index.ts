@@ -820,6 +820,15 @@ export interface CodexRateLimitSnapshot {
   rateLimitReachedType?: string;
 }
 
+export interface CodexModelOption {
+  id: string;
+  model: string;
+  displayName: string;
+  description?: string;
+  isDefault: boolean;
+  rateLimitId?: string;
+}
+
 export interface CodexConnectionStatus {
   enabled: boolean;
   available: boolean;
@@ -829,6 +838,7 @@ export interface CodexConnectionStatus {
   message?: string;
   rateLimits?: CodexRateLimitSnapshot;
   rateLimitsByLimitId?: Record<string, CodexRateLimitSnapshot>;
+  models?: CodexModelOption[];
   modes: CodexProviderMode[];
 }
 
@@ -844,6 +854,7 @@ export interface CodexPromptInput {
   prompt: string;
   threadId?: string;
   includeImages?: boolean;
+  model?: string;
   imageTarget?: {
     entityId: string;
     entityKind: EntityKind;
