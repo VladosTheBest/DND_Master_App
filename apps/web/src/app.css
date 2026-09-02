@@ -2852,6 +2852,23 @@ button.quest-preview-entity-copy:focus-visible {
   align-items: end;
   min-width: 0;
 }
+
+.player-facing-generation-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(12rem, .35fr) auto;
+  gap: .8rem;
+  align-items: end;
+  padding: 1rem;
+  border-color: rgba(164, 112, 226, .42);
+  background: linear-gradient(135deg, rgba(91, 55, 135, .2), rgba(18, 20, 29, .96));
+}
+.player-facing-generation-prompt { grid-row: span 2; }
+.player-facing-generation-panel textarea { resize: vertical; }
+
+@media (max-width: 760px) {
+  .player-facing-generation-panel { grid-template-columns: 1fr; }
+  .player-facing-generation-prompt { grid-row: auto; }
+}
 .combat-player-form > .field,
 .combat-player-form .combat-start-initiative-field {
   min-width: 0;

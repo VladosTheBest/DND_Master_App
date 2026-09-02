@@ -1602,6 +1602,7 @@ type PlayerFacingEntityModalProps = {
   formatting?: boolean;
   isNew?: boolean;
   onAutoFormat?: (card: PlayerFacingCard) => Promise<PlayerFacingCard | void>;
+  onGenerate?: (prompt: string, targetLength: number, card: PlayerFacingCard) => Promise<PlayerFacingCard | void>;
   onCancelEdit?: () => void;
   onClose: () => void;
   onEnterEdit?: () => void;
@@ -1619,6 +1620,7 @@ export function PlayerFacingEntityModal({
   formatting = false,
   isNew = false,
   onAutoFormat,
+  onGenerate,
   onCancelEdit,
   onClose,
   onEnterEdit,
@@ -1639,6 +1641,10 @@ export function PlayerFacingEntityModal({
   const [draftTitle, setDraftTitle] = useState(resolvedTitle);
   const [draftContent, setDraftContent] = useState(resolvedContent);
   const [draftContentHtml, setDraftContentHtml] = useState(initialEditableHtml);
+  const [generationOpen, setGenerationOpen] = useState(false);
+  const [generationPrompt, setGenerationPrompt] = useState("");
+  const [generationSize, setGenerationSize] = useState("medium");
+  const [customLength, setCustomLength] = useState(1200);
 
   useEffect(() => {
     setDraftTitle(resolvedTitle);
@@ -1743,6 +1749,20 @@ export function PlayerFacingEntityModal({
     }
   };
 
+  const generationLength = generationSize === "short" ? 600 : generationSize === "large" ? 1800 : generationSize === "custom" ? Math.max(300, Math.min(5000, customLength || 300)) : 1100;
+  const handleGenerate = async () => {
+    if (!onGenerate || !generationPrompt.trim()) return;
+    try {
+      const generated = await onGenerate(generationPrompt, generationLength, readDraftCard());
+      if (generated) {
+        syncDraftCard(generated);
+        setGenerationOpen(false);
+      }
+    } catch {
+      // Parent reports the error in the shared notice area.
+    }
+  };
+
   return (
     <div className="overlay" role="presentation">
       <div className="panel palette player-facing-modal" onClick={(event) => event.stopPropagation()} role="dialog">
@@ -1770,6 +1790,11 @@ export function PlayerFacingEntityModal({
                 </button>
               ) : null}
               {editMode ? (
+                <button className="ghost player-facing-ai-button" disabled={formatting || saving} onClick={() => setGenerationOpen((value) => !value)} type="button">
+                  Сгенерировать
+                </button>
+              ) : null}
+              {editMode ? (
                 <button className="ghost player-facing-ai-button" disabled={formatting || saving} onClick={() => void handleAutoFormat()} type="button">
                   {formatting ? <span aria-hidden="true" className="player-facing-button-spinner" /> : null}
                   {formatting ? "AI форматирует" : "AI форматирование"}
@@ -1790,6 +1815,28 @@ export function PlayerFacingEntityModal({
               </button>
             </div>
           </div>
+
+          {editMode && generationOpen ? (
+            <section className="card player-facing-generation-panel">
+              <label className="field player-facing-generation-prompt">
+                <span>Что должно быть в карточке</span>
+                <textarea className="textarea" onChange={(event) => setGenerationPrompt(event.target.value)} placeholder="Например: речь трактирщика о пропавшем караване, с тревожными деталями и зацепкой для игроков" rows={3} value={generationPrompt} />
+              </label>
+              <label className="field">
+                <span>Объём</span>
+                <select className="input" onChange={(event) => setGenerationSize(event.target.value)} value={generationSize}>
+                  <option value="short">Короткая (600 символов)</option>
+                  <option value="medium">Средняя (1100 символов)</option>
+                  <option value="large">Большая (1800 символов)</option>
+                  <option value="custom">Свой объём</option>
+                </select>
+              </label>
+              {generationSize === "custom" ? <label className="field"><span>Количество символов</span><input className="input" max={5000} min={300} onChange={(event) => setCustomLength(Number(event.target.value))} type="number" value={customLength} /></label> : null}
+              <button className="primary" disabled={formatting || saving || !generationPrompt.trim()} onClick={() => void handleGenerate()} type="button">
+                {formatting ? "AI создаёт..." : `Создать около ${generationLength} символов`}
+              </button>
+            </section>
+          ) : null}
 
           <section className="card section-card player-facing-card">
             <div className="player-facing-scroll">

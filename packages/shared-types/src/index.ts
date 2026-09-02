@@ -876,6 +876,9 @@ export interface FormatPlayerFacingCardInput {
   contentHtml?: string;
   entityId?: string;
   entityKind?: EntityKind;
+  mode?: "format" | "generate";
+  prompt?: string;
+  targetLength?: number;
 }
 
 export interface FormatPlayerFacingCardResult {

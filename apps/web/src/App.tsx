@@ -341,6 +341,22 @@ type CombatReturnTarget = {
 type CombatPrepIconName = "players" | "enemy" | "initiative" | "round" | "conditions" | "notes" | "swords";
 
 const combatReturnTargetsStorageKey = "shadow-edge:combat-return-targets";
+const activeCampaignStorageKey = "shadow-edge:active-campaign";
+
+const readStoredActiveCampaignId = () => {
+  if (typeof window === "undefined") return "";
+  try { return window.localStorage.getItem(activeCampaignStorageKey)?.trim() ?? ""; } catch { return ""; }
+};
+
+const writeStoredActiveCampaignId = (campaignId: string) => {
+  if (typeof window === "undefined") return;
+  try {
+    if (campaignId) window.localStorage.setItem(activeCampaignStorageKey, campaignId);
+    else window.localStorage.removeItem(activeCampaignStorageKey);
+  } catch {
+    // The current session still works when browser storage is unavailable.
+  }
+};
 
 const isCombatReturnTarget = (value: unknown): value is CombatReturnTarget => {
   if (!value || typeof value !== "object") {
@@ -1519,6 +1535,7 @@ export default function App() {
   const [campaigns, setCampaigns] = useState<CampaignSummary[]>([]);
   const [campaign, setCampaign] = useState<CampaignData | null>(null);
   const [activeCampaignId, setActiveCampaignId] = useState("");
+  const campaignSelectionRequestRef = useRef(0);
   const [activeModule, setActiveModule] = useState<ModuleId>("dashboard");
   const [activeRailAlias, setActiveRailAlias] = useState<RailAlias | null>(null);
   const [activeTab, setActiveTab] = useState("Snapshot");
@@ -1650,10 +1667,12 @@ export default function App() {
       if (!activeCampaignId || nextCampaigns.some((item) => item.id === activeCampaignId)) return;
       const fallback = nextCampaigns[0];
       if (fallback) {
+        writeStoredActiveCampaignId(fallback.id);
         void loadCampaign(fallback.id).catch((error) => {
           setBootError(error instanceof Error ? error.message : "Не удалось открыть оставшуюся кампанию.");
         });
       } else {
+        writeStoredActiveCampaignId("");
         resetCampaignState();
       }
     }
@@ -2099,8 +2118,11 @@ export default function App() {
           return;
         }
 
-        const initialId =
-          appRoute.mode === "initiative" && list.some((item) => item.id === appRoute.campaignId) ? appRoute.campaignId : list[0].id;
+        const storedId = readStoredActiveCampaignId();
+        const initialId = appRoute.mode === "initiative" && list.some((item) => item.id === appRoute.campaignId)
+          ? appRoute.campaignId
+          : list.some((item) => item.id === storedId) ? storedId : list[0].id;
+        if (appRoute.mode !== "initiative") writeStoredActiveCampaignId(initialId);
         const data = await api.getCampaign(initialId);
         if (cancelled) return;
 
@@ -3253,9 +3275,14 @@ export default function App() {
   };
 
   const handleCampaignSelect = async (campaignId: string) => {
+    const requestId = campaignSelectionRequestRef.current + 1;
+    campaignSelectionRequestRef.current = requestId;
     try {
       setBootError("");
-      await loadCampaign(campaignId);
+      const data = await api.getCampaign(campaignId);
+      if (campaignSelectionRequestRef.current !== requestId) return;
+      writeStoredActiveCampaignId(campaignId);
+      hydrateCampaign(data);
     } catch (error) {
       setBootError(error instanceof Error ? error.message : "Не удалось открыть кампанию.");
     }

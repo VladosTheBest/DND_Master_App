@@ -580,11 +580,14 @@ type generateEntityDraftResult struct {
 }
 
 type formatPlayerFacingCardInput struct {
-	Title       string `json:"title"`
-	Content     string `json:"content"`
-	ContentHTML string `json:"contentHtml,omitempty"`
-	EntityID    string `json:"entityId,omitempty"`
-	EntityKind  string `json:"entityKind,omitempty"`
+	Title        string `json:"title"`
+	Content      string `json:"content"`
+	ContentHTML  string `json:"contentHtml,omitempty"`
+	EntityID     string `json:"entityId,omitempty"`
+	EntityKind   string `json:"entityKind,omitempty"`
+	Mode         string `json:"mode,omitempty"`
+	Prompt       string `json:"prompt,omitempty"`
+	TargetLength int    `json:"targetLength,omitempty"`
 }
 
 type formatPlayerFacingCardResult struct {

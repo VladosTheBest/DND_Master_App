@@ -255,10 +255,17 @@ func (generator scaffoldGenerator) GenerateWorldEvent(campaign campaignData, inp
 }
 
 func (generator scaffoldGenerator) FormatPlayerFacingCard(_ campaignData, input formatPlayerFacingCardInput) (formatPlayerFacingCardResult, error) {
+	content := strings.TrimSpace(input.Content)
+	if input.Mode == "generate" {
+		content = strings.TrimSpace(input.Prompt)
+		if content == "" {
+			content = "Подробная сцена для игроков"
+		}
+	}
 	card := normalizeFormattedPlayerFacingCard(playerFacingCard{
 		Title:       strings.TrimSpace(input.Title),
-		Content:     strings.TrimSpace(input.Content),
-		ContentHTML: firstNonEmpty(strings.TrimSpace(input.ContentHTML), buildScaffoldPlayerFacingHTML(input.Title, input.Content)),
+		Content:     content,
+		ContentHTML: firstNonEmpty(strings.TrimSpace(input.ContentHTML), buildScaffoldPlayerFacingHTML(input.Title, content)),
 	})
 
 	return formatPlayerFacingCardResult{

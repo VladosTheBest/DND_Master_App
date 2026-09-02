@@ -12,6 +12,7 @@ export function PlayerFacingController({
     cancelPlayerFacingEditMode,
     enterPlayerFacingEditMode,
     formatPlayerFacingCardFromModal,
+    generatePlayerFacingCardFromModal,
     playerFacingEntity,
     playerFacingModalFormatting,
     playerFacingModalSaving,
@@ -33,6 +34,7 @@ export function PlayerFacingController({
       formatting={playerFacingModalFormatting}
       isNew={Boolean(playerFacingView.isNew)}
       onAutoFormat={formatPlayerFacingCardFromModal}
+      onGenerate={generatePlayerFacingCardFromModal}
       onCancelEdit={cancelPlayerFacingEditMode}
       onClose={onClose}
       onEnterEdit={enterPlayerFacingEditMode}

@@ -222,17 +222,38 @@ func (generator openAIGenerator) FormatPlayerFacingCard(campaign campaignData, i
 		return formatPlayerFacingCardResult{}, err
 	}
 
+	normalized := normalizeFormattedPlayerFacingCard(playerFacingCard{
+		Title: card.Title, Content: card.Content, ContentHTML: card.ContentHTML,
+	})
+	if input.Mode == "generate" && len([]rune(normalized.Content)) < normalizePlayerFacingTargetLength(input.TargetLength) {
+		retryInput := input
+		retryInput.Prompt = fmt.Sprintf("%s\n\nThe previous draft was only %d characters. Expand it with concrete, useful scene details until it contains at least %d characters.", strings.TrimSpace(input.Prompt), len([]rune(normalized.Content)), normalizePlayerFacingTargetLength(input.TargetLength))
+		card, err = generator.requestPlayerFacingCardFormat(campaign, retryInput)
+		if err != nil {
+			return formatPlayerFacingCardResult{}, err
+		}
+		normalized = normalizeFormattedPlayerFacingCard(playerFacingCard{Title: card.Title, Content: card.Content, ContentHTML: card.ContentHTML})
+		if len([]rune(normalized.Content)) < normalizePlayerFacingTargetLength(input.TargetLength) {
+			return formatPlayerFacingCardResult{}, fmt.Errorf("AI generated a card shorter than the selected target length after a retry")
+		}
+	}
 	return formatPlayerFacingCardResult{
 		Provider: generator.config.activeProvider,
 		Notes: append(generator.buildNotes(campaign),
 			"AI сохранил смысл текста, но оформил его как player-facing handout с безопасным HTML-фрагментом.",
 		),
-		Card: normalizeFormattedPlayerFacingCard(playerFacingCard{
-			Title:       card.Title,
-			Content:     card.Content,
-			ContentHTML: card.ContentHTML,
-		}),
+		Card: normalized,
 	}, nil
+}
+
+func normalizePlayerFacingTargetLength(value int) int {
+	if value < 300 {
+		return 300
+	}
+	if value > 5000 {
+		return 5000
+	}
+	return value
 }
 
 func (generator openAIGenerator) generateQuestIssuerDraft(
@@ -574,10 +595,14 @@ func (generator openAIGenerator) requestCampaignBlueprint(input generateCampaign
 }
 
 func (generator openAIGenerator) requestPlayerFacingCardFormat(campaign campaignData, input formatPlayerFacingCardInput) (openAIPlayerFacingCardPayload, error) {
+	systemPrompt := buildOpenAIPlayerFacingFormatSystemPrompt()
+	if input.Mode == "generate" {
+		systemPrompt += "\n- This is generation, not formatting: create new scene content from the request and campaign context. You may invent fitting details, but do not contradict established canon.\n- The plain-text content must meet or exceed the requested target character count with meaningful material, not filler."
+	}
 	requestBody := openAIChatCompletionRequest{
 		Model: generator.config.model,
 		Messages: []openAIChatMessage{
-			{Role: "system", Content: buildOpenAIPlayerFacingFormatSystemPrompt()},
+			{Role: "system", Content: systemPrompt},
 			{Role: "user", Content: buildOpenAIPlayerFacingFormatUserPrompt(campaign, input)},
 		},
 		ResponseFormat: openAIResponseFormat{
@@ -954,6 +979,16 @@ Rules:
 }
 
 func buildOpenAIPlayerFacingFormatUserPrompt(campaign campaignData, input formatPlayerFacingCardInput) string {
+	if input.Mode == "generate" {
+		return strings.TrimSpace(fmt.Sprintf(`Create one detailed player-facing card for the GM app.
+
+User request: %s
+Target length: at least %d characters of meaningful plain-text content.
+Entity metadata: %s
+Campaign context: %s
+
+Invent details only where they are consistent with the entity and campaign. Write a complete, table-ready card in Russian with several substantial paragraphs or a useful structured list. Return both readable plain text and safe formatted HTML.`, firstNonEmpty(strings.TrimSpace(input.Prompt), "Create a useful player-facing scene from this entity."), normalizePlayerFacingTargetLength(input.TargetLength), marshalAIJSON(map[string]any{"title": strings.TrimSpace(input.Title), "entityId": strings.TrimSpace(input.EntityID), "entityKind": strings.TrimSpace(input.EntityKind)}), marshalAIJSON(compactCampaignContext(campaign))))
+	}
 	return strings.TrimSpace(fmt.Sprintf(`Format one player-facing card for the GM app.
 
 Card metadata:

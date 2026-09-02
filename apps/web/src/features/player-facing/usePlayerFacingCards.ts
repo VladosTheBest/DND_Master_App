@@ -376,11 +376,32 @@ export function usePlayerFacingCards({
     }
   };
 
+  const generatePlayerFacingCardFromModal = async (prompt: string, targetLength: number, card: PlayerFacingCard) => {
+    if (!activeCampaignId || !playerFacingEntity) return undefined;
+    if (!prompt.trim()) throw new Error("Опиши, какую карточку нужно создать.");
+    try {
+      setPlayerFacingModalFormatting(true);
+      setBootError("");
+      const result = await api.formatPlayerFacingCard(activeCampaignId, {
+        title: card.title.trim(), content: "", entityId: playerFacingEntity.id,
+        entityKind: playerFacingEntity.kind, mode: "generate", prompt: prompt.trim(), targetLength
+      });
+      const cardIndex = playerFacingView?.cardIndex ?? 0;
+      return sanitizeSinglePlayerFacingCard(playerFacingEntity.kind, result.card, cardIndex) ?? result.card;
+    } catch (error) {
+      setBootError(error instanceof Error ? error.message : "Не удалось сгенерировать карточку через AI.");
+      throw error;
+    } finally {
+      setPlayerFacingModalFormatting(false);
+    }
+  };
+
   return {
     cancelPlayerFacingEditMode,
     closePlayerFacingView,
     enterPlayerFacingEditMode,
     formatPlayerFacingCardFromModal,
+    generatePlayerFacingCardFromModal,
     openNewPlayerFacingEditor,
     openPlayerFacingEditor,
     openPlayerFacingView,
