@@ -539,7 +539,7 @@ function AIProposalReviewModal({ controller, renderEntity }: AIProposalCenterPro
             <h2>{proposalTitle(proposal)}</h2>
             <p>{proposal.prompt}</p>
           </div>
-          <button autoFocus className="ghost" disabled={Boolean(controller.action)} onClick={controller.closeProposal} type="button">Закрыть</button>
+          <button autoFocus className="ghost" disabled={Boolean(controller.action)} onClick={controller.closeProposal} type="button">К списку черновиков</button>
         </header>
 
         <div className="ai-proposal-review-tabs" role="tablist">

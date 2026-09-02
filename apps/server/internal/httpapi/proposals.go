@@ -1331,7 +1331,12 @@ func proposalExpired(proposal aiProposal, now time.Time) bool {
 }
 
 func verifyProposalBaseRevisions(proposal aiProposal, campaign campaignData) error {
-	if expected, ok := proposal.BaseRevisions["campaign"]; ok && campaign.Revision != expected {
+	// Independent create proposals from one Codex request intentionally share a
+	// campaign base revision. Applying one increments the campaign, but does not
+	// make its siblings unsafe: create paths revalidate IDs, references and media
+	// against the current campaign immediately before insertion.
+	isRebasableCreate := proposal.Kind == "entity_create" || proposal.Kind == "event_create"
+	if expected, ok := proposal.BaseRevisions["campaign"]; ok && campaign.Revision != expected && !isRebasableCreate {
 		return staleRevisionFailure("campaign")
 	}
 	if proposal.Target.EntityID != "" {

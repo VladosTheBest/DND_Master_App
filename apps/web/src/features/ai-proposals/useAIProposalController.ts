@@ -176,6 +176,7 @@ export function useAIProposalController({
     setProposalCampaign(null);
     setConflict("");
     setError("");
+    setInboxOpen(true);
   }, [action]);
 
   const requestEntityProposal = useCallback((entity: KnowledgeEntity) => {

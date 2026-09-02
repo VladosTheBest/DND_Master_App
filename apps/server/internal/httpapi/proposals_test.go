@@ -487,6 +487,64 @@ func TestProposalApplyRejectsStaleRevision(t *testing.T) {
 	}
 }
 
+func TestSiblingCreateProposalsApplyAfterCampaignRevisionAdvances(t *testing.T) {
+	store, service, user, campaign := newProposalTestService(t)
+	first, err := service.createEntity(user.ID, campaign.ID, entityProposalInput{
+		Mode: "create", Kind: "lore", Candidate: json.RawMessage(`{"title":"First entry","summary":"First","content":"First"}`),
+	})
+	if err != nil {
+		t.Fatalf("create first proposal: %v", err)
+	}
+	second, err := service.createEntity(user.ID, campaign.ID, entityProposalInput{
+		Mode: "create", Kind: "lore", Candidate: json.RawMessage(`{"title":"Second entry","summary":"Second","content":"Second"}`),
+	})
+	if err != nil {
+		t.Fatalf("create second proposal: %v", err)
+	}
+	if first.BaseRevisions["campaign"] != second.BaseRevisions["campaign"] {
+		t.Fatalf("siblings do not share a base revision: first=%v second=%v", first.BaseRevisions, second.BaseRevisions)
+	}
+	if _, err := service.apply(user.ID, first.ID, proposalApplyInput{}); err != nil {
+		t.Fatalf("apply first sibling: %v", err)
+	}
+	if _, err := service.apply(user.ID, second.ID, proposalApplyInput{}); err != nil {
+		t.Fatalf("apply rebased second sibling: %v", err)
+	}
+	current, err := store.getCampaignForUser(user.ID, campaign.ID)
+	if err != nil {
+		t.Fatalf("get campaign: %v", err)
+	}
+	if len(current.Lore) != 2 {
+		t.Fatalf("applied lore count = %d, want 2", len(current.Lore))
+	}
+}
+
+func TestRebasedCreateStillRejectsCurrentIDCollision(t *testing.T) {
+	store, service, user, campaign := newProposalTestService(t)
+	proposal, err := service.createEntity(user.ID, campaign.ID, entityProposalInput{
+		Mode: "create", Kind: "lore", Candidate: json.RawMessage(`{"title":"Collision","summary":"Draft","content":"Draft"}`),
+	})
+	if err != nil {
+		t.Fatalf("create proposal: %v", err)
+	}
+	var candidate knowledgeEntity
+	if err := json.Unmarshal(proposal.After, &candidate); err != nil {
+		t.Fatalf("decode proposal candidate: %v", err)
+	}
+	store.mu.Lock()
+	campaignIndex := findOwnedCampaignIndexLocked(&store.data, user.ID, campaign.ID)
+	store.data.Campaigns[campaignIndex].Lore = append(store.data.Campaigns[campaignIndex].Lore, candidate)
+	store.data.Campaigns[campaignIndex].Revision++
+	if err := store.saveLocked(); err != nil {
+		store.mu.Unlock()
+		t.Fatalf("persist colliding entity: %v", err)
+	}
+	store.mu.Unlock()
+	if _, err := service.apply(user.ID, proposal.ID, proposalApplyInput{}); proposalErrorCode(t, err) != "duplicate_entity" {
+		t.Fatalf("collision error = %v, want duplicate_entity", err)
+	}
+}
+
 func TestProposalHTTPApplyMapsStaleRevisionToConflict(t *testing.T) {
 	handler := newAccountTestServer(t)
 	cookies := registerAccountTestUser(t, handler, "proposal-http-stale-gm")
