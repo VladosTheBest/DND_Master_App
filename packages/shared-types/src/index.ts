@@ -852,6 +852,7 @@ export interface CodexPromptResult {
   status: string;
   message?: string;
   proposalIds: string[];
+  warning?: string;
 }
 
 export interface FormatPlayerFacingCardInput {

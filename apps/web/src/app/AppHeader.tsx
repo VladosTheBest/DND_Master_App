@@ -12,6 +12,8 @@ type DefaultHeaderProps = {
   canOpenDirectory: boolean;
   pinnedEntities: KnowledgeEntity[];
   pendingProposalCount: number;
+  codexPromptOutcome: "error" | "warning" | null;
+  codexPromptRunning: boolean;
   onOpenSearch: () => void;
   onOpenCombat: () => void;
   onOpenDirectory: () => void;
@@ -141,8 +143,23 @@ export function AppHeader(props: AppHeaderProps) {
             Сцена для зачитки
           </button>
         ) : null}
-        <button className="ghost ai-proposal-inbox-button" onClick={props.onOpenAIProposals} type="button">
-          AI-черновики
+        <button
+          className={`ghost ai-proposal-inbox-button ${props.codexPromptRunning ? "working" : props.codexPromptOutcome ? "needs-attention" : ""}`.trim()}
+          onClick={props.onOpenAIProposals}
+          type="button"
+        >
+          <span aria-live="polite">
+            {props.codexPromptRunning
+              ? "Codex работает…"
+              : props.codexPromptOutcome === "warning"
+                ? "Codex: проверь результат"
+                : props.codexPromptOutcome === "error"
+                  ? "Codex: нужна проверка"
+                  : "AI-черновики"}
+          </span>
+          {props.codexPromptRunning || props.codexPromptOutcome ? (
+            <span aria-hidden="true" className={`ai-proposal-running-dot ${props.codexPromptOutcome || ""}`.trim()} />
+          ) : null}
           {props.pendingProposalCount ? <span className="ai-proposal-count">{props.pendingProposalCount}</span> : null}
         </button>
         <button className="ghost" onClick={props.onOpenPlayerSurveys} type="button">Анкеты игроков</button>

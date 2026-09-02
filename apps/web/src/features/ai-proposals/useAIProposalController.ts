@@ -63,6 +63,8 @@ export function useAIProposalController({
   const [inboxOpen, setInboxOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [action, setAction] = useState<"create" | "apply" | "reject" | "undo" | "media" | null>(null);
+  const [codexPromptRunning, setCodexPromptRunning] = useState(false);
+  const [codexPromptOutcome, setCodexPromptOutcome] = useState<"error" | "warning" | null>(null);
   const [error, setError] = useState("");
   const [conflict, setConflict] = useState("");
 
@@ -100,10 +102,18 @@ export function useAIProposalController({
     };
   }, [authenticated, refresh]);
 
+  useEffect(() => {
+    if (authenticated) return;
+    setCodexPromptOutcome(null);
+    setCodexPromptRunning(false);
+    setInboxOpen(false);
+  }, [authenticated]);
+
   const pendingCount = proposals.length;
 
   const openInbox = useCallback(() => {
     setInboxOpen(true);
+    setCodexPromptOutcome(null);
     setError("");
     void refresh();
   }, [refresh]);
@@ -306,6 +316,8 @@ export function useAIProposalController({
     closeInbox,
     closePrompt,
     closeProposal,
+    codexPromptOutcome,
+    codexPromptRunning,
     conflict,
     error,
     inboxOpen,
@@ -324,6 +336,8 @@ export function useAIProposalController({
     requestEntityProposal,
     selectedProposal,
     setIncludeImage,
+    setCodexPromptOutcome,
+    setCodexPromptRunning,
     setProposalMediaSelected,
     setPrompt,
     submitPrompt,

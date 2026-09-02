@@ -88,6 +88,11 @@ func (srv *server) handleCodexPrompt(writer http.ResponseWriter, request *http.R
 func writeCodexBridgeError(writer http.ResponseWriter, err error) {
 	status := http.StatusBadGateway
 	code := "codex_bridge_failed"
+	var publicFailure *codexPromptPublicError
+	if errors.As(err, &publicFailure) {
+		writeError(writer, status, publicFailure.code, publicFailure.message)
+		return
+	}
 	if errors.Is(err, context.DeadlineExceeded) {
 		status = http.StatusGatewayTimeout
 		code = "codex_bridge_timeout"

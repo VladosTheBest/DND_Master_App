@@ -4311,13 +4311,16 @@ export default function App() {
 
   if (booting) {
     return (
-      <div className="boot">
-        <div className="panel boot-card">
-          <p className="eyebrow">Phase 1 Foundation</p>
-          <h1>Собираем кабинет мастера</h1>
-          <p>Загружаю кампанию, связи и рабочий shell для мастера.</p>
+      <>
+        <div className="boot">
+          <div className="panel boot-card">
+            <p className="eyebrow">Phase 1 Foundation</p>
+            <h1>Собираем кабинет мастера</h1>
+            <p>Загружаю кампанию, связи и рабочий shell для мастера.</p>
+          </div>
         </div>
-      </div>
+        <AIProposalCenter campaignId={activeCampaignId} controller={aiProposalController} key="ai-proposal-center" renderEntity={renderProposalEntity} />
+      </>
     );
   }
 
@@ -4338,8 +4341,23 @@ export default function App() {
               <button className="ghost ai-edit-button" onClick={aiProposalController.requestCampaignProposal} type="button">
                 Создать с AI
               </button>
-              <button className="ghost ai-proposal-inbox-button" onClick={aiProposalController.openInbox} type="button">
-                AI-черновики
+              <button
+                className={`ghost ai-proposal-inbox-button ${aiProposalController.codexPromptRunning ? "working" : aiProposalController.codexPromptOutcome ? "needs-attention" : ""}`.trim()}
+                onClick={aiProposalController.openInbox}
+                type="button"
+              >
+                <span aria-live="polite">
+                  {aiProposalController.codexPromptRunning
+                    ? "Codex работает…"
+                    : aiProposalController.codexPromptOutcome === "warning"
+                      ? "Codex: проверь результат"
+                      : aiProposalController.codexPromptOutcome === "error"
+                        ? "Codex: нужна проверка"
+                        : "AI-черновики"}
+                </span>
+                {aiProposalController.codexPromptRunning || aiProposalController.codexPromptOutcome ? (
+                  <span aria-hidden="true" className={`ai-proposal-running-dot ${aiProposalController.codexPromptOutcome || ""}`.trim()} />
+                ) : null}
                 {aiProposalController.pendingCount ? <span className="ai-proposal-count">{aiProposalController.pendingCount}</span> : null}
               </button>
             </div>
@@ -4359,13 +4377,14 @@ export default function App() {
           open={campaignModalOpen}
           saving={saving}
         />
-        <AIProposalCenter campaignId={activeCampaignId} controller={aiProposalController} renderEntity={renderProposalEntity} />
+        <AIProposalCenter campaignId={activeCampaignId} controller={aiProposalController} key="ai-proposal-center" renderEntity={renderProposalEntity} />
       </>
     );
   }
 
   if (appRoute.mode === "initiative") {
     return (
+      <>
         <InitiativeTrackerScreen
           activeCombat={campaign.activeCombat ?? null}
           lastCombatSummary={campaign.lastCombatSummary ?? null}
@@ -4374,7 +4393,9 @@ export default function App() {
           entityMap={entityMap}
         onNextTurn={() => void nextCombatTurn()}
         onSelectTurn={(entryId) => void setCombatTurn(entryId)}
-      />
+        />
+        <AIProposalCenter campaignId={activeCampaignId} controller={aiProposalController} key="ai-proposal-center" renderEntity={renderProposalEntity} />
+      </>
     );
   }
 
@@ -4472,6 +4493,8 @@ export default function App() {
                 onOpenSearch={openPalette}
                 pinnedEntities={pinnedEntities}
                 pendingProposalCount={aiProposalController.pendingCount}
+                codexPromptOutcome={aiProposalController.codexPromptOutcome}
+                codexPromptRunning={aiProposalController.codexPromptRunning}
                 variant="default"
               />
 
@@ -5279,7 +5302,7 @@ export default function App() {
       <EntityLinkContextMenu controller={entityLinkController} />
       <EntityLinkPickerModal controller={entityLinkController} onClose={requestEntityLinkModalClose} />
 
-      <AIProposalCenter campaignId={activeCampaignId} controller={aiProposalController} renderEntity={renderProposalEntity} />
+      <AIProposalCenter campaignId={activeCampaignId} controller={aiProposalController} key="ai-proposal-center" renderEntity={renderProposalEntity} />
 
       <CloseConfirmDialog
         onCancel={cancelModalCloseRequest}

@@ -131,11 +131,13 @@ func TestCodexBridgeDeviceLoginAndProposalPrompt(t *testing.T) {
 	if err != nil || len(generatedEntries) != 0 {
 		t.Fatalf("turn image scope was not cleared after success: entries=%v err=%v", generatedEntries, err)
 	}
-	if _, err := manager.runPrompt(context.Background(), user, codexPromptInput{
+	_, promptErr := manager.runPrompt(context.Background(), user, codexPromptInput{
 		CampaignID: campaign.ID,
 		Prompt:     "Pretend a proposal exists without creating one",
-	}); err == nil || !strings.Contains(err.Error(), "не создал проверяемый AI-черновик") {
-		t.Fatalf("runPrompt() accepted an agent-only claim without a new owned proposal: %v", err)
+	})
+	var publicFailure *codexPromptPublicError
+	if !errors.As(promptErr, &publicFailure) || publicFailure.code != codexNoProposalToolCode {
+		t.Fatalf("runPrompt() agent-only failure = %#v, want %s", promptErr, codexNoProposalToolCode)
 	}
 	generatedEntries, err = os.ReadDir(filepath.Join(homeRoot, "user-"+userHomeDigest(user.ID), "generated_images"))
 	if err != nil || len(generatedEntries) != 0 {
@@ -180,6 +182,141 @@ func TestCodexBridgeDeviceLoginAndProposalPrompt(t *testing.T) {
 			t.Fatalf("isolated config does not disable unrelated capability %q:\n%s", setting, configText)
 		}
 	}
+}
+
+func TestCodexBridgeReturnsVerifiedProposalAfterFailedTurn(t *testing.T) {
+	result, proposal, err := runCodexPartialProposalScenario(t, "verified-proposal-before-failed-turn", 2*time.Second)
+	if err != nil {
+		t.Fatalf("runPrompt() error = %v, want verified partial result", err)
+	}
+	if result.Status != "failed" {
+		t.Fatalf("runPrompt() status = %q, want failed", result.Status)
+	}
+	if len(result.ProposalIDs) != 1 || result.ProposalIDs[0] != proposal.ID {
+		t.Fatalf("runPrompt() proposal ids = %v, want [%s]", result.ProposalIDs, proposal.ID)
+	}
+	if !strings.Contains(result.Warning, "после сохранения") || !strings.Contains(result.Warning, "не повторяй запрос целиком") {
+		t.Fatalf("runPrompt() warning = %q, want verified partial-result guidance", result.Warning)
+	}
+}
+
+func TestCodexBridgeReturnsVerifiedProposalAfterTimeoutInterrupt(t *testing.T) {
+	result, proposal, err := runCodexPartialProposalScenario(t, "verified-proposal-before-timeout-interrupt", 250*time.Millisecond)
+	if err != nil {
+		t.Fatalf("runPrompt() error = %v, want verified partial result", err)
+	}
+	if result.Status != "interrupted" {
+		t.Fatalf("runPrompt() status = %q, want interrupted", result.Status)
+	}
+	if len(result.ProposalIDs) != 1 || result.ProposalIDs[0] != proposal.ID {
+		t.Fatalf("runPrompt() proposal ids = %v, want [%s]", result.ProposalIDs, proposal.ID)
+	}
+	if !strings.Contains(result.Warning, "до лимита времени") || !strings.Contains(result.Warning, "не повторяй запрос целиком") {
+		t.Fatalf("runPrompt() warning = %q, want timeout deduplication guidance", result.Warning)
+	}
+	if strings.Contains(strings.ToLower(result.Warning), "повтори запрос") {
+		t.Fatalf("runPrompt() warning recommends a blind retry: %q", result.Warning)
+	}
+}
+
+func runCodexPartialProposalScenario(t *testing.T, prompt string, requestTimeout time.Duration) (codexPromptResult, aiProposal, error) {
+	t.Helper()
+	t.Setenv("GO_WANT_CODEX_BRIDGE_HELPER", "1")
+
+	store, err := newCampaignStore(filepath.Join(t.TempDir(), "store.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	account, err := store.createUser("partial-proposal-owner", "a-valid-password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	auth, err := newAuthManager(AuthOptions{SessionTTL: time.Hour}, store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	campaign, err := store.createCampaignForUser(account.ID, createCampaignInput{Title: "Partial proposal campaign"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	homeRoot := filepath.Join(t.TempDir(), "homes")
+	manager := newCodexBridgeManager(CodexBridgeOptions{
+		Enabled:          true,
+		Command:          os.Args[0],
+		Args:             []string{"-test.run=TestCodexBridgeHelperProcess"},
+		HomeRoot:         homeRoot,
+		MCPCommand:       os.Args[0],
+		MCPArgs:          []string{"fake-mcp"},
+		InternalBaseURL:  "http://127.0.0.1:8080",
+		RequestTimeout:   requestTimeout,
+		MaxUserProcesses: 1,
+	}, auth)
+	manager.turnInterruptGrace = 250 * time.Millisecond
+	user := authUser{ID: account.ID, Username: account.Username}
+	defer manager.stopBridge(user.ID)
+
+	homeDir, _, err := manager.prepareUserHome(user.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(homeDir, "helper-connected"), []byte("connected"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	createdProposal := make(chan struct {
+		proposal aiProposal
+		err      error
+	}, 1)
+	proposalUploadDir := t.TempDir()
+	go func() {
+		turnMarker := filepath.Join(homeDir, "helper-partial-turn-started")
+		deadline := time.Now().Add(2 * time.Second)
+		for {
+			if _, markerErr := os.Stat(turnMarker); markerErr == nil {
+				break
+			} else if !errors.Is(markerErr, os.ErrNotExist) {
+				createdProposal <- struct {
+					proposal aiProposal
+					err      error
+				}{err: markerErr}
+				return
+			}
+			if time.Now().After(deadline) {
+				createdProposal <- struct {
+					proposal aiProposal
+					err      error
+				}{err: errors.New("helper turn did not start")}
+				return
+			}
+			time.Sleep(5 * time.Millisecond)
+		}
+
+		proposal, createErr := newProposalService(store, proposalUploadDir).createEntity(account.ID, campaign.ID, entityProposalInput{
+			Mode:      "create",
+			Kind:      "lore",
+			Prompt:    prompt,
+			Candidate: json.RawMessage(`{"kind":"lore","title":"Partial result","summary":"Created before terminal failure","content":"Review me"}`),
+			Source:    proposalSource{Type: "codex_app_server"},
+		})
+		if createErr == nil {
+			createErr = os.WriteFile(filepath.Join(homeDir, "helper-proposal-id"), []byte(proposal.ID), 0o600)
+		}
+		createdProposal <- struct {
+			proposal aiProposal
+			err      error
+		}{proposal: proposal, err: createErr}
+	}()
+
+	result, promptErr := manager.runPrompt(context.Background(), user, codexPromptInput{
+		CampaignID: campaign.ID,
+		Prompt:     prompt,
+	})
+	created := <-createdProposal
+	if created.err != nil {
+		t.Fatalf("simulated MCP proposal creation error = %v", created.err)
+	}
+	return result, created.proposal, promptErr
 }
 
 func TestCodexBridgeUsesDifferentHomesPerDNDUser(t *testing.T) {
@@ -406,6 +543,112 @@ func TestBuildCodexProposalPromptMakesImageConsentExplicit(t *testing.T) {
 	if strings.Contains(withoutImages, "$imagegen") || !strings.Contains(withoutImages, "did not opt in") {
 		t.Fatalf("non-opt-in prompt permits image generation: %q", withoutImages)
 	}
+	for _, required := range []string{"never call propose_campaign", "one or more propose_entity_create or propose_entity_update", "do not finish with prose alone"} {
+		if !strings.Contains(withImages, required) {
+			t.Fatalf("existing-campaign prompt is missing completion contract %q: %q", required, withImages)
+		}
+	}
+	for _, required := range []string{"A prose-only answer is a failure", "one or more successful persistent propose_* tool calls", "compound existing-campaign request"} {
+		if !strings.Contains(codexBridgeInstructions, required) {
+			t.Fatalf("Codex developer instructions are missing completion contract %q", required)
+		}
+	}
+}
+
+func TestCodexProposalObservationClassifiesMissingResults(t *testing.T) {
+	testCases := []struct {
+		name          string
+		item          map[string]any
+		wantCode      string
+		wantAttempted bool
+		wantCompleted bool
+		wantFailed    bool
+		wantID        string
+	}{
+		{
+			name:     "prose only",
+			item:     map[string]any{"id": "message-1", "type": "agentMessage", "text": "I made a draft."},
+			wantCode: codexNoProposalToolCode,
+		},
+		{
+			name: "proposal tool failed",
+			item: map[string]any{
+				"id": "tool-1", "type": "mcpToolCall", "server": "dnd_master", "tool": "propose_entity_create", "status": "failed",
+				"error": map[string]any{"message": "Authorization: Bearer must-not-leak"},
+			},
+			wantCode:      codexProposalToolFailedCode,
+			wantAttempted: true,
+			wantFailed:    true,
+		},
+		{
+			name: "proposal tool returned MCP error result",
+			item: map[string]any{
+				"id": "tool-error-result", "type": "mcpToolCall", "server": "dnd_master", "tool": "propose_entity_create", "status": "completed",
+				"result": map[string]any{"isError": true, "content": []any{map[string]any{"type": "text", "text": "must-not-leak"}}},
+			},
+			wantCode:      codexProposalToolFailedCode,
+			wantAttempted: true,
+			wantFailed:    true,
+		},
+		{
+			name: "completed result without proposal id",
+			item: map[string]any{
+				"id": "tool-2", "type": "mcpToolCall", "server": "dnd_master", "tool": "propose_campaign", "status": "completed",
+				"result": map[string]any{"structuredContent": map[string]any{"proposal": map[string]any{}}},
+			},
+			wantCode:      codexProposalUnverifiedCode,
+			wantAttempted: true,
+			wantCompleted: true,
+		},
+		{
+			name: "completed result awaits store verification",
+			item: map[string]any{
+				"id": "tool-3", "type": "mcpToolCall", "server": "dnd_master", "tool": "propose_entity_update", "status": "completed",
+				"result": map[string]any{"structuredContent": map[string]any{"proposal": map[string]any{"id": "proposal-new"}}},
+			},
+			wantCode:      codexProposalUnverifiedCode,
+			wantAttempted: true,
+			wantCompleted: true,
+			wantID:        "proposal-new",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			raw, err := json.Marshal(testCase.item)
+			if err != nil {
+				t.Fatal(err)
+			}
+			observation := codexTurnObservation{proposalIDs: make(map[string]struct{})}
+			observeCodexTurnItem(raw, &observation)
+			if observation.proposalToolAttempted != testCase.wantAttempted || observation.proposalToolCompleted != testCase.wantCompleted || observation.proposalToolFailed != testCase.wantFailed {
+				t.Fatalf("observation = %+v", observation)
+			}
+			if testCase.wantID != "" {
+				if _, ok := observation.proposalIDs[testCase.wantID]; !ok {
+					t.Fatalf("proposal id was not observed: %+v", observation.proposalIDs)
+				}
+			}
+			var publicFailure *codexPromptPublicError
+			classified := classifyMissingCodexProposal(observation)
+			if !errors.As(classified, &publicFailure) || publicFailure.code != testCase.wantCode {
+				t.Fatalf("classified error = %#v, want %s", classified, testCase.wantCode)
+			}
+			if strings.Contains(classified.Error(), "must-not-leak") {
+				t.Fatalf("classified error exposed raw MCP failure: %q", classified.Error())
+			}
+		})
+	}
+}
+
+func TestCodexPartialProposalWarning(t *testing.T) {
+	if warning := codexPartialProposalWarning(codexTurnObservation{proposalToolCompleted: true}); warning != "" {
+		t.Fatalf("successful observation warning = %q", warning)
+	}
+	warning := codexPartialProposalWarning(codexTurnObservation{proposalToolCompleted: true, proposalToolFailed: true})
+	if !strings.Contains(warning, "как минимум одна попытка") || !strings.Contains(warning, "весь запрос") || !strings.Contains(strings.ToLower(warning), "не повторяй запрос целиком") {
+		t.Fatalf("partial observation warning is not actionable: %q", warning)
+	}
 }
 
 func TestCodexThreadConfigEnforcesImageOptIn(t *testing.T) {
@@ -576,6 +819,63 @@ func TestCodexBridgeTimeoutErrorMapsToGatewayTimeout(t *testing.T) {
 	writeCodexBridgeError(recorder, fmt.Errorf("turn wait: %w", context.DeadlineExceeded))
 	if recorder.Code != http.StatusGatewayTimeout || !strings.Contains(recorder.Body.String(), "codex_bridge_timeout") {
 		t.Fatalf("timeout response = %d %s", recorder.Code, recorder.Body.String())
+	}
+
+	recorder = httptest.NewRecorder()
+	writeCodexBridgeError(recorder, errors.New("bridge stopped"))
+	if recorder.Code != http.StatusBadGateway || !strings.Contains(recorder.Body.String(), "codex_bridge_failed") {
+		t.Fatalf("generic response = %d %s", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestCodexPromptPublicErrorsMapToActionableCodes(t *testing.T) {
+	testCases := []struct {
+		name       string
+		failure    error
+		wantStatus int
+		wantCode   string
+	}{
+		{
+			name:       "proposal tool not called",
+			failure:    classifyMissingCodexProposal(codexTurnObservation{}),
+			wantStatus: http.StatusBadGateway,
+			wantCode:   codexNoProposalToolCode,
+		},
+		{
+			name: "proposal tool failed",
+			failure: classifyMissingCodexProposal(codexTurnObservation{
+				proposalToolAttempted: true,
+				proposalToolFailed:    true,
+			}),
+			wantStatus: http.StatusBadGateway,
+			wantCode:   codexProposalToolFailedCode,
+		},
+		{
+			name: "proposal not verified",
+			failure: classifyMissingCodexProposal(codexTurnObservation{
+				proposalToolAttempted: true,
+				proposalToolCompleted: true,
+			}),
+			wantStatus: http.StatusBadGateway,
+			wantCode:   codexProposalUnverifiedCode,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			writeCodexBridgeError(recorder, testCase.failure)
+			if recorder.Code != testCase.wantStatus {
+				t.Fatalf("status = %d, want %d: %s", recorder.Code, testCase.wantStatus, recorder.Body.String())
+			}
+			var response envelope
+			if err := json.Unmarshal(recorder.Body.Bytes(), &response); err != nil {
+				t.Fatalf("decode response: %v", err)
+			}
+			if response.Error == nil || response.Error.Code != testCase.wantCode || strings.TrimSpace(response.Error.Message) == "" {
+				t.Fatalf("response = %+v, want code %s", response.Error, testCase.wantCode)
+			}
+		})
 	}
 }
 
@@ -890,10 +1190,40 @@ func TestCodexBridgeHelperProcess(t *testing.T) {
 				} `json:"input"`
 			}
 			_ = json.Unmarshal(request.Params, &turnParams)
-			if len(turnParams.Input) > 0 && strings.Contains(turnParams.Input[0].Text, "timeout-no-terminal") {
+			inputText := ""
+			if len(turnParams.Input) > 0 {
+				inputText = turnParams.Input[0].Text
+			}
+			partialFailedTurn := strings.Contains(inputText, "verified-proposal-before-failed-turn")
+			partialTimeoutInterrupt := strings.Contains(inputText, "verified-proposal-before-timeout-interrupt")
+			if partialFailedTurn || partialTimeoutInterrupt {
+				_ = os.WriteFile(filepath.Join(homeDir, "helper-partial-turn-started"), []byte("started"), 0o600)
+				if proposalID := waitForCodexHelperProposalID(homeDir, 2*time.Second); proposalID != "" {
+					writeCodexHelperProposalNotification(proposalID)
+				}
+				if partialTimeoutInterrupt {
+					terminalOnInterrupt = true
+					continue
+				}
+				writeCodexHelperNotification("turn/completed", map[string]any{
+					"threadId": "thread-test",
+					"turn": map[string]any{
+						"id":     "turn-test",
+						"status": "failed",
+						"items":  []any{},
+						"error":  map[string]any{"message": "simulated terminal failure"},
+					},
+				})
 				continue
 			}
-			if len(turnParams.Input) > 0 && strings.Contains(turnParams.Input[0].Text, "terminal-on-interrupt") {
+			emitProposalTool := true
+			if strings.Contains(inputText, "Pretend a proposal exists without creating one") {
+				emitProposalTool = false
+			}
+			if strings.Contains(inputText, "timeout-no-terminal") {
+				continue
+			}
+			if strings.Contains(inputText, "terminal-on-interrupt") {
 				terminalOnInterrupt = true
 				continue
 			}
@@ -901,7 +1231,7 @@ func TestCodexBridgeHelperProcess(t *testing.T) {
 			_ = os.MkdirAll(generatedDir, 0o700)
 			_ = os.WriteFile(filepath.Join(generatedDir, "turn-output.png"), []byte("test image"), 0o600)
 			time.Sleep(150 * time.Millisecond)
-			if proposalID, err := os.ReadFile(filepath.Join(homeDir, "helper-proposal-id")); err == nil && strings.TrimSpace(string(proposalID)) != "" {
+			if proposalID, err := os.ReadFile(filepath.Join(homeDir, "helper-proposal-id")); emitProposalTool && err == nil && strings.TrimSpace(string(proposalID)) != "" {
 				writeCodexHelperNotification("item/completed", map[string]any{
 					"threadId": "thread-test",
 					"turnId":   "turn-test",
@@ -946,6 +1276,37 @@ func TestCodexBridgeHelperProcess(t *testing.T) {
 		}
 	}
 	os.Exit(0)
+}
+
+func waitForCodexHelperProposalID(homeDir string, timeout time.Duration) string {
+	deadline := time.Now().Add(timeout)
+	for {
+		proposalID, err := os.ReadFile(filepath.Join(homeDir, "helper-proposal-id"))
+		if err == nil && strings.TrimSpace(string(proposalID)) != "" {
+			return strings.TrimSpace(string(proposalID))
+		}
+		if time.Now().After(deadline) {
+			return ""
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+}
+
+func writeCodexHelperProposalNotification(proposalID string) {
+	writeCodexHelperNotification("item/completed", map[string]any{
+		"threadId": "thread-test",
+		"turnId":   "turn-test",
+		"item": map[string]any{
+			"id":     "tool-partial",
+			"type":   "mcpToolCall",
+			"server": "dnd_master",
+			"tool":   "propose_entity_create",
+			"status": "completed",
+			"result": map[string]any{
+				"structuredContent": map[string]any{"proposal": map[string]any{"id": proposalID}},
+			},
+		},
+	})
 }
 
 func writeCodexHelperMessage(id json.RawMessage, result any) {

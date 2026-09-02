@@ -124,6 +124,12 @@ function AIProposalPromptModal({ controller }: { controller: AIProposalControlle
 }
 
 function AIProposalInbox({ controller, campaignId }: { controller: AIProposalController; campaignId?: string }) {
+  useEffect(() => {
+    if (controller.inboxOpen && controller.codexPromptOutcome) {
+      controller.setCodexPromptOutcome(null);
+    }
+  }, [controller.codexPromptOutcome, controller.inboxOpen, controller.setCodexPromptOutcome]);
+
   return (
     <div
       aria-hidden={!controller.inboxOpen}
@@ -142,13 +148,19 @@ function AIProposalInbox({ controller, campaignId }: { controller: AIProposalCon
           <div>
             <p className="eyebrow">Безопасная очередь изменений</p>
             <h2>AI-черновики</h2>
-            <p className="copy">Предложения из сайта, Codex App Server и MCP. Ни одно из них ещё не изменило кампанию.</p>
+            <p className="copy">
+              {controller.codexPromptRunning
+                ? "Codex готовит новый проверяемый черновик. Кампания в это время не изменяется."
+                : "Предложения из сайта, Codex App Server и MCP. Ни одно из них ещё не изменило кампанию."}
+            </p>
           </div>
           <div className="actions">
             <button className="ghost" disabled={controller.loading} onClick={() => void controller.refresh()} type="button">
               {controller.loading ? "Обновляю…" : "Обновить"}
             </button>
-            <button className="ghost" onClick={controller.closeInbox} type="button">Закрыть</button>
+            <button className="ghost" onClick={controller.closeInbox} type="button">
+              {controller.codexPromptRunning ? "Свернуть" : "Закрыть"}
+            </button>
           </div>
         </header>
 
@@ -156,9 +168,13 @@ function AIProposalInbox({ controller, campaignId }: { controller: AIProposalCon
 
         <CodexConnectionPanel
           campaignId={campaignId}
-          onPromptStarted={() => {
+          onPromptOutcome={controller.setCodexPromptOutcome}
+          onPromptRunningChange={controller.setCodexPromptRunning}
+          onPromptSettled={() => {
             void controller.refresh(true);
-            window.setTimeout(() => void controller.refresh(true), 3_000);
+          }}
+          onProposalsCreated={(proposalIds, hasWarning) => {
+            if (!hasWarning && proposalIds[0]) void controller.openProposal(proposalIds[0]);
           }}
         />
 
@@ -182,7 +198,13 @@ function AIProposalInbox({ controller, campaignId }: { controller: AIProposalCon
                 <time>{formatProposalDate(proposal.createdAt)}</time>
               </span>
             </button>
-          )) : (
+          )) : controller.codexPromptRunning ? (
+            <div aria-live="polite" className="ai-proposal-empty working" role="status">
+              <span className="ai-proposal-empty-spinner" />
+              <strong>Черновик ещё готовится</strong>
+              <p>Это нормально: карточка появится здесь только после серверной проверки.</p>
+            </div>
+          ) : (
             <div className="ai-proposal-empty">
               <span>✓</span>
               <strong>Очередь разобрана</strong>
