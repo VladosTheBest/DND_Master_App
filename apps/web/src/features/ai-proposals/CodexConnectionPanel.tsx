@@ -58,7 +58,7 @@ const buildStructuredPrompt = (value: string) => {
     "",
     "Порядок выполнения:",
     "1. Сначала сохрани все текстовые черновики и получи ID каждого.",
-    "2. Только затем подготовь до двух изображений для ключевых сущностей, если изображения включены.",
+    "2. Только затем подготовь по одному изображению в галерею каждой новой сущности, если изображения включены.",
     "3. Не создавай новую кампанию и не применяй изменения автоматически."
   ].join("\n");
 };
@@ -671,7 +671,7 @@ export function CodexConnectionPanel({
                       <div aria-live="polite" id="codex-compound-prompt-guidance" role="status">
                         <strong>В запросе упомянуты: {detectedPromptKinds.map((hint) => hint.label).join(" + ")}</strong>
                         <span>Если это новые сущности, каждая сохранится отдельным AI-черновиком. Для предсказуемого результата укажи количество каждого типа.</span>
-                        {includeImages ? <small>Пакет с изображениями может приблизиться к лимиту времени. Сначала сохранятся тексты, затем — до двух ключевых изображений.</small> : null}
+                        {includeImages ? <small>Сначала сохранятся все тексты, затем Codex создаст по одному изображению для каждой новой сущности. Большой пакет может занять несколько запусков.</small> : null}
                       </div>
                       <div className="actions">
                         {!isStructuredPrompt ? <button className="ghost" onClick={structureCurrentPrompt} type="button">Добавить чек-лист</button> : null}
@@ -698,7 +698,7 @@ export function CodexConnectionPanel({
                   <div className="codex-embedded-prompt-actions">
                     <label>
                       <input checked={includeImages} id="codex-include-images" onChange={(event) => setIncludeImages(event.target.checked)} ref={imageToggleRef} type="checkbox" />
-                      <span>Подготовить изображения для выбранных сущностей (дольше)</span>
+                      <span>Создать изображение для каждой новой сущности (дольше)</span>
                     </label>
                     <button className="primary" disabled={!prompt.trim()} onClick={() => void runPrompt()} type="button">
                       Отправить в Codex

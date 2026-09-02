@@ -540,7 +540,7 @@ func TestBuildCodexProposalPromptMakesImageConsentExplicit(t *testing.T) {
 		Prompt:        "Create a gothic quest",
 		IncludeImages: true,
 	})
-	if !strings.Contains(withImages, "$imagegen") || !strings.Contains(withImages, "stage each output") || !strings.Contains(withImages, "non-event proposal id") || !strings.Contains(withImages, "create every requested text proposal") {
+	if !strings.Contains(withImages, "$imagegen") || !strings.Contains(withImages, "once for each new non-event entity proposal") || !strings.Contains(withImages, "as gallery media") || !strings.Contains(withImages, "create every requested text proposal") {
 		t.Fatalf("image opt-in prompt does not invoke staged built-in generation: %q", withImages)
 	}
 	withoutImages := buildCodexProposalPrompt(codexPromptInput{Prompt: "Create a gothic quest"})
@@ -550,6 +550,11 @@ func TestBuildCodexProposalPromptMakesImageConsentExplicit(t *testing.T) {
 	for _, required := range []string{"never call propose_campaign", "propose_entity_create stores exactly one new entity", "{campaignId, prompt, kind, candidate, mediaIntents?, warnings?}", "separate call for every requested quest, NPC, location", "supported candidate fields such as summary and content", "do not finish with prose alone", "list pending proposals"} {
 		if !strings.Contains(withImages, required) {
 			t.Fatalf("existing-campaign prompt is missing completion contract %q: %q", required, withImages)
+		}
+	}
+	for _, required := range []string{"2-4 useful playerCards", "1-3 preparedCombats", "only real existing campaign entity ids"} {
+		if !strings.Contains(withImages, required) {
+			t.Fatalf("rich entity contract is missing %q: %q", required, withImages)
 		}
 	}
 	for _, required := range []string{"A prose-only answer is a failure", "propose_entity_create creates exactly one new quest", "call propose_entity_create separately for the quest", "{campaignId, prompt, kind, candidate, mediaIntents?, warnings?}", `"kind":"quest","candidate"`, "Never send top-level title, entities, entity, data, payload, quest, or entityKind", "do not create relationships that target other new, unapplied entities", "Create every requested text proposal", "Never stage or attach media to an event proposal", "never repeat a successful call", "one or two selected portraits"} {
