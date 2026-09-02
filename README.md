@@ -57,6 +57,11 @@ Local URLs:
 
 The Vite dev server now proxies `/api`, `/healthz`, and `/initiative` to the Go backend, so the frontend can use same-origin requests in both dev and production.
 
+Before exposing a checkout that already has `data/store.json`, rotate its account
+password with `npm run reset-password`. A credential that has ever appeared in
+repository history must be treated as compromised even if it is no longer shown
+in the current README.
+
 ## Environment
 
 The server reads `.env.local` from the repo root and `apps/server/.env.local`.
@@ -79,6 +84,11 @@ SHADOW_EDGE_CODEX_ALLOWED_USERNAME=your-admin-name
 SHADOW_EDGE_CODEX_IDLE_TIMEOUT_MINUTES=30
 SHADOW_EDGE_CODEX_MAX_USER_PROCESSES=1
 ```
+
+`SHADOW_EDGE_AUTH_USERNAME` and `SHADOW_EDGE_AUTH_PASSWORD` bootstrap the first
+account only when the selected data store has no users. They deliberately do
+not overwrite credentials in an existing store. Use the password-reset command
+below for an existing local file or persistent volume.
 
 There are three AI entry modes. A server API key remains the direct fallback. A user can instead connect their ChatGPT account from the AI drafts inbox through the managed Codex App Server device flow. An external local Codex client can use the stdio package in `packages/mcp-server`; see its README and `config.example.toml`.
 
@@ -122,7 +132,14 @@ This repo includes a single multi-stage `Dockerfile`:
 - builds the proposal-only MCP server and installs the pinned Codex CLI
 - builds the Go server
 - serves the frontend from the Go server
-- seeds `/data/store.json` and `/data/dndsu-bestiary.json` on first boot
+- creates a credential-free starter campaign when `/data/store.json` is absent
+- restores `/data/store.json.bak` when the primary file is absent
+
+The repository's development `data/store.json` is never copied into the image.
+This keeps local accounts, password hashes, ownership, public links, and survey
+data out of fresh Docker and Fly deployments. The Docker build context also
+excludes the complete runtime `data/` tree, including uploads, staged proposal
+media, and managed Codex credential homes.
 
 Build locally:
 
@@ -139,6 +156,9 @@ docker run --rm -p 8080:8080 `
   shadow-edge-gm
 ```
 
+The two auth variables are required for a non-interactive first boot. Use a
+long, unique password; a missing pair leaves first-account registration open.
+
 Then open:
 
 - app: [http://localhost:8080](http://localhost:8080)
@@ -152,6 +172,19 @@ docker run --rm -p 8080:8080 `
   -e SHADOW_EDGE_AUTH_PASSWORD=use-a-long-random-password `
   shadow-edge-gm
 ```
+
+To rotate an account password in an existing mounted store, stop the serving
+container and run the image interactively against the same volume:
+
+```powershell
+docker run --rm -it `
+  -v ${PWD}\docker-data:/data `
+  shadow-edge-gm reset-password
+```
+
+For an existing Fly volume, run the same `reset-password` subcommand in a
+one-off console attached to that volume. Merely changing
+`SHADOW_EDGE_AUTH_PASSWORD` does not rewrite an existing account.
 
 ## Fly.io
 
@@ -187,7 +220,8 @@ fly secrets set SHADOW_EDGE_AI_MODEL=gpt-5.4-mini
 Notes:
 
 - public initiative links automatically use the request host in production, so they work on the deployed Fly domain without tunneling
-- the first deploy will seed `/data/store.json` into the Fly volume if it does not exist yet
+- the first deploy creates a clean starter store in the Fly volume; repository development accounts and public-link tokens are not included
+- an existing volume is preserved across upgrades; rotate any previously deployed or shared credential with `reset-password` before exposing the app
 - if you ever want a custom domain, public initiative links will follow it automatically when the app is accessed through that domain
 
 ## GitHub push

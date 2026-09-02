@@ -110,6 +110,79 @@ func TestAuthLoginRejectsWrongPassword(t *testing.T) {
 	}
 }
 
+func TestAuthBootstrapClaimsFreshStarterStore(t *testing.T) {
+	manager, store := newTestAuthManager(t, AuthOptions{
+		Username: "deployment-admin",
+		Password: "unique-deployment-password",
+	})
+
+	if len(store.data.Users) != 1 {
+		t.Fatalf("bootstrap users = %d, want 1", len(store.data.Users))
+	}
+	owner := store.data.Users[0]
+	if owner.Username != "deployment-admin" {
+		t.Fatalf("bootstrap username = %q", owner.Username)
+	}
+	if len(store.data.Campaigns) == 0 {
+		t.Fatal("fresh store did not create a starter campaign")
+	}
+	for _, campaign := range store.data.Campaigns {
+		if campaign.OwnerID != owner.ID {
+			t.Fatalf("starter campaign %q owner = %q, want %q", campaign.ID, campaign.OwnerID, owner.ID)
+		}
+	}
+
+	loginRequest := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"username":"deployment-admin","password":"unique-deployment-password"}`))
+	loginRequest.Header.Set("Content-Type", "application/json")
+	loginRecorder := httptest.NewRecorder()
+	manager.handleLogin(loginRecorder, loginRequest)
+	if loginRecorder.Code != http.StatusOK {
+		t.Fatalf("configured deployment login status = %d, body = %s", loginRecorder.Code, loginRecorder.Body.String())
+	}
+
+	unknownRequest := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"username":"deployment-admin","password":"published-old-password"}`))
+	unknownRequest.Header.Set("Content-Type", "application/json")
+	unknownRecorder := httptest.NewRecorder()
+	manager.handleLogin(unknownRecorder, unknownRequest)
+	if unknownRecorder.Code != http.StatusUnauthorized {
+		t.Fatalf("unconfigured password login status = %d, want %d", unknownRecorder.Code, http.StatusUnauthorized)
+	}
+}
+
+func TestAuthBootstrapDoesNotOverwriteExistingAccount(t *testing.T) {
+	store, err := newCampaignStore(filepath.Join(t.TempDir(), "store.json"))
+	if err != nil {
+		t.Fatalf("newCampaignStore() error = %v", err)
+	}
+	existing, err := store.createUser("existing-admin", "preserved-password")
+	if err != nil {
+		t.Fatalf("create existing user: %v", err)
+	}
+
+	manager, err := newAuthManager(AuthOptions{
+		Username: "replacement-admin",
+		Password: "replacement-password",
+	}, store)
+	if err != nil {
+		t.Fatalf("newAuthManager() error = %v", err)
+	}
+	persisted, ok := store.findUserByUsername("existing-admin")
+	if !ok || persisted.ID != existing.ID || !verifyPassword(persisted.PasswordHash, "preserved-password") {
+		t.Fatalf("bootstrap credentials changed the existing account: %#v", persisted)
+	}
+	if _, ok := store.findUserByUsername("replacement-admin"); ok {
+		t.Fatal("bootstrap credentials created a replacement user in a non-empty store")
+	}
+
+	replacementRequest := httptest.NewRequest(http.MethodPost, "/api/auth/login", strings.NewReader(`{"username":"replacement-admin","password":"replacement-password"}`))
+	replacementRequest.Header.Set("Content-Type", "application/json")
+	replacementRecorder := httptest.NewRecorder()
+	manager.handleLogin(replacementRecorder, replacementRequest)
+	if replacementRecorder.Code != http.StatusUnauthorized {
+		t.Fatalf("replacement credentials status = %d, want %d", replacementRecorder.Code, http.StatusUnauthorized)
+	}
+}
+
 func TestHandleSessionRenewsCookieExpiry(t *testing.T) {
 	manager, store := newTestAuthManager(t, AuthOptions{
 		Username:   "vladyur4ik",

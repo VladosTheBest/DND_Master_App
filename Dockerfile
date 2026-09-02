@@ -69,7 +69,6 @@ COPY scripts/generate-deep-zoom.mjs /app/scripts/generate-deep-zoom.mjs
 COPY --from=server-build /out/shadow-edge-server /app/shadow-edge-server
 COPY --from=web-build /app/apps/web/dist /app/apps/web/dist
 COPY --from=web-build /app/packages/mcp-server/dist /app/packages/mcp-server/dist
-COPY data/store.json /app/seed-data/store.json
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 
 RUN chmod +x /app/docker-entrypoint.sh

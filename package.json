@@ -11,6 +11,7 @@
     "dev": "npm run dev --workspace @shadow-edge/web",
     "server": "go run ./apps/server/cmd/server",
     "reset-password": "go run ./apps/server/cmd/server reset-password",
+    "test:deployment": "node --test scripts/deployment-config.test.mjs",
     "test:go": "go test ./apps/server/..."
   },
   "dependencies": {
