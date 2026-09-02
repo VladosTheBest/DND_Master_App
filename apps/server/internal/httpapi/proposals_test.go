@@ -969,6 +969,44 @@ func TestCampaignProposalSelectionFailureLeavesNoPartialCampaign(t *testing.T) {
 	}
 }
 
+func TestManagedCodexEntityRichnessRequiresLongLocationAndQuestCards(t *testing.T) {
+	source := proposalSource{Type: "codex_app_server"}
+	long := func(length int) string { return strings.Repeat("я", length) }
+	location := knowledgeEntity{
+		Kind: "location", Content: long(1800),
+		PlayerCards: []playerFacingCard{
+			{Title: "Описание локации", Content: long(1200)},
+			{Title: "Кого здесь можно встретить", Content: long(1200)},
+			{Title: "Что можно найти", Content: long(1200)},
+			{Title: "Проверки и результаты", Content: long(1200)},
+		},
+	}
+	if err := validateManagedGeneratedEntityRichness(source, location); err != nil {
+		t.Fatalf("complete location rejected: %v", err)
+	}
+	shortLocation := location
+	shortLocation.PlayerCards = append([]playerFacingCard{}, location.PlayerCards...)
+	shortLocation.PlayerCards[2].Content = "слишком коротко"
+	if err := validateManagedGeneratedEntityRichness(source, shortLocation); err == nil {
+		t.Fatal("short location card was accepted")
+	}
+	missingLocation := location
+	missingLocation.PlayerCards = location.PlayerCards[:3]
+	if err := validateManagedGeneratedEntityRichness(source, missingLocation); err == nil {
+		t.Fatal("location without required checks card was accepted")
+	}
+	quest := knowledgeEntity{
+		Kind: "quest", Content: long(1800),
+		PlayerCards: []playerFacingCard{{Title: "Завязка", Content: long(1000)}, {Title: "Улика", Content: long(1000)}},
+	}
+	if err := validateManagedGeneratedEntityRichness(source, quest); err != nil {
+		t.Fatalf("complete quest rejected: %v", err)
+	}
+	if err := validateManagedGeneratedEntityRichness(proposalSource{Type: "mcp"}, knowledgeEntity{Kind: "location"}); err != nil {
+		t.Fatalf("external MCP input should remain governed by its explicit tool contract: %v", err)
+	}
+}
+
 func TestCampaignProposalSelectionPreflightsSingularPreparedCombatDependencies(t *testing.T) {
 	store, service, user, _ := newProposalTestService(t)
 	proposal, err := service.createCampaign(user.ID, campaignProposalInput{

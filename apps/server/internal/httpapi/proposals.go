@@ -359,6 +359,9 @@ func (service *proposalService) createEntity(ownerID, campaignID string, input e
 		if err != nil {
 			return aiProposal{}, err
 		}
+		if err := validateManagedGeneratedEntityRichness(input.Source, candidate); err != nil {
+			return aiProposal{}, err
+		}
 		if err := validateProposalEntityMedia(candidate, nil, ownerID, campaign.ID); err != nil {
 			return aiProposal{}, err
 		}
@@ -380,6 +383,53 @@ func (service *proposalService) createEntity(ownerID, campaignID string, input e
 		return aiProposal{}, err
 	}
 	return cloneProposal(proposal), nil
+}
+
+func validateManagedGeneratedEntityRichness(source proposalSource, candidate knowledgeEntity) error {
+	if source.Type != "codex_app_server" {
+		return nil
+	}
+	contentLength := len([]rune(strings.TrimSpace(candidate.Content)))
+	if candidate.Kind == "location" {
+		if contentLength < 1800 {
+			return proposalFailure(400, "generated_entity_too_short", "Новой локации нужно не менее 1800 символов мастерского описания.")
+		}
+		requiredCards := map[string]bool{
+			"описание локации":           false,
+			"кого здесь можно встретить": false,
+			"что можно найти":            false,
+			"проверки и результаты":      false,
+		}
+		for _, card := range candidate.PlayerCards {
+			title := strings.ToLower(strings.TrimSpace(card.Title))
+			if _, required := requiredCards[title]; !required {
+				continue
+			}
+			if len([]rune(strings.TrimSpace(card.Content))) < 1200 {
+				return proposalFailure(400, "generated_entity_too_short", fmt.Sprintf("Карточке %q нужно не менее 1200 символов содержательного текста.", card.Title))
+			}
+			requiredCards[title] = true
+		}
+		for title, present := range requiredCards {
+			if !present {
+				return proposalFailure(400, "generated_entity_incomplete", fmt.Sprintf("У новой локации отсутствует обязательная карточка %q.", title))
+			}
+		}
+	}
+	if candidate.Kind == "quest" {
+		if contentLength < 1800 {
+			return proposalFailure(400, "generated_entity_too_short", "Новому квесту нужно не менее 1800 символов мастерского описания.")
+		}
+		if len(candidate.PlayerCards) < 2 {
+			return proposalFailure(400, "generated_entity_incomplete", "Новому квесту нужны как минимум две подробные карточки для игроков.")
+		}
+		for _, card := range candidate.PlayerCards {
+			if len([]rune(strings.TrimSpace(card.Content))) < 1000 {
+				return proposalFailure(400, "generated_entity_too_short", fmt.Sprintf("Карточке %q нужно не менее 1000 символов содержательного текста.", card.Title))
+			}
+		}
+	}
+	return nil
 }
 
 func (service *proposalService) createEvent(ownerID, campaignID string, input eventProposalInput) (aiProposal, error) {

@@ -552,7 +552,7 @@ func TestBuildCodexProposalPromptMakesImageConsentExplicit(t *testing.T) {
 			t.Fatalf("existing-campaign prompt is missing completion contract %q: %q", required, withImages)
 		}
 	}
-	for _, required := range []string{"2-4 useful playerCards", "1-3 preparedCombats", "only real existing campaign entity ids"} {
+	for _, required := range []string{"Описание локации", "Кого здесь можно встретить", "Что можно найти", "Проверки и результаты", "multi-paragraph read-aloud", "tiered failure, success and exceptional-success", "1-3 preparedCombats", "only real existing campaign entity ids"} {
 		if !strings.Contains(withImages, required) {
 			t.Fatalf("rich entity contract is missing %q: %q", required, withImages)
 		}
@@ -810,9 +810,9 @@ func TestVerifiedCodexPromptResultRecoversStoredProposalWithoutObservedResultID(
 	before := manager.codexProposalIDs(account.ID, campaign.ID)
 	proposal, err := newProposalService(store, t.TempDir()).createEntity(account.ID, campaign.ID, entityProposalInput{
 		Mode:      "create",
-		Kind:      "quest",
-		Prompt:    "Create one recovery quest",
-		Candidate: json.RawMessage(`{"kind":"quest","title":"Recovered quest","summary":"Saved despite a lost tool response","content":"Review me"}`),
+		Kind:      "lore",
+		Prompt:    "Create one recovery lore entry",
+		Candidate: json.RawMessage(`{"kind":"lore","title":"Recovered lore","summary":"Saved despite a lost tool response","content":"Review me"}`),
 		Source:    proposalSource{Type: "codex_app_server"},
 	})
 	if err != nil {
@@ -867,9 +867,9 @@ func TestVerifiedCodexPromptResultUnionsObservedAndStoredProposals(t *testing.T)
 	proposalService := newProposalService(store, t.TempDir())
 	observedProposal, err := proposalService.createEntity(account.ID, campaign.ID, entityProposalInput{
 		Mode:      "create",
-		Kind:      "quest",
-		Prompt:    "Create the observed quest",
-		Candidate: json.RawMessage(`{"kind":"quest","title":"Observed quest","summary":"ID returned normally","content":"Review me"}`),
+		Kind:      "lore",
+		Prompt:    "Create the observed lore entry",
+		Candidate: json.RawMessage(`{"kind":"lore","title":"Observed lore","summary":"ID returned normally","content":"Review me"}`),
 		Source:    proposalSource{Type: "codex_app_server"},
 	})
 	if err != nil {
