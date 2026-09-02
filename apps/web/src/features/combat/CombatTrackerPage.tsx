@@ -43,6 +43,7 @@ export type CombatTrackerPageProps = {
   onCopyPublicTracker: () => void;
   onSyncCombatPortraits: () => void;
   onOpenCombatSetupModal: () => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
   onOpenRandomEventModal: () => void;
   onSelectEntry: (entryId: string) => void;
   onChangeHitPoints: (entry: CombatEntry, nextHp: number) => void;
@@ -79,6 +80,7 @@ export function CombatTrackerPage({
   onCopyPublicTracker,
   onSyncCombatPortraits,
   onOpenCombatSetupModal,
+  onOpenEntityImage,
   onOpenRandomEventModal,
   onSelectEntry,
   onChangeHitPoints,
@@ -389,6 +391,7 @@ export function CombatTrackerPage({
                 damageFlash={damageBursts[entry.id]}
                 entry={entry}
                 linkedEntity={entityMap.get(entry.entityId) ?? null}
+                onOpenEntityImage={onOpenEntityImage}
                 onSelect={() => onSelectEntry(entry.id)}
                 revealEnemyMeta={revealEnemyRewards}
                 selected={selectedEntryResolved?.id === entry.id}
@@ -408,6 +411,7 @@ export function CombatTrackerPage({
               currentTurnEntryId={currentTurnEntry?.id}
               entry={selectedEntryResolved}
               linkedEntity={selectedEntityResolved}
+              onOpenEntityImage={onOpenEntityImage}
               onApplyDamage={handleApplyDamage}
               onChangeHitPoints={onChangeHitPoints}
               onChangeInitiative={onChangeInitiative}

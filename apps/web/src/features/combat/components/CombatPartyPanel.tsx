@@ -1,5 +1,5 @@
-import type { MonsterEntity, NpcEntity, PlayerEntity } from "@shadow-edge/shared-types";
-import { createPortraitSource, kindTitle } from "../../../app-shared";
+import type { KnowledgeEntity, MonsterEntity, NpcEntity, PlayerEntity } from "@shadow-edge/shared-types";
+import { EntityVisual, kindTitle } from "../../../app-shared";
 import { formatParticipantCountLabel } from "../combat.utils";
 
 export type CombatPartyPanelProps = {
@@ -17,6 +17,7 @@ export type CombatPartyPanelProps = {
   onTogglePlayer: (playerId: string) => void;
   onToggleAlly: (entityId: string) => void;
   onRequestSwapToEntity: (kind: "player" | "npc") => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
 };
 
 export function CombatPartyPanel({
@@ -33,7 +34,8 @@ export function CombatPartyPanel({
   onCombatAllySearchQueryChange,
   onTogglePlayer,
   onToggleAlly,
-  onRequestSwapToEntity
+  onRequestSwapToEntity,
+  onOpenEntityImage
 }: CombatPartyPanelProps) {
   return (
     <section className="combat-prep-reference-panel party-panel">
@@ -78,7 +80,7 @@ export function CombatPartyPanel({
             const selected = selectedPlayerIds.includes(player.id);
             return (
               <article key={`combat-prep-player-${player.id}`} className={`combat-prep-party-card ${selected ? "selected" : ""}`}>
-                <img alt={player.title} loading="lazy" src={createPortraitSource(player)} />
+                <EntityVisual entity={player} onOpenEntityImage={onOpenEntityImage} />
                 <div>
                   <strong>{player.title}</strong>
                   <span>{player.role || player.subtitle || "Персонаж партии"}</span>
@@ -121,7 +123,7 @@ export function CombatPartyPanel({
             const selected = selectedAllyIds.has(entity.id);
             return (
               <article key={`combat-prep-ally-${entity.id}`} className={`combat-prep-party-card ally-card ${selected ? "selected" : ""}`}>
-                <img alt={entity.title} loading="lazy" src={createPortraitSource(entity)} />
+                <EntityVisual entity={entity} onOpenEntityImage={onOpenEntityImage} />
                 <div>
                   <strong>{entity.title}</strong>
                   <span>{entity.statBlock?.creatureType || entity.role || entity.subtitle || kindTitle[entity.kind]}</span>

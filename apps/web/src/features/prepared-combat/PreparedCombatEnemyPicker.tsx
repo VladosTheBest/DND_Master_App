@@ -28,6 +28,7 @@ type PreparedCombatEnemyPickerProps = {
   onRemoveEnemy: (entityId: string) => void;
   onSelectItem: (itemKey: string) => void;
   onUpdateEnemyQuantity: (entityId: string, quantity: number) => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
 };
 
 export function PreparedCombatEnemyPicker({
@@ -47,7 +48,8 @@ export function PreparedCombatEnemyPicker({
   onPeekEntity,
   onRemoveEnemy,
   onSelectItem,
-  onUpdateEnemyQuantity
+  onUpdateEnemyQuantity,
+  onOpenEntityImage
 }: PreparedCombatEnemyPickerProps) {
   return (
     <div className="prepared-combat-layout">
@@ -101,16 +103,14 @@ export function PreparedCombatEnemyPicker({
         <div className="combat-search-results prepared-combat-results">
           {preparedCombatSearchItems.length ? (
             preparedCombatSearchItems.map((item) => (
-              <button
+              <article
                 key={item.key}
                 className={`entity-row combat-search-result ${
                   hasVisibleArt(item.source === "entity" ? item.entity?.art : undefined) || item.source === "bestiary" ? "has-thumb" : ""
                 } ${selectedPreparedCombatSearchItem?.key === item.key ? "active" : ""}`}
-                onClick={() => onSelectItem(item.key)}
-                type="button"
               >
                 {item.source === "entity" && item.entity ? (
-                  <EntityVisual entity={item.entity} />
+                  <EntityVisual entity={item.entity} onOpenEntityImage={onOpenEntityImage} />
                 ) : (
                   <span className="entity-thumb-frame">
                     <img
@@ -125,19 +125,21 @@ export function PreparedCombatEnemyPicker({
                     />
                   </span>
                 )}
-                <span className="entity-row-copy">
-                  <strong>{item.title}</strong>
-                  <small>
-                    {[
-                      item.source === "bestiary" ? "dnd.su" : item.kind === "monster" ? "Кампания • монстр" : "Кампания • НПС",
-                      item.challenge ? `CR ${extractChallengeToken(item.challenge)}` : "CR не указан",
-                      item.subtitle || item.summary
-                    ]
-                      .filter(Boolean)
-                      .join(" • ")}
-                  </small>
-                </span>
-              </button>
+                <button className="entity-row-main-action" onClick={() => onSelectItem(item.key)} type="button">
+                  <span className="entity-row-copy">
+                    <strong>{item.title}</strong>
+                    <small>
+                      {[
+                        item.source === "bestiary" ? "dnd.su" : item.kind === "monster" ? "Кампания • монстр" : "Кампания • НПС",
+                        item.challenge ? `CR ${extractChallengeToken(item.challenge)}` : "CR не указан",
+                        item.subtitle || item.summary
+                      ]
+                        .filter(Boolean)
+                        .join(" • ")}
+                    </small>
+                  </span>
+                </button>
+              </article>
             ))
           ) : (
             <p className="copy">

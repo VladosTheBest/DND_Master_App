@@ -29,6 +29,7 @@ type PreparedCombatModalProps = {
   onSave: () => void;
   onSelectItem: (itemKey: string) => void;
   onUpdateEnemyQuantity: (entityId: string, quantity: number) => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
 };
 
 export function PreparedCombatModal({
@@ -55,7 +56,8 @@ export function PreparedCombatModal({
   onRemoveEnemy,
   onSave,
   onSelectItem,
-  onUpdateEnemyQuantity
+  onUpdateEnemyQuantity,
+  onOpenEntityImage
 }: PreparedCombatModalProps) {
   if (!open) {
     return null;
@@ -110,6 +112,7 @@ export function PreparedCombatModal({
             onChangeTitle={onChangeTitle}
             onPeekEntity={onPeekEntity}
             onRemoveEnemy={onRemoveEnemy}
+            onOpenEntityImage={onOpenEntityImage}
             onSelectItem={onSelectItem}
             onUpdateEnemyQuantity={onUpdateEnemyQuantity}
           />

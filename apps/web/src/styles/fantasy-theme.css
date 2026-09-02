@@ -1427,6 +1427,11 @@ select.input option,
     rgba(255, 255, 255, .045);
 }
 
+.dashboard-hot-card:focus-within {
+  border-color: rgba(204, 145, 255, .48);
+  box-shadow: 0 0 0 2px rgba(166, 92, 251, .18);
+}
+
 .dashboard-hot-visual {
   width: 3.5rem;
   height: 3.5rem;
@@ -1434,6 +1439,13 @@ select.input option,
   border: 1px solid rgba(228, 181, 105, .22);
   border-radius: 10px;
   background: #171222;
+  padding: 0;
+  color: inherit;
+  cursor: zoom-in;
+}
+
+.dashboard-hot-visual:disabled {
+  cursor: default;
 }
 
 .dashboard-hot-visual img {
@@ -1446,6 +1458,17 @@ select.input option,
   display: grid;
   gap: .12rem;
   min-width: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.dashboard-hot-copy:disabled {
+  cursor: default;
 }
 
 .dashboard-hot-copy small {

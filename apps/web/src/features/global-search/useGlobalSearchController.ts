@@ -17,6 +17,17 @@ import {
   buildGlobalSearchFallbackResults
 } from "./globalSearch.utils";
 
+const hasOpenAppDialog = () => Array.from(
+  document.querySelectorAll<HTMLElement>('[role="dialog"], [role="alertdialog"]')
+).some((dialog) => {
+  if (dialog.closest('[aria-hidden="true"], [hidden], [inert]')) {
+    return false;
+  }
+
+  const style = window.getComputedStyle(dialog);
+  return style.display !== "none" && style.visibility !== "hidden";
+});
+
 export function useGlobalSearchController({
   activeCampaignId,
   campaign,
@@ -47,7 +58,7 @@ export function useGlobalSearchController({
 
       if (isSearchHotkey) {
         event.preventDefault();
-        if (paletteOpen) {
+        if (paletteOpen || hasOpenAppDialog()) {
           return;
         }
 

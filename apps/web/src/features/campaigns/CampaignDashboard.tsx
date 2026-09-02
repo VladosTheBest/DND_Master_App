@@ -10,6 +10,7 @@ import {
 type CampaignDashboardProps = {
   campaign: CampaignData;
   onOpenEntity?: (entityId: string) => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
   onOpenEvent?: (eventId: string) => void;
   onOpenPreview?: (entityId: string) => void;
   readOnly?: boolean;
@@ -26,6 +27,7 @@ const featuredEntities = (campaign: CampaignData): KnowledgeEntity[] => [
 export function CampaignDashboard({
   campaign,
   onOpenEntity,
+  onOpenEntityImage,
   onOpenEvent,
   onOpenPreview,
   readOnly = false
@@ -108,23 +110,32 @@ export function CampaignDashboard({
           </div>
           <div className="dashboard-hot-grid">
             {featuredEntities(campaign).slice(0, 4).map((entity) => (
-              <button
+              <article
                 className="dashboard-hot-card"
-                disabled={readOnly}
                 key={entity.id}
-                onClick={() => onOpenEntity?.(entity.id)}
-                type="button"
               >
-                <span className="dashboard-hot-visual">
+                <button
+                  aria-label={`Открыть изображение «${entity.title}»`}
+                  className="dashboard-hot-visual entity-image-trigger"
+                  disabled={readOnly || !onOpenEntityImage}
+                  onClick={() => onOpenEntityImage?.(entity, entity.art?.url?.trim() || undefined)}
+                  title={`Открыть изображение «${entity.title}»`}
+                  type="button"
+                >
                   <img alt="" loading="lazy" src={createPortraitSource(entity)} />
-                </span>
-                <span className="dashboard-hot-copy">
+                </button>
+                <button
+                  className="dashboard-hot-copy"
+                  disabled={readOnly || !onOpenEntity}
+                  onClick={() => onOpenEntity?.(entity.id)}
+                  type="button"
+                >
                   <small>{kindTitle[entity.kind]}</small>
                   <strong>{entity.title}</strong>
                   <span>{entity.subtitle || entity.summary || "Открыть карточку"}</span>
-                </span>
+                </button>
                 <span aria-hidden="true" className="dashboard-hot-arrow">↗</span>
-              </button>
+              </article>
             ))}
           </div>
         </article>

@@ -25,6 +25,7 @@ export function NotesPageContainer({
   initialNoteId,
   onContentContextMenu,
   onEditWithAI,
+  onOpenEntityImage,
   onOpenPreview,
   serializeEntityForm
 }: {
@@ -37,6 +38,7 @@ export function NotesPageContainer({
   initialNoteId?: string;
   onContentContextMenu: (noteId: string, event: ReactMouseEvent<HTMLTextAreaElement>) => void;
   onEditWithAI: (entity: LoreNoteEntity) => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
   onOpenPreview: (id: string) => void;
   serializeEntityForm: (form: CreateEntityInput) => CreateEntityInput;
 }) {
@@ -191,6 +193,7 @@ export function NotesPageContainer({
       onContentContextMenu={(event) => onContentContextMenu(noteEditorEntityId, event)}
       onCreateNote={startNewLoreNote}
       onEditWithAI={onEditWithAI}
+      onOpenEntityImage={onOpenEntityImage}
       onOpenPreview={onOpenPreview}
       onSave={() => void saveLoreNote()}
       onSearchChange={setSearchQuery}

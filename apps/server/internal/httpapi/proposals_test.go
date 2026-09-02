@@ -1533,6 +1533,105 @@ func TestDeselectedProposalMediaRestoresCandidateAndIsNotApplied(t *testing.T) {
 	}
 }
 
+func TestImageOnlyProposalReplacesExistingArtAfterApplyAndUndoRestoresIt(t *testing.T) {
+	store, service, user, campaign := newProposalTestService(t)
+	entity := createProposalTestEntity(t, store, campaign.ID)
+	beforeCampaign, err := store.getCampaignForUser(user.ID, campaign.ID)
+	if err != nil {
+		t.Fatalf("get campaign before image proposal: %v", err)
+	}
+	proposal, err := service.createEntity(user.ID, campaign.ID, entityProposalInput{
+		Mode: "update", Kind: entity.Kind, EntityID: entity.ID, Prompt: "Replace only the primary art", Patch: json.RawMessage(`{}`),
+	})
+	if err != nil {
+		t.Fatalf("create image-only proposal: %v", err)
+	}
+	stagingDir := service.proposalStagingDir(user.ID, proposal.ID)
+	if err := os.MkdirAll(stagingDir, 0o700); err != nil {
+		t.Fatalf("mkdir staging: %v", err)
+	}
+	fileName := "replacement.png"
+	if err := os.WriteFile(filepath.Join(stagingDir, fileName), []byte("staged replacement"), 0o600); err != nil {
+		t.Fatalf("write staged replacement: %v", err)
+	}
+	previewURL := proposalPreviewPath(proposal.ID, fileName)
+	if _, err := service.registerStagedMedia(user.ID, proposal.ID, proposalMediaIntent{
+		ID: "replacement", Field: "art.url", PreviewURL: previewURL, Alt: "New safe alt", Caption: "New art caption", Status: "staged",
+	}); err != nil {
+		t.Fatalf("register replacement art: %v", err)
+	}
+
+	stillUnchanged, err := store.getCampaignForUser(user.ID, campaign.ID)
+	if err != nil {
+		t.Fatalf("get campaign before apply: %v", err)
+	}
+	if !reflect.DeepEqual(stillUnchanged, beforeCampaign) {
+		t.Fatal("staging image-only proposal changed the campaign before approval")
+	}
+
+	applied, err := service.apply(user.ID, proposal.ID, proposalApplyInput{})
+	if err != nil {
+		t.Fatalf("apply image-only proposal: %v", err)
+	}
+	if applied.Entity == nil || applied.Entity.Art == nil {
+		t.Fatalf("applied entity is missing replacement art: %#v", applied.Entity)
+	}
+	if !strings.HasPrefix(applied.Entity.Art.URL, "/uploads/") || applied.Entity.Art.Alt != "New safe alt" || applied.Entity.Art.Caption != "New art caption" {
+		t.Fatalf("replacement art was not promoted with metadata: %#v", applied.Entity.Art)
+	}
+	wantApplied := entity
+	wantApplied.Revision = entity.Revision + 1
+	wantApplied.Art = &heroArt{URL: applied.Entity.Art.URL, Alt: "New safe alt", Caption: "New art caption"}
+	if !reflect.DeepEqual(*applied.Entity, wantApplied) {
+		t.Fatalf("image approval changed non-art entity fields:\n got: %#v\nwant: %#v", *applied.Entity, wantApplied)
+	}
+	if applied.Campaign == nil || applied.Campaign.Revision != beforeCampaign.Revision+1 {
+		t.Fatalf("campaign revision after image approval = %#v", applied.Campaign)
+	}
+
+	undone, err := service.undo(user.ID, proposal.ID)
+	if err != nil {
+		t.Fatalf("undo image-only proposal: %v", err)
+	}
+	if undone.Entity == nil || undone.Entity.Art == nil || undone.Entity.Art.URL != entity.Art.URL || undone.Entity.Art.Alt != entity.Art.Alt || undone.Entity.Art.Caption != entity.Art.Caption {
+		t.Fatalf("undo did not restore previous art: %#v", undone.Entity)
+	}
+	wantUndone := entity
+	wantUndone.Revision = entity.Revision + 2
+	if !reflect.DeepEqual(*undone.Entity, wantUndone) {
+		t.Fatalf("undo changed non-art entity fields:\n got: %#v\nwant: %#v", *undone.Entity, wantUndone)
+	}
+}
+
+func TestEmptyEntityUpdateProposalCannotBeApplied(t *testing.T) {
+	store, service, user, campaign := newProposalTestService(t)
+	entity := createProposalTestEntity(t, store, campaign.ID)
+	beforeCampaign, err := store.getCampaignForUser(user.ID, campaign.ID)
+	if err != nil {
+		t.Fatalf("get campaign before empty proposal: %v", err)
+	}
+	proposal, err := service.createEntity(user.ID, campaign.ID, entityProposalInput{
+		Mode: "update", Kind: entity.Kind, EntityID: entity.ID, Prompt: "Image generation failed", Patch: json.RawMessage(`{}`),
+	})
+	if err != nil {
+		t.Fatalf("create empty proposal: %v", err)
+	}
+	if _, err := service.apply(user.ID, proposal.ID, proposalApplyInput{}); proposalErrorCode(t, err) != "proposal_no_changes" {
+		t.Fatalf("empty apply error = %v", err)
+	}
+	afterCampaign, err := store.getCampaignForUser(user.ID, campaign.ID)
+	if err != nil {
+		t.Fatalf("get campaign after empty apply: %v", err)
+	}
+	if !reflect.DeepEqual(afterCampaign, beforeCampaign) {
+		t.Fatal("empty proposal apply changed campaign or revisions")
+	}
+	stored, err := service.get(user.ID, proposal.ID)
+	if err != nil || stored.Status != "pending" {
+		t.Fatalf("empty proposal should remain pending after rejected apply: status=%q err=%v", stored.Status, err)
+	}
+}
+
 func TestRejectCleansStagedProposalMedia(t *testing.T) {
 	store, service, user, campaign := newProposalTestService(t)
 	entity := createProposalTestEntity(t, store, campaign.ID)

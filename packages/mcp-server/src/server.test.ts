@@ -542,6 +542,11 @@ test("server advertises focused tools with accurate proposal-only annotations", 
   const updateEntityTool = listed.tools.find((tool) => tool.name === "propose_entity_update");
   assert.match(updateEntityTool?.description ?? "", /campaignId, prompt, kind, entityId, patch/);
   assert.match(updateEntityTool?.description ?? "", /mediaIntents\?, warnings\?/);
+  assert.match(updateEntityTool?.description ?? "", /media-only replacement[\s\S]*patch: \{\}/);
+  assert.match(updateEntityTool?.description ?? "", /stage_proposal_media exactly once[\s\S]*field: art\.url/);
+  assert.match(updateEntityTool?.description ?? "", /exactly one selected art\.url image/);
+  assert.match(updateEntityTool?.description ?? "", /every non-media entity field unchanged/);
+  assert.match(updateEntityTool?.description ?? "", /until the user applies the proposal/);
   assert.match(updateEntityTool?.description ?? "", /non-event entities/);
 
   for (const tool of listed.tools) {

@@ -14,6 +14,21 @@ export type AIProposalPromptTarget =
   | { type: "entity"; entity: KnowledgeEntity }
   | { type: "campaign" };
 
+export type EntityImageGenerationResult = {
+  proposal: AIProposal;
+  warning?: string;
+};
+
+const hasSelectedStagedArtPreview = (proposal: AIProposal) => {
+  const candidates = proposal.mediaIntents.filter((intent) =>
+    intent.field === "art.url"
+    && intent.selected !== false
+    && intent.status === "staged"
+    && Boolean(intent.previewUrl)
+  );
+  return candidates.length === 1;
+};
+
 type UseAIProposalControllerArgs = {
   activeCampaign: CampaignData | null;
   activeCampaignId: string;
@@ -230,6 +245,67 @@ export function useAIProposalController({
     }
   }, [activeCampaign, activeCampaignId, includeImage, prompt, promptTarget, refresh]);
 
+  const generateEntityImageProposal = useCallback(async (
+    entity: KnowledgeEntity,
+    direction?: string
+  ): Promise<EntityImageGenerationResult> => {
+    if (!activeCampaignId) {
+      throw new Error("Сначала открой кампанию.");
+    }
+    if (codexPromptRunning) {
+      throw new Error("Codex уже выполняет другой запрос. Дождись его завершения или проверь AI-черновики.");
+    }
+
+    setCodexPromptRunning(true);
+    setCodexPromptOutcome(null);
+    try {
+      const result = await api.runCodexPrompt({
+        campaignId: activeCampaignId,
+        imageTarget: {
+          entityId: entity.id,
+          entityKind: entity.kind
+        },
+        includeImages: true,
+        prompt: direction?.trim() ?? ""
+      });
+      const returned = await Promise.all(result.proposalIds.map((proposalId) => api.getAIProposal(proposalId)));
+      const created = returned.filter((proposal) =>
+        proposal.status === "pending"
+        && proposal.target.entityId === entity.id
+        && proposal.target.entityKind === entity.kind
+      );
+      const proposal = created.find(hasSelectedStagedArtPreview) ?? created[0];
+      if (!proposal) {
+        const serverDetail = result.warning?.trim() ? ` ${result.warning.trim()}` : "";
+        if (!returned.length) {
+          throw new Error(`Codex завершил запрос без нового AI-черновика. Обычно это значит, что инструмент создания черновика не был успешно вызван. Кампания не изменилась.${serverDetail}`);
+        }
+        if (returned.some((candidate) => candidate.target.entityId !== entity.id || candidate.target.entityKind !== entity.kind)) {
+          throw new Error(`Codex создал черновик не для этой карточки, поэтому он не был принят как результат. Кампания не изменилась; проверь очередь и отклони лишний черновик.${serverDetail}`);
+        }
+        throw new Error(`Codex вернул черновик, но он уже не ожидает проверки. Обнови очередь AI-черновиков и повтори генерацию.${serverDetail}`);
+      }
+
+      setProposals((current) => [
+        ...created,
+        ...current.filter((item) => !created.some((candidate) => candidate.id === item.id))
+      ]);
+      const hasPreview = hasSelectedStagedArtPreview(proposal);
+      const warning = result.warning?.trim()
+        || (!hasPreview
+          ? "Черновик сохранён, но генератор не вернул изображение. Открой черновик, чтобы проверить подробности."
+          : undefined);
+      setCodexPromptOutcome(warning ? "warning" : null);
+      void refresh(true);
+      return { proposal, warning };
+    } catch (nextError) {
+      setCodexPromptOutcome("error");
+      throw nextError;
+    } finally {
+      setCodexPromptRunning(false);
+    }
+  }, [activeCampaignId, codexPromptRunning, refresh]);
+
   const syncMutationResult = useCallback(async (result: AIProposalMutationResult) => {
     const campaignId = result.campaign?.id ?? result.proposal.campaignId ?? result.proposal.target.campaignId;
     if (result.campaign) {
@@ -322,6 +398,7 @@ export function useAIProposalController({
     codexPromptRunning,
     conflict,
     error,
+    generateEntityImageProposal,
     inboxOpen,
     includeImage,
     loading,

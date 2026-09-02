@@ -66,4 +66,5 @@ export type EntityLinkContextMenuProps = {
 export type EntityLinkPickerModalProps = {
   controller: EntityLinkController;
   onClose: () => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
 };

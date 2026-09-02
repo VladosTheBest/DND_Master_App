@@ -2,6 +2,7 @@ import type {
   ActiveCombat,
   CampaignPreparedCombat,
   CampaignData,
+  KnowledgeEntity,
   LastCombatSummary,
   MonsterEntity,
   NpcEntity,
@@ -34,6 +35,7 @@ type CombatPageProps = {
   resolvedCombatPartyLevelsText: string;
   combatPartySummary: string;
   onOpenEntityPreview: (entityId: string) => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
   onCombatPartyLevelsChange: (value: string) => void;
   onOpenCombatSetupModal: () => void;
   onOpenCombatPlaylistModal: () => void;
@@ -65,6 +67,7 @@ export function CombatPage({
   resolvedCombatPartyLevelsText,
   combatPartySummary,
   onOpenEntityPreview,
+  onOpenEntityImage,
   onCombatPartyLevelsChange,
   onOpenCombatSetupModal,
   onOpenCombatPlaylistModal,
@@ -80,7 +83,7 @@ export function CombatPage({
       <CombatVictoryModal latestCombatSummary={latestCombatSummary} />
 
       {activeCombat?.entries.length ? (
-        <CombatTrackerPage {...trackerProps} />
+        <CombatTrackerPage {...trackerProps} onOpenEntityImage={onOpenEntityImage} />
       ) : (
         <>
           <PlaylistSection
@@ -149,32 +152,32 @@ export function CombatPage({
                     </div>
                     <div className="grid">
                       {configuredCombatPlayers.map((player) => (
-                        <button
+                        <article
                           key={`configured-player-${player.id}`}
                           className="card mini fill relation-card relation-card-with-visual"
-                          onClick={() => onOpenEntityPreview(player.id)}
-                          type="button"
                         >
-                          <EntityVisual entity={player} variant="relation" />
-                          <span className={badge("success")}>Игрок</span>
-                          <strong>{player.title}</strong>
-                          <p>{player.role || player.summary || "Персонаж партии"}</p>
-                        </button>
+                          <EntityVisual entity={player} onOpenEntityImage={onOpenEntityImage} variant="relation" />
+                          <button className="relation-card-body" onClick={() => onOpenEntityPreview(player.id)} type="button">
+                            <span className={badge("success")}>Игрок</span>
+                            <strong>{player.title}</strong>
+                            <p>{player.role || player.summary || "Персонаж партии"}</p>
+                          </button>
+                        </article>
                       ))}
                       {configuredCombatEnemies.map(({ entity, quantity }) => (
-                        <button
+                        <article
                           key={`configured-enemy-${entity.id}`}
                           className="card mini fill relation-card relation-card-with-visual"
-                          onClick={() => onOpenEntityPreview(entity.id)}
-                          type="button"
                         >
-                          <EntityVisual entity={entity} variant="relation" />
-                          <span className={badge(entity.kind === "monster" ? "danger" : "accent")}>{kindTitle[entity.kind]}</span>
-                          <strong>{entity.title}</strong>
-                          <p>
-                            {quantity} шт. • {getEntityChallenge(entity) || "CR не указан"}
-                          </p>
-                        </button>
+                          <EntityVisual entity={entity} onOpenEntityImage={onOpenEntityImage} variant="relation" />
+                          <button className="relation-card-body" onClick={() => onOpenEntityPreview(entity.id)} type="button">
+                            <span className={badge(entity.kind === "monster" ? "danger" : "accent")}>{kindTitle[entity.kind]}</span>
+                            <strong>{entity.title}</strong>
+                            <p>
+                              {quantity} шт. • {getEntityChallenge(entity) || "CR не указан"}
+                            </p>
+                          </button>
+                        </article>
                       ))}
                     </div>
                   </div>

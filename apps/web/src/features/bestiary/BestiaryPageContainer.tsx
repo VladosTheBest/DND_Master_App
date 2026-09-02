@@ -39,6 +39,7 @@ type BestiaryPageContainerProps = {
   onOpenDirectory: () => void;
   onOpenEntity: (entityId: string) => void;
   onOpenEntityActionMenu: (entity: MonsterEntity, event: ReactMouseEvent<HTMLElement>) => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
   onOpenGallery: (entity: MonsterEntity) => void;
   onOpenGalleryAlbum: (ownerId: string, ownerTitle: string, items: GalleryImage[], index: number) => void;
   onOpenGalleryViewer: (entity: MonsterEntity, index: number) => void;
@@ -65,6 +66,7 @@ export function BestiaryPageContainer({
   onOpenDirectory,
   onOpenEntity,
   onOpenEntityActionMenu,
+  onOpenEntityImage,
   onOpenGallery,
   onOpenGalleryAlbum,
   onOpenPreview,
@@ -166,7 +168,10 @@ export function BestiaryPageContainer({
             defaultCollapsed={false}
             entity={activeMonster}
             expandSections
-            onOpenPortraitGallery={openMonsterAlbum}
+            onOpenPortraitGallery={onOpenEntityImage
+              ? () => onOpenEntityImage(activeMonster, monsterGalleryAlbum[0]?.url)
+              : openMonsterAlbum}
+            portraitActionLabel={onOpenEntityImage ? "Нажми на портрет, чтобы открыть изображение и действия." : undefined}
             portraitOverride={
               monsterGalleryAlbum[0]
                 ? {
@@ -244,6 +249,7 @@ export function BestiaryPageContainer({
           emptyTitle="Ничего не найдено"
           items={controller.filteredImportedMonsters}
           onContextMenu={(monster, event) => onOpenEntityActionMenu(monster, event)}
+          onOpenEntityImage={onOpenEntityImage}
           onOpen={onOpenEntity}
           variant="imported"
         />

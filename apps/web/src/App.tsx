@@ -1,6 +1,7 @@
 import "@shadow-edge/design-tokens/theme.css";
 import {
   CollapsibleSection,
+  EntityVisual,
   NEW_LORE_NOTE_ID,
   NEW_WORLD_EVENT_ID,
   badge,
@@ -140,6 +141,7 @@ import { EntityDeleteDialog } from "./features/entity-actions/EntityDeleteDialog
 import { EntityGalleryModal } from "./features/entities/EntityGalleryModal";
 import { EntityGalleryViewer } from "./features/entities/EntityGalleryViewer";
 import { EntityPlaylistModal } from "./features/entities/EntityPlaylistModal";
+import { EntityImageModal } from "./features/entity-images/EntityImageModal";
 import { useEntityActionsController } from "./features/entity-actions/useEntityActionsController";
 import { EntityLinkContextMenu } from "./features/entity-links/EntityLinkContextMenu";
 import { EntityLinkPickerModal } from "./features/entity-links/EntityLinkPickerModal";
@@ -1529,6 +1531,7 @@ export default function App() {
   const [preparedCombatModalOpen, setPreparedCombatModalOpen] = useState(false);
   const [combatPlaylistDraft, setCombatPlaylistDraft] = useState<PlaylistTrack[]>([]);
   const [galleryViewer, setGalleryViewer] = useState<GalleryViewerState | null>(null);
+  const [entityImageTarget, setEntityImageTarget] = useState<{ entityId: string; displayUrl?: string } | null>(null);
   const [activePlayback, setActivePlayback] = useState<ActivePlaylistPlayback | null>(null);
   const [selectedWorldEventId, setSelectedWorldEventId] = useState("");
   const [rulesNavigationState, setRulesNavigationState] = useState({
@@ -1579,6 +1582,7 @@ export default function App() {
     [campaign]
   );
   const entityMap = useMemo(() => new Map(allEntities.map((entity) => [entity.id, entity])), [allEntities]);
+  const entityImageEntity = entityImageTarget ? entityMap.get(entityImageTarget.entityId) ?? null : null;
   const defaultCreateKind: EntityKind =
       activeModule === "locations"
       ? "location"
@@ -2766,6 +2770,16 @@ export default function App() {
     openGalleryViewer(entity.id, entity.title, entity.gallery ?? [], index);
   };
 
+  const openEntityImage = (entity: KnowledgeEntity, displayUrl?: string) => {
+    if (!entityMap.has(entity.id)) return;
+    setEntityImageTarget({
+      entityId: entity.id,
+      displayUrl: displayUrl?.trim() || undefined
+    });
+  };
+
+  const closeEntityImage = () => setEntityImageTarget(null);
+
   const closeGalleryViewer = () => {
     setGalleryViewer(null);
   };
@@ -2792,7 +2806,7 @@ export default function App() {
     }
   };
 
-  const showGalleryImageToPlayers = async (item: GalleryImage) => {
+  const showGalleryImageToPlayers = async (item: GalleryImage & { alt?: string }) => {
     if (!activeCampaignId || typeof window === "undefined") {
       return;
     }
@@ -2801,7 +2815,7 @@ export default function App() {
     setPlayerDisplayBusy(true);
     try {
       const share = await api.showPlayerDisplayImage(activeCampaignId, {
-        alt: item.caption?.trim() || item.title.trim() || "Изображение для игроков",
+        alt: item.alt?.trim() || item.caption?.trim() || item.title.trim() || "Изображение для игроков",
         caption: item.caption?.trim() || undefined,
         title: item.title.trim() || undefined,
         url: item.url
@@ -2819,7 +2833,9 @@ export default function App() {
       if (popup && !popup.closed) {
         popup.close();
       }
-      setBootError(error instanceof Error ? error.message : "Не удалось показать изображение игрокам.");
+      const message = error instanceof Error ? error.message : "Не удалось показать изображение игрокам.";
+      setBootError(message);
+      return message;
     } finally {
       setPlayerDisplayBusy(false);
     }
@@ -4094,6 +4110,7 @@ export default function App() {
           onEnemyQuantityChange: (entityId, quantity) => {
             updateCampaignPreparedCombatDraftItem(entityId, { quantity });
           },
+          onOpenEntityImage: openEntityImage,
           onPlayerInitiativeChange: setPreparedCombatPlayerInitiative,
           onRemoveAlly: removeCampaignPreparedCombatDraftAlly,
           onRemoveEnemy: removeCampaignPreparedCombatDraftItem,
@@ -4113,6 +4130,7 @@ export default function App() {
           },
           onCombatEnemyTypeFilterChange: setCombatEnemyTypeFilter,
           onCombatSearchQueryChange: setCombatSearchQuery,
+          onOpenEntityImage: openEntityImage,
           onSelectCatalogItem: setCombatSelectionId
         }}
         bootError={bootError}
@@ -4155,6 +4173,7 @@ export default function App() {
           draftPreparedCombatPlayers,
           onCombatAllySearchQueryChange: setCombatAllySearchQuery,
           onCombatPlayerSearchQueryChange: setCombatPlayerSearchQuery,
+          onOpenEntityImage: openEntityImage,
           onRequestSwapToEntity: (kind) => requestCombatSetupSwapToEntity(kind),
           onToggleAlly: toggleCampaignPreparedCombatAlly,
           onTogglePlayer: toggleCampaignPreparedCombatPlayer,
@@ -4531,6 +4550,7 @@ export default function App() {
               <CampaignDashboard
                 campaign={campaign}
                 onOpenEntity={openEntity}
+                onOpenEntityImage={openEntityImage}
                 onOpenEvent={openWorldEvent}
                 onOpenPreview={openPreview}
               />
@@ -4557,6 +4577,7 @@ export default function App() {
                 onOpenCombatPlaylistModal={openCombatPlaylistModal}
                 onOpenCombatSetupModal={() => openCombatSetupModal()}
                 onOpenEntityPreview={peekEntity}
+                onOpenEntityImage={openEntityImage}
                 onPlayCombatPlaylist={() => playCombatPlaylist()}
                 onPlayCombatTrack={(index) => playCombatPlaylist(index, false)}
                 onPlayNextRandomTrack={playNextRandomTrack}
@@ -4628,6 +4649,7 @@ export default function App() {
                     onOpenDirectory={() => openModuleDirectory("monsters", "Импорт")}
                     onOpenEntity={openEntity}
                     onOpenEntityActionMenu={openEntityActionMenu}
+                    onOpenEntityImage={openEntityImage}
                     onOpenGallery={openEntityGalleryModal}
                     onOpenGalleryAlbum={openGalleryViewer}
                     onOpenGalleryViewer={openEntityGalleryViewer}
@@ -4663,6 +4685,7 @@ export default function App() {
                 onOpenDirectory={() => openModuleDirectory("quests")}
                 onOpenEntity={openEntity}
                 onOpenEventGenerator={openRandomEventModal}
+                onOpenEntityImage={openEntityImage}
                 onOpenGallery={openEntityGalleryModal}
                 onOpenGalleryViewer={openEntityGalleryViewer}
                 onOpenPlaylist={openEntityPlaylistModal}
@@ -4704,6 +4727,7 @@ export default function App() {
                 onEditWithAI={() => aiProposalController.requestEntityProposal(activeEntity)}
                 onEditPlayerFacingCard={(card, index) => openPlayerFacingEditor(activeEntity, card, index)}
                 onOpenEntityActionMenu={(event) => openEntityActionMenu(activeEntity, event)}
+                onOpenEntityImage={openEntityImage}
                 onOpenGallery={() => openEntityGalleryModal(activeEntity)}
                 onOpenGalleryAlbum={openGalleryViewer}
                 onOpenGalleryViewer={(index) => openEntityGalleryViewer(activeEntity, index)}
@@ -4735,6 +4759,7 @@ export default function App() {
                 onChangeSearch={setModuleEntitySearch}
                 onOpenEntity={openEntity}
                 onOpenEntityActionMenu={openEntityActionMenu}
+                onOpenEntityImage={openEntityImage}
                 onOpenEntityModal={openEntityModal}
                 onOpenQuestFocus={openQuestFocus}
                 onOpenRandomEventModal={openRandomEventModal}
@@ -4766,6 +4791,7 @@ export default function App() {
               onEdit={openEntityEditor}
               onOpenEntityPage={openEntity}
               onOpenEntityActionMenu={openEntityActionMenu}
+              onOpenEntityImage={openEntityImage}
               onOpenGallery={openEntityGalleryModal}
               onOpenGalleryViewer={openEntityGalleryViewer}
               onOpenPlayerView={openPlayerFacingView}
@@ -4810,15 +4836,41 @@ export default function App() {
         onClose={closeGalleryViewer}
         onCopyLink={handleCopyImageLink}
         onSelect={selectGalleryViewerIndex}
-        onShowToPlayers={showGalleryImageToPlayers}
+        onShowToPlayers={(item) => { void showGalleryImageToPlayers(item); }}
         showToPlayersBusy={playerDisplayBusy}
         viewer={galleryViewer}
+      />
+
+      <EntityImageModal
+        busyElsewhere={aiProposalController.codexPromptRunning}
+        campaignId={activeCampaignId}
+        displayUrl={entityImageTarget?.displayUrl}
+        entity={entityImageEntity}
+        onClose={closeEntityImage}
+        onGenerate={aiProposalController.generateEntityImageProposal}
+        onOpenAIInbox={() => {
+          closeEntityImage();
+          aiProposalController.openInbox();
+        }}
+        onOpenProposal={aiProposalController.openProposal}
+        onShowToPlayers={(input) => showGalleryImageToPlayers({
+          alt: input.alt,
+          caption: input.caption,
+          title: input.title,
+          url: input.url
+        })}
+        pendingProposals={aiProposalController.proposals}
+        showToPlayersBusy={playerDisplayBusy}
       />
 
       <GlobalSearchModal
         entityMap={entityMap}
         onChangeQuery={setQuery}
         onClose={requestPaletteClose}
+        onOpenEntityImage={(entity, displayUrl) => {
+          closePalette();
+          openEntityImage(entity, displayUrl);
+        }}
         onOpenPrimaryResult={(result) => {
           if (result.type === "rule") {
             openRulesCompendium({
@@ -5042,39 +5094,41 @@ export default function App() {
               <div className="combat-search-results">
                 {combatSearchItems.length ? (
                   combatSearchItems.map((item) => (
-                    <button
+                    <article
                       key={item.key}
                       className={`entity-row combat-search-result has-thumb ${combatSelectionId === item.key ? "active" : ""}`}
-                      onClick={() => setCombatSelectionId(item.key)}
-                      type="button"
                     >
-                      <span className="entity-thumb-frame">
-                        <img
-                          alt={item.title}
-                          className="entity-thumb"
-                          loading="lazy"
-                          src={
-                            item.source === "entity" && item.entity
-                              ? createPortraitSource(item.entity)
-                              : item.bestiary
+                      {item.source === "entity" && item.entity ? (
+                        <EntityVisual entity={item.entity} onOpenEntityImage={openEntityImage} />
+                      ) : (
+                        <span className="entity-thumb-frame">
+                          <img
+                            alt={item.title}
+                            className="entity-thumb"
+                            loading="lazy"
+                            src={
+                              item.bestiary
                                 ? createBestiaryPortraitSource(item.bestiary)
                                 : createPortraitSource({ kind: item.kind, title: item.title })
-                          }
-                        />
-                      </span>
-                      <span className="entity-row-copy">
-                        <strong>{item.title}</strong>
-                        <small>
-                          {[
-                            item.source === "bestiary" ? "dnd.su" : item.kind === "monster" ? "Кампания • монстр" : "Кампания • НПС",
-                            item.challenge ? `CR ${extractChallengeToken(item.challenge)}` : "CR не задан",
-                            item.subtitle || item.summary
-                          ]
-                            .filter(Boolean)
-                            .join(" • ")}
-                        </small>
-                      </span>
-                    </button>
+                            }
+                          />
+                        </span>
+                      )}
+                      <button className="entity-row-main-action" onClick={() => setCombatSelectionId(item.key)} type="button">
+                        <span className="entity-row-copy">
+                          <strong>{item.title}</strong>
+                          <small>
+                            {[
+                              item.source === "bestiary" ? "dnd.su" : item.kind === "monster" ? "Кампания • монстр" : "Кампания • НПС",
+                              item.challenge ? `CR ${extractChallengeToken(item.challenge)}` : "CR не задан",
+                              item.subtitle || item.summary
+                            ]
+                              .filter(Boolean)
+                              .join(" • ")}
+                          </small>
+                        </span>
+                      </button>
+                    </article>
                   ))
                 ) : (
                   <p className="copy">
@@ -5278,6 +5332,7 @@ export default function App() {
         onChangeTitle={updatePreparedCombatTitle}
         onClose={requestPreparedCombatModalClose}
         onPeekEntity={peekEntity}
+        onOpenEntityImage={openEntityImage}
         onRemoveEnemy={removePreparedCombatDraftItem}
         onSave={() => void savePreparedCombatDraft()}
         onSelectItem={setPreparedCombatSelectionId}
@@ -5300,7 +5355,11 @@ export default function App() {
       />
 
       <EntityLinkContextMenu controller={entityLinkController} />
-      <EntityLinkPickerModal controller={entityLinkController} onClose={requestEntityLinkModalClose} />
+      <EntityLinkPickerModal
+        controller={entityLinkController}
+        onClose={requestEntityLinkModalClose}
+        onOpenEntityImage={openEntityImage}
+      />
 
       <AIProposalCenter campaignId={activeCampaignId} controller={aiProposalController} key="ai-proposal-center" renderEntity={renderProposalEntity} />
 

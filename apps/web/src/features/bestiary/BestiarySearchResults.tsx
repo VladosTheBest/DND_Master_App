@@ -14,7 +14,8 @@ type ImportedResultsProps = {
   emptyDescription: string;
   emptyTitle: string;
   items: MonsterEntity[];
-  onContextMenu?: (monster: MonsterEntity, event: ReactMouseEvent<HTMLButtonElement>) => void;
+  onContextMenu?: (monster: MonsterEntity, event: ReactMouseEvent<HTMLElement>) => void;
+  onOpenEntityImage?: (entity: MonsterEntity, displayUrl?: string) => void;
   onOpen: (monsterId: string) => void;
   variant: "imported";
 };
@@ -43,6 +44,7 @@ export function BestiarySearchResults(props: BestiarySearchResultsProps) {
               item={item}
               onClick={() => props.onOpen(item.id)}
               onContextMenu={props.onContextMenu ? (event) => props.onContextMenu?.(item, event) : undefined}
+              onOpenEntityImage={props.onOpenEntityImage}
               variant="imported"
             />
           ))}

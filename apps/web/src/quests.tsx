@@ -15,6 +15,7 @@ import {
   clamp,
   CollapsibleSection,
   createHeroPanelStyle,
+  entityImageTriggerProps,
   EntityVisual,
   gradients,
   rewardSummaryText,
@@ -915,20 +916,22 @@ function QuestPreviewActionButton({
 
 function QuestPreviewEntityCard({
   item,
-  onOpen
+  onOpen,
+  onOpenEntityImage
 }: {
   item: QuestLinkedEntity;
   onOpen: (id: string) => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
 }) {
   return (
-    <button className="quest-preview-entity" onClick={() => onOpen(item.entity.id)} type="button">
-      <EntityVisual entity={item.entity} />
-      <span className="quest-preview-entity-copy">
+    <article className="quest-preview-entity">
+      <EntityVisual entity={item.entity} onOpenEntityImage={onOpenEntityImage} />
+      <button className="quest-preview-entity-copy" onClick={() => onOpen(item.entity.id)} type="button">
         <small>{item.label}</small>
         <strong>{item.entity.title}</strong>
         <span>{item.note || item.entity.subtitle || item.entity.summary}</span>
-      </span>
-    </button>
+      </button>
+    </article>
   );
 }
 
@@ -956,6 +959,7 @@ export function QuestWorkspace({
   onOpenDirectory,
   onOpenPlayerCard,
   onOpenEntity,
+  onOpenEntityImage,
   onOpenGallery,
   onOpenGalleryViewer,
   onOpenPlaylist,
@@ -987,6 +991,7 @@ export function QuestWorkspace({
   onOpenDirectory: () => void;
   onOpenPlayerCard: (card: PlayerFacingCard, index: number) => void;
   onOpenEntity: (id: string) => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
   onOpenGallery: (quest: QuestEntity) => void;
   onOpenGalleryViewer: (index: number) => void;
   onOpenPlaylist: (quest: QuestEntity) => void;
@@ -1131,7 +1136,14 @@ export function QuestWorkspace({
           </div>
         </div>
 
-        <div className="quest-scene-visual">
+        <div
+          {...entityImageTriggerProps(
+            onOpenEntityImage ? () => onOpenEntityImage(quest, sceneImage) : undefined
+          )}
+          aria-label={onOpenEntityImage ? `Открыть изображение «${quest.title}»` : undefined}
+          className={`quest-scene-visual ${onOpenEntityImage ? "entity-image-trigger" : ""}`.trim()}
+          title={onOpenEntityImage ? `Открыть изображение «${quest.title}»` : undefined}
+        >
           <img alt={quest.title} className="quest-scene-image" loading="lazy" src={sceneImage} />
         </div>
       </section>
@@ -1321,6 +1333,7 @@ export function QuestPreviewPanel({
   onOpenPlayerView,
   onEdit,
   onOpenEntity,
+  onOpenEntityImage,
   onOpenQuest,
   onOpenPlaylist,
   onOpenGallery,
@@ -1344,6 +1357,7 @@ export function QuestPreviewPanel({
   onOpenPlayerView: (quest: QuestEntity) => void;
   onEdit: (id: string) => void;
   onOpenEntity: (id: string) => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
   onOpenQuest: (id: string) => void;
   onOpenPlaylist: (quest: QuestEntity) => void;
   onOpenGallery: (quest: QuestEntity) => void;
@@ -1412,7 +1426,15 @@ export function QuestPreviewPanel({
         </button>
       </div>
 
-      <section className="quest-preview-hero" style={createHeroPanelStyle(gradients.quest, sceneImage)}>
+      <section
+        {...entityImageTriggerProps(
+          onOpenEntityImage ? () => onOpenEntityImage(quest, sceneImage) : undefined
+        )}
+        aria-label={onOpenEntityImage ? `Открыть изображение «${quest.title}»` : undefined}
+        className={`quest-preview-hero ${onOpenEntityImage ? "entity-image-trigger" : ""}`.trim()}
+        style={createHeroPanelStyle(gradients.quest, sceneImage)}
+        title={onOpenEntityImage ? `Открыть изображение «${quest.title}»` : undefined}
+      >
         <span>Квест</span>
         <strong>{quest.title}</strong>
         <small>{quest.summary}</small>
@@ -1426,7 +1448,12 @@ export function QuestPreviewPanel({
           </div>
           <div className="quest-preview-entity-grid">
             {linkedEntities.slice(0, 4).map((item) => (
-              <QuestPreviewEntityCard key={`${quest.id}-preview-link-${item.entity.id}`} item={item} onOpen={onOpenEntity} />
+              <QuestPreviewEntityCard
+                key={`${quest.id}-preview-link-${item.entity.id}`}
+                item={item}
+                onOpen={onOpenEntity}
+                onOpenEntityImage={onOpenEntityImage}
+              />
             ))}
           </div>
         </section>
@@ -1510,6 +1537,7 @@ export function QuestPreviewPanel({
               note: location.summary
             }}
             onOpen={onOpenEntity}
+            onOpenEntityImage={onOpenEntityImage}
           />
         </section>
       ) : null}

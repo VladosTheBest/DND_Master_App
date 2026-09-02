@@ -1,4 +1,5 @@
-import { createBestiaryPortraitSource, createPortraitSource } from "../../../app-shared";
+import type { KnowledgeEntity } from "@shadow-edge/shared-types";
+import { EntityVisual, createBestiaryPortraitSource, createPortraitSource } from "../../../app-shared";
 import type { CombatCatalogOption, CombatSearchItem } from "../combat.types";
 import { extractChallengeToken, parseChallengeXp, resolveCombatSearchItemTypeLabel } from "../combat.utils";
 
@@ -12,6 +13,7 @@ export type CombatBestiaryPanelProps = {
   onCombatEnemyTypeFilterChange: (value: string) => void;
   onSelectCatalogItem: (key: string) => void;
   onAddEnemy: (item: CombatSearchItem) => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
 };
 
 export function CombatBestiaryPanel({
@@ -23,7 +25,8 @@ export function CombatBestiaryPanel({
   onCombatSearchQueryChange,
   onCombatEnemyTypeFilterChange,
   onSelectCatalogItem,
-  onAddEnemy
+  onAddEnemy,
+  onOpenEntityImage
 }: CombatBestiaryPanelProps) {
   return (
     <section className="combat-prep-reference-panel bestiary-panel">
@@ -67,17 +70,19 @@ export function CombatBestiaryPanel({
             const itemXp = parseChallengeXp(item.challenge ?? "");
             return (
               <article key={`combat-prep-enemy-${item.key}`} className="combat-prep-bestiary-row">
-                <img
-                  alt={item.title}
-                  loading="lazy"
-                  src={
-                    item.source === "entity" && item.entity
-                      ? createPortraitSource(item.entity)
-                      : item.bestiary
+                {item.source === "entity" && item.entity ? (
+                  <EntityVisual entity={item.entity} onOpenEntityImage={onOpenEntityImage} />
+                ) : (
+                  <img
+                    alt={item.title}
+                    loading="lazy"
+                    src={
+                      item.bestiary
                         ? createBestiaryPortraitSource(item.bestiary)
                         : createPortraitSource({ kind: item.kind, title: item.title })
-                  }
-                />
+                    }
+                  />
+                )}
                 <button className="combat-prep-row-main" onClick={() => onSelectCatalogItem(item.key)} type="button">
                   <div className="combat-prep-row-copy">
                     <strong>{item.title}</strong>

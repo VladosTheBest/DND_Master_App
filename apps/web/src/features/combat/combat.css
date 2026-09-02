@@ -1155,6 +1155,14 @@
   height: 4.15rem;
 }
 
+.combat-prep-party-card > .entity-thumb-frame,
+.combat-prep-party-card > .sigil {
+  width: 4.15rem;
+  min-width: 4.15rem;
+  height: 4.15rem;
+  border-radius: 12px;
+}
+
 .combat-prep-party-card div,
 .combat-prep-field-copy,
 .combat-prep-row-copy {
@@ -1321,6 +1329,14 @@
   height: 3.25rem;
 }
 
+.combat-prep-field-row > .entity-thumb-frame,
+.combat-prep-field-row > .sigil {
+  width: 3.25rem;
+  min-width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 12px;
+}
+
 .combat-prep-drag-handle {
   color: rgba(190, 204, 227, .45);
   font-size: .9rem;
@@ -1436,6 +1452,14 @@
   height: 3.35rem;
 }
 
+.combat-prep-bestiary-row > .entity-thumb-frame,
+.combat-prep-bestiary-row > .sigil {
+  width: 3.35rem;
+  min-width: 3.35rem;
+  height: 3.35rem;
+  border-radius: 12px;
+}
+
 .combat-prep-bestiary-row .combat-prep-row-main {
   width: 100%;
   min-width: 0;
@@ -1547,6 +1571,13 @@
 
   .combat-prep-party-card img {
     width: 3.35rem;
+    height: 3.35rem;
+  }
+
+  .combat-prep-party-card > .entity-thumb-frame,
+  .combat-prep-party-card > .sigil {
+    width: 3.35rem;
+    min-width: 3.35rem;
     height: 3.35rem;
   }
 

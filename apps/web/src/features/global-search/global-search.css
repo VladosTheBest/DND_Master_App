@@ -4,6 +4,10 @@
   gap: .62rem;
   align-items: stretch;
 }
+.palette-item-with-visual {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+}
 .palette-main { display: grid; gap: .28rem; justify-items: start; }
 .palette-main-with-visual {
   grid-template-columns: auto minmax(0, 1fr);

@@ -21,6 +21,7 @@ type PreparedCombatEditorProps = {
   onRemoveEnemy: (entityId: string) => void;
   onSelectItem: (itemKey: string) => void;
   onUpdateEnemyQuantity: (entityId: string, quantity: number) => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
 };
 
 export function PreparedCombatEditor({
@@ -41,7 +42,8 @@ export function PreparedCombatEditor({
   onPeekEntity,
   onRemoveEnemy,
   onSelectItem,
-  onUpdateEnemyQuantity
+  onUpdateEnemyQuantity,
+  onOpenEntityImage
 }: PreparedCombatEditorProps) {
   return (
     <section className="card section-card prepared-combat-card">
@@ -73,6 +75,7 @@ export function PreparedCombatEditor({
         onChangeSearchQuery={onChangeSearchQuery}
         onPeekEntity={onPeekEntity}
         onRemoveEnemy={onRemoveEnemy}
+        onOpenEntityImage={onOpenEntityImage}
         onSelectItem={onSelectItem}
         onUpdateEnemyQuantity={onUpdateEnemyQuantity}
       />

@@ -14,6 +14,7 @@ import {
   NEW_LORE_NOTE_ID,
   NEW_WORLD_EVENT_ID,
   badge,
+  EntityVisual,
   loreNoteExcerpt,
   matchesEntityDirectorySearch,
   resolveLoreNoteTitle,
@@ -416,6 +417,7 @@ export function NotesWorkspace({
   onSelectNote,
   onCreateNote,
   onEditWithAI,
+  onOpenEntityImage,
   onSave,
   onOpenPreview,
   onTitleChange,
@@ -436,6 +438,7 @@ export function NotesWorkspace({
   onSelectNote: (noteId: string) => void;
   onCreateNote: () => void;
   onEditWithAI?: (note: LoreNoteEntity) => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
   onSave: () => void;
   onOpenPreview: (noteId: string) => void;
   onTitleChange: (value: string) => void;
@@ -512,19 +515,22 @@ export function NotesWorkspace({
 
             {filteredNotes.length ? (
               filteredNotes.map((note) => (
-                <button
+                <article
                   key={note.id}
-                  aria-pressed={!editingNewNote && selectedNoteId === note.id}
                   className={`notes-list-item ${!editingNewNote && selectedNoteId === note.id ? "selected" : ""}`}
-                  onClick={() => onSelectNote(note.id)}
-                  type="button"
                 >
-                  <span className="notes-list-item-copy">
+                  <EntityVisual entity={note} onOpenEntityImage={onOpenEntityImage} />
+                  <button
+                    aria-pressed={!editingNewNote && selectedNoteId === note.id}
+                    className="notes-list-item-copy"
+                    onClick={() => onSelectNote(note.id)}
+                    type="button"
+                  >
                     <strong>{note.title}</strong>
                     <small>{note.visibility === "gm_only" ? "GM only" : "Player safe"}</small>
                     <p>{loreNoteExcerpt(note, 90)}</p>
-                  </span>
-                </button>
+                  </button>
+                </article>
               ))
             ) : (
               <div className="notes-empty-state">

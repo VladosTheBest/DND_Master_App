@@ -844,6 +844,10 @@ export interface CodexPromptInput {
   prompt: string;
   threadId?: string;
   includeImages?: boolean;
+  imageTarget?: {
+    entityId: string;
+    entityKind: EntityKind;
+  };
 }
 
 export interface CodexPromptResult {

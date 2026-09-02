@@ -97,6 +97,25 @@
 .entity-row-copy strong { font-size: .9rem; line-height: 1.18; }
 .entity-row-copy small { font-size: .76rem; line-height: 1.35; }
 
+.entity-row-main-action {
+  align-self: stretch;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: .45rem;
+  display: grid;
+  align-items: center;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.entity-row-main-action:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: .2rem;
+}
+
 .entity-row.has-thumb {
   align-items: stretch;
 }
@@ -128,6 +147,15 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.entity-image-trigger {
+  cursor: zoom-in;
+}
+
+.entity-image-trigger:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
 }
 
 .sigil,
@@ -408,27 +436,41 @@
   min-width: 5rem;
   aspect-ratio: 4 / 5;
 }
-.relation-card-with-visual > .badge {
+.relation-card-with-visual > .relation-card-body {
   grid-column: 2;
-  grid-row: 1;
+  grid-row: 1 / span 3;
 }
-.relation-card-with-visual > strong {
-  grid-column: 2;
-  grid-row: 2;
+.relation-card-body {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  align-content: start;
+  justify-items: start;
+  gap: .28rem;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
 }
-.relation-card-with-visual > p {
-  grid-column: 2;
-  grid-row: 3;
+.relation-card-body:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 78%, white);
+  outline-offset: .28rem;
+  border-radius: .28rem;
+}
+.relation-card-body > p {
   margin: 0;
 }
-.relation-card strong {
+.relation-card strong,
+.relation-card-body > strong {
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-height: 1.22;
 }
-.relation-card p {
+.relation-card p,
+.relation-card-body > p {
   display: -webkit-box;
   overflow: hidden;
   -webkit-box-orient: vertical;

@@ -21,6 +21,7 @@ import {
   clamp,
   createPortraitSource,
   formatModifier,
+  hasVisibleArt,
   isRewardableEntity,
   rewardSectionLabel,
   rewardSummaryText
@@ -278,6 +279,7 @@ export function CombatEntityStatSheet({
   defaultCollapsed = true,
   expandSections = false,
   onOpenPortraitGallery,
+  portraitActionLabel = "Нажми на портрет, чтобы открыть альбом.",
   portraitOverride
 }: {
   entity: CombatProfileEntity;
@@ -285,6 +287,7 @@ export function CombatEntityStatSheet({
   defaultCollapsed?: boolean;
   expandSections?: boolean;
   onOpenPortraitGallery?: () => void;
+  portraitActionLabel?: string;
   portraitOverride?: {
     alt?: string;
     caption?: string;
@@ -349,7 +352,7 @@ export function CombatEntityStatSheet({
           )}
           <figcaption>
             <span>{portraitCaption}</span>
-            {onOpenPortraitGallery ? <span className="npc-portrait-note">Нажми на портрет, чтобы открыть альбом.</span> : null}
+            {onOpenPortraitGallery ? <span className="npc-portrait-note">{portraitActionLabel}</span> : null}
           </figcaption>
         </figure>
 
@@ -659,7 +662,8 @@ export function CombatEntryCard({
   onApplyDamage,
   onChangeInitiative,
   onSetCurrentTurn,
-  onNextTurn
+  onNextTurn,
+  onOpenEntityImage
 }: {
   entry: CombatEntry;
   linkedEntity: KnowledgeEntity | null;
@@ -671,6 +675,7 @@ export function CombatEntryCard({
   onChangeInitiative: (entry: CombatEntry, nextInitiative: number) => void;
   onSetCurrentTurn: (entryId: string) => void;
   onNextTurn: () => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
 }) {
   const kindLabel = entry.entityKind === "monster" ? "Монстр" : entry.entityKind === "player" ? "Игрок" : "НПС";
   const tone: QuickFactTone = entry.entityKind === "monster" ? "danger" : entry.entityKind === "player" ? "success" : "accent";
@@ -778,12 +783,27 @@ export function CombatEntryCard({
   return (
     <article className={`card combat-focus-card ${isCombatEntryOut(entry) ? "defeated" : ""}`}>
       <header className="combat-focus-hero">
-        <div className={`combat-focus-portrait-shell ${isCombatEntryBloodied(entry) ? "combat-bloodied-shell" : ""}`}>
-          <img alt={linkedEntity?.art?.alt ?? entry.title} className="combat-focus-portrait" loading="lazy" src={portraitSource} />
-          {isCombatEntryBloodied(entry) ? (
-            <img alt="" aria-hidden="true" className="combat-blood-overlay" loading="lazy" src={victoryBloodOverlayUrl} />
-          ) : null}
-        </div>
+        {linkedEntity && onOpenEntityImage ? (
+          <button
+            aria-haspopup="dialog"
+            aria-label={`Открыть изображение «${linkedEntity.title}»`}
+            className={`combat-focus-portrait-shell entity-image-trigger ${isCombatEntryBloodied(entry) ? "combat-bloodied-shell" : ""}`}
+            onClick={() => onOpenEntityImage(linkedEntity, hasVisibleArt(linkedEntity.art) ? portraitSource : undefined)}
+            type="button"
+          >
+            <img alt={linkedEntity.art?.alt ?? entry.title} className="combat-focus-portrait" loading="lazy" src={portraitSource} />
+            {isCombatEntryBloodied(entry) ? (
+              <img alt="" aria-hidden="true" className="combat-blood-overlay" loading="lazy" src={victoryBloodOverlayUrl} />
+            ) : null}
+          </button>
+        ) : (
+          <div className={`combat-focus-portrait-shell ${isCombatEntryBloodied(entry) ? "combat-bloodied-shell" : ""}`}>
+            <img alt={linkedEntity?.art?.alt ?? entry.title} className="combat-focus-portrait" loading="lazy" src={portraitSource} />
+            {isCombatEntryBloodied(entry) ? (
+              <img alt="" aria-hidden="true" className="combat-blood-overlay" loading="lazy" src={victoryBloodOverlayUrl} />
+            ) : null}
+          </div>
+        )}
 
         <div className="combat-focus-hero-copy">
           <div className="row combat-focus-topline">
@@ -1111,7 +1131,8 @@ export function CombatEntryTile({
   damageFlash,
   selected,
   currentTurn,
-  onSelect
+  onSelect,
+  onOpenEntityImage
 }: {
   entry: CombatEntry;
   linkedEntity: KnowledgeEntity | null;
@@ -1120,6 +1141,7 @@ export function CombatEntryTile({
   selected: boolean;
   currentTurn: boolean;
   onSelect: () => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
 }) {
   const portraitSource = linkedEntity
     ? createPortraitSource(linkedEntity)
@@ -1129,11 +1151,8 @@ export function CombatEntryTile({
       });
 
   return (
-    <button
-      aria-pressed={selected}
+    <article
       className={`combat-roster-tile ${selected ? "selected" : ""} ${currentTurn ? "current" : ""} ${isCombatEntryOut(entry) ? "defeated" : ""}`}
-      onClick={onSelect}
-      type="button"
     >
       {damageFlash ? (
         <span key={damageFlash.token} className="combat-roster-damage-burst" aria-live="polite">
@@ -1141,13 +1160,33 @@ export function CombatEntryTile({
         </span>
       ) : null}
       <span className={`combat-roster-initiative ${entry.side === "player" ? "player" : "enemy"}`}>{combatEntryInitiative(entry)}</span>
-      <div className={`combat-roster-portrait-shell ${isCombatEntryBloodied(entry) ? "combat-bloodied-shell" : ""}`}>
-        <img alt={linkedEntity?.art?.alt ?? entry.title} className="combat-roster-portrait" loading="lazy" src={portraitSource} />
-        {isCombatEntryBloodied(entry) ? (
-          <img alt="" aria-hidden="true" className="combat-blood-overlay" loading="lazy" src={victoryBloodOverlayUrl} />
-        ) : null}
-      </div>
-      <div className="combat-roster-copy">
+      {linkedEntity && onOpenEntityImage ? (
+        <button
+          aria-haspopup="dialog"
+          aria-label={`Открыть изображение «${linkedEntity.title}»`}
+          className={`combat-roster-portrait-shell entity-image-trigger ${isCombatEntryBloodied(entry) ? "combat-bloodied-shell" : ""}`}
+          onClick={() => onOpenEntityImage(linkedEntity, hasVisibleArt(linkedEntity.art) ? portraitSource : undefined)}
+          type="button"
+        >
+          <img alt={linkedEntity.art?.alt ?? entry.title} className="combat-roster-portrait" loading="lazy" src={portraitSource} />
+          {isCombatEntryBloodied(entry) ? (
+            <img alt="" aria-hidden="true" className="combat-blood-overlay" loading="lazy" src={victoryBloodOverlayUrl} />
+          ) : null}
+        </button>
+      ) : (
+        <div className={`combat-roster-portrait-shell ${isCombatEntryBloodied(entry) ? "combat-bloodied-shell" : ""}`}>
+          <img alt={linkedEntity?.art?.alt ?? entry.title} className="combat-roster-portrait" loading="lazy" src={portraitSource} />
+          {isCombatEntryBloodied(entry) ? (
+            <img alt="" aria-hidden="true" className="combat-blood-overlay" loading="lazy" src={victoryBloodOverlayUrl} />
+          ) : null}
+        </div>
+      )}
+      <button
+        aria-pressed={selected}
+        className="combat-roster-copy"
+        onClick={onSelect}
+        type="button"
+      >
         <div className="combat-roster-topline">
           <strong title={entry.title}>{entry.title}</strong>
           {currentTurn ? <span className={`${badge("accent")} combat-roster-turn-badge`}>Ход</span> : null}
@@ -1162,7 +1201,7 @@ export function CombatEntryTile({
             <span style={{ width: `${combatEntryHealthPercent(entry)}%` }} />
           </div>
         ) : null}
-      </div>
-    </button>
+      </button>
+    </article>
   );
 }

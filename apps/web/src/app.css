@@ -1536,6 +1536,22 @@
   gap: .12rem;
 }
 
+button.quest-preview-entity-copy {
+  width: 100%;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+button.quest-preview-entity-copy:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 78%, white);
+  outline-offset: .28rem;
+  border-radius: .28rem;
+}
+
 .quest-preview-list {
   display: grid;
   gap: .46rem;
@@ -1658,6 +1674,11 @@
   box-shadow: 0 16px 32px rgba(0,0,0,.2);
 }
 
+.directory-card:focus-within {
+  border-color: rgba(124, 166, 255, .38);
+  box-shadow: 0 16px 32px rgba(0,0,0,.2), 0 0 0 2px rgba(143, 183, 255, .18);
+}
+
 .directory-card-thumb {
   display: block;
   width: 100%;
@@ -1669,6 +1690,13 @@
   border: 1px solid var(--line);
   background: rgba(255,255,255,.03);
   box-shadow: 0 12px 26px rgba(0,0,0,.18);
+  padding: 0;
+  color: inherit;
+  cursor: zoom-in;
+}
+
+.directory-card-thumb:disabled {
+  cursor: default;
 }
 
 .directory-card-thumb .sigil.big {
@@ -1691,6 +1719,19 @@
   align-self: start;
   gap: .22rem;
   overflow: hidden;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.directory-card-copy:focus-visible,
+.directory-card-thumb:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
 }
 
 .directory-card-topline {
@@ -1819,6 +1860,9 @@
 
 .notes-list-item {
   display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: stretch;
+  gap: .68rem;
   width: 100%;
   padding: .78rem .82rem;
   border: 1px solid var(--line);
@@ -1843,13 +1887,29 @@
 }
 
 .notes-list-item.unsaved {
+  grid-template-columns: minmax(0, 1fr);
   border-style: dashed;
 }
 
 .notes-list-item-copy {
   display: grid;
+  align-content: start;
+  justify-items: start;
   gap: .22rem;
   min-width: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  cursor: pointer;
+}
+
+.notes-list-item-copy:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 3px;
+  border-radius: .3rem;
 }
 
 .notes-list-item-copy strong {
@@ -3020,6 +3080,7 @@
   border: 1px solid rgba(255,255,255,.08);
   background: rgba(255,255,255,.03);
   box-shadow: inset 0 0 0 1px rgba(255,255,255,.03);
+  padding: 0;
 }
 .combat-roster-portrait {
   width: 100%;
@@ -3031,6 +3092,17 @@
   gap: .26rem;
   align-self: center;
   min-width: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: .35rem;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+.combat-roster-copy:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: .3rem;
 }
 .combat-roster-copy strong {
   display: block;
@@ -3162,6 +3234,7 @@
   overflow: hidden;
   border: 1px solid rgba(255,255,255,.08);
   background: rgba(255,255,255,.03);
+  padding: 0;
 }
 .combat-focus-portrait {
   width: 100%;

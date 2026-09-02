@@ -1,4 +1,5 @@
-import { createPortraitSource, kindTitle } from "../../../app-shared";
+import type { KnowledgeEntity } from "@shadow-edge/shared-types";
+import { EntityVisual, kindTitle } from "../../../app-shared";
 import type { CombatProfileEntity } from "../combat.types";
 import { CombatInitiativeInput } from "./CombatInitiativeInput";
 
@@ -11,6 +12,7 @@ type CombatParticipantRowProps = {
   onRemove: () => void;
   removeLabel: string;
   className: string;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
 };
 
 export function CombatParticipantRow({
@@ -21,12 +23,13 @@ export function CombatParticipantRow({
   onInitiativeChange,
   onRemove,
   removeLabel,
-  className
+  className,
+  onOpenEntityImage
 }: CombatParticipantRowProps) {
   return (
     <article className={className}>
       <span className="combat-prep-drag-handle">⋮⋮</span>
-      <img alt={entity.title} loading="lazy" src={createPortraitSource(entity)} />
+      <EntityVisual entity={entity} onOpenEntityImage={onOpenEntityImage} />
       <div className="combat-prep-field-copy">
         <strong>{title}</strong>
         <span>{subtitle || entity.role || entity.subtitle || kindTitle[entity.kind]}</span>

@@ -28,6 +28,7 @@ type EntityDirectoryScreenProps = {
   onChangeSearch: (value: string) => void;
   onOpenEntity: (entityId: string) => void;
   onOpenEntityActionMenu: (entity: KnowledgeEntity, event: ReactMouseEvent<HTMLElement>) => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
   onOpenEntityModal: (kind: EntityKind) => void;
   onOpenQuestFocus: (questId: string) => void;
   onOpenRandomEventModal: () => void;
@@ -45,6 +46,7 @@ export function EntityDirectoryScreen({
   onChangeSearch,
   onOpenEntity,
   onOpenEntityActionMenu,
+  onOpenEntityImage,
   onOpenEntityModal,
   onOpenQuestFocus,
   onOpenRandomEventModal,
@@ -99,17 +101,23 @@ export function EntityDirectoryScreen({
                     const sceneImage = resolveQuestSceneArtwork(quest, location, issuer, preparedEntries);
 
                     return (
-                      <button
+                      <article
                         key={quest.id}
                         className="directory-card quest-directory-card"
-                        onClick={() => onOpenQuestFocus(quest.id)}
                         onContextMenu={(event) => onOpenEntityActionMenu(quest, event)}
-                        type="button"
                       >
-                        <span className="directory-card-thumb">
+                        <button
+                          aria-haspopup={onOpenEntityImage ? "dialog" : undefined}
+                          aria-label={onOpenEntityImage ? `Открыть изображение «${quest.title}»` : undefined}
+                          className={`directory-card-thumb ${onOpenEntityImage ? "entity-image-trigger" : ""}`.trim()}
+                          disabled={!onOpenEntityImage}
+                          onClick={() => onOpenEntityImage?.(quest, sceneImage)}
+                          title={onOpenEntityImage ? `Открыть изображение «${quest.title}»` : undefined}
+                          type="button"
+                        >
                           <img alt={quest.title} className="directory-card-image" loading="lazy" src={sceneImage} />
-                        </span>
-                        <span className="directory-card-copy">
+                        </button>
+                        <button className="directory-card-copy" onClick={() => onOpenQuestFocus(quest.id)} type="button">
                           <span className="directory-card-topline">
                             <strong>{quest.title}</strong>
                             <span className={badge(questStatusTone(quest.status))}>{quest.status}</span>
@@ -120,37 +128,46 @@ export function EntityDirectoryScreen({
                             <span>{quest.urgency}</span>
                             {preparedCombatCount ? <span>{preparedCombatCount} в бою</span> : null}
                           </span>
-                        </span>
-                      </button>
+                        </button>
+                      </article>
                     );
                   })
-              : moduleDirectoryEntities.map((entity) => (
-                  <button
-                    key={entity.id}
-                    className="directory-card"
-                    onClick={() => onOpenEntity(entity.id)}
-                    onContextMenu={(event) => onOpenEntityActionMenu(entity, event)}
-                    type="button"
-                  >
-                    <span className="directory-card-thumb">
-                      {hasVisibleArt(entity.art) ? (
-                        <img alt={entity.title} className="directory-card-image" loading="lazy" src={createPortraitSource(entity)} />
-                      ) : (
-                        <span className="sigil big" style={{ backgroundImage: gradients[entity.kind] }}>
-                          {sigil(entity.title)}
+              : moduleDirectoryEntities.map((entity) => {
+                  const displayUrl = hasVisibleArt(entity.art) ? createPortraitSource(entity) : undefined;
+                  return (
+                    <article
+                      key={entity.id}
+                      className="directory-card"
+                      onContextMenu={(event) => onOpenEntityActionMenu(entity, event)}
+                    >
+                      <button
+                        aria-haspopup={onOpenEntityImage ? "dialog" : undefined}
+                        aria-label={onOpenEntityImage ? `Открыть изображение «${entity.title}»` : undefined}
+                        className={`directory-card-thumb ${onOpenEntityImage ? "entity-image-trigger" : ""}`.trim()}
+                        disabled={!onOpenEntityImage}
+                        onClick={() => onOpenEntityImage?.(entity, displayUrl)}
+                        title={onOpenEntityImage ? `Открыть изображение «${entity.title}»` : undefined}
+                        type="button"
+                      >
+                        {displayUrl ? (
+                          <img alt={entity.title} className="directory-card-image" loading="lazy" src={displayUrl} />
+                        ) : (
+                          <span className="sigil big" style={{ backgroundImage: gradients[entity.kind] }}>
+                            {sigil(entity.title)}
+                          </span>
+                        )}
+                      </button>
+                      <button className="directory-card-copy" onClick={() => onOpenEntity(entity.id)} type="button">
+                        <span className="directory-card-topline">
+                          <strong>{entity.title}</strong>
+                          <span className={badge()}>{kindTitle[entity.kind]}</span>
                         </span>
-                      )}
-                    </span>
-                    <span className="directory-card-copy">
-                      <span className="directory-card-topline">
-                        <strong>{entity.title}</strong>
-                        <span className={badge()}>{kindTitle[entity.kind]}</span>
-                      </span>
-                      <small>{entity.subtitle}</small>
-                      <p>{truncateInlineText(entity.summary, 150)}</p>
-                    </span>
-                  </button>
-                ))}
+                        <small>{entity.subtitle}</small>
+                        <p>{truncateInlineText(entity.summary, 150)}</p>
+                      </button>
+                    </article>
+                  );
+                })}
           </div>
         ) : (
           <div className="directory-empty">

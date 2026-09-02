@@ -11,6 +11,7 @@ type GlobalSearchModalProps = {
   results: GlobalSearchDisplayResult[];
   onChangeQuery: (value: string) => void;
   onClose: () => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
   onOpenPrimaryResult: (result: GlobalSearchDisplayResult) => void;
   onOpenSecondaryResult: (result: GlobalSearchDisplayResult) => void;
 };
@@ -22,6 +23,7 @@ export function GlobalSearchModal({
   results,
   onChangeQuery,
   onClose,
+  onOpenEntityImage,
   onOpenPrimaryResult,
   onOpenSecondaryResult
 }: GlobalSearchModalProps) {
@@ -45,6 +47,7 @@ export function GlobalSearchModal({
         <GlobalSearchInput onChange={onChangeQuery} query={query} />
         <GlobalSearchResults
           entityMap={entityMap}
+          onOpenEntityImage={onOpenEntityImage}
           onOpenPrimary={onOpenPrimaryResult}
           onOpenSecondary={onOpenSecondaryResult}
           results={results}

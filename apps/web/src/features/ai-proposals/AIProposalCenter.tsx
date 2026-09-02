@@ -1,5 +1,5 @@
 import type { AIProposal, CampaignData, KnowledgeEntity, WorldEvent, WorldEventInput } from "@shadow-edge/shared-types";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { EventsWorkspace } from "../../notes-events";
 import { CampaignDashboard } from "../campaigns/CampaignDashboard";
 import type { AIProposalController } from "./useAIProposalController";
@@ -124,11 +124,16 @@ function AIProposalPromptModal({ controller }: { controller: AIProposalControlle
 }
 
 function AIProposalInbox({ controller, campaignId }: { controller: AIProposalController; campaignId?: string }) {
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
     if (controller.inboxOpen && controller.codexPromptOutcome) {
       controller.setCodexPromptOutcome(null);
     }
   }, [controller.codexPromptOutcome, controller.inboxOpen, controller.setCodexPromptOutcome]);
+
+  useEffect(() => {
+    if (controller.inboxOpen) window.requestAnimationFrame(() => closeButtonRef.current?.focus());
+  }, [controller.inboxOpen]);
 
   return (
     <div
@@ -158,7 +163,7 @@ function AIProposalInbox({ controller, campaignId }: { controller: AIProposalCon
             <button className="ghost" disabled={controller.loading} onClick={() => void controller.refresh()} type="button">
               {controller.loading ? "Обновляю…" : "Обновить"}
             </button>
-            <button className="ghost" onClick={controller.closeInbox} type="button">
+            <button className="ghost" onClick={controller.closeInbox} ref={closeButtonRef} type="button">
               {controller.codexPromptRunning ? "Свернуть" : "Закрыть"}
             </button>
           </div>
@@ -515,6 +520,11 @@ function AIProposalReviewModal({ controller, renderEntity }: AIProposalCenterPro
   const isPending = proposal.status === "pending";
   const isApplied = proposal.status === "applied";
   const selectedKeys = proposal.kind === "campaign_create" ? Array.from(selectedOperationKeys) : undefined;
+  const hasSelectedStagedMedia = proposal.mediaIntents.some((intent) =>
+    intent.selected !== false && intent.status === "staged" && Boolean(intent.previewUrl)
+  );
+  const hasApplicableChanges = proposal.diff.length > 0 || proposal.operations.length > 0 || hasSelectedStagedMedia;
+  const emptyEntityUpdate = proposal.kind === "entity_update" && !hasApplicableChanges;
 
   return (
     <div className="overlay ai-proposal-overlay ai-proposal-review-overlay" role="presentation">
@@ -529,7 +539,7 @@ function AIProposalReviewModal({ controller, renderEntity }: AIProposalCenterPro
             <h2>{proposalTitle(proposal)}</h2>
             <p>{proposal.prompt}</p>
           </div>
-          <button className="ghost" disabled={Boolean(controller.action)} onClick={controller.closeProposal} type="button">Закрыть</button>
+          <button autoFocus className="ghost" disabled={Boolean(controller.action)} onClick={controller.closeProposal} type="button">Закрыть</button>
         </header>
 
         <div className="ai-proposal-review-tabs" role="tablist">
@@ -546,6 +556,12 @@ function AIProposalReviewModal({ controller, renderEntity }: AIProposalCenterPro
           ) : null}
           {controller.conflict ? <div className="ai-proposal-alert danger"><strong>Конфликт ревизий</strong><span>{controller.conflict}</span></div> : null}
           {controller.error ? <div className="ai-proposal-alert danger">{controller.error}</div> : null}
+          {emptyEntityUpdate ? (
+            <div className="ai-proposal-alert danger">
+              <strong>В этом черновике нечего применять</strong>
+              <span>Изображение не было подготовлено. Отклони черновик и запусти генерацию ещё раз — ревизия карточки не изменится.</span>
+            </div>
+          ) : null}
           {isApplied ? <div className="ai-proposal-alert success"><strong>Изменения применены атомарно</strong><span>Создана новая ревизия. Отмена доступна, пока данные не были изменены ещё раз.</span></div> : null}
           {proposal.status === "undone" ? <div className="ai-proposal-alert neutral">Применение отменено новой ревизией; история сохранена.</div> : null}
           {proposal.status === "rejected" ? <div className="ai-proposal-alert neutral">Черновик отклонён. Данные кампании не менялись.</div> : null}
@@ -582,11 +598,11 @@ function AIProposalReviewModal({ controller, renderEntity }: AIProposalCenterPro
                 </button>
                 <button
                   className="primary"
-                  disabled={Boolean(controller.action) || (proposal.kind === "campaign_create" && selectedOperationKeys.size === 0)}
+                  disabled={Boolean(controller.action) || emptyEntityUpdate || (proposal.kind === "campaign_create" && selectedOperationKeys.size === 0)}
                   onClick={() => void controller.applyProposal(selectedKeys)}
                   type="button"
                 >
-                  {controller.action === "apply" ? "Проверяю ревизии и применяю…" : "Применить выбранное"}
+                  {controller.action === "apply" ? "Проверяю ревизии и применяю…" : emptyEntityUpdate ? "Нет готовых изменений" : "Применить выбранное"}
                 </button>
               </>
             ) : null}

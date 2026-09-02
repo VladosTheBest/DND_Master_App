@@ -1,6 +1,7 @@
 import {
   useState,
   type CSSProperties,
+  type HTMLAttributes,
   type ReactNode
 } from "react";
 import type {
@@ -27,6 +28,15 @@ type PortraitEntityLike = {
   art?: HeroArt;
 };
 type RewardableEntity = NpcEntity | MonsterEntity | QuestEntity;
+
+const portraitPlaceholderThemes: Record<EntityKind, { accentA: string; accentB: string; fallback: string; label: string }> = {
+  location: { accentA: "#7ca6ff", accentB: "#28456f", fallback: "LC", label: "LOCATION DOSSIER" },
+  player: { accentA: "#6dddcf", accentB: "#164f63", fallback: "PL", label: "PLAYER DOSSIER" },
+  npc: { accentA: "#7ed6a1", accentB: "#1e3d32", fallback: "NPC", label: "NPC DOSSIER" },
+  monster: { accentA: "#e57c62", accentB: "#4d1914", fallback: "MN", label: "MONSTER DOSSIER" },
+  quest: { accentA: "#f1c07d", accentB: "#70431c", fallback: "QS", label: "QUEST DOSSIER" },
+  lore: { accentA: "#c099ff", accentB: "#403064", fallback: "LR", label: "LORE DOSSIER" }
+};
 
 export const NEW_LORE_NOTE_ID = "__new_lore_note__";
 export const NEW_WORLD_EVENT_ID = "__new_world_event__";
@@ -172,23 +182,19 @@ export const createPortraitSource = (entity: PortraitEntityLike) => {
     return entity.art.url;
   }
 
-  const initials =
-    sigil(entity.title) ||
-    (entity.kind === "monster" ? "MN" : entity.kind === "player" ? "PL" : "NPC");
-  const safeTitle = entity.title
+  const theme = portraitPlaceholderThemes[entity.kind];
+  const escapeSVGText = (value: string) => value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
-  const accentA = entity.kind === "monster" ? "#e57c62" : entity.kind === "player" ? "#6dddcf" : "#7ed6a1";
-  const accentB = entity.kind === "monster" ? "#4d1914" : entity.kind === "player" ? "#164f63" : "#1e3d32";
-  const label =
-    entity.kind === "monster" ? "MONSTER DOSSIER" : entity.kind === "player" ? "PLAYER DOSSIER" : "NPC DOSSIER";
+  const initials = escapeSVGText(sigil(entity.title) || theme.fallback);
+  const safeTitle = escapeSVGText(entity.title);
   const svg = `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 900">
       <defs>
         <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0%" stop-color="${accentA}"/>
-          <stop offset="100%" stop-color="${accentB}"/>
+          <stop offset="0%" stop-color="${theme.accentA}"/>
+          <stop offset="100%" stop-color="${theme.accentB}"/>
         </linearGradient>
         <radialGradient id="glow" cx="50%" cy="30%" r="60%">
           <stop offset="0%" stop-color="rgba(255,255,255,0.2)"/>
@@ -199,9 +205,9 @@ export const createPortraitSource = (entity: PortraitEntityLike) => {
       <rect width="720" height="900" rx="42" fill="url(#glow)"/>
       <circle cx="360" cy="310" r="146" fill="rgba(7, 14, 20, 0.18)"/>
       <path d="M233 620c34-112 107-169 127-182 20-13 40-13 40-13s20 0 40 13c20 13 93 70 127 182" fill="rgba(7, 14, 20, 0.22)"/>
-      <text x="64" y="98" fill="rgba(255,255,255,0.92)" font-family="Segoe UI, Arial, sans-serif" font-size="40" letter-spacing="7">${label}</text>
+      <text x="64" y="98" fill="rgba(255,255,255,0.92)" font-family="Segoe UI, Arial, sans-serif" font-size="40" letter-spacing="7">${theme.label}</text>
       <text x="64" y="792" fill="rgba(255,255,255,0.96)" font-family="Georgia, serif" font-size="52" font-weight="700">${safeTitle}</text>
-      <text x="64" y="852" fill="rgba(255,255,255,0.72)" font-family="Segoe UI, Arial, sans-serif" font-size="28">Портрет-заглушка, пока не задан art.url</text>
+      <text x="64" y="852" fill="rgba(255,255,255,0.72)" font-family="Segoe UI, Arial, sans-serif" font-size="28">Изображение-заглушка, пока не задан art.url</text>
       <text x="360" y="352" text-anchor="middle" fill="rgba(255,255,255,0.88)" font-family="Georgia, serif" font-size="126" font-weight="700">${initials}</text>
     </svg>
   `;
@@ -270,23 +276,70 @@ export const playlistTrackHost = (url: string) => {
 
 export const hasVisibleArt = (art?: HeroArt) => Boolean(art?.url?.trim());
 
+export const entityImageTriggerProps = (
+  onOpen?: () => void
+): Pick<HTMLAttributes<HTMLElement>, "aria-haspopup" | "onClick" | "onKeyDown" | "role" | "tabIndex"> => {
+  if (!onOpen) {
+    return {};
+  }
+
+  return {
+    "aria-haspopup": "dialog",
+    onClick: (event) => {
+      event.stopPropagation();
+      onOpen();
+    },
+    onKeyDown: (event) => {
+      if (event.key !== "Enter" && event.key !== " ") {
+        return;
+      }
+
+      event.preventDefault();
+      event.stopPropagation();
+      onOpen();
+    },
+    role: "button",
+    tabIndex: 0
+  };
+};
+
 export function EntityVisual({
   entity,
+  onOpenEntityImage,
   variant = "row"
 }: {
   entity: Pick<PortraitEntityLike, "kind" | "title" | "art">;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
   variant?: "row" | "hero" | "relation";
 }) {
+  const imageEntity = "id" in entity ? entity as KnowledgeEntity : null;
+  const openImage = onOpenEntityImage && imageEntity
+    ? () => onOpenEntityImage(imageEntity, hasVisibleArt(entity.art) ? createPortraitSource(entity) : undefined)
+    : undefined;
+  const triggerProps = entityImageTriggerProps(openImage);
+  const triggerLabel = openImage ? `Открыть изображение «${entity.title}»` : undefined;
+
   if (!hasVisibleArt(entity.art)) {
     return (
-      <span className={`sigil ${variant === "hero" ? "big" : ""}`} style={{ backgroundImage: gradients[entity.kind] }}>
+      <span
+        {...triggerProps}
+        aria-label={triggerLabel}
+        className={`sigil ${variant === "hero" ? "big" : ""} ${openImage ? "entity-image-trigger" : ""}`.trim()}
+        style={{ backgroundImage: gradients[entity.kind] }}
+        title={triggerLabel}
+      >
         {sigil(entity.title)}
       </span>
     );
   }
 
   return (
-    <span className={`entity-thumb-frame entity-thumb-${variant}`}>
+    <span
+      {...triggerProps}
+      aria-label={triggerLabel}
+      className={`entity-thumb-frame entity-thumb-${variant} ${openImage ? "entity-image-trigger" : ""}`.trim()}
+      title={triggerLabel}
+    >
       <img alt={entity.art?.alt ?? entity.title} className="entity-thumb" loading="lazy" src={createPortraitSource(entity)} />
     </span>
   );

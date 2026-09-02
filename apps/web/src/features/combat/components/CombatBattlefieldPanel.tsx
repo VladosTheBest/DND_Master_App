@@ -1,4 +1,4 @@
-import type { MonsterEntity, NpcEntity, PlayerEntity } from "@shadow-edge/shared-types";
+import type { KnowledgeEntity, MonsterEntity, NpcEntity, PlayerEntity } from "@shadow-edge/shared-types";
 import { parseChallengeXp } from "../combat.utils";
 import { CombatEnemyRow } from "./CombatEnemyRow";
 import { CombatParticipantRow } from "./CombatParticipantRow";
@@ -19,6 +19,7 @@ export type CombatBattlefieldPanelProps = {
   onRemoveAlly: (entityId: string) => void;
   onEnemyQuantityChange: (entityId: string, quantity: number) => void;
   onRemoveEnemy: (entityId: string) => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
 };
 
 export function CombatBattlefieldPanel({
@@ -36,7 +37,8 @@ export function CombatBattlefieldPanel({
   onTogglePlayer,
   onRemoveAlly,
   onEnemyQuantityChange,
-  onRemoveEnemy
+  onRemoveEnemy,
+  onOpenEntityImage
 }: CombatBattlefieldPanelProps) {
   return (
     <section className="combat-prep-reference-panel field-panel">
@@ -67,6 +69,7 @@ export function CombatBattlefieldPanel({
                 entity={player}
                 initiative={preparedCombatPlayerInitiatives[player.id] ?? 0}
                 onInitiativeChange={(value) => onPlayerInitiativeChange(player.id, value)}
+                onOpenEntityImage={onOpenEntityImage}
                 onRemove={() => onTogglePlayer(player.id)}
                 removeLabel="Убрать"
                 subtitle={player.role || player.subtitle || "Игрок"}
@@ -94,6 +97,7 @@ export function CombatBattlefieldPanel({
                 entity={entity}
                 initiative={preparedCombatAllyInitiatives[entity.id] ?? 0}
                 onInitiativeChange={(value) => onAllyInitiativeChange(entity.id, value)}
+                onOpenEntityImage={onOpenEntityImage}
                 onRemove={() => onRemoveAlly(entity.id)}
                 removeLabel="Убрать"
                 subtitle={entity.statBlock?.creatureType || entity.role || entity.subtitle}
@@ -121,6 +125,7 @@ export function CombatBattlefieldPanel({
                 entity={entity}
                 initiative={preparedCombatEnemyInitiatives[entity.id] ?? 0}
                 onInitiativeChange={(value) => onEnemyInitiativeChange(entity.id, value)}
+                onOpenEntityImage={onOpenEntityImage}
                 onQuantityChange={(nextQuantity) => onEnemyQuantityChange(entity.id, nextQuantity)}
                 onRemove={() => onRemoveEnemy(entity.id)}
                 quantity={quantity}

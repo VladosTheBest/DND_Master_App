@@ -20,7 +20,8 @@ type BrowseCardProps = {
 type ImportedCardProps = {
   item: MonsterEntity;
   onClick: () => void;
-  onContextMenu?: (event: ReactMouseEvent<HTMLButtonElement>) => void;
+  onContextMenu?: (event: ReactMouseEvent<HTMLElement>) => void;
+  onOpenEntityImage?: (entity: MonsterEntity, displayUrl?: string) => void;
   variant: "imported";
 };
 
@@ -46,27 +47,36 @@ export function BestiaryMonsterCard(props: BestiaryMonsterCardProps) {
     );
   }
 
-  const { item, onClick, onContextMenu } = props;
+  const { item, onClick, onContextMenu, onOpenEntityImage } = props;
+  const displayUrl = hasVisibleArt(item.art) ? createPortraitSource(item) : undefined;
 
   return (
-    <button className="directory-card" onClick={onClick} onContextMenu={onContextMenu} type="button">
-      <span className="directory-card-thumb">
-        {hasVisibleArt(item.art) ? (
-          <img alt={item.title} className="directory-card-image" loading="lazy" src={createPortraitSource(item)} />
+    <article className="directory-card" onContextMenu={onContextMenu}>
+      <button
+        aria-haspopup={onOpenEntityImage ? "dialog" : undefined}
+        aria-label={onOpenEntityImage ? `Открыть изображение «${item.title}»` : undefined}
+        className={`directory-card-thumb ${onOpenEntityImage ? "entity-image-trigger" : ""}`.trim()}
+        disabled={!onOpenEntityImage}
+        onClick={() => onOpenEntityImage?.(item, displayUrl)}
+        title={onOpenEntityImage ? `Открыть изображение «${item.title}»` : undefined}
+        type="button"
+      >
+        {displayUrl ? (
+          <img alt={item.title} className="directory-card-image" loading="lazy" src={displayUrl} />
         ) : (
           <span className="sigil big" style={{ backgroundImage: gradients[item.kind] }}>
             {sigil(item.title)}
           </span>
         )}
-      </span>
-      <span className="directory-card-copy">
+      </button>
+      <button className="directory-card-copy" onClick={onClick} type="button">
         <span className="directory-card-topline">
           <strong>{item.title}</strong>
           <span className={badge("warning")}>{getEntityChallenge(item) ? `CR ${getEntityChallenge(item)}` : "CR ?"}</span>
         </span>
         <small>{item.subtitle}</small>
         <p>{truncateInlineText(item.summary, 150)}</p>
-      </span>
-    </button>
+      </button>
+    </article>
   );
 }

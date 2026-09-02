@@ -4,7 +4,8 @@ import "./entity-links.css";
 
 export function EntityLinkPickerModal({
   controller,
-  onClose
+  onClose,
+  onOpenEntityImage
 }: EntityLinkPickerModalProps) {
   if (!controller.entityLinkModalOpen) {
     return null;
@@ -41,18 +42,23 @@ export function EntityLinkPickerModal({
         <div className="link-picker-results">
           {controller.linkableEntities.length ? (
             controller.linkableEntities.slice(0, 12).map((entity) => (
-              <button
+              <article
                 key={entity.id}
                 className={`entity-row ${hasVisibleArt(entity.art) ? "has-thumb" : ""} ${controller.entityLinkTargetId === entity.id ? "active" : ""}`}
-                onClick={() => controller.setEntityLinkTargetId(entity.id)}
-                type="button"
               >
-                <EntityVisual entity={entity} />
-                <span className="entity-row-copy">
-                  <strong>{entity.title}</strong>
-                  <small>{kindTitle[entity.kind]} • {entity.subtitle}</small>
-                </span>
-              </button>
+                <EntityVisual entity={entity} onOpenEntityImage={onOpenEntityImage} />
+                <button
+                  aria-pressed={controller.entityLinkTargetId === entity.id}
+                  className="entity-row-main-action"
+                  onClick={() => controller.setEntityLinkTargetId(entity.id)}
+                  type="button"
+                >
+                  <span className="entity-row-copy">
+                    <strong>{entity.title}</strong>
+                    <small>{kindTitle[entity.kind]} • {entity.subtitle}</small>
+                  </span>
+                </button>
+              </article>
             ))
           ) : (
             <p className="copy">По текущему запросу сущности не нашлись.</p>

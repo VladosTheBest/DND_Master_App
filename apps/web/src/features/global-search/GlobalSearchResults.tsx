@@ -10,12 +10,14 @@ type GlobalSearchResultsProps = {
   entityMap: Map<string, KnowledgeEntity>;
   results: GlobalSearchDisplayResult[];
   onOpenPrimary: (result: GlobalSearchDisplayResult) => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
   onOpenSecondary: (result: GlobalSearchDisplayResult) => void;
 };
 
 export function GlobalSearchResults({
   entityMap,
   results,
+  onOpenEntityImage,
   onOpenPrimary,
   onOpenSecondary
 }: GlobalSearchResultsProps) {
@@ -31,32 +33,36 @@ export function GlobalSearchResults({
       {entityResults.length ? (
         <div className="stack">
           <p className="eyebrow">Сущности</p>
-          {entityResults.map((result) => (
-            <div key={`${result.kind}-${result.id}`} className="palette-item">
-              <button
-                className="ghost fill left palette-main palette-main-with-visual"
-                onClick={() => onOpenPrimary(result)}
-                type="button"
-              >
+          {entityResults.map((result) => {
+            const entity = entityMap.get(result.id);
+            return (
+              <div key={`${result.kind}-${result.id}`} className="palette-item palette-item-with-visual">
                 <EntityVisual
-                  entity={{
+                  entity={entity ?? {
                     kind: result.kind,
                     title: result.title,
-                    art: result.art ?? entityMap.get(result.id)?.art
+                    art: result.art
                   }}
+                  onOpenEntityImage={onOpenEntityImage}
                 />
-                <span className="palette-copy">
-                  <span className={badge("accent")}>{kindTitle[result.kind]}</span>
-                  <strong>{result.title}</strong>
-                  <small>{result.subtitle}</small>
-                  <p>{result.summary}</p>
-                </span>
-              </button>
-              <button className="ghost palette-side" onClick={() => onOpenSecondary(result)} type="button">
-                Открыть
-              </button>
-            </div>
-          ))}
+                <button
+                  className="ghost fill left palette-main"
+                  onClick={() => onOpenPrimary(result)}
+                  type="button"
+                >
+                  <span className="palette-copy">
+                    <span className={badge("accent")}>{kindTitle[result.kind]}</span>
+                    <strong>{result.title}</strong>
+                    <small>{result.subtitle}</small>
+                    <p>{result.summary}</p>
+                  </span>
+                </button>
+                <button className="ghost palette-side" onClick={() => onOpenSecondary(result)} type="button">
+                  Открыть
+                </button>
+              </div>
+            );
+          })}
         </div>
       ) : null}
 

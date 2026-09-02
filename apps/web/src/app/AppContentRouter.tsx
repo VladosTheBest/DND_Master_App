@@ -49,6 +49,7 @@ export function AppContentRouter({
   onEditWithAI,
   onOpenDirectory,
   onOpenEntity,
+  onOpenEntityImage,
   onOpenEventGenerator,
   onOpenGallery,
   onOpenGalleryViewer,
@@ -95,6 +96,7 @@ export function AppContentRouter({
   onEditWithAI: (entity: KnowledgeEntity) => void;
   onOpenDirectory: () => void;
   onOpenEntity: (entityId: string) => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
   onOpenEventGenerator: (suggestions?: { locationId?: string; type?: WorldEventInput["type"] }) => void;
   onOpenGallery: (quest: QuestEntity) => void;
   onOpenGalleryViewer: (quest: QuestEntity, index: number) => void;
@@ -168,6 +170,7 @@ export function AppContentRouter({
         initialNoteId={activeEntity?.kind === "lore" ? activeEntity.id : undefined}
         onContentContextMenu={notesContentContextMenu}
         onEditWithAI={onEditWithAI}
+        onOpenEntityImage={onOpenEntityImage}
         onOpenPreview={onOpenPreview}
         serializeEntityForm={serializeEntityForm}
       />
@@ -186,6 +189,7 @@ export function AppContentRouter({
         onEditWithAI={onEditWithAI}
         onOpenDirectory={onOpenDirectory}
         onOpenEntity={onOpenPreview}
+        onOpenEntityImage={onOpenEntityImage}
         onOpenGallery={onOpenGallery}
         onOpenGalleryViewer={onOpenGalleryViewer}
         onOpenPlaylist={onOpenPlaylist}

@@ -7,6 +7,7 @@ import type {
 import {
   badge,
   createHeroPanelStyle,
+  entityImageTriggerProps,
   gradients,
   isRewardableEntity,
   kindTitle
@@ -25,6 +26,7 @@ type AppPreviewContentProps = {
   onCopyImageLink: (url: string) => Promise<void>;
   onOpenEntityPage: (entityId: string) => void;
   onOpenEntityActionMenu: (entity: KnowledgeEntity, event: ReactMouseEvent<HTMLElement>) => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
   onOpenGallery: (entity: KnowledgeEntity) => void;
   onOpenGalleryViewer: (entity: KnowledgeEntity, index: number) => void;
   onOpenPreviewEntity: QuestPreviewProps["onOpenEntity"];
@@ -74,6 +76,7 @@ export function AppPreviewContent({
   onEdit,
   onOpenEntityPage,
   onOpenEntityActionMenu,
+  onOpenEntityImage,
   onOpenGallery,
   onOpenGalleryViewer,
   onOpenPlayerView,
@@ -110,6 +113,7 @@ export function AppPreviewContent({
         onCombatPartyLevelsChange={onCombatPartyLevelsChange}
         onEdit={onEdit}
         onOpenEntity={onOpenPreviewEntity}
+        onOpenEntityImage={onOpenEntityImage}
         onOpenGallery={onOpenGallery}
         onOpenPlayerView={onOpenPlayerView}
         onOpenPlaylist={onOpenPlaylist}
@@ -140,9 +144,14 @@ export function AppPreviewContent({
         </div>
 
         <section
-          className="preview-hero"
+          {...entityImageTriggerProps(
+            onOpenEntityImage ? () => onOpenEntityImage(previewEntity, previewEntity.art?.url?.trim() || undefined) : undefined
+          )}
+          aria-label={onOpenEntityImage ? `Открыть изображение «${previewEntity.title}»` : undefined}
+          className={`preview-hero ${onOpenEntityImage ? "entity-image-trigger" : ""}`.trim()}
           onContextMenu={(event) => onOpenEntityActionMenu(previewEntity, event)}
           style={createHeroPanelStyle(gradients[previewEntity.kind], previewEntity.art?.url)}
+          title={onOpenEntityImage ? `Открыть изображение «${previewEntity.title}»` : undefined}
         >
           <span>{kindTitle[previewEntity.kind]}</span>
           <strong>{previewEntity.title}</strong>

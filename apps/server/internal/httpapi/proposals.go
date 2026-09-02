@@ -1026,6 +1026,9 @@ func (service *proposalService) apply(ownerID, proposalID string, input proposal
 			return proposalActionResult{}, err
 		}
 		moves, err = service.promoteMediaLocked(proposal, service.store.data.Campaigns[campaignIndex].ID, nil)
+		if err == nil && proposal.Kind == "entity_update" && len(proposal.Diff) == 0 {
+			err = proposalFailure(409, "proposal_no_changes", "В черновике нет готовых изменений. Отклони его и повтори генерацию изображения.")
+		}
 		if err == nil {
 			result, err = applyEntityProposalLocked(proposal, &service.store.data.Campaigns[campaignIndex])
 		}

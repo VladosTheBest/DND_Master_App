@@ -46,6 +46,7 @@ export type EntityDetailsRendererProps = {
   onEditWithAI?: () => void;
   onEditPlayerFacingCard: (card: PlayerFacingCard, index: number) => void;
   onOpenEntityActionMenu: (event: ReactMouseEvent<HTMLElement>) => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
   onOpenGallery: () => void;
   onOpenGalleryAlbum: (ownerId: string, ownerTitle: string, items: GalleryImage[], index: number) => void;
   onOpenGalleryViewer: (index: number) => void;
@@ -184,6 +185,7 @@ export function EntityDetailsRenderer({
   onEditWithAI,
   onEditPlayerFacingCard,
   onOpenEntityActionMenu,
+  onOpenEntityImage,
   onOpenGallery,
   onOpenGalleryAlbum,
   onOpenGalleryViewer,
@@ -244,6 +246,9 @@ export function EntityDetailsRenderer({
 
       onOpenGallery();
     };
+    const openMonsterImage = onOpenEntityImage
+      ? () => onOpenEntityImage(activeEntity, monsterGalleryAlbum[0]?.url)
+      : openMonsterAlbum;
 
     return (
       <div className="stack wide entity-details-page monster-details-page">
@@ -276,7 +281,8 @@ export function EntityDetailsRenderer({
             defaultCollapsed={false}
             entity={combatProfileEntity}
             expandSections
-            onOpenPortraitGallery={openMonsterAlbum}
+            onOpenPortraitGallery={openMonsterImage}
+            portraitActionLabel={onOpenEntityImage ? "Нажми на портрет, чтобы открыть изображение и действия." : undefined}
             portraitOverride={
               monsterGalleryAlbum[0]
                 ? {
@@ -344,7 +350,7 @@ export function EntityDetailsRenderer({
         style={createHeroPanelStyle(gradients[activeEntity.kind], activeEntity.art?.url)}
       >
         <div className="hero-head">
-          <EntityVisual entity={activeEntity} variant="hero" />
+          <EntityVisual entity={activeEntity} onOpenEntityImage={onOpenEntityImage} variant="hero" />
           <div className="hero-copy-block">
             <div className="hero-tags">
               <span className={badge("accent")}>{kindTitle[activeEntity.kind]}</span>
@@ -541,12 +547,14 @@ export function EntityDetailsRenderer({
           {activeNpcQuests.length ? (
             <div className="grid">
               {activeNpcQuests.map((quest) => (
-                <button key={quest.id} className="card mini fill relation-card relation-card-with-visual" onClick={() => onPeekQuest(quest.id)} type="button">
-                  <EntityVisual entity={quest} variant="relation" />
-                  <span className={badge("warning")}>Квест</span>
-                  <strong>{quest.title}</strong>
-                  <p>{quest.summary}</p>
-                </button>
+                <article key={quest.id} className="card mini fill relation-card relation-card-with-visual">
+                  <EntityVisual entity={quest} onOpenEntityImage={onOpenEntityImage} variant="relation" />
+                  <button className="relation-card-body" onClick={() => onPeekQuest(quest.id)} type="button">
+                    <span className={badge("warning")}>Квест</span>
+                    <strong>{quest.title}</strong>
+                    <p>{quest.summary}</p>
+                  </button>
+                </article>
               ))}
             </div>
           ) : (
@@ -586,23 +594,23 @@ export function EntityDetailsRenderer({
             {activeEntity.related.map((item) => {
               const linkedEntity = onResolveRelatedEntity(item);
               return (
-                <button
+                <article
                   key={`${item.id}-${item.label}`}
                   className="card mini fill relation-card relation-card-with-visual"
-                  onClick={() => onOpenRelatedEntity(item)}
-                  type="button"
                 >
                   {linkedEntity ? (
-                    <EntityVisual entity={linkedEntity} variant="relation" />
+                    <EntityVisual entity={linkedEntity} onOpenEntityImage={onOpenEntityImage} variant="relation" />
                   ) : (
                     <span className="sigil" style={{ backgroundImage: gradients[item.kind] }}>
                       {sigil(item.label)}
                     </span>
                   )}
-                  <span className={badge()}>{kindTitle[item.kind]}</span>
-                  <strong>{item.label}</strong>
-                  <p>{item.reason}</p>
-                </button>
+                  <button className="relation-card-body" onClick={() => onOpenRelatedEntity(item)} type="button">
+                    <span className={badge()}>{kindTitle[item.kind]}</span>
+                    <strong>{item.label}</strong>
+                    <p>{item.reason}</p>
+                  </button>
+                </article>
               );
             })}
           </div>
@@ -613,7 +621,17 @@ export function EntityDetailsRenderer({
       </div>
 
       <div id={dossierKind ? `${dossierKind}-stats` : undefined}>
-        {combatProfileEntity ? <CombatEntityStatSheet entity={combatProfileEntity} /> : null}
+        {combatProfileEntity ? (
+          <CombatEntityStatSheet
+            entity={combatProfileEntity}
+            onOpenPortraitGallery={
+              onOpenEntityImage
+                ? () => onOpenEntityImage(combatProfileEntity, combatProfileEntity.art?.url?.trim() || undefined)
+                : undefined
+            }
+            portraitActionLabel={onOpenEntityImage ? "Нажми на портрет, чтобы открыть изображение и действия." : undefined}
+          />
+        ) : null}
       </div>
     </div>
   );

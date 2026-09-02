@@ -27,6 +27,7 @@ export function QuestPageContainer({
   onEditWithAI,
   onOpenDirectory,
   onOpenEntity,
+  onOpenEntityImage,
   onOpenGallery,
   onOpenGalleryViewer,
   onOpenPlaylist,
@@ -51,6 +52,7 @@ export function QuestPageContainer({
   onEditWithAI?: (entity: QuestEntity) => void;
   onOpenDirectory: () => void;
   onOpenEntity: (entityId: string) => void;
+  onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
   onOpenGallery: (quest: QuestEntity) => void;
   onOpenGalleryViewer: (quest: QuestEntity, index: number) => void;
   onOpenPlaylist: (quest: QuestEntity) => void;
@@ -176,6 +178,7 @@ export function QuestPageContainer({
       onEditPlayerCard={(card, index) => playerFacing.openPlayerFacingEditor(quest, card, index)}
       onOpenDirectory={onOpenDirectory}
       onOpenEntity={onOpenEntity}
+      onOpenEntityImage={onOpenEntityImage}
       onOpenGallery={onOpenGallery}
       onOpenGalleryViewer={(index) => onOpenGalleryViewer(quest, index)}
       onOpenPlayerCard={(card, index) => playerFacing.openPlayerFacingView(quest, card, { cardIndex: index })}
