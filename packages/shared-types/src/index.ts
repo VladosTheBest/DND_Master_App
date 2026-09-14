@@ -850,6 +850,7 @@ export interface CodexDeviceCodeResult {
 }
 
 export interface CodexPromptInput {
+  sessionId?: string;
   campaignId?: string;
   prompt: string;
   threadId?: string;
@@ -862,6 +863,7 @@ export interface CodexPromptInput {
 }
 
 export interface CodexPromptResult {
+  sessionId?: string;
   threadId: string;
   turnId: string;
   status: string;

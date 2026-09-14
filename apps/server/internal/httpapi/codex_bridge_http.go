@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+	"time"
 )
 
 func (srv *server) handleCodexStatus(writer http.ResponseWriter, request *http.Request) {
@@ -85,6 +86,10 @@ func (srv *server) handleCodexPrompt(writer http.ResponseWriter, request *http.R
 		return
 	}
 	input.Prompt = prompt
+	if input.SessionID != "" {
+		// A long transcript can outlive the ordinary HTTP write deadline.
+		_ = http.NewResponseController(writer).SetWriteDeadline(time.Now().Add(srv.codex.options.RequestTimeout*3 + time.Minute))
+	}
 	result, err := srv.codex.runPrompt(request.Context(), user, input)
 	if err != nil {
 		writeCodexBridgeError(writer, err)

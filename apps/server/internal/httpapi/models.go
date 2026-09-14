@@ -347,14 +347,15 @@ type searchResult struct {
 }
 
 type storageState struct {
-	AuthSecret      string           `json:"authSecret,omitempty"`
-	Users           []userAccount    `json:"users,omitempty"`
-	Campaigns       []campaignData   `json:"campaigns"`
-	AIProposals     []aiProposal     `json:"aiProposals,omitempty"`
-	ProposalAudits  []proposalAudit  `json:"proposalAudits,omitempty"`
-	UpdatedAt       string           `json:"updatedAt"`
-	SurveyInvites   []surveyInvite   `json:"surveyInvites,omitempty"`
-	SurveyResponses []surveyResponse `json:"surveyResponses,omitempty"`
+	ImportedSessions []importedSession `json:"importedSessions,omitempty"`
+	AuthSecret       string            `json:"authSecret,omitempty"`
+	Users            []userAccount     `json:"users,omitempty"`
+	Campaigns        []campaignData    `json:"campaigns"`
+	AIProposals      []aiProposal      `json:"aiProposals,omitempty"`
+	ProposalAudits   []proposalAudit   `json:"proposalAudits,omitempty"`
+	UpdatedAt        string            `json:"updatedAt"`
+	SurveyInvites    []surveyInvite    `json:"surveyInvites,omitempty"`
+	SurveyResponses  []surveyResponse  `json:"surveyResponses,omitempty"`
 }
 
 type proposalSource struct {

@@ -314,7 +314,7 @@ export class DndMasterClient {
   }
 
   async #request<T>(
-    method: "GET" | "POST",
+    method: "GET" | "POST" | "PUT",
     pathname: string,
     options: { query?: URLSearchParams; body?: unknown; form?: FormData } = {},
   ): Promise<T> {
@@ -381,6 +381,17 @@ export class DndMasterClient {
 
   listCampaigns(): Promise<CampaignSummary[]> {
     return this.#request("GET", "/api/campaigns");
+  }
+
+  async getSessionTranscript(campaignId: string, sessionId: string, offset = 0): Promise<Record<string, unknown>> {
+    const session = await this.#request<{id:string; title:string; text:string; digest:string; participants:string[]}>("GET", `/api/campaigns/${encodePath(campaignId)}/sessions/${encodePath(sessionId)}`);
+    const characters = Array.from(session.text);
+    const end = Math.min(characters.length, offset + 24000);
+    return { id:session.id, title:session.title, digest:session.digest, participants:session.participants, text:characters.slice(offset,end).join(""), offset, nextOffset:end < characters.length ? end : null, totalCharacters:characters.length };
+  }
+
+  saveSessionAnalysis(campaignId: string, sessionId: string, analysis: Record<string, unknown>): Promise<Record<string, unknown>> {
+    return this.#request("PUT", `/api/campaigns/${encodePath(campaignId)}/sessions/${encodePath(sessionId)}/analysis`, analysis);
   }
 
   getCampaign(campaignId: string): Promise<CampaignData> {

@@ -96,6 +96,8 @@ type codexImageTarget struct {
 }
 
 type codexPromptInput struct {
+	SessionID     string            `json:"sessionId,omitempty"`
+	SessionRunID  string            `json:"-"`
 	CampaignID    string            `json:"campaignId,omitempty"`
 	Prompt        string            `json:"prompt"`
 	ThreadID      string            `json:"threadId,omitempty"`
@@ -105,6 +107,7 @@ type codexPromptInput struct {
 }
 
 type codexPromptResult struct {
+	SessionID   string   `json:"sessionId,omitempty"`
 	ThreadID    string   `json:"threadId"`
 	TurnID      string   `json:"turnId"`
 	Status      string   `json:"status"`
@@ -614,6 +617,18 @@ func (manager *codexBridgeManager) logout(ctx context.Context, user authUser) (c
 }
 
 func (manager *codexBridgeManager) runPrompt(ctx context.Context, user authUser, input codexPromptInput) (codexPromptResult, error) {
+	if input.SessionID != "" {
+		if manager.auth == nil || manager.auth.store == nil {
+			return codexPromptResult{}, fmt.Errorf("Хранилище сессий недоступно.")
+		}
+		if _, ok := manager.auth.store.sessionForOwner(user.ID, input.CampaignID, input.SessionID); !ok {
+			return codexPromptResult{}, fmt.Errorf("Сессия не найдена в выбранной кампании.")
+		}
+		input.SessionRunID = newID("analysis")
+		input.ThreadID = ""
+		input.IncludeImages = false
+		input.ImageTarget = nil
+	}
 	prompt := strings.TrimSpace(input.Prompt)
 	if prompt == "" {
 		return codexPromptResult{}, fmt.Errorf("Укажи, что нужно подготовить через AI.")
@@ -758,6 +773,9 @@ func (manager *codexBridgeManager) runPrompt(ctx context.Context, user authUser,
 	}
 
 	waitTimeout := manager.options.RequestTimeout
+	if input.SessionID != "" {
+		waitTimeout *= 3
+	}
 	waitCtx, waitCancel := context.WithTimeout(ctx, waitTimeout)
 	defer waitCancel()
 	observation := codexTurnObservation{proposalIDs: make(map[string]struct{})}
@@ -787,21 +805,21 @@ func (manager *codexBridgeManager) runPrompt(ctx context.Context, user authUser,
 			if terminal != nil && strings.TrimSpace(terminal.status) != "" {
 				status = terminal.status
 			}
-			if result, ok := manager.verifiedCodexPromptResult(user.ID, input.CampaignID, existingProposalIDs, observation, input.ImageTarget, threadID, turnID, status, warning); ok {
+			if result, ok := manager.verifiedCodexPromptResult(user.ID, input.CampaignID, existingProposalIDs, observation, input.ImageTarget, threadID, turnID, status, warning, input); ok {
 				return result, nil
 			}
 			if observation.proposalToolAttempted {
-				return codexPromptResult{}, classifyMissingCodexProposal(observation)
+				return codexPromptResult{}, classifyMissingCodexProposal(observation, input)
 			}
 			return codexPromptResult{}, fmt.Errorf("Codex App Server did not finish before the request timeout: %w", waitErr)
 		case notification, ok := <-notifications:
 			if !ok {
 				warning := "Codex App Server остановился после сохранения как минимум одного черновика. Сначала проверь очередь и не повторяй запрос целиком, чтобы не создать дубликаты."
-				if result, verified := manager.verifiedCodexPromptResult(user.ID, input.CampaignID, existingProposalIDs, observation, input.ImageTarget, threadID, turnID, "interrupted", warning); verified {
+				if result, verified := manager.verifiedCodexPromptResult(user.ID, input.CampaignID, existingProposalIDs, observation, input.ImageTarget, threadID, turnID, "interrupted", warning, input); verified {
 					return result, nil
 				}
 				if observation.proposalToolAttempted {
-					return codexPromptResult{}, classifyMissingCodexProposal(observation)
+					return codexPromptResult{}, classifyMissingCodexProposal(observation, input)
 				}
 				return codexPromptResult{}, fmt.Errorf("Codex App Server stopped while preparing the proposal")
 			}
@@ -811,24 +829,27 @@ func (manager *codexBridgeManager) runPrompt(ctx context.Context, user authUser,
 			}
 			if completion.status != "completed" {
 				warning := "Codex завершил задачу с ошибкой после сохранения как минимум одного черновика. Сначала проверь очередь и не повторяй запрос целиком, чтобы не создать дубликаты."
-				if result, verified := manager.verifiedCodexPromptResult(user.ID, input.CampaignID, existingProposalIDs, observation, input.ImageTarget, threadID, turnID, completion.status, warning); verified {
+				if result, verified := manager.verifiedCodexPromptResult(user.ID, input.CampaignID, existingProposalIDs, observation, input.ImageTarget, threadID, turnID, completion.status, warning, input); verified {
 					return result, nil
 				}
 				if observation.proposalToolAttempted {
-					return codexPromptResult{}, classifyMissingCodexProposal(observation)
+					return codexPromptResult{}, classifyMissingCodexProposal(observation, input)
 				}
 				return codexPromptResult{}, errors.New(completion.detail)
 			}
-			if result, verified := manager.verifiedCodexPromptResult(user.ID, input.CampaignID, existingProposalIDs, observation, input.ImageTarget, threadID, turnID, completion.status, ""); verified {
+			if result, verified := manager.verifiedCodexPromptResult(user.ID, input.CampaignID, existingProposalIDs, observation, input.ImageTarget, threadID, turnID, completion.status, "", input); verified {
 				return result, nil
 			} else {
-				return codexPromptResult{}, classifyMissingCodexProposal(observation)
+				return codexPromptResult{}, classifyMissingCodexProposal(observation, input)
 			}
 		}
 	}
 }
 
-func (manager *codexBridgeManager) verifiedCodexPromptResult(ownerID, campaignID string, before map[string]struct{}, observation codexTurnObservation, imageTarget *codexImageTarget, threadID, turnID, status, additionalWarning string) (codexPromptResult, bool) {
+func (manager *codexBridgeManager) verifiedCodexPromptResult(ownerID, campaignID string, before map[string]struct{}, observation codexTurnObservation, imageTarget *codexImageTarget, threadID, turnID, status, additionalWarning string, sessionInput ...codexPromptInput) (codexPromptResult, bool) {
+	if len(sessionInput) > 0 && sessionInput[0].SessionID != "" {
+		return manager.verifiedSessionAnalysis(ownerID, sessionInput[0], threadID, turnID, status, additionalWarning)
+	}
 	if !observation.proposalToolAttempted {
 		return codexPromptResult{}, false
 	}
@@ -879,7 +900,10 @@ func codexPartialProposalWarning(observation codexTurnObservation) string {
 	return "Сервер подтвердил сохранённые черновики, но как минимум одна попытка Codex создать ещё один черновик завершилась ошибкой. Проверь, что очередь покрывает весь запрос. Не повторяй запрос целиком: запроси только недостающие черновики, чтобы не создать дубликаты."
 }
 
-func classifyMissingCodexProposal(observation codexTurnObservation) error {
+func classifyMissingCodexProposal(observation codexTurnObservation, sessionInput ...codexPromptInput) error {
+	if len(sessionInput) > 0 && sessionInput[0].SessionID != "" {
+		return &codexPromptPublicError{code: "session_analysis_incomplete", message: "AI не сохранил полный анализ сессии. Исходный текст и прежний анализ сохранены; проверьте очередь предложений перед повторной попыткой."}
+	}
 	if !observation.proposalToolAttempted {
 		return &codexPromptPublicError{
 			code:    codexNoProposalToolCode,
@@ -1233,6 +1257,9 @@ func resetGeneratedImageTurnScope(homeDir string) error {
 }
 
 func buildCodexProposalPrompt(input codexPromptInput) string {
+	if input.SessionID != "" {
+		return buildSessionAnalysisPrompt(input)
+	}
 	if input.ImageTarget != nil {
 		return buildCodexImageProposalPrompt(input)
 	}
@@ -1742,7 +1769,7 @@ func buildCodexUserConfig(command string, args []string, workspaceDir string) st
 		"args = [" + strings.Join(quotedArgs, ", ") + "]",
 		"cwd = " + strconv.Quote(workspaceDir),
 		"env_vars = [\"DND_MASTER_BASE_URL\", \"DND_MASTER_SESSION_COOKIE\", \"DND_MASTER_SOURCE_TYPE\", \"DND_MASTER_MEDIA_ROOTS\"]",
-		"enabled_tools = [\"list_campaigns\", \"get_campaign\", \"get_campaign_outline\", \"search_entities\", \"get_entity\", \"propose_campaign\", \"propose_entity_create\", \"propose_entity_update\", \"list_proposals\", \"get_proposal\", \"stage_proposal_media\", \"attach_proposal_media\"]",
+		"enabled_tools = [\"list_campaigns\", \"get_campaign\", \"get_campaign_outline\", \"search_entities\", \"get_entity\", \"propose_campaign\", \"propose_entity_create\", \"propose_entity_update\", \"list_proposals\", \"get_proposal\", \"stage_proposal_media\", \"attach_proposal_media\", \"get_session_transcript\", \"save_session_analysis\"]",
 		"required = true",
 		"startup_timeout_sec = 20",
 		"tool_timeout_sec = 120",

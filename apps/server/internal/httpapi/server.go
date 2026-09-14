@@ -283,6 +283,14 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 	}
 
 	switch {
+	case len(segments) == 4 && segments[1] == "sessions" && segments[3] == "analysis":
+		srv.handleSessionAnalysis(writer, request, user.ID, campaignID, segments[2])
+	case (len(segments) == 2 || len(segments) == 3) && segments[1] == "sessions":
+		id := ""
+		if len(segments) == 3 {
+			id = segments[2]
+		}
+		srv.handleImportedSessions(writer, request, campaignID, id)
 	case len(segments) == 2 && segments[1] == "initiative-share":
 		srv.handleInitiativeShare(writer, request, campaignID)
 	case len(segments) == 2 && segments[1] == "survey-link":

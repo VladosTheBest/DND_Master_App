@@ -26,6 +26,21 @@ function jsonResponse(data: unknown, status = 200): Response {
   });
 }
 
+test("session transcript pages preserve Unicode and session analysis writes stay separate from entities", async () => {
+  const original = "🙂Привет ".repeat(6000);
+  const calls:Array<{url:string;method?:string}>=[];
+  const client = new DndMasterClient(config(), (async (url, init) => {
+    calls.push({url:String(url),method:init?.method});
+    return jsonResponse(init?.method === "PUT" ? {summary:"Итог"} : {id:"session-1",title:"Игра",text:original,digest:"a".repeat(64),participants:["Арина"]});
+  }) as typeof fetch);
+  let offset=0, text="";
+  do { const page=await client.getSessionTranscript("campaign-1","session-1",offset);text+=page.text;offset=page.nextOffset as number; } while(offset!==null);
+  assert.equal(text,original);
+  await client.saveSessionAnalysis("campaign-1","session-1",{summary:"Итог"});
+  assert.equal(calls.at(-1)?.method,"PUT");
+  assert.match(calls.at(-1)?.url || "",/sessions\/session-1\/analysis$/);
+});
+
 test("proposal writes use the proposal endpoint and never an apply route", async () => {
   const calls: Array<{ url: URL; init?: RequestInit }> = [];
   const mockFetch = (async (input: URL | RequestInfo, init?: RequestInit) => {

@@ -21,7 +21,7 @@ import { QuestPageContainer } from "../features/quests/QuestPageContainer";
 import { RulesPage } from "../features/rules/RulesPage";
 import type { PlayerFacingCardsController } from "../features/player-facing/usePlayerFacingCards";
 
-type RailAlias = "items" | "events" | "notes" | "shops";
+type RailAlias = "items" | "events" | "notes" | "shops" | "sessions";
 type ModuleId = "dashboard" | "combat" | "locations" | "players" | "npcs" | "monsters" | "quests" | "lore" | "rules";
 
 export function AppContentRouter({

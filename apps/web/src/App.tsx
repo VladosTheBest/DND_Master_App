@@ -1,4 +1,5 @@
 import "@shadow-edge/design-tokens/theme.css";
+import { SessionsPage } from "./features/sessions/SessionsPage";
 import {
   CollapsibleSection,
   EntityVisual,
@@ -306,7 +307,7 @@ const emptyWorldEventInput = (): WorldEventInput => ({
 
 
 type ResizeKey = "rail" | "list" | "preview";
-type RailAlias = "items" | "events" | "notes" | "shops";
+type RailAlias = "items" | "events" | "notes" | "shops" | "sessions";
 type RailNavKey = "dashboard" | "locations" | "players" | "npcs" | "monsters" | "quests" | "rules" | RailAlias;
 
 type PlayerFacingViewState = {
@@ -974,6 +975,7 @@ const getModuleTitle = (campaign: CampaignData, moduleId: ModuleId) =>
   moduleId === "rules" ? "Правила" : campaign.modules.find((module) => module.id === moduleId)?.label ?? moduleId;
 
 const railAliasTitle: Partial<Record<RailAlias, string>> = {
+  sessions: "Сессии",
   items: "Предметы",
   events: "События",
   notes: "Заметки"
@@ -4037,7 +4039,7 @@ export default function App() {
   const isCombatPrepScreen = isCombatScreen && combatSetupOpen && !activeCombat?.entries.length;
   const isItemsRail = activeRailAlias === "items";
   const isShopsRail = activeRailAlias === "shops";
-  const hasFeatureOwnedDetailsPanel = isItemsRail || isShopsRail || activeModule === "rules";
+  const hasFeatureOwnedDetailsPanel = isItemsRail || isShopsRail || activeRailAlias === "sessions" || activeModule === "rules";
   const latestCombatSummary =
     campaign?.lastCombatSummary ??
     (combatReport
@@ -4055,6 +4057,7 @@ export default function App() {
   const activeSectionLabel = campaign ? railSectionTitle(campaign, activeModule, activeRailAlias) : "";
   const railNavItems: Array<{ key: RailNavKey; label: string; icon: RailIconName; onClick: () => void }> = [
     { key: "dashboard", label: "Главная", icon: "home", onClick: () => switchModule("dashboard") },
+    { key: "sessions", label: "Сессии", icon: "note", onClick: () => openRailAlias("sessions") },
     { key: "quests", label: "Квесты", icon: "quest", onClick: () => switchModule("quests") },
     { key: "locations", label: "Локации", icon: "location", onClick: () => switchModule("locations") },
     { key: "players", label: "Игроки", icon: "player", onClick: () => switchModule("players") },
@@ -4647,6 +4650,8 @@ export default function App() {
                   selectedEntry: selectedCombatEntry
                 }}
               />
+            ) : activeRailAlias === "sessions" ? (
+              <SessionsPage key={campaign.id} campaignId={campaign.id} onOpenAI={aiProposalController.openInbox} onOpenProposal={(id) => void aiProposalController.openProposal(id)} />
             ) : activeModule === "monsters" ||
               activeModule === "rules" ||
               activeRailAlias === "items" ||

@@ -177,7 +177,7 @@ func TestCodexBridgeDeviceLoginAndProposalPrompt(t *testing.T) {
 	if strings.Contains(configText, "shadow_edge_session") || strings.Contains(configText, "a-valid-password") {
 		t.Fatal("isolated config persisted an application secret")
 	}
-	expectedTools := `enabled_tools = ["list_campaigns", "get_campaign", "get_campaign_outline", "search_entities", "get_entity", "propose_campaign", "propose_entity_create", "propose_entity_update", "list_proposals", "get_proposal", "stage_proposal_media", "attach_proposal_media"]`
+	expectedTools := `enabled_tools = ["list_campaigns", "get_campaign", "get_campaign_outline", "search_entities", "get_entity", "propose_campaign", "propose_entity_create", "propose_entity_update", "list_proposals", "get_proposal", "stage_proposal_media", "attach_proposal_media", "get_session_transcript", "save_session_analysis"]`
 	if !strings.Contains(configText, expectedTools) || strings.Contains(configText, `"apply"`) || strings.Contains(configText, `"reject"`) || strings.Contains(configText, `"undo"`) {
 		t.Fatalf("isolated config is not limited to proposal-only MCP tools:\n%s", configText)
 	}
