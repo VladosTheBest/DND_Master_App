@@ -6,6 +6,7 @@ Shadow Edge GM is a backend-first DnD master toolkit with:
 - Go API/server in `apps/server`
 - local JSON persistence in `data/store.json`
 - public initiative tracker links
+- public D&D character creation for the 2014 and 2024 rules, with campaign invitations and personal character sheets
 - reviewable, persistent AI proposals for campaigns, entities, and events
 - a proposal-only local MCP server and an optional managed ChatGPT/Codex bridge
 
@@ -56,6 +57,41 @@ Local URLs:
 - api: [http://localhost:8080](http://localhost:8080)
 
 The Vite dev server now proxies `/api`, `/healthz`, and `/initiative` to the Go backend, so the frontend can use same-origin requests in both dev and production.
+
+## Character workshop
+
+Open `/#characters` (also linked from the sign-in screen) to create a character
+without a GM account. Choose 2014 or 2024, a target level from 1 to 20, then work
+through class, origin, abilities, skills, and every level in sequence. The sheet
+includes a spell browser, prepared spells, spell slots, features, skills, and a
+level history. It supports JSON download, a searchable PDF download with a bundled
+Cyrillic font, and browser printing. Drafts are saved on the current device when local storage is available.
+
+In the GM's **Игроки** section, open **Пригласить игроков**, choose the edition
+(or let each player choose) and starting level, and create an invitation. Players
+open the link without signing in and save their completed characters directly
+into that campaign. Use **Обновить** to retrieve new sheets and refresh the party.
+Newly created sheets also become ordinary campaign players for combat preparation.
+
+Each player receives a separate personal link after saving. Anyone holding that
+link can read and edit that sheet; the campaign invitation does not expose other
+players' sheets or GM notes. Save the personal link: only its hash is persisted
+by the server, and the GM roster never exposes it. Rotating or closing an invitation
+blocks further joins while retaining existing sheets and personal links. Deleting
+the associated player from the campaign also removes the sheet and its access.
+
+The workshop uses an edition-specific SRD catalogue and single-class progression.
+It does not include additional books or multiclassing. Armor class is shown without
+equipment; languages, equipment, and resource spending during play remain table
+decisions. Some rule descriptions retain the original English SRD text. See
+`apps/web/src/features/characters/SOURCES.md` for rule sources, attribution, and
+the precise supported scope. Publishing invitations on the internet requires the
+app and its Go API to be hosted together on a reachable domain; localhost links
+are only usable on the host computer.
+
+After editing character rules, run `npm run generate:character-catalog` to update
+the Go server's embedded catalogue. Validate the result with
+`npm run test:characters`, the frontend build, and `go test ./apps/server/...`.
 
 Before exposing a checkout that already has `data/store.json`, rotate its account
 password with `npm run reset-password`. A credential that has ever appeared in
@@ -135,7 +171,10 @@ This repo includes a single multi-stage `Dockerfile`:
 - creates a credential-free starter campaign when `/data/store.json` is absent
 - restores `/data/store.json.bak` when the primary file is absent
 
-The repository's development `data/store.json` is never copied into the image.
+Local `data/store.json` and its `.bak` are ignored by Git and never copied into the
+image. They remain on the computer across code commits; back them up separately.
+A fresh checkout creates a clean starter store when the server first runs.
+Temporary verification output in `tmp/` is also excluded from Git and Docker.
 This keeps local accounts, password hashes, ownership, public links, and survey
 data out of fresh Docker and Fly deployments. The Docker build context also
 excludes the complete runtime `data/` tree, including uploads, staged proposal

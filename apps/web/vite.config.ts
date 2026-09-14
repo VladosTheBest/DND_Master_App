@@ -9,12 +9,24 @@ export default defineConfig({
         manualChunks(id) {
           const normalized = id.split("\\").join("/");
 
-          if (normalized.includes("/node_modules/react/") || normalized.includes("/node_modules/react-dom/")) {
+          if (
+            /\/features\/characters\/(rules(?:-data)?|spell-names-ru)\.ts$/.test(
+              normalized,
+            )
+          ) {
+            return "character-rules";
+          }
+
+          if (
+            normalized.includes("/node_modules/react/") ||
+            normalized.includes("/node_modules/react-dom/") ||
+            normalized.includes("/node_modules/scheduler/")
+          ) {
             return "vendor-react";
           }
 
           if (normalized.includes("/node_modules/")) {
-            return "vendor";
+            return undefined;
           }
 
           if (normalized.includes("/src/items")) {
@@ -42,9 +54,9 @@ export default defineConfig({
           }
 
           return undefined;
-        }
-      }
-    }
+        },
+      },
+    },
   },
   server: {
     host: true,
@@ -53,7 +65,7 @@ export default defineConfig({
       "/api": "http://127.0.0.1:8080",
       "/healthz": "http://127.0.0.1:8080",
       "/initiative": "http://127.0.0.1:8080",
-      "/uploads": "http://127.0.0.1:8080"
-    }
-  }
+      "/uploads": "http://127.0.0.1:8080",
+    },
+  },
 });

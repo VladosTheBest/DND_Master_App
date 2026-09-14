@@ -12,7 +12,9 @@
     "server": "go run ./apps/server/cmd/server",
     "reset-password": "go run ./apps/server/cmd/server reset-password",
     "test:deployment": "node --test scripts/deployment-config.test.mjs",
-    "test:go": "go test ./apps/server/..."
+    "test:go": "go test ./apps/server/...",
+    "test:characters": "node scripts/test-character-rules.mjs",
+    "generate:character-catalog": "node scripts/export-character-catalog.mjs"
   },
   "dependencies": {
     "@openai/codex": "0.152.0",

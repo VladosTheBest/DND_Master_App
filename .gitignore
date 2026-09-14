@@ -22,3 +22,8 @@ apps/server/internal/httpapi/*.go.*
 apps/server/data/store.json
 apps/server/data/store.json.bak
 go.work.sum
+
+# Local application state and disposable verification output
+/data/store.json
+/data/store.json.bak
+/tmp/

@@ -21,18 +21,19 @@ type Options struct {
 }
 
 type server struct {
-	store     *campaignStore
-	bestiary  *bestiaryCatalog
-	items     *itemCatalog
-	generator entityGenerator
-	shares    *initiativeShareManager
-	auth      *authManager
-	web       http.Handler
-	uploads   http.Handler
-	uploadDir string
-	surveys   *surveyManager
-	proposals *proposalService
-	codex     *codexBridgeManager
+	store      *campaignStore
+	bestiary   *bestiaryCatalog
+	items      *itemCatalog
+	generator  entityGenerator
+	shares     *initiativeShareManager
+	auth       *authManager
+	web        http.Handler
+	uploads    http.Handler
+	uploadDir  string
+	surveys    *surveyManager
+	proposals  *proposalService
+	codex      *codexBridgeManager
+	characters *characterManager
 }
 
 type envelope struct {
@@ -91,6 +92,7 @@ func NewServer(options Options) (http.Handler, error) {
 		codex:     newCodexBridgeManager(options.Codex, auth),
 	}
 	srv.surveys = newSurveyManager(store, options.PublicBaseURL)
+	srv.characters = newCharacterManager(store, options.PublicBaseURL)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", srv.handleHealth)
@@ -103,6 +105,8 @@ func NewServer(options Options) (http.Handler, error) {
 	mux.HandleFunc("/api/initiative-meta/", srv.shares.handlePublicInitiativeMeta)
 	mux.HandleFunc("/api/initiative/", srv.shares.handlePublicInitiativeAPI)
 	mux.HandleFunc("/api/survey/", srv.surveys.handlePublicAPI)
+	mux.HandleFunc("/api/character-invites/", srv.characters.handlePublicInvite)
+	mux.HandleFunc("/api/character-sheets/", srv.characters.handlePublicSheet)
 	mux.HandleFunc("/api/auth/session", srv.auth.handleSession)
 	mux.HandleFunc("/api/auth/login", srv.auth.handleLogin)
 	mux.HandleFunc("/api/auth/register", srv.auth.handleRegister)
@@ -291,6 +295,14 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 			id = segments[2]
 		}
 		srv.handleImportedSessions(writer, request, campaignID, id)
+	case len(segments) == 2 && segments[1] == "character-invite":
+		srv.characters.handleOwnerInvite(writer, request, user.ID, campaignID)
+	case (len(segments) == 2 || len(segments) == 3) && segments[1] == "character-sheets":
+		sheetID := ""
+		if len(segments) == 3 {
+			sheetID = segments[2]
+		}
+		srv.characters.handleOwnerSheets(writer, request, user.ID, campaignID, sheetID)
 	case len(segments) == 2 && segments[1] == "initiative-share":
 		srv.handleInitiativeShare(writer, request, campaignID)
 	case len(segments) == 2 && segments[1] == "survey-link":

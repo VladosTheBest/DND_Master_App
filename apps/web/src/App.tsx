@@ -241,6 +241,8 @@ import type {
   WorldEventType
 } from "@shadow-edge/shared-types";
 import {
+  lazy,
+  Suspense,
   startTransition,
   useDeferredValue,
   useEffect,
@@ -252,6 +254,12 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode
 } from "react";
+
+const CampaignCharacters = lazy(() =>
+  import("./features/characters/CampaignCharacters").then((module) => ({
+    default: module.CampaignCharacters
+  }))
+);
 
 const tabs: Record<ModuleId, string[]> = {
   dashboard: ["Сводка", "Подготовка"],
@@ -4576,6 +4584,19 @@ export default function App() {
           )}
 
           <section className={`panel content ${isCombatScreen ? "combat-content" : ""}`} ref={contentRef}>
+            {activeModule === "players" && !activeEntity && (
+              <Suspense fallback={<p role="status">Загружаем листы персонажей…</p>}>
+                <CampaignCharacters
+                  key={campaign.id}
+                  campaignId={campaign.id}
+                  onRefresh={() => {
+                    void api.getCampaign(campaign.id)
+                      .then(hydrateCampaign)
+                      .catch((error: Error) => setBootError(error.message));
+                  }}
+                />
+              </Suspense>
+            )}
             {activeModule === "dashboard" ? (
               <CampaignDashboard
                 campaign={campaign}

@@ -100,6 +100,8 @@ func (manager *authManager) shouldProtect(path string) bool {
 		strings.HasPrefix(path, "/api/initiative/") ||
 		strings.HasPrefix(path, "/api/initiative-meta/") ||
 		strings.HasPrefix(path, "/api/survey/") ||
+		strings.HasPrefix(path, "/api/character-invites/") ||
+		strings.HasPrefix(path, "/api/character-sheets/") ||
 		strings.HasPrefix(path, "/api/display/") ||
 		strings.HasPrefix(path, "/api/display-meta/") {
 		return false

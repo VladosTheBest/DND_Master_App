@@ -5,6 +5,7 @@
 .chrome-debug
 .run
 .gocache
+/tmp/
 node_modules
 dist
 coverage

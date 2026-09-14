@@ -927,6 +927,15 @@ func (store *campaignStore) deleteEntity(campaignID string, entityID string) (de
 		}
 
 		*entities = append((*entities)[:entityIndex], (*entities)[entityIndex+1:]...)
+		if existing.Kind == "player" {
+			keptSheets := store.data.CharacterSheets[:0]
+			for _, sheet := range store.data.CharacterSheets {
+				if sheet.CampaignID != campaignID || sheet.Sheet.PlayerID != entityID {
+					keptSheets = append(keptSheets, sheet)
+				}
+			}
+			store.data.CharacterSheets = keptSheets
+		}
 		if campaign.ActiveCombat != nil {
 			filteredEntries := make([]combatEntry, 0, len(campaign.ActiveCombat.Entries))
 			for _, entry := range campaign.ActiveCombat.Entries {

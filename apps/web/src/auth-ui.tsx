@@ -329,6 +329,9 @@ export function LoginScreen({
                   <small>Создавай легенды, которые запомнятся навсегда.</small>
                 </p>
               </blockquote>
+              <a className="ghost" href="#characters" style={{ display: "block", textAlign: "center", padding: "14px", marginTop: "16px" }}>
+                ✦ Создать персонажа D&D · без регистрации
+              </a>
             </section>
 
             <form className="panel login-card" onSubmit={handleSubmit}>
