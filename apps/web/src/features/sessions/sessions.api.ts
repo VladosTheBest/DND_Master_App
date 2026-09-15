@@ -5,15 +5,36 @@ export interface PlayerAnalysis {
   nextSessionFocus: string;
 }
 export interface SessionAnalysis {
+  journal?: SessionJournal;
   runId: string;
   digest: string;
   generatedAt: string;
   summary: string;
+  recap?: string;
   keyEvents: string[];
   players: PlayerAnalysis[];
   nextSession: string[];
   uncertainties: string[];
   proposalIds: string[];
+}
+export interface SourceRange { fromLine: number; toLine: number }
+export type SpeechKind = "game" | "table" | "uncertain";
+export type JournalKind = "event" | "dialogue" | "loot" | "discovery" | "encounter";
+export interface JournalEntry {
+  id: string;
+  kind: JournalKind;
+  title: string;
+  detail: string;
+  locationId?: string;
+  people: string[];
+  status: "confirmed" | "planned" | "uncertain";
+  sources: SourceRange[];
+}
+export interface SessionJournal {
+  version: 1;
+  locations: { id: string; name: string; summary: string; sources: SourceRange[] }[];
+  entries: JournalEntry[];
+  speech: (SourceRange & { kind: SpeechKind })[];
 }
 export interface ImportedSession {
   id: string;

@@ -1,0 +1,31 @@
+import assert from 'node:assert/strict';
+import ts from 'typescript';
+import { readFile } from 'node:fs/promises';
+async function load(name) {
+  const source = await readFile(new URL(`../apps/web/src/features/sessions/${name}.ts`, import.meta.url), 'utf8');
+  const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
+  return import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
+}
+const { combineTranscripts, maxImportBytes } = await load('session-import');
+const { parseSessionText, speakerStatistics } = await load('session-stats');
+const a = { name: 'part1.txt', text: 'Quill — first\nСобытия:\n- 00:00:00.000 start\nРасшифровка:\n[00:00:00.000–00:00:10.000] Анна: Мост.\nПродолжение.\n[00:00:05.000–00:00:12.000] Борис: Иду.' };
+const b = { name: 'part2.txt', text: 'Quill — second\nРасшифровка:\n[00:00:00.000–00:00:04.000] Анна: Башня.' };
+assert.equal(combineTranscripts([a]), a.text);
+const merged = combineTranscripts([a, b]);
+const entries = parseSessionText(merged);
+assert.equal(entries.length, 3);
+assert.equal(entries[2].start, 12.001);
+assert.equal(entries[2].end, 16.001);
+assert.equal(entries[1].text, 'Иду.');
+assert.equal(entries[0].text, 'Мост.\nПродолжение.');
+assert.ok(Math.abs(speakerStatistics(entries).find(s => s.name === 'Анна').seconds - 14) < 1e-9);
+assert.ok(merged.includes('Quill — second'));
+assert.equal(merged, combineTranscripts([a, b]));
+assert.notEqual(merged, combineTranscripts([b, a]));
+assert.equal(parseSessionText(combineTranscripts([b, a]))[1].start, 4.001);
+assert.ok(combineTranscripts([{ name: 'a', text: 'Один' }, { name: 'b', text: 'Два' }]).includes('Два'));
+assert.throws(() => combineTranscripts([a, { name: 'empty', text: ' ' }]));
+assert.throws(() => combineTranscripts([a, { name: 'plain', text: 'Обычный текст' }]));
+assert.throws(() => combineTranscripts([{ name: 'huge', text: 'я'.repeat(maxImportBytes) }]));
+assert.throws(() => combineTranscripts([a, { name: 'bad', text: '[00:00:05.000–00:00:01.000] Анна: Ошибка.' }]));
+console.log('Session multi-file import: order, offsets, overlap statistics, provenance, plain text and validation passed.');

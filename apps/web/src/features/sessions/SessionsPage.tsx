@@ -1,6 +1,10 @@
+import { combineTranscripts, maxImportBytes, type TranscriptFile } from "./session-import";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../app/api";
-import { sessionsApi, type ImportedSession } from "./sessions.api";
+import { sessionsApi, type ImportedSession, type SourceRange, type SpeechKind } from "./sessions.api";
+import { SessionJournal } from "./SessionJournal";
+import { SessionRecap } from "./SessionRecap";
+import { classifySpeech, journalKinds, overlapsSource, speechLabels } from "./session-journal";
 import {
   highlightedParts,
   parseSessionText,
@@ -16,7 +20,7 @@ const colors = [
   "#83b9ed",
   "#b9d982",
 ];
-const tabs = ["Обзор", "Игроки", "Активность", "Полный текст"] as const;
+const tabs = ["Обзор", "Хроника", "Локации", "Игроки", "Активность", "Полный текст"] as const;
 type SessionTab = (typeof tabs)[number];
 const dateLabel = (value: string) =>
   new Date(value).toLocaleDateString("ru-RU", {
@@ -69,11 +73,14 @@ export function SessionsPage({
   const [draft, setDraft] = useState<{
       text: string;
       title: string;
-      fileName: string;
+      files: TranscriptFile[];
     } | null>(null),
     [saving, setSaving] = useState(false),
     [busyId, setBusyId] = useState("");
   const [elapsed, setElapsed] = useState(0);
+  const [speechFilter, setSpeechFilter] = useState<SpeechKind | "all">("all");
+  const [sourceFocus, setSourceFocus] = useState<SourceRange | null>(null);
+  const [journalCategory, setJournalCategory] = useState("");
   const fileRef = useRef<HTMLInputElement>(null),
     currentId = useRef(""),
     loadVersion = useRef(0),
@@ -94,6 +101,10 @@ export function SessionsPage({
     setQuery("");
     setMaster("");
     setPage(0);
+    setSpeechFilter("all");
+    setSourceFocus(null);
+    setJournalCategory("");
+    setTab("Обзор");
     try {
       const session = await sessionsApi.get(campaignId, id);
       if (mounted.current && loadVersion.current === version) {
@@ -138,6 +149,7 @@ export function SessionsPage({
     [selected?.text],
   );
   const allStats = useMemo(() => speakerStatistics(entries), [entries]);
+  const classifiedEntries = useMemo(() => entries.map(entry => ({ ...entry, speechKind: classifySpeech(entry, selected?.analysis?.journal?.speech) })), [entries, selected?.analysis?.journal]);
   const stats = useMemo(
     () => speakerStatistics(entries, master),
     [entries, master],
@@ -148,46 +160,65 @@ export function SessionsPage({
   );
   const filteredEntries = useMemo(
     () =>
-      entries.filter(
+      classifiedEntries.filter(
         (e) =>
           (tab !== "Игроки" || e.name === activeSpeaker) &&
+          (speechFilter === "all" || e.speechKind === speechFilter) &&
           (!query.trim() ||
             `${e.name} ${e.text}`
               .toLocaleLowerCase()
               .includes(query.trim().toLocaleLowerCase())),
       ),
-    [entries, tab, activeSpeaker, query],
+    [classifiedEntries, tab, activeSpeaker, query, speechFilter],
   );
+  useEffect(() => {
+    if (sourceFocus && tab === "Полный текст") {
+      const frame = requestAnimationFrame(() => document.querySelector(".session-line.cited")?.scrollIntoView({ block: "center", behavior: "auto" }));
+      return () => cancelAnimationFrame(frame);
+    }
+  }, [sourceFocus, tab, page]);
+  const openSource = (source: SourceRange) => {
+    setTab("Полный текст");
+    setQuery("");
+    setSpeechFilter("all");
+    setSourceFocus(source);
+    const index = entries.findIndex(entry => overlapsSource(entry, source));
+    setPage(Math.floor(Math.max(0, index) / 50));
+  };
+  const sourceLabel = (source: SourceRange) => {
+    const entry = entries.find(entry => overlapsSource(entry, source));
+    return entry?.stamp ? `${entry.name} · ${entry.stamp}` : `Строки ${source.fromLine}–${source.toLine}`;
+  };
   const visibleSessions = sessions.filter((s) =>
     `${s.number} ${s.title} ${s.analysis?.summary || ""} ${s.participants.join(" ")}`
       .toLocaleLowerCase()
       .includes(filter.toLocaleLowerCase()),
   );
-  const readFile = async (file?: File) => {
-    if (!file) return;
+  const readFiles = async (selectedFiles: File[]) => {
+    if (!selectedFiles.length) return;
     setError("");
     setNotice("");
     try {
-      if (!/\.txt$/i.test(file.name) || file.size > 4 * 1024 * 1024)
-        throw new Error(
-          "Выберите TXT-файл до 4 МБ. В Quill нажмите «Сохранить текст».",
-        );
-      const text = new TextDecoder("utf-8", { fatal: true }).decode(
-        await file.arrayBuffer(),
-      );
-      if (!text.trim() || text.includes("\0"))
-        throw new Error("Файл пуст или не содержит обычный текст.");
-      const sourceDate = text.match(/^Quill — (\d{4}-\d{2}-\d{2})/);
-      setDraft({
-        text,
-        title: sourceDate
-          ? `Игра ${dateLabel(sourceDate[1])}`
-          : file.name.replace(/\.txt$/i, ""),
-        fileName: file.name,
-      });
+      if (selectedFiles.some(file => !/\.txt$/i.test(file.name)) || selectedFiles.reduce((sum, file) => sum + file.size, 0) > maxImportBytes)
+        throw new Error("Выберите TXT-файлы общим размером до 4 МБ.");
+      const files = await Promise.all(selectedFiles.map(async file => ({
+        name: file.name,
+        text: new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer()),
+      })));
+      files.sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true }));
+      const text = combineTranscripts(files);
+      const sourceDate = files[0].text.match(/^Quill — (\d{4}-\d{2}-\d{2})/);
+      setDraft({ text, files, title: sourceDate ? `Игра ${dateLabel(sourceDate[1])}` : files[0].name.replace(/\.txt$/i, "") });
     } catch (e) {
       setError(errorMessage(e));
     }
+  };
+  const changeParts = (files: TranscriptFile[]) => {
+    if (!draft) return;
+    try {
+      setDraft(files.length ? { ...draft, files, text: combineTranscripts(files) } : null);
+      setError("");
+    } catch (e) { setError(errorMessage(e)); }
   };
   const saveImport = async () => {
     if (!draft) return;
@@ -234,7 +265,7 @@ export function SessionsPage({
         campaignId,
         sessionId: id,
         model,
-        prompt: `Подготовь итоги сессии, ключевые действия каждого участника, важные события, подсказки мастеру для следующей игры и предложения обновить связанные сущности кампании.${master ? ` Мастер обозначен именем ${JSON.stringify(master)}; отделяй его повествование от действий игроков.` : " Мастер не указан, не угадывай роли участников."}`,
+        prompt: `Собери удобную хронику D&D: важные события, диалоги и договорённости, добычу (что нашли, взяли, потратили и у кого осталось), открытия (что изучили и узнали), встречи и отдельные итоги по каждой посещённой локации. Отдели события от планов, игровую речь от обсуждения за столом; неоднозначное помечай, не угадывай. Привяжи выводы к исходным репликам. Также подготовь действия участников, подсказки к следующей игре и проверяемые предложения изменений кампании.${master ? ` Мастер обозначен именем ${JSON.stringify(master)}; его описание мира является игровой речью, а не автоматически обсуждением за столом.` : " Мастер не указан, не угадывай роли участников."}`,
       });
       if (!mounted.current) return;
       setSessions(await sessionsApi.list(campaignId));
@@ -286,6 +317,11 @@ export function SessionsPage({
   };
   const transcript = (
     <div className="session-transcript">
+      <div className="session-speech-filters" aria-label="Тип речи">
+        {(["all", "game", "table", "uncertain"] as const).map(kind => <button key={kind} className={speechFilter === kind ? "active" : ""} aria-pressed={speechFilter === kind} onClick={() => { setSpeechFilter(kind); setPage(0); setSourceFocus(null); }}>{kind === "all" ? "Вся речь" : speechLabels[kind]} <small>{classifiedEntries.filter(entry => (tab !== "Игроки" || entry.name === activeSpeaker) && (kind === "all" || entry.speechKind === kind)).length}</small></button>)}
+      </div>
+      <p className="session-muted">{selected?.analysis?.journal ? "Разметка AI: повествование мастера тоже считается игрой. Смешанные и неразмеченные реплики — в «Неясно». Исходник сохраняется целиком." : "После обновления анализа появится разделение речи. Пока реплики находятся в «Неясно»."}</p>
+      {sourceFocus && <details className="session-source-excerpt" open><summary>Источник · строки {sourceFocus.fromLine}–{sourceFocus.toLine}</summary><pre>{selected?.text?.split("\n").slice(sourceFocus.fromLine - 1, sourceFocus.toLine).join("\n")}</pre></details>}
       <div className="session-search-row">
         <label>
           <span className="sr-only">Поиск по расшифровке</span>
@@ -303,10 +339,11 @@ export function SessionsPage({
       </div>
       <div className="session-lines">
         {filteredEntries.slice(page * 50, (page + 1) * 50).map((entry, i) => (
-          <article key={`${page}-${i}`} className="session-line">
+          <article key={`${page}-${i}`} className={`session-line ${sourceFocus && overlapsSource(entry, sourceFocus) ? "cited" : ""}`}>
             <div>
               <strong>{entry.name}</strong>
               <time>{entry.stamp}</time>
+              <span className={`session-speech-label ${entry.speechKind}`}>{speechLabels[entry.speechKind]}</span>
             </div>
             <p>{renderHighlight(entry.text, query)}</p>
           </article>
@@ -360,9 +397,10 @@ export function SessionsPage({
           ref={fileRef}
           type="file"
           accept=".txt,text/plain"
+          multiple
           hidden
           onChange={(e) => {
-            void readFile(e.target.files?.[0]);
+            void readFiles(Array.from(e.target.files || []));
             e.target.value = "";
           }}
         />
@@ -383,7 +421,7 @@ export function SessionsPage({
           <div>
             <strong>AI читает сессию и контекст кампании</strong>
             <p>
-              Готовит итоги игроков и предложения изменений ·{" "}
+              Собирает хронику, локации и разделяет игровую речь ·{" "}
               {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")}
             </p>
           </div>
@@ -395,11 +433,30 @@ export function SessionsPage({
             <span className="session-eyebrow">НОВАЯ ЗАПИСЬ</span>
             <h2>Импорт из Quill</h2>
             <p>
-              {draft.fileName} · {Math.ceil(new Blob([draft.text]).size / 1024)}{" "}
+              {draft.files.length} файл(ов) → 1 сессия · {Math.ceil(new Blob([draft.text]).size / 1024)}{" "}
               КБ · {speakerStatistics(parseSessionText(draft.text)).length}{" "}
               участников
             </p>
           </div>
+          <ol className="session-import-parts">
+            {draft.files.map((file, index) => (
+              <li key={`${index}-${file.name}`}>
+                <span>{file.name}</span>
+                <button disabled={saving || index === 0} aria-label={`Выше: ${file.name}`} onClick={() => {
+                  const files = [...draft.files];
+                  [files[index - 1], files[index]] = [files[index], files[index - 1]];
+                  changeParts(files);
+                }}>↑</button>
+                <button disabled={saving || index === draft.files.length - 1} aria-label={`Ниже: ${file.name}`} onClick={() => {
+                  const files = [...draft.files];
+                  [files[index + 1], files[index]] = [files[index], files[index + 1]];
+                  changeParts(files);
+                }}>↓</button>
+                <button disabled={saving} aria-label={`Убрать: ${file.name}`} onClick={() => changeParts(draft.files.filter((_, i) => i !== index))}>Убрать</button>
+              </li>
+            ))}
+          </ol>
+          <p className="session-muted">Можно выбрать несколько TXT сразу (Ctrl или Shift). Части идут в порядке списка — поменяйте его стрелками. Время реплик продолжится между частями, без пауз между файлами. Общий размер — до 4 МБ.</p>
           <label>
             Название сессии
             <input
@@ -540,6 +597,7 @@ export function SessionsPage({
                     className={tab === t ? "active" : ""}
                     onClick={() => {
                       setTab(t);
+                      setJournalCategory("");
                       setPage(0);
                     }}
                   >
@@ -550,18 +608,12 @@ export function SessionsPage({
               <div className="session-tab-content" key={tab}>
                 {tab === "Обзор" && (
                   <>
-                    <section className="session-summary-card">
-                      <span className="session-eyebrow">ГЛАВНОЕ ЗА ИГРУ</span>
-                      <h3>
-                        {selected.analysis
-                          ? "История этой сессии"
-                          : "Расшифровка уже здесь"}
-                      </h3>
-                      <p>
-                        {selected.analysis?.summary ||
-                          "Запустите анализ, чтобы собрать сюжет в краткий итог, выделить важные решения и подготовиться к следующей встрече."}
-                      </p>
-                    </section>
+                    <SessionRecap analysis={selected.analysis} busy={!!busyId} onAnalyze={() => void analyze()} />
+                    <div className="session-detail-intro"><h3>Подробнее о приключении</h3><p className="session-muted">Выберите раздел: внутри — детали и ссылки на исходные реплики.</p></div>
+                    <div className="session-overview-categories">
+                      {journalKinds.map(category => <button key={category.id} onClick={() => { setJournalCategory(category.id); setTab("Хроника"); }}><span>{category.icon}</span><strong>{selected.analysis?.journal?.entries.filter(entry => entry.kind === category.id).length ?? "—"}</strong><small>{category.label}</small></button>)}
+                      <button onClick={() => setTab("Локации")}><span>⌖</span><strong>{selected.analysis?.journal?.locations.length ?? "—"}</strong><small>Локации</small></button>
+                    </div>
                     <div className="session-two-columns">
                       <section className="session-card">
                         <h3>Ключевые события</h3>
@@ -618,6 +670,7 @@ export function SessionsPage({
                     )}
                   </>
                 )}
+                {(tab === "Хроника" || tab === "Локации") && <SessionJournal key={`${selected.id}:${tab}`} journal={selected.analysis?.journal} byLocation={tab === "Локации"} onSource={openSource} sourceLabel={sourceLabel} onAnalyze={() => void analyze()} busy={!!busyId} initialKind={tab === "Хроника" ? journalCategory : ""} />}
                 {tab === "Игроки" && (
                   <>
                     <div className="session-player-tabs" aria-label="Участники">

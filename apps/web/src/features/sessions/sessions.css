@@ -11,6 +11,60 @@
   cursor: default;
   opacity: 0.55;
 }
+.sessions-page button:focus-visible { outline: 2px solid #cfb6ff; outline-offset: 3px; }
+.session-recap { padding: clamp(18px, 3vw, 32px); border: 1px solid #b89cde38; border-radius: 16px; background: linear-gradient(145deg, #9b76c910, #ffffff02); overflow-wrap: anywhere; }
+.session-recap .session-card-heading { flex-wrap: wrap; }
+.session-recap h3 { margin: 8px 0 0; font-size: 22px; }
+.session-reading-time { color: var(--session-muted); font-size: 12px; white-space: nowrap; }
+.session-recap-lead { margin: 24px 0; padding: 16px 20px; border-left: 3px solid #b99ada; background: #b89cde09; border-radius: 0 8px 8px 0; }
+.session-recap-lead p { margin: 8px 0 0; color: #d1c8de; line-height: 1.7; white-space: pre-wrap; }
+.session-recap-prose { max-width: 70ch; margin: 24px auto 0; font-size: 16px; line-height: 1.9; color: #e3ddec; }
+.session-recap-prose p { margin: 0 0 1.25em; white-space: pre-wrap; }
+.session-recap-prose p:last-child { margin-bottom: 0; }
+.session-recap-empty p { color: #c3b9d2; line-height: 1.8; max-width: 65ch; }
+.session-recap-empty small { display: block; margin-top: 12px; color: var(--session-muted); line-height: 1.6; }
+.session-detail-intro { margin: 28px 0 0; }
+.session-detail-intro h3 { margin-bottom: 6px; }
+.sessions-page .session-tabs { flex-wrap: wrap; row-gap: 0; }
+.session-overview-categories { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 18px 0 24px; }
+.session-overview-categories button { display: grid; grid-template-columns: auto 1fr; gap: 8px; text-align: left; color: #eeeaf6; border: 1px solid var(--session-line); background: #ffffff04; padding: 15px; border-radius: 12px; }
+.session-overview-categories button:hover { background: #b798eb15; border-color: #b798eb70; }
+.session-overview-categories button > span { color: #c8a5fc; font-size: 22px; }
+.session-overview-categories strong { font-size: 22px; text-align: right; }
+.session-overview-categories small { grid-column: 1 / -1; color: #bab0cf; }
+.session-category-tabs, .session-speech-filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 14px; }
+.session-category-tabs button, .session-speech-filters button { padding: 9px 12px; border: 1px solid var(--session-line); border-radius: 20px; color: #bdb3d2; background: #ffffff04; font-size: 12px; }
+.session-category-tabs button.active, .session-speech-filters button.active { background: #ac80f024; border-color: #bc96f2; color: #f0e6ff; }
+.session-category-tabs small, .session-speech-filters small { opacity: .75; margin-left: 5px; }
+.session-chronicle-filters { display: flex; flex-wrap: wrap; gap: 12px; }
+.session-chronicle-filters label { flex: 1; min-width: min(170px, 100%); color: var(--session-muted); font-size: 11px; }
+.session-chronicle-filters label > span { display: block; margin-bottom: 7px; }
+.session-journal-cards { display: grid; gap: 14px; margin-top: 18px; }
+.session-journal-card { border-left: 3px solid #ad87e5; overflow-wrap: anywhere; }
+.session-journal-card.dialogue { border-left-color: #7fbad8; }
+.session-journal-card.loot { border-left-color: #d7b370; }
+.session-journal-card.discovery { border-left-color: #7dcab2; }
+.session-journal-card.encounter { border-left-color: #e79dad; }
+.session-journal-card p { color: #d0c8de; line-height: 1.7; font-size: 13px; white-space: pre-wrap; }
+.session-entry-meta { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.session-fact-status, .session-speech-label { font-size: 10px; padding: 4px 8px; border-radius: 6px; border: 1px solid #ffffff15; white-space: nowrap; }
+.session-fact-status.confirmed, .session-speech-label.game { color: #95dac2; background: #5ec0a112; }
+.session-fact-status.planned, .session-speech-label.table { color: #b3bfed; background: #94a8df12; }
+.session-fact-status.uncertain, .session-speech-label.uncertain { color: #ebc58a; background: #dcb37112; }
+.session-entry-context { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; color: var(--session-muted); font-size: 12px; margin: 14px 0; }
+.session-evidence { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.session-evidence button { overflow-wrap: anywhere; text-align: left; }
+.session-location-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 10px; margin: 20px 0; }
+.session-location { display: flex; gap: 10px; flex-direction: column; text-align: left; background: #ffffff04; color: #eeeaf6; border: 1px solid var(--session-line); border-radius: 12px; padding: 17px; min-width: 0; overflow-wrap: anywhere; }
+.session-location.active { background: linear-gradient(135deg, #8464b527, #56447018); border-color: #b091d6; }
+.session-location > span { font-size: 9px; letter-spacing: .13em; color: #ba9de3; }
+.session-location strong { font-size: 14px; }
+.session-location small { font-size: 11px; color: var(--session-muted); }
+.session-line.cited { outline: 2px solid #be9ce9; outline-offset: -2px; background: #a37dda17; }
+.session-source-excerpt { background: #ac80f015; border: 1px solid #b396d95c; border-radius: 10px; padding: 14px; margin: 12px 0; font-size: 12px; }
+.session-source-excerpt summary { cursor: pointer; color: #d9c3fa; }
+.session-source-excerpt pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; line-height: 1.7; max-height: 280px; overflow: auto; }
+@media (max-width: 600px) { .session-overview-categories { grid-template-columns: repeat(2, minmax(0, 1fr)); } .session-chronicle-filters { flex-direction: column; } }
 .sessions-heading {
   display: flex;
   justify-content: space-between;
@@ -699,3 +753,8 @@
     transition: none !important;
   }
 }
+
+.session-import-parts { padding-left: 1.5rem; margin: 0; }
+.session-import-parts li { padding: .45rem 0; }
+.session-import-parts li span { display: inline-block; max-width: min(55vw, 34rem); overflow-wrap: anywhere; vertical-align: middle; margin-right: .75rem; }
+.session-import-parts button { margin: .2rem; padding: .35rem .65rem; }

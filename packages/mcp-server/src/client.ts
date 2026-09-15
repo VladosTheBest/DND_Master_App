@@ -387,7 +387,10 @@ export class DndMasterClient {
     const session = await this.#request<{id:string; title:string; text:string; digest:string; participants:string[]}>("GET", `/api/campaigns/${encodePath(campaignId)}/sessions/${encodePath(sessionId)}`);
     const characters = Array.from(session.text);
     const end = Math.min(characters.length, offset + 24000);
-    return { id:session.id, title:session.title, digest:session.digest, participants:session.participants, text:characters.slice(offset,end).join(""), offset, nextOffset:end < characters.length ? end : null, totalCharacters:characters.length };
+    const text = characters.slice(offset, end).join("");
+    const firstLine = characters.slice(0, offset).filter(character => character === "\n").length + 1;
+    const numberedText = text.split("\n").map((line, index) => `[L${firstLine + index}] ${line}`).join("\n");
+    return { id:session.id, title:session.title, digest:session.digest, participants:session.participants, text, numberedText, firstLine, offset, nextOffset:end < characters.length ? end : null, totalCharacters:characters.length };
   }
 
   saveSessionAnalysis(campaignId: string, sessionId: string, analysis: Record<string, unknown>): Promise<Record<string, unknown>> {

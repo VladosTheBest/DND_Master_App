@@ -1,4 +1,6 @@
 export interface SessionUtterance {
+  fromLine: number;
+  toLine: number;
   name: string;
   text: string;
   start: number | null;
@@ -25,7 +27,7 @@ export function parseSessionText(text: string): SessionUtterance[] {
     .replace(/\r\n/g, "\n")
     .split("\n");
   const entries: SessionUtterance[] = [];
-  for (const line of lines) {
+  for (const [index, line] of lines.entries()) {
     const match = line.match(
       /^\[(\d{2,}:\d{2}:\d{2}\.\d{3})[–-](\d{2,}:\d{2}:\d{2}\.\d{3})\] ([^:\r\n]{1,100}):\s?(.*)$/,
     );
@@ -39,20 +41,26 @@ export function parseSessionText(text: string): SessionUtterance[] {
         end >= start &&
         end <= 7 * 24 * 3600;
       entries.push({
+        fromLine: index + 1,
+        toLine: index + 1,
         name: match[3].trim(),
         text: match[4],
         start: valid ? start : null,
         end: valid ? end : null,
         stamp: `${match[1]} — ${match[2]}`,
       });
-    } else if (entries.length && line.trim())
+    } else if (entries.length && line.trim()) {
       entries[entries.length - 1].text += "\n" + line;
+      entries[entries.length - 1].toLine = index + 1;
+    }
   }
   return entries.length
     ? entries
     : text.trim()
       ? [
           {
+            fromLine: 1,
+            toLine: lines.length,
             name: "Без указания участника",
             text,
             start: null,

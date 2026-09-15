@@ -6,6 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { DndApiError, DndMasterClient } from "./client.js";
 import type { DndMcpConfig } from "./config.js";
+import { SessionJournalSchema } from "./schemas.js";
 
 function config(overrides: Partial<DndMcpConfig> = {}): DndMcpConfig {
   return {
@@ -39,6 +40,27 @@ test("session transcript pages preserve Unicode and session analysis writes stay
   await client.saveSessionAnalysis("campaign-1","session-1",{summary:"Итог"});
   assert.equal(calls.at(-1)?.method,"PUT");
   assert.match(calls.at(-1)?.url || "",/sessions\/session-1\/analysis$/);
+});
+
+test("numbered transcript pages keep absolute line references across Unicode and partial lines", async () => {
+  const original = "Заголовок\n" + "🙂".repeat(24010) + "\nПоследняя строка";
+  const client = new DndMasterClient(config(), (async () => jsonResponse({id:"s",title:"Demo",text:original,digest:"a".repeat(64),participants:[]})) as typeof fetch);
+  const first = await client.getSessionTranscript("c", "s");
+  assert.equal(first.firstLine, 1);
+  assert.match(String(first.numberedText), /^\[L1\] Заголовок\n\[L2\] 🙂/);
+  const second = await client.getSessionTranscript("c", "s", first.nextOffset as number);
+  assert.equal(second.firstLine, 2);
+  assert.match(String(second.numberedText), /^\[L2\] 🙂+\n\[L3\] Последняя строка$/u);
+  assert.equal(String(first.text) + String(second.text), original);
+  assert.equal(second.nextOffset, null);
+});
+
+test("journal tool schema preserves structured findings and rejects unsupported labels or source ranges", () => {
+  const journal = {version:1,locations:[],entries:[{id:"e",kind:"discovery",title:"Следы",detail:"Следы у дороги",people:[],status:"uncertain",sources:[{fromLine:4,toLine:5}]}],speech:[{fromLine:4,toLine:5,kind:"uncertain"}]};
+  assert.deepEqual(SessionJournalSchema.parse(journal),journal);
+  assert.equal(SessionJournalSchema.safeParse({...journal,entries:[{...journal.entries[0],kind:"rumor"}]}).success,false);
+  assert.equal(SessionJournalSchema.safeParse({...journal,entries:[{...journal.entries[0],sources:[{fromLine:5,toLine:4}]}]}).success,false);
+  assert.equal(SessionJournalSchema.safeParse({...journal,speech:[{fromLine:4,toLine:5,kind:"probably-game"}]}).success,false);
 });
 
 test("proposal writes use the proposal endpoint and never an apply route", async () => {

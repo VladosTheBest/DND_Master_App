@@ -489,6 +489,33 @@ export const AttachProposalMediaInputSchema = z
   .strict();
 
 export type ProposeCampaignInput = z.infer<typeof ProposeCampaignInputSchema>;
+const SessionSourceRangeSchema = z.object({
+  fromLine: z.number().int().min(1),
+  toLine: z.number().int().min(1),
+}).strict().refine(range => range.toLine >= range.fromLine, "Source range is reversed");
+export const SessionJournalSchema = z.object({
+  version: z.literal(1),
+  locations: z.array(z.object({
+    id: z.string().trim().min(1).max(100),
+    name: z.string().trim().min(1).max(200),
+    summary: z.string().trim().min(1).max(2000),
+    sources: z.array(SessionSourceRangeSchema).min(1).max(6),
+  }).strict()).max(60),
+  entries: z.array(z.object({
+    id: z.string().trim().min(1).max(100),
+    kind: z.enum(["event", "dialogue", "loot", "discovery", "encounter"]),
+    title: z.string().trim().min(1).max(200),
+    detail: z.string().trim().min(1).max(3000),
+    locationId: z.string().max(100).optional(),
+    people: z.array(z.string().trim().min(1).max(100)).max(30),
+    status: z.enum(["confirmed", "planned", "uncertain"]),
+    sources: z.array(SessionSourceRangeSchema).min(1).max(6),
+  }).strict()).max(200),
+  speech: z.array(z.object({
+    fromLine: z.number().int().min(1), toLine: z.number().int().min(1),
+    kind: z.enum(["game", "table", "uncertain"]),
+  }).strict().refine(range => range.toLine >= range.fromLine, "Speech range is reversed")).max(4000),
+}).strict();
 export type ProposeEntityCreateInput = z.infer<typeof ProposeEntityCreateInputSchema>;
 export type ProposeEntityUpdateInput = z.infer<typeof ProposeEntityUpdateInputSchema>;
 export type StageProposalMediaInput = z.infer<typeof StageProposalMediaInputSchema>;

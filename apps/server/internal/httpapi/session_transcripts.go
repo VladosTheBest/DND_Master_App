@@ -37,10 +37,12 @@ type sessionPlayerAnalysis struct {
 	NextSessionFocus string   `json:"nextSessionFocus"`
 }
 type sessionAnalysis struct {
+	Journal       *sessionJournal         `json:"journal,omitempty"`
 	RunID         string                  `json:"runId"`
 	Digest        string                  `json:"digest"`
 	GeneratedAt   string                  `json:"generatedAt"`
 	Summary       string                  `json:"summary"`
+	Recap         string                  `json:"recap,omitempty"`
 	KeyEvents     []string                `json:"keyEvents"`
 	Players       []sessionPlayerAnalysis `json:"players"`
 	NextSession   []string                `json:"nextSession"`
@@ -98,7 +100,9 @@ func (srv *server) handleImportedSessions(w http.ResponseWriter, r *http.Request
 				}
 			} else {
 				session.Text = ""
-				if session.Analysis != nil { session.Analysis = &sessionAnalysis{Summary:session.Analysis.Summary, GeneratedAt:session.Analysis.GeneratedAt, RunID:session.Analysis.RunID} }
+				if session.Analysis != nil {
+					session.Analysis = &sessionAnalysis{Summary: session.Analysis.Summary, GeneratedAt: session.Analysis.GeneratedAt, RunID: session.Analysis.RunID}
+				}
 				sessions = append(sessions, session)
 			}
 		}
