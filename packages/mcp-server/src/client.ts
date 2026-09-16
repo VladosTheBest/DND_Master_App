@@ -394,7 +394,7 @@ export class DndMasterClient {
   }
 
   saveSessionAnalysis(campaignId: string, sessionId: string, analysis: Record<string, unknown>): Promise<Record<string, unknown>> {
-    return this.#request("PUT", `/api/campaigns/${encodePath(campaignId)}/sessions/${encodePath(sessionId)}/analysis`, analysis);
+    return this.#request("PUT", `/api/campaigns/${encodePath(campaignId)}/sessions/${encodePath(sessionId)}/analysis`, { body: analysis });
   }
 
   getCampaign(campaignId: string): Promise<CampaignData> {

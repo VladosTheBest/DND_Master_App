@@ -29,16 +29,30 @@ function jsonResponse(data: unknown, status = 200): Response {
 
 test("session transcript pages preserve Unicode and session analysis writes stay separate from entities", async () => {
   const original = "🙂Привет ".repeat(6000);
-  const calls:Array<{url:string;method?:string}>=[];
+  const analysis = {
+    runId: "analysis-test", digest: "a".repeat(64), summary: "Итог",
+    recap: "Партия осмотрела мост.\n\nЗатем нашла следы 🐉.",
+    keyEvents: ["Осмотр моста"], players: [{ name: "Арина", actions: ["Нашла следы"], moments: [], nextSessionFocus: "Исследовать следы" }],
+    nextSession: ["Продолжить путь"], uncertainties: [], proposalIds: [],
+    journal: { version: 1, locations: [], entries: [], speech: [] },
+  };
+  const calls:Array<{url:string;init?:RequestInit}>=[];
   const client = new DndMasterClient(config(), (async (url, init) => {
-    calls.push({url:String(url),method:init?.method});
-    return jsonResponse(init?.method === "PUT" ? {summary:"Итог"} : {id:"session-1",title:"Игра",text:original,digest:"a".repeat(64),participants:["Арина"]});
+    calls.push({url:String(url),init});
+    if (init?.method === "PUT") {
+      // An empty request must fail as it does at the real Go endpoint.
+      assert.equal(new Headers(init.headers).get("Content-Type"), "application/json");
+      const received = JSON.parse(String(init.body));
+      assert.deepEqual(received, analysis);
+      return jsonResponse(received);
+    }
+    return jsonResponse({id:"session-1",title:"Игра",text:original,digest:"a".repeat(64),participants:["Арина"]});
   }) as typeof fetch);
   let offset=0, text="";
   do { const page=await client.getSessionTranscript("campaign-1","session-1",offset);text+=page.text;offset=page.nextOffset as number; } while(offset!==null);
   assert.equal(text,original);
-  await client.saveSessionAnalysis("campaign-1","session-1",{summary:"Итог"});
-  assert.equal(calls.at(-1)?.method,"PUT");
+  assert.deepEqual(await client.saveSessionAnalysis("campaign-1","session-1",analysis), analysis);
+  assert.equal(calls.at(-1)?.init?.method,"PUT");
   assert.match(calls.at(-1)?.url || "",/sessions\/session-1\/analysis$/);
 });
 

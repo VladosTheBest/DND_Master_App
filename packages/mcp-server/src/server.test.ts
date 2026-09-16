@@ -454,6 +454,55 @@ test("proposal media schemas match backend target boundaries", () => {
   );
 });
 
+test("session analysis tool persists the complete JSON report over HTTP", async (t) => {
+  const analysis = {
+    runId: "analysis-test", digest: "a".repeat(64), summary: "Партия нашла мост.",
+    recap: "Партия подошла к мосту.\n\nНа другом берегу заметили следы 🐉.",
+    keyEvents: ["Обнаружены следы"],
+    players: [{ name: "Арина", actions: ["Осмотрела берег"], moments: [], nextSessionFocus: "Проверить следы" }],
+    nextSession: ["Продолжить исследование"], uncertainties: [], proposalIds: [],
+    journal: {
+      version: 1,
+      locations: [{ id: "bridge", name: "Мост", summary: "Партия осмотрела берег.", sources: [{ fromLine: 4, toLine: 5 }] }],
+      entries: [{ id: "tracks", kind: "discovery", title: "Следы", detail: "Найдены следы на берегу.", locationId: "bridge", people: ["Арина"], status: "confirmed", sources: [{ fromLine: 5, toLine: 5 }] }],
+      speech: [{ fromLine: 4, toLine: 5, kind: "game" }],
+    },
+  };
+  let saved: unknown;
+  const requests: Array<{ method?: string; url?: string; contentType?: string; cookie?: string }> = [];
+  const http = createHttpServer(async (request, reply) => {
+    requests.push({ method: request.method, url: request.url, contentType: request.headers["content-type"], cookie: request.headers.cookie });
+    const chunks: Buffer[] = [];
+    for await (const chunk of request) chunks.push(Buffer.from(chunk));
+    reply.setHeader("Content-Type", "application/json");
+    try {
+      saved = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+      reply.end(JSON.stringify({ data: saved }));
+    } catch {
+      reply.statusCode = 400;
+      reply.end(JSON.stringify({ error: { code: "invalid_analysis", message: "Empty or invalid JSON report" } }));
+    }
+  });
+  t.after(() => new Promise<void>((resolve, reject) => http.close(error => error ? reject(error) : resolve())));
+  await new Promise<void>(resolve => http.listen(0, "127.0.0.1", resolve));
+  const baseUrl = new URL(`http://127.0.0.1:${(http.address() as AddressInfo).port}/`);
+  const server = createDndMcpServer(new DndMasterClient({ ...testConfig, baseUrl }));
+  const client = new Client({ name: "session-analysis-test", version: "1.0.0" });
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  t.after(async () => { await client.close(); await server.close(); });
+  await server.connect(serverTransport);
+  await client.connect(clientTransport);
+  const result = await client.callTool({
+    name: "save_session_analysis",
+    arguments: { campaignId: "campaign-1", sessionId: "session-1", ...analysis },
+  });
+  assert.equal(result.isError, undefined, JSON.stringify(result.content));
+  assert.deepEqual(saved, analysis);
+  assert.deepEqual(requests, [{ method: "PUT", url: "/api/campaigns/campaign-1/sessions/session-1/analysis", contentType: "application/json", cookie: testConfig.sessionCookie }]);
+  assert.equal((result.structuredContent as typeof analysis).runId, analysis.runId);
+  assert.equal((result.structuredContent as typeof analysis).recap, analysis.recap);
+});
+
 test("server advertises focused tools with accurate proposal-only annotations", async (t) => {
   let proposedBody: Record<string, unknown> | undefined;
   const mockFetch = (async (input: URL | RequestInfo, init?: RequestInit) => {
