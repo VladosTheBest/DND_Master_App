@@ -421,7 +421,7 @@ export function SessionsPage({
           <div>
             <strong>AI читает сессию и контекст кампании</strong>
             <p>
-              Собирает хронику, локации и разделяет игровую речь ·{" "}
+              Разбирает длинные записи по частям, затем сохраняет общий отчёт ·{" "}
               {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")}
             </p>
           </div>

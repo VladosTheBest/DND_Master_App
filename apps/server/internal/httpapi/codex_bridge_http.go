@@ -88,7 +88,7 @@ func (srv *server) handleCodexPrompt(writer http.ResponseWriter, request *http.R
 	input.Prompt = prompt
 	if input.SessionID != "" {
 		// A long transcript can outlive the ordinary HTTP write deadline.
-		_ = http.NewResponseController(writer).SetWriteDeadline(time.Now().Add(srv.codex.options.RequestTimeout*3 + time.Minute))
+		_ = http.NewResponseController(writer).SetWriteDeadline(time.Now().Add(sessionAnalysisTimeout + time.Minute))
 	}
 	result, err := srv.codex.runPrompt(request.Context(), user, input)
 	if err != nil {
