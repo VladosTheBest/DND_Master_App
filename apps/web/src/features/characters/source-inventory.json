@@ -1,0 +1,2936 @@
+{
+  "checkedAt": "2026-09-29",
+  "scope": "Public dnd.su indexes; no completeness claim for all published D&D books.",
+  "classes": [
+    {
+      "edition": "2014",
+      "id": "artificer",
+      "url": "https://dnd.su/class/137-artificer/",
+      "subclasses": [
+        {
+          "id": "specialist.alchemist",
+          "name": "Алхимик",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "specialist.artillerist",
+          "name": "Артиллерист",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "specialist.battlesmith",
+          "name": "Боевой кузнец",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "specialist.armorer",
+          "name": "Бронник",
+          "source": "Tasha’s Cauldron of Everything"
+        }
+      ]
+    },
+    {
+      "edition": "2014",
+      "id": "barbarian",
+      "url": "https://dnd.su/class/87-barbarian/",
+      "subclasses": [
+        {
+          "id": "primal.berserker",
+          "name": "Путь берсерка",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "primal.totem-warrior",
+          "name": "Путь тотемного воина",
+          "source": "Sword Coast Adventurer’s Guide"
+        },
+        {
+          "id": "primal.battlerager",
+          "name": "Путь бушующего в бою",
+          "source": "Sword Coast Adventurer’s Guide"
+        },
+        {
+          "id": "primal.storm-herald",
+          "name": "Путь буревестника",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "primal.ancestral-guardian",
+          "name": "Путь предка-хранителя",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "primal.zealot",
+          "name": "Путь фанатика",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "primal.wild-magic",
+          "name": "Путь дикой магии",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "primal.beast",
+          "name": "Путь зверя",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "primal.giant",
+          "name": "Путь великана",
+          "source": "Bigby Presents: Glory of the Giants"
+        }
+      ]
+    },
+    {
+      "edition": "2014",
+      "id": "bard",
+      "url": "https://dnd.su/class/88-bard/",
+      "subclasses": [
+        {
+          "id": "college.valor",
+          "name": "Коллегия доблести",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "college.lore",
+          "name": "Коллегия знаний",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "college.swords",
+          "name": "Коллегия мечей",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "college.glamour",
+          "name": "Коллегия очарования",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "college.whispers",
+          "name": "Коллегия шёпотов",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "college.eloquence",
+          "name": "Коллегия красноречия",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "college.creation",
+          "name": "Коллегия созидания",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "college.spirits",
+          "name": "Коллегия духов",
+          "source": "Van Richten’s Guide to Ravenloft"
+        }
+      ]
+    },
+    {
+      "edition": "2014",
+      "id": "cleric",
+      "url": "https://dnd.su/class/89-cleric/",
+      "subclasses": [
+        {
+          "id": "domain.tempest",
+          "name": "Домен бури",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "domain.war",
+          "name": "Домен войны",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "domain.life",
+          "name": "Домен жизни",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "domain.knowledge",
+          "name": "Домен знаний",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "domain.trickery",
+          "name": "Домен обмана",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "domain.nature",
+          "name": "Домен природы",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "domain.light",
+          "name": "Домен света",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "domain.death",
+          "name": "Домен смерти",
+          "source": "Dungeon Master’s Guide"
+        },
+        {
+          "id": "domain.arcana",
+          "name": "Домен магии",
+          "source": "Sword Coast Adventurer’s Guide"
+        },
+        {
+          "id": "domain.forge",
+          "name": "Домен кузни",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "domain.grave",
+          "name": "Домен упокоения",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "domain.peace",
+          "name": "Домен мира",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "domain.order",
+          "name": "Домен порядка",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "domain.twilight",
+          "name": "Домен сумерек",
+          "source": "Tasha’s Cauldron of Everything"
+        }
+      ]
+    },
+    {
+      "edition": "2014",
+      "id": "druid",
+      "url": "https://dnd.su/class/90-druid/",
+      "subclasses": [
+        {
+          "id": "circle.land",
+          "name": "Круг земли",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "circle.moon",
+          "name": "Круг луны",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "circle.shepherd",
+          "name": "Круг пастыря",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "circle.dreams",
+          "name": "Круг снов",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "circle.wildfire",
+          "name": "Круг дикого огня",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "circle.stars",
+          "name": "Круг звёзд",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "circle.spores",
+          "name": "Круг спор",
+          "source": "Tasha’s Cauldron of Everything"
+        }
+      ]
+    },
+    {
+      "edition": "2014",
+      "id": "fighter",
+      "url": "https://dnd.su/class/91-fighter/",
+      "subclasses": [
+        {
+          "id": "archetype.battlemaster",
+          "name": "Мастер боевых искусств",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "archetype.eldritch-knigh",
+          "name": "Мистический рыцарь",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "archetype.champion",
+          "name": "Чемпион",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "archetype.banneret",
+          "name": "Рыцарь Пурпурного дракона",
+          "source": "Sword Coast Adventurer’s Guide"
+        },
+        {
+          "id": "archetype.cavalier",
+          "name": "Кавалерист",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "archetype.arcane-archer",
+          "name": "Мистический лучник",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "archetype.samurai",
+          "name": "Самурай",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "archetype.echo-knight",
+          "name": "Рыцарь Эха",
+          "source": "Explorer’s Guide to Wildemount"
+        },
+        {
+          "id": "archetype.psi-warrior",
+          "name": "Пси-воин",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "archetype.rune-knight",
+          "name": "Рунный рыцарь",
+          "source": "Tasha’s Cauldron of Everything"
+        }
+      ]
+    },
+    {
+      "edition": "2014",
+      "id": "monk",
+      "url": "https://dnd.su/class/93-monk/",
+      "subclasses": [
+        {
+          "id": "tradition.open-hand",
+          "name": "Путь открытой ладони",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "tradition.shadow",
+          "name": "Путь тени",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "tradition.four-elements",
+          "name": "Путь четырёх стихий",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "tradition.long-death",
+          "name": "Путь долгой смерти",
+          "source": "Sword Coast Adventurer’s Guide"
+        },
+        {
+          "id": "tradition.kensei",
+          "name": "Путь кэнсэя",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "tradition.drunken-master",
+          "name": "Путь пьяного мастера",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "tradition.sun-soul",
+          "name": "Путь солнечной души",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "tradition.astral-body",
+          "name": "Путь астрального тела",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "tradition.mercy",
+          "name": "Путь милосердия",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "tradition.ascending-dragon",
+          "name": "Путь восходящего дракона",
+          "source": "Player's Handbook"
+        }
+      ]
+    },
+    {
+      "edition": "2014",
+      "id": "paladin",
+      "url": "https://dnd.su/class/94-paladin/",
+      "subclasses": [
+        {
+          "id": "oath.devotion",
+          "name": "Клятва преданности",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "oath.ancients",
+          "name": "Клятва древних",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "oath.vengeance",
+          "name": "Клятва мести",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "oath.oathbreaker",
+          "name": "Клятвопреступник",
+          "source": "Dungeon Master Guide"
+        },
+        {
+          "id": "oath.crown",
+          "name": "Клятва короны",
+          "source": "Sword Coast Adventurer’s Guide"
+        },
+        {
+          "id": "oath.redemption",
+          "name": "Клятва искупления",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "oath.conquest",
+          "name": "Клятва покорения",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "oath.glory",
+          "name": "Клятва славы",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "oath.watchers",
+          "name": "Клятва смотрителей",
+          "source": "Tasha’s Cauldron of Everything"
+        }
+      ]
+    },
+    {
+      "edition": "2014",
+      "id": "ranger",
+      "url": "https://dnd.su/class/97-ranger/",
+      "subclasses": [
+        {
+          "id": "archetype.hunter",
+          "name": "Охотник",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "archetype.beast-master",
+          "name": "Повелитель зверей",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "archetype.horizon-walker",
+          "name": "Странник горизонта",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "archetype.gloom-stalker",
+          "name": "Сумрачный охотник",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "archetype.monster-slayer",
+          "name": "Убийца чудовищ",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "archetype.fey-wanderer",
+          "name": "Странник фей",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "archetype.swarmkeeper",
+          "name": "Хранитель роя",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "archetype.drakewarden",
+          "name": "Наездник на дрейке",
+          "source": "Fizban’s Treasury of Dragons"
+        }
+      ]
+    },
+    {
+      "edition": "2014",
+      "id": "rogue",
+      "url": "https://dnd.su/class/99-rogue/",
+      "subclasses": [
+        {
+          "id": "archetype.thief",
+          "name": "Вор",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "archetype.assasin",
+          "name": "Убийца",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "archetype.arcane-trickster",
+          "name": "Мистический ловкач",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "archetype.swashbuckler",
+          "name": "Дуэлянт",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "archetype.mastermind",
+          "name": "Комбинатор",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "archetype.scout",
+          "name": "Скаут",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "archetype.inquisitive",
+          "name": "Сыщик",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "archetype.phantom",
+          "name": "Фантом",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "archetype.soulknife",
+          "name": "Клинок души",
+          "source": "Tasha’s Cauldron of Everything"
+        }
+      ]
+    },
+    {
+      "edition": "2014",
+      "id": "sorcerer",
+      "url": "https://dnd.su/class/101-sorcerer/",
+      "subclasses": [
+        {
+          "id": "origin.draconic",
+          "name": "Наследие драконьей крови",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "origin.wild-magic",
+          "name": "Дикая магия",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "origin.divine-soul",
+          "name": "Божественная душа",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "origin.shadow",
+          "name": "Теневая магия",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "origin.storm",
+          "name": "Штормовое колдовство",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "origin.aberrant-mind",
+          "name": "Аберрантный разум",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "origin.clockwork-soul",
+          "name": "Заводная душа",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "origin.lunar-sorcery",
+          "name": "Лунное чародейство",
+          "source": "Dragonlance: Shadow of the Dragon Queen"
+        }
+      ]
+    },
+    {
+      "edition": "2014",
+      "id": "warlock",
+      "url": "https://dnd.su/class/104-warlock/",
+      "subclasses": [
+        {
+          "id": "patron.archfey",
+          "name": "Архифея",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "patron.fiend",
+          "name": "Исчадие",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "patron.great-old-one",
+          "name": "Великий Древний",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "patron.undying",
+          "name": "Бессмертный",
+          "source": "Sword Coast Adventurer’s Guide"
+        },
+        {
+          "id": "patron.hexblade",
+          "name": "Ведьмовской клинок",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "patron.celestial",
+          "name": "Небожитель",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "patron.fathomless",
+          "name": "Бездонный",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "patron.genie",
+          "name": "Гений",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "patron.undead",
+          "name": "Нежить",
+          "source": "Van Richten’s Guide to Ravenloft"
+        }
+      ]
+    },
+    {
+      "edition": "2014",
+      "id": "wizard",
+      "url": "https://dnd.su/class/105-wizard/",
+      "subclasses": [
+        {
+          "id": "tradition.evocation",
+          "name": "Школа Воплощения",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "tradition.conjuration",
+          "name": "Школа Вызова",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "tradition.illusion",
+          "name": "Школа Иллюзии",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "tradition.necromancy",
+          "name": "Школа Некромантии",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "tradition.abjuration",
+          "name": "Школа Ограждения",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "tradition.enchantment",
+          "name": "Школа Очарования",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "tradition.transmutation",
+          "name": "Школа Преобразования",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "tradition.divination",
+          "name": "Школа Прорицания",
+          "source": "Player's Handbook"
+        },
+        {
+          "id": "tradition.war-magic",
+          "name": "Военная магия",
+          "source": "Xanathar’s Guide to Everything"
+        },
+        {
+          "id": "tradition.chronurgy",
+          "name": "Магия хронургии",
+          "source": "Explorer’s Guide to Wildemount"
+        },
+        {
+          "id": "tradition.graviturgy",
+          "name": "Магия гравитургии",
+          "source": "Explorer’s Guide to Wildemount"
+        },
+        {
+          "id": "tradition.scribes",
+          "name": "Орден писцов",
+          "source": "Tasha’s Cauldron of Everything"
+        },
+        {
+          "id": "tradition.bladesinging",
+          "name": "Песнь клинка",
+          "source": "Tasha’s Cauldron of Everything"
+        }
+      ]
+    },
+    {
+      "edition": "2024",
+      "id": "artificer",
+      "url": "https://next.dnd.su/class/artificer",
+      "subclasses": [
+        {
+          "id": "subclass.alchemist",
+          "name": "Алхимик",
+          "source": "Eberron: Forge of the Artificer",
+          "features": [
+            {
+              "level": 3,
+              "name": "Tools of the Trade"
+            },
+            {
+              "level": 3,
+              "name": "Alchemist Spells"
+            },
+            {
+              "level": 3,
+              "name": "Experimental Elixir"
+            },
+            {
+              "level": 5,
+              "name": "Alchemical Savant"
+            },
+            {
+              "level": 9,
+              "name": "Restorative Reagents"
+            },
+            {
+              "level": 15,
+              "name": "Chemical Mastery"
+            }
+          ]
+        },
+        {
+          "id": "subclass.artillerist",
+          "name": "Артиллерист",
+          "source": "Eberron: Forge of the Artificer",
+          "features": [
+            {
+              "level": 3,
+              "name": "Tools of the Trade"
+            },
+            {
+              "level": 3,
+              "name": "Artillerist Spells"
+            },
+            {
+              "level": 3,
+              "name": "Eldritch Cannon"
+            },
+            {
+              "level": 5,
+              "name": "Arcane Firearm"
+            },
+            {
+              "level": 9,
+              "name": "Explosive Cannon"
+            },
+            {
+              "level": 15,
+              "name": "Fortified Position"
+            }
+          ]
+        },
+        {
+          "id": "subclass.battle-smith",
+          "name": "Боевой кузнец",
+          "source": "Eberron: Forge of the Artificer",
+          "features": [
+            {
+              "level": 3,
+              "name": "Tools of the Trade"
+            },
+            {
+              "level": 3,
+              "name": "X Spells"
+            },
+            {
+              "level": 3,
+              "name": "Battle Ready"
+            },
+            {
+              "level": 3,
+              "name": "Steel Defender"
+            },
+            {
+              "level": 5,
+              "name": "Extra Attack"
+            },
+            {
+              "level": 9,
+              "name": "Arcane Jolt"
+            },
+            {
+              "level": 15,
+              "name": "Improved Defender"
+            }
+          ]
+        },
+        {
+          "id": "subclass.armorer",
+          "name": "Бронник",
+          "source": "Eberron: Forge of the Artificer",
+          "features": [
+            {
+              "level": 3,
+              "name": "Tools of the Trade"
+            },
+            {
+              "level": 3,
+              "name": "Armorer Spells"
+            },
+            {
+              "level": 3,
+              "name": "Arcane Armor"
+            },
+            {
+              "level": 3,
+              "name": "Armor Model"
+            },
+            {
+              "level": 5,
+              "name": "Extra Attack"
+            },
+            {
+              "level": 9,
+              "name": "Improved Armorer"
+            },
+            {
+              "level": 15,
+              "name": "Perfected Armor"
+            }
+          ]
+        },
+        {
+          "id": "subclass.сartographer",
+          "name": "Картограф",
+          "source": "Eberron: Forge of the Artificer",
+          "features": [
+            {
+              "level": 3,
+              "name": "Tools of the Trade"
+            },
+            {
+              "level": 3,
+              "name": "Cartographer Spells"
+            },
+            {
+              "level": 3,
+              "name": "Adventurer’s Atlas"
+            },
+            {
+              "level": 3,
+              "name": "Mapping Magic"
+            },
+            {
+              "level": 5,
+              "name": "Guided Precision"
+            },
+            {
+              "level": 9,
+              "name": "Ingenious Movement"
+            },
+            {
+              "level": 15,
+              "name": "Superior Atlas"
+            }
+          ]
+        },
+        {
+          "id": "subclass.reanimator",
+          "name": "Реаниматор",
+          "source": "Ravenloft: The Horrors Within",
+          "features": [
+            {
+              "level": 3,
+              "name": "Reanimator Spells"
+            },
+            {
+              "level": 3,
+              "name": "Reanimator’s Skill Set"
+            },
+            {
+              "level": 3,
+              "name": "Reanimated Companion"
+            },
+            {
+              "level": 5,
+              "name": "Strange Modifications"
+            },
+            {
+              "level": 9,
+              "name": "Improved Reanimation"
+            },
+            {
+              "level": 9,
+              "name": "Macabre Modifications"
+            },
+            {
+              "level": 15,
+              "name": "Refined Reanimation"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "edition": "2024",
+      "id": "barbarian",
+      "url": "https://next.dnd.su/class/barbarian",
+      "subclasses": [
+        {
+          "id": "subclass.berserker",
+          "name": "Путь берсерка",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Frenzy"
+            },
+            {
+              "level": 6,
+              "name": "Mindless Rage"
+            },
+            {
+              "level": 10,
+              "name": "Retaliation"
+            },
+            {
+              "level": 14,
+              "name": "Intimidating Presence"
+            }
+          ]
+        },
+        {
+          "id": "subclass.wild-heart",
+          "name": "Путь дикого сердца",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Animal Speaker"
+            },
+            {
+              "level": 3,
+              "name": "Rage of the Wilds"
+            },
+            {
+              "level": 6,
+              "name": "Aspect of the Wilds"
+            },
+            {
+              "level": 10,
+              "name": "Nature Speaker"
+            },
+            {
+              "level": 14,
+              "name": "Power of the Wilds"
+            }
+          ]
+        },
+        {
+          "id": "subclass.world-tree",
+          "name": "Путь Мирового древа",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Vitality of the Tree"
+            },
+            {
+              "level": 6,
+              "name": "Branches of the Tree"
+            },
+            {
+              "level": 10,
+              "name": "Battering Roots"
+            },
+            {
+              "level": 14,
+              "name": "Travel along the Tree"
+            }
+          ]
+        },
+        {
+          "id": "subclass.zealot",
+          "name": "Путь фанатика",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Divine Fury"
+            },
+            {
+              "level": 3,
+              "name": "Warrior of the Gods"
+            },
+            {
+              "level": 6,
+              "name": "Fanatical Focus"
+            },
+            {
+              "level": 10,
+              "name": "Zealous Presence"
+            },
+            {
+              "level": 14,
+              "name": "Rage of the Gods"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "edition": "2024",
+      "id": "bard",
+      "url": "https://next.dnd.su/class/bard",
+      "subclasses": [
+        {
+          "id": "subclass.valor",
+          "name": "Коллегия доблести",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Combat Inspiration"
+            },
+            {
+              "level": 3,
+              "name": "Martial Training"
+            },
+            {
+              "level": 6,
+              "name": "Extra Attack"
+            },
+            {
+              "level": 14,
+              "name": "Battle Magic"
+            }
+          ]
+        },
+        {
+          "id": "subclass.lore",
+          "name": "Коллегия знаний",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Bonus Proficiencies"
+            },
+            {
+              "level": 3,
+              "name": "Cutting Words"
+            },
+            {
+              "level": 6,
+              "name": "Magical Discoveries"
+            },
+            {
+              "level": 14,
+              "name": "Peerless Skill"
+            }
+          ]
+        },
+        {
+          "id": "subclass.glamour",
+          "name": "Коллегия очарования",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Beguiling Magic"
+            },
+            {
+              "level": 3,
+              "name": "Mantle of Inspiration"
+            },
+            {
+              "level": 6,
+              "name": "Mantle of Majesty"
+            },
+            {
+              "level": 14,
+              "name": "Unbreakable Majesty"
+            }
+          ]
+        },
+        {
+          "id": "subclass.dance",
+          "name": "Коллегия танца",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Dazzling Footwork"
+            },
+            {
+              "level": 6,
+              "name": "Inspiring Movement"
+            },
+            {
+              "level": 6,
+              "name": "Tandem Footwork"
+            },
+            {
+              "level": 14,
+              "name": "Leading Evasion"
+            }
+          ]
+        },
+        {
+          "id": "subclass.college-of-the-moon",
+          "name": "Коллегия луны",
+          "source": "Forgotten Realms: Heroes of Faerun",
+          "features": [
+            {
+              "level": 3,
+              "name": "Moon's Inspiration"
+            },
+            {
+              "level": 3,
+              "name": "Primal Lore"
+            },
+            {
+              "level": 6,
+              "name": "Blessing of Moonlight"
+            },
+            {
+              "level": 14,
+              "name": "Eventide's Splendor"
+            }
+          ]
+        },
+        {
+          "id": "subclass.college-of-the-spirits",
+          "name": "Коллегия духов",
+          "source": "Ravenloft: The Horrors Within",
+          "features": [
+            {
+              "level": 3,
+              "name": "Channeler"
+            },
+            {
+              "level": 3,
+              "name": "Spirits from Beyond"
+            },
+            {
+              "level": 6,
+              "name": "Empowered Channeling"
+            },
+            {
+              "level": 14,
+              "name": "Mystical Connection"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "edition": "2024",
+      "id": "cleric",
+      "url": "https://next.dnd.su/class/cleric",
+      "subclasses": [
+        {
+          "id": "subclass.war-domain",
+          "name": "Домен войны",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "War Priest"
+            },
+            {
+              "level": 3,
+              "name": "War Domain Spells"
+            },
+            {
+              "level": 3,
+              "name": "Guided Strike"
+            },
+            {
+              "level": 6,
+              "name": "War God’s Blessing"
+            },
+            {
+              "level": 17,
+              "name": "Avatar of Battle"
+            }
+          ]
+        },
+        {
+          "id": "subclass.life-domain",
+          "name": "Домен жизни",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Life Domain Spells"
+            },
+            {
+              "level": 3,
+              "name": "Disciple of Life"
+            },
+            {
+              "level": 3,
+              "name": "Preserve Life"
+            },
+            {
+              "level": 6,
+              "name": "Blessed Healer"
+            },
+            {
+              "level": 17,
+              "name": "Supreme Healing"
+            }
+          ]
+        },
+        {
+          "id": "subclass.trickery-domain",
+          "name": "Домен обмана",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Blessing of the Trickster"
+            },
+            {
+              "level": 3,
+              "name": "Invoke Duplicity"
+            },
+            {
+              "level": 3,
+              "name": "Trickery Domain Spells"
+            },
+            {
+              "level": 6,
+              "name": "Trickster’s Transposition"
+            },
+            {
+              "level": 17,
+              "name": "Improved Duplicity"
+            }
+          ]
+        },
+        {
+          "id": "subclass.light-domain",
+          "name": "Домен света",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Light Domain Spells"
+            },
+            {
+              "level": 3,
+              "name": "Warding Flare"
+            },
+            {
+              "level": 3,
+              "name": "Radiance of the Dawn"
+            },
+            {
+              "level": 6,
+              "name": "Improved Warding Flare"
+            },
+            {
+              "level": 17,
+              "name": "Corona of Light"
+            }
+          ]
+        },
+        {
+          "id": "subclass.knowledge-domain",
+          "name": "Домен знаний",
+          "source": "Forgotten Realms: Heroes of Faerun",
+          "features": [
+            {
+              "level": 3,
+              "name": "Blessings of Knowledge"
+            },
+            {
+              "level": 3,
+              "name": "Knowledge Domain Spells"
+            },
+            {
+              "level": 3,
+              "name": "Mind Magic"
+            },
+            {
+              "level": 6,
+              "name": "Unfettered Mind"
+            },
+            {
+              "level": 17,
+              "name": "Divine Foreknowledge"
+            }
+          ]
+        },
+        {
+          "id": "subclass.grave-domain",
+          "name": "Домен упокоения",
+          "source": "Ravenloft: The Horrors Within",
+          "features": [
+            {
+              "level": 3,
+              "name": "Grave Domain Spells"
+            },
+            {
+              "level": 3,
+              "name": "Circle of Mortality"
+            },
+            {
+              "level": 3,
+              "name": "Path to the Grave"
+            },
+            {
+              "level": 6,
+              "name": "Sentinel at Death’s Door"
+            },
+            {
+              "level": 17,
+              "name": "Divine Reaper"
+            }
+          ]
+        },
+        {
+          "id": "subclass.arcana-domain",
+          "name": "Домен магии",
+          "source": "Arcana Unleashed",
+          "features": [
+            {
+              "level": 3,
+              "name": "Modify Magic"
+            },
+            {
+              "level": 3,
+              "name": "Arcana Domain Spells"
+            },
+            {
+              "level": 3,
+              "name": "Student of Arcana"
+            },
+            {
+              "level": 6,
+              "name": "Dispelling Recovery"
+            },
+            {
+              "level": 17,
+              "name": "Magical Mastery"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "edition": "2024",
+      "id": "druid",
+      "url": "https://next.dnd.su/class/druid",
+      "subclasses": [
+        {
+          "id": "subclass.stars",
+          "name": "Круг звёзд",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Star Map"
+            },
+            {
+              "level": 3,
+              "name": "Starry Form"
+            },
+            {
+              "level": 6,
+              "name": "Cosmic Omen"
+            },
+            {
+              "level": 10,
+              "name": "Twinkling Constellations"
+            },
+            {
+              "level": 14,
+              "name": "Full of Stars"
+            }
+          ]
+        },
+        {
+          "id": "subclass.land",
+          "name": "Круг земли",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Circle of the Land Spells"
+            },
+            {
+              "level": 3,
+              "name": "Land’s Aid"
+            },
+            {
+              "level": 6,
+              "name": "Natural Recovery"
+            },
+            {
+              "level": 10,
+              "name": "Nature’s Ward"
+            },
+            {
+              "level": 14,
+              "name": "Nature’s Sanctuary"
+            }
+          ]
+        },
+        {
+          "id": "subclass.moon",
+          "name": "Круг луны",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Circle Forms"
+            },
+            {
+              "level": 3,
+              "name": "Circle of the Moon Spells"
+            },
+            {
+              "level": 6,
+              "name": "Improved Circle Forms"
+            },
+            {
+              "level": 10,
+              "name": "Moonlight Step"
+            },
+            {
+              "level": 14,
+              "name": "Lunar Form"
+            }
+          ]
+        },
+        {
+          "id": "subclass.sea",
+          "name": "Круг моря",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Circle of the Sea Spells"
+            },
+            {
+              "level": 3,
+              "name": "Wrath of the Sea"
+            },
+            {
+              "level": 6,
+              "name": "Aquatic Affinity"
+            },
+            {
+              "level": 10,
+              "name": "Stormborn"
+            },
+            {
+              "level": 14,
+              "name": "Oceanic Gift"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "edition": "2024",
+      "id": "fighter",
+      "url": "https://next.dnd.su/class/fighter",
+      "subclasses": [
+        {
+          "id": "subclass.battlemaster",
+          "name": "Мастер боя",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Combat Superiority"
+            },
+            {
+              "level": 3,
+              "name": "Student of War"
+            },
+            {
+              "level": 7,
+              "name": "Know Your Enemy"
+            },
+            {
+              "level": 10,
+              "name": "Improved Combat Superiority"
+            },
+            {
+              "level": 15,
+              "name": "Relentless"
+            },
+            {
+              "level": 18,
+              "name": "Ultimate Combat Superiority"
+            }
+          ]
+        },
+        {
+          "id": "subclass.eldritch-knight",
+          "name": "Мистический рыцарь",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Spellcasting"
+            },
+            {
+              "level": 3,
+              "name": "War Bond"
+            },
+            {
+              "level": 7,
+              "name": "War Magic"
+            },
+            {
+              "level": 10,
+              "name": "Eldritch Strike"
+            },
+            {
+              "level": 15,
+              "name": "Arcane Charge"
+            },
+            {
+              "level": 18,
+              "name": "Improved War Magic"
+            }
+          ]
+        },
+        {
+          "id": "subclass.psi-warrior",
+          "name": "Пси-воин",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Psionic Power"
+            },
+            {
+              "level": 7,
+              "name": "Telekinetic Adept"
+            },
+            {
+              "level": 10,
+              "name": "Guarded Mind"
+            },
+            {
+              "level": 15,
+              "name": "Bulwark of Force"
+            },
+            {
+              "level": 18,
+              "name": "Telekinetic Master"
+            }
+          ]
+        },
+        {
+          "id": "subclass.сhampion",
+          "name": "Чемпион",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Improved Critical"
+            },
+            {
+              "level": 3,
+              "name": "Remarkable Athlete"
+            },
+            {
+              "level": 7,
+              "name": "Additional Fighting Style"
+            },
+            {
+              "level": 10,
+              "name": "Heroic Warrior"
+            },
+            {
+              "level": 15,
+              "name": "Superior Critical"
+            },
+            {
+              "level": 18,
+              "name": "Survivor"
+            }
+          ]
+        },
+        {
+          "id": "subclass.banneret",
+          "name": "Баннерет",
+          "source": "Forgotten Realms: Heroes of Faerun",
+          "features": [
+            {
+              "level": 3,
+              "name": "Knightly Envoy"
+            },
+            {
+              "level": 3,
+              "name": "Group Recovery"
+            },
+            {
+              "level": 7,
+              "name": "Team Tactics"
+            },
+            {
+              "level": 10,
+              "name": "Rallying Surge"
+            },
+            {
+              "level": 15,
+              "name": "Shared Resilience"
+            },
+            {
+              "level": 18,
+              "name": "Inspiring Commander"
+            }
+          ]
+        },
+        {
+          "id": "subclass.arcane-archer",
+          "name": "Чародейный стрелок",
+          "source": "Arcana Unleashed",
+          "features": [
+            {
+              "level": 3,
+              "name": "Arcane Archer Lore"
+            },
+            {
+              "level": 3,
+              "name": "Arcane Shot"
+            },
+            {
+              "level": 7,
+              "name": "Curving Shot"
+            },
+            {
+              "level": 7,
+              "name": "Magical Ammunition"
+            },
+            {
+              "level": 10,
+              "name": "Ever-Ready Shot"
+            },
+            {
+              "level": 15,
+              "name": "Indomitable Teleport"
+            },
+            {
+              "level": 18,
+              "name": "Masterful Shots"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "edition": "2024",
+      "id": "monk",
+      "url": "https://next.dnd.su/class/monk",
+      "subclasses": [
+        {
+          "id": "subclass.warrior-of-the-hand",
+          "name": "Воин открытой ладони",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Open Hand Techniques"
+            },
+            {
+              "level": 6,
+              "name": "Wholeness of Body"
+            },
+            {
+              "level": 11,
+              "name": "Fleet Step"
+            },
+            {
+              "level": 17,
+              "name": "Quivering Palm"
+            }
+          ]
+        },
+        {
+          "id": "subclass.warrior-of-shadow",
+          "name": "Воин тени",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Shadow Arts"
+            },
+            {
+              "level": 6,
+              "name": "Shadow Step"
+            },
+            {
+              "level": 11,
+              "name": "Improved Shadow Step"
+            },
+            {
+              "level": 17,
+              "name": "Cloak of Shadows"
+            }
+          ]
+        },
+        {
+          "id": "subclass.warrior-of-mercy",
+          "name": "Воин милосердия",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Implements of Mercy"
+            },
+            {
+              "level": 3,
+              "name": "Hand of healing"
+            },
+            {
+              "level": 3,
+              "name": "Hand of Harm"
+            },
+            {
+              "level": 6,
+              "name": "Physician's Touch"
+            },
+            {
+              "level": 11,
+              "name": "Flurry of Healing and Harm"
+            },
+            {
+              "level": 17,
+              "name": "Hand of Ultimate Mercy"
+            }
+          ]
+        },
+        {
+          "id": "subclass.warrior-of-the-elements",
+          "name": "Воин cтихий",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Elemental Attunement"
+            },
+            {
+              "level": 3,
+              "name": "Manipulate Elements"
+            },
+            {
+              "level": 6,
+              "name": "Environmental Burst"
+            },
+            {
+              "level": 11,
+              "name": "Stride of Elements"
+            },
+            {
+              "level": 17,
+              "name": "Elemental Epitome"
+            }
+          ]
+        },
+        {
+          "id": "subclass.warrior-of-the-mystic-arts",
+          "name": "Мистический воин",
+          "source": "Arcana Unleashed",
+          "features": [
+            {
+              "level": 3,
+              "name": "Spellcasting"
+            },
+            {
+              "level": 6,
+              "name": "Mystic Fighting Style"
+            },
+            {
+              "level": 6,
+              "name": "Mystic Focus"
+            },
+            {
+              "level": 11,
+              "name": "Focused Strike"
+            },
+            {
+              "level": 17,
+              "name": "Improved Mystic Fighting Style"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "edition": "2024",
+      "id": "paladin",
+      "url": "https://next.dnd.su/class/paladin",
+      "subclasses": [
+        {
+          "id": "subclass.oath-of-devotion",
+          "name": "Клятва преданности",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Oath of Devotion Spells"
+            },
+            {
+              "level": 3,
+              "name": "Sacred Weapon"
+            },
+            {
+              "level": 7,
+              "name": "Aura of Devotion"
+            },
+            {
+              "level": 15,
+              "name": "Smite of Protection"
+            },
+            {
+              "level": 20,
+              "name": "Holy Nimbus"
+            }
+          ]
+        },
+        {
+          "id": "subclass.oath-of-glory",
+          "name": "Клятва славы",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Oath of Glory Spells"
+            },
+            {
+              "level": 3,
+              "name": "Inspiring Smite"
+            },
+            {
+              "level": 3,
+              "name": "Peerless Athlete"
+            },
+            {
+              "level": 7,
+              "name": "Aura of Alacrity"
+            },
+            {
+              "level": 15,
+              "name": "Glorious Defense"
+            },
+            {
+              "level": 20,
+              "name": "Living Legend"
+            }
+          ]
+        },
+        {
+          "id": "subclass.oath-of-vengeance",
+          "name": "Клятва возмездия",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Oath of Vengeance Spells"
+            },
+            {
+              "level": 3,
+              "name": "Vow of Enmity"
+            },
+            {
+              "level": 7,
+              "name": "Relentless Avenger"
+            },
+            {
+              "level": 15,
+              "name": "Soul of Vengeance"
+            },
+            {
+              "level": 20,
+              "name": "Avenging Angel"
+            }
+          ]
+        },
+        {
+          "id": "subclass.oath-of-the-ancients",
+          "name": "Клятва древних",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Oath of the Ancients Spells"
+            },
+            {
+              "level": 3,
+              "name": "Nature’s Wrath"
+            },
+            {
+              "level": 7,
+              "name": "Aura of Warding"
+            },
+            {
+              "level": 15,
+              "name": "Undying Sentinel"
+            },
+            {
+              "level": 20,
+              "name": "Elder Champion"
+            }
+          ]
+        },
+        {
+          "id": "subclass.oath-of-the-noble-genies",
+          "name": "Клятва благородных гениев",
+          "source": "Forgotten Realms: Heroes of Faerun",
+          "features": [
+            {
+              "level": 3,
+              "name": "Elemental Smite"
+            },
+            {
+              "level": 3,
+              "name": "Genie Spells"
+            },
+            {
+              "level": 3,
+              "name": "Genie's Splendor"
+            },
+            {
+              "level": 7,
+              "name": "Aura of Elemental Shielding"
+            },
+            {
+              "level": 15,
+              "name": "Elemental Rebuke"
+            },
+            {
+              "level": 20,
+              "name": "Noble Scion"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "edition": "2024",
+      "id": "ranger",
+      "url": "https://next.dnd.su/class/ranger",
+      "subclasses": [
+        {
+          "id": "subclass.hunter-ranger",
+          "name": "Охотник",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Hunter’s Lore"
+            },
+            {
+              "level": 3,
+              "name": "Hunter’s Prey"
+            },
+            {
+              "level": 7,
+              "name": "Defensive Tactics"
+            },
+            {
+              "level": 11,
+              "name": "Superior Hunter’s Prey"
+            },
+            {
+              "level": 15,
+              "name": "Superior Hunter’s Defense"
+            }
+          ]
+        },
+        {
+          "id": "subclass.beastmaster",
+          "name": "Повелитель зверей",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Primal Companion"
+            },
+            {
+              "level": 7,
+              "name": "Exceptional Training"
+            },
+            {
+              "level": 11,
+              "name": "Bestial Fury"
+            },
+            {
+              "level": 15,
+              "name": "Share Spells"
+            }
+          ]
+        },
+        {
+          "id": "subclass.fey-wanderer",
+          "name": "Странник фей",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Dreadful Strikes"
+            },
+            {
+              "level": 3,
+              "name": "Fey Wanderer Spells"
+            },
+            {
+              "level": 3,
+              "name": "Otherworldly Glamour"
+            },
+            {
+              "level": 7,
+              "name": "Beguiling Twist"
+            },
+            {
+              "level": 11,
+              "name": "Fey Reinforcements"
+            },
+            {
+              "level": 15,
+              "name": "Misty Wanderer"
+            }
+          ]
+        },
+        {
+          "id": "subclass.gloom-stalker",
+          "name": "Сумрачный охотник",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Dread Ambusher"
+            },
+            {
+              "level": 3,
+              "name": "Gloom Stalker Spells"
+            },
+            {
+              "level": 3,
+              "name": "Umbral Sight"
+            },
+            {
+              "level": 7,
+              "name": "Iron Mind"
+            },
+            {
+              "level": 11,
+              "name": "Stalker’s Flurry"
+            },
+            {
+              "level": 15,
+              "name": "Shadowy Dodge"
+            }
+          ]
+        },
+        {
+          "id": "subclass.winter-walker",
+          "name": "Зимний ходок",
+          "source": "Forgotten Realms: Heroes of Faerun",
+          "features": [
+            {
+              "level": 3,
+              "name": "Frigid Explorer"
+            },
+            {
+              "level": 3,
+              "name": "Hunter's Rime"
+            },
+            {
+              "level": 3,
+              "name": "Winter Walker Spells"
+            },
+            {
+              "level": 7,
+              "name": "Fortifying Soul"
+            },
+            {
+              "level": 11,
+              "name": "Chilling Retribution"
+            },
+            {
+              "level": 15,
+              "name": "Frozen Haunt"
+            }
+          ]
+        },
+        {
+          "id": "subclass.hollow-warden",
+          "name": "Страж пустошей",
+          "source": "Ravenloft: The Horrors Within",
+          "features": [
+            {
+              "level": 3,
+              "name": "Wrath of the Wild"
+            },
+            {
+              "level": 3,
+              "name": "Hollow Warden Spells"
+            },
+            {
+              "level": 7,
+              "name": "Hungering Might"
+            },
+            {
+              "level": 11,
+              "name": "Rot and Violence"
+            },
+            {
+              "level": 15,
+              "name": "Ancient Might"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "edition": "2024",
+      "id": "rogue",
+      "url": "https://next.dnd.su/class/rogue",
+      "subclasses": [
+        {
+          "id": "subclass.thief",
+          "name": "Вор",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Fast Hands"
+            },
+            {
+              "level": 3,
+              "name": "Second-Story Work"
+            },
+            {
+              "level": 9,
+              "name": "Supreme Sneak"
+            },
+            {
+              "level": 13,
+              "name": "Use Magic Device"
+            },
+            {
+              "level": 17,
+              "name": "Thief’s Reflexes"
+            }
+          ]
+        },
+        {
+          "id": "subclass.soulknife",
+          "name": "Клинок душ",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Psionic Power"
+            },
+            {
+              "level": 3,
+              "name": "Psychic Blades"
+            },
+            {
+              "level": 9,
+              "name": "Soul Blades"
+            },
+            {
+              "level": 13,
+              "name": "Psychic Veil"
+            },
+            {
+              "level": 17,
+              "name": "Rend Mind"
+            }
+          ]
+        },
+        {
+          "id": "subclass.arcane-trickster",
+          "name": "Мистический ловкач",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Spellcasting"
+            },
+            {
+              "level": 3,
+              "name": "Mage Hand Legerdemain"
+            },
+            {
+              "level": 9,
+              "name": "Magical Ambush"
+            },
+            {
+              "level": 13,
+              "name": "Versatile Trickster"
+            },
+            {
+              "level": 17,
+              "name": "Spell Thief"
+            }
+          ]
+        },
+        {
+          "id": "subclass.assassin",
+          "name": "Убийца",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Assassinate"
+            },
+            {
+              "level": 3,
+              "name": "Assassin’s Tools"
+            },
+            {
+              "level": 9,
+              "name": "Infiltration Expertise"
+            },
+            {
+              "level": 13,
+              "name": "Envenom Weapons"
+            },
+            {
+              "level": 17,
+              "name": "Death Strike"
+            }
+          ]
+        },
+        {
+          "id": "subclass.scion-of-the-three",
+          "name": "Наследник троицы",
+          "source": "Forgotten Realms: Heroes of Faerun",
+          "features": [
+            {
+              "level": 3,
+              "name": "Bloodthirst"
+            },
+            {
+              "level": 3,
+              "name": "Dread Allegiance"
+            },
+            {
+              "level": 9,
+              "name": "Strike Fear"
+            },
+            {
+              "level": 13,
+              "name": "Aura of Malevolence"
+            },
+            {
+              "level": 17,
+              "name": "Dread Incarnate"
+            }
+          ]
+        },
+        {
+          "id": "subclass.phantom",
+          "name": "Фантом",
+          "source": "Ravenloft: The Horrors Within",
+          "features": [
+            {
+              "level": 3,
+              "name": "Whispers of the Dead"
+            },
+            {
+              "level": 3,
+              "name": "Wails from the Grave"
+            },
+            {
+              "level": 9,
+              "name": "Tokens of the Departed"
+            },
+            {
+              "level": 9,
+              "name": "Voice of Death"
+            },
+            {
+              "level": 13,
+              "name": "Ghost Walk"
+            },
+            {
+              "level": 17,
+              "name": "Death’s Friend"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "edition": "2024",
+      "id": "sorcerer",
+      "url": "https://next.dnd.su/class/sorcerer",
+      "subclasses": [
+        {
+          "id": "subclass.aberrant-sorcery",
+          "name": "Аберрантное чародейство",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Psionic Spells"
+            },
+            {
+              "level": 3,
+              "name": "Telepathic Speech"
+            },
+            {
+              "level": 6,
+              "name": "Psionic Sorcery"
+            },
+            {
+              "level": 6,
+              "name": "Psychic Defenses"
+            },
+            {
+              "level": 14,
+              "name": "Revelation in Flesh"
+            },
+            {
+              "level": 18,
+              "name": "Warping Implosion"
+            }
+          ]
+        },
+        {
+          "id": "subclass.draconic-sorcery",
+          "name": "Драконье чародейство",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Draconic Spells"
+            },
+            {
+              "level": 3,
+              "name": "Draconic Resilience"
+            },
+            {
+              "level": 6,
+              "name": "Elemental Affinity"
+            },
+            {
+              "level": 14,
+              "name": "Dragon Wings"
+            },
+            {
+              "level": 18,
+              "name": "Dragon Companion"
+            }
+          ]
+        },
+        {
+          "id": "subclass.clockwork-sorcery",
+          "name": "Заводное чародейство",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Clockwork Spells"
+            },
+            {
+              "level": 3,
+              "name": "Restore Balance"
+            },
+            {
+              "level": 6,
+              "name": "Bastion of Law"
+            },
+            {
+              "level": 14,
+              "name": "Trance of Order"
+            },
+            {
+              "level": 18,
+              "name": "Clockwork Cavalcade"
+            }
+          ]
+        },
+        {
+          "id": "subclass.wild-magic-sorcery",
+          "name": "Чародейство дикой магии",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Wild Magic Surge"
+            },
+            {
+              "level": 3,
+              "name": "Tides of Chaos"
+            },
+            {
+              "level": 6,
+              "name": "Bend Luck"
+            },
+            {
+              "level": 14,
+              "name": "Controlled Chaos"
+            },
+            {
+              "level": 18,
+              "name": "Tamed Surge"
+            }
+          ]
+        },
+        {
+          "id": "subclass.spellfire-sorcery",
+          "name": "Чародейство чаропламени",
+          "source": "Forgotten Realms: Heroes of Faerun",
+          "features": [
+            {
+              "level": 3,
+              "name": "Spellfire Burst"
+            },
+            {
+              "level": 3,
+              "name": "Spellfire Spells"
+            },
+            {
+              "level": 6,
+              "name": "Absorb Spells"
+            },
+            {
+              "level": 14,
+              "name": "Honed Spellfire"
+            },
+            {
+              "level": 18,
+              "name": "Crown of Spellfire"
+            }
+          ]
+        },
+        {
+          "id": "subclass.shadow-sorcery",
+          "name": "Теневое чародейство",
+          "source": "Ravenloft: The Horrors Within",
+          "features": [
+            {
+              "level": 3,
+              "name": "Power of Shadow"
+            },
+            {
+              "level": 3,
+              "name": "Shadow Spells"
+            },
+            {
+              "level": 6,
+              "name": "Beasts of Ill Omen"
+            },
+            {
+              "level": 14,
+              "name": "Shadow Walk"
+            },
+            {
+              "level": 18,
+              "name": "Umbral Form"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "edition": "2024",
+      "id": "warlock",
+      "url": "https://next.dnd.su/class/warlock",
+      "subclasses": [
+        {
+          "id": "subclass.archfey",
+          "name": "Архифея",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Archfey Spells"
+            },
+            {
+              "level": 3,
+              "name": "Steps of the Fey"
+            },
+            {
+              "level": 6,
+              "name": "Misty Escape"
+            },
+            {
+              "level": 10,
+              "name": "Beguiling Defenses"
+            },
+            {
+              "level": 14,
+              "name": "Bewitching Magic"
+            }
+          ]
+        },
+        {
+          "id": "subclass.greate-old-one-patron",
+          "name": "Великий древний",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Great Old One Spells"
+            },
+            {
+              "level": 3,
+              "name": "Awakened Mind"
+            },
+            {
+              "level": 3,
+              "name": "Psychic Spells"
+            },
+            {
+              "level": 6,
+              "name": "Clairvoyant Combatant"
+            },
+            {
+              "level": 10,
+              "name": "Eldritch Hex"
+            },
+            {
+              "level": 10,
+              "name": "Thought Shield"
+            },
+            {
+              "level": 14,
+              "name": "Create Thrall"
+            }
+          ]
+        },
+        {
+          "id": "subclass.fiend-patron",
+          "name": "Исчадие",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Fiend Spells"
+            },
+            {
+              "level": 3,
+              "name": "Dark One’s Blessing"
+            },
+            {
+              "level": 6,
+              "name": "Dark One’s Own Luck"
+            },
+            {
+              "level": 10,
+              "name": "Fiendish Resilience"
+            },
+            {
+              "level": 14,
+              "name": "Hurl Through Hell"
+            }
+          ]
+        },
+        {
+          "id": "subclass.celestial-patron",
+          "name": "Небожитель",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Celestial Spells"
+            },
+            {
+              "level": 3,
+              "name": "Healing Light"
+            },
+            {
+              "level": 6,
+              "name": "Radiant Soul"
+            },
+            {
+              "level": 10,
+              "name": "Celestial Resilience"
+            },
+            {
+              "level": 14,
+              "name": "Searing Vengeance"
+            }
+          ]
+        },
+        {
+          "id": "subclass.undead",
+          "name": "Нежить",
+          "source": "Ravenloft: The Horrors Within",
+          "features": [
+            {
+              "level": 3,
+              "name": "Undead Patron Spells"
+            },
+            {
+              "level": 3,
+              "name": "Form of Dread"
+            },
+            {
+              "level": 6,
+              "name": "Grave Touched"
+            },
+            {
+              "level": 10,
+              "name": "Necrotic Husk"
+            },
+            {
+              "level": 14,
+              "name": "Superior Dread"
+            }
+          ]
+        },
+        {
+          "id": "subclass.vestige-patron",
+          "name": "Предтеча",
+          "source": "Arcana Unleashed",
+          "features": [
+            {
+              "level": 3,
+              "name": "Vestige Spells"
+            },
+            {
+              "level": 3,
+              "name": "Vestige Companion"
+            },
+            {
+              "level": 6,
+              "name": "Vestige Power"
+            },
+            {
+              "level": 10,
+              "name": "Vestige Recovery"
+            },
+            {
+              "level": 14,
+              "name": "Semblance of Life"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "edition": "2024",
+      "id": "wizard",
+      "url": "https://next.dnd.su/class/wizard",
+      "subclasses": [
+        {
+          "id": "subclass.evoker",
+          "name": "Воплотитель",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Evocation Savant"
+            },
+            {
+              "level": 3,
+              "name": "Potent Cantrip"
+            },
+            {
+              "level": 6,
+              "name": "Sculpt Spells"
+            },
+            {
+              "level": 10,
+              "name": "Empowered Evocation"
+            },
+            {
+              "level": 14,
+              "name": "Overchannel"
+            }
+          ]
+        },
+        {
+          "id": "subclass.illusionist",
+          "name": "Иллюзионист",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Illusion Savant"
+            },
+            {
+              "level": 3,
+              "name": "Improved Illusions"
+            },
+            {
+              "level": 6,
+              "name": "Phantasmal Creatures"
+            },
+            {
+              "level": 10,
+              "name": "Illusory Self"
+            },
+            {
+              "level": 14,
+              "name": "Illusory Reality"
+            }
+          ]
+        },
+        {
+          "id": "subclass.necromancer",
+          "name": "Некромант",
+          "source": "Arcana Unleashed",
+          "features": [
+            {
+              "level": 3,
+              "name": "Necromancy Savant"
+            },
+            {
+              "level": 3,
+              "name": "Necromancy Spellbook"
+            },
+            {
+              "level": 6,
+              "name": "Grave Power"
+            },
+            {
+              "level": 6,
+              "name": "Undead Thralls"
+            },
+            {
+              "level": 10,
+              "name": "Harvest Undead"
+            },
+            {
+              "level": 14,
+              "name": "Death's Master"
+            }
+          ]
+        },
+        {
+          "id": "subclass.abjurer",
+          "name": "Оградитель",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Abjuration Savant"
+            },
+            {
+              "level": 3,
+              "name": "Arcane Ward"
+            },
+            {
+              "level": 6,
+              "name": "Projected Ward"
+            },
+            {
+              "level": 10,
+              "name": "Spell Breaker"
+            },
+            {
+              "level": 14,
+              "name": "Spell Resistance"
+            }
+          ]
+        },
+        {
+          "id": "subclass.enchanter",
+          "name": "Очарователь",
+          "source": "Arcana Unleashed",
+          "features": [
+            {
+              "level": 3,
+              "name": "Enchantment Savant"
+            },
+            {
+              "level": 3,
+              "name": "Enchanting Conversationalist"
+            },
+            {
+              "level": 3,
+              "name": "Hypnotic Presence"
+            },
+            {
+              "level": 6,
+              "name": "Split Enchantment"
+            },
+            {
+              "level": 10,
+              "name": "Instinctive Charm"
+            },
+            {
+              "level": 14,
+              "name": "Alter Memories"
+            }
+          ]
+        },
+        {
+          "id": "subclass.transmuter",
+          "name": "Преобразователь",
+          "source": "Arcana Unleashed",
+          "features": [
+            {
+              "level": 3,
+              "name": "Transmutation Savant"
+            },
+            {
+              "level": 3,
+              "name": "Transmuter’s Stone"
+            },
+            {
+              "level": 3,
+              "name": "Wondrous Alteration"
+            },
+            {
+              "level": 6,
+              "name": "Empowered Transmutation"
+            },
+            {
+              "level": 10,
+              "name": "Potent Stone"
+            },
+            {
+              "level": 10,
+              "name": "Shape-Shifter"
+            },
+            {
+              "level": 14,
+              "name": "Master Transmuter"
+            }
+          ]
+        },
+        {
+          "id": "subclass.conjurer",
+          "name": "Призыватель",
+          "source": "Arcana Unleashed",
+          "features": [
+            {
+              "level": 3,
+              "name": "Conjuration Savant"
+            },
+            {
+              "level": 3,
+              "name": "Benign Transposition"
+            },
+            {
+              "level": 6,
+              "name": "Distant Transposition"
+            },
+            {
+              "level": 6,
+              "name": "Durable Summons"
+            },
+            {
+              "level": 10,
+              "name": "Focused Conjuration"
+            },
+            {
+              "level": 14,
+              "name": "Splintered Summons"
+            }
+          ]
+        },
+        {
+          "id": "subclass.diviner",
+          "name": "Прорицатель",
+          "source": "Player's Handbook 2024",
+          "features": [
+            {
+              "level": 3,
+              "name": "Divination Savant"
+            },
+            {
+              "level": 3,
+              "name": "Portent"
+            },
+            {
+              "level": 6,
+              "name": "Expert Divination"
+            },
+            {
+              "level": 10,
+              "name": "The Third Eye"
+            },
+            {
+              "level": 14,
+              "name": "Greater Portent"
+            }
+          ]
+        },
+        {
+          "id": "subclass.bladesinger",
+          "name": "Певец клинка",
+          "source": "Forgotten Realms: Heroes of Faerun",
+          "features": [
+            {
+              "level": 3,
+              "name": "Bladesong"
+            },
+            {
+              "level": 3,
+              "name": "Training in War and Song"
+            },
+            {
+              "level": 6,
+              "name": "Extra Attack"
+            },
+            {
+              "level": 10,
+              "name": "Song of Defense"
+            },
+            {
+              "level": 14,
+              "name": "Song of Victory"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "excluded": [
+    {
+      "edition": "2024",
+      "classId": "barbarian",
+      "id": "subclass.battlerager",
+      "source": "Homebrew"
+    },
+    {
+      "edition": "2024",
+      "classId": "barbarian",
+      "id": "subclass.e-wild-magic",
+      "source": "Homebrew"
+    },
+    {
+      "edition": "2024",
+      "classId": "monk",
+      "id": "subclass.warrior-of-the-serpent",
+      "source": "Homebrew"
+    },
+    {
+      "edition": "2024",
+      "classId": "warlock",
+      "id": "subclass.cosmic",
+      "source": "Dungeons of Drakkenheim"
+    }
+  ]
+}

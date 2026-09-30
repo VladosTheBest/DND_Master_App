@@ -1,8 +1,20 @@
 import { jsPDF } from "jspdf";
+import { personalityEntries } from "./personality";
+import {
+  randomEffectTable,
+  type RandomEffectTable,
+} from "./random-effect-tables";
+import { conditionsForEdition } from "./rule-conditions";
+import { spellMetadata } from "./spell-metadata";
+import { collectRuleDependencies } from "./rule-dependencies";
+import { ruleItem } from "./rule-items";
+import { ruleCreature } from "./rule-creatures";
 import {
   ABILITIES,
   ABILITY_LABELS,
+  SPELLS,
   deriveCharacter,
+  currentLandTerrain,
   type CharacterDraft,
 } from "./rules";
 
@@ -128,17 +140,76 @@ export function createCharacterPdf(draft: CharacterDraft, fontBase64: string) {
     ),
   );
   section("Происхождение и черты");
+  const terrain = currentLandTerrain(draft);
+  if (terrain) paragraph(`Местность / Land: ${terrain.ru} / ${terrain.en}${draft.targetLevel >= 10 ? ` · Сопротивление / Resistance: ${terrain.resistance}` : ""}`);
   c.traits.forEach((t) => paragraph(t));
   c.feats.forEach((f) => entry(f.name, f.description));
   section("Развитие по уровням");
-  c.features.forEach((f) =>
-    entry(`${f.level} уровень · ${f.name}`, f.description),
-  );
+  const { spellIds: referenceSpellIds, creatureIds: referenceCreatureIds, itemIds: referenceItemIds } = collectRuleDependencies([
+    ...c.features,
+    { spellReferenceIds: [...c.selectedCantrips, ...c.selectedSpells, ...c.preparedSpells].map(spell => spell.id) },
+  ]);
+  const appendRandomTable = (table: RandomEffectTable) => {
+    entry(
+      `${table.name.ru} / ${table.name.en} · ${table.edition} · ${table.dieLabel?.ru ?? `d${table.die}`}`,
+      table.note ? `${table.note.ru}\nEnglish: ${table.note.en}` : "",
+    );
+    for (const row of table.rows) {
+      entry(
+        `${row.from === row.to ? row.from : `${row.from}–${row.to}`}`,
+        `${row.text.ru}\nEnglish: ${row.text.en}`,
+      );
+      if (row.subtable) appendRandomTable(row.subtable);
+    }
+    paragraph(`Источник: ${table.sourceUrl}`);
+  };
+  c.features.forEach((f) => {
+    entry(
+      `${f.level} уровень · ${f.name}`,
+      `${f.description}${f.originalDescription ? `\n\nEnglish: ${f.originalDescription}` : ""}${f.sourceUrl ? `\n${f.source ?? "Источник"}: ${f.sourceUrl}` : ""}`,
+    );
+    const table = randomEffectTable(f.randomTableId);
+    if (table) appendRandomTable(table);
+  });
+  if (referenceCreatureIds.size) {
+    section("Существа и формы: справочник");
+    for (const id of referenceCreatureIds) {
+      const creature = ruleCreature(id);
+      if (!creature) continue;
+      entry(
+        `${creature.name.ru} / ${creature.name.en} · ${creature.edition}`,
+        `${creature.profile.ru}\nКД ${creature.armorClassFormula?.ru ?? creature.armorClass}; хиты ${creature.hpFormula?.ru ?? creature.hp} (${creature.hitDice}); ПО ${creature.challenge}; БМ ${creature.proficiencyFormula?.ru ?? `+${creature.proficiency}`}${creature.initiative !== undefined ? `; Инициатива ${sign(creature.initiative)}` : ""}.\nСИЛ/ЛОВ/ТЕЛ/ИНТ/МДР/ХАР: ${creature.abilities.join(" / ")}`,
+      );
+      creature.rules.forEach((rule) => paragraph(rule.ru));
+      paragraph(`English: ${creature.profile.en}\nAC ${creature.armorClassFormula?.en ?? creature.armorClass}; HP ${creature.hpFormula?.en ?? creature.hp} (${creature.hitDice}); CR ${creature.challenge}; PB ${creature.proficiencyFormula?.en ?? `+${creature.proficiency}`}${creature.initiative !== undefined ? `; Initiative ${sign(creature.initiative)}` : ""}.\nSTR/DEX/CON/INT/WIS/CHA: ${creature.abilities.join(" / ")}`);
+      creature.rules.forEach((rule) => paragraph(rule.en));
+      paragraph(`Источник: ${creature.sourceUrl}`);
+    }
+  }
+  if (referenceItemIds.size) {
+    section("Магические предметы: справочник");
+    for (const id of referenceItemIds) {
+      const item = ruleItem(id);
+      if (!item) continue;
+      entry(`${item.name.ru} · ${item.name.en} · ${item.edition}`, `${item.activation?.ru ?? ""}\n${item.rules.ru}\n\nEnglish: ${item.activation?.en ?? ""} ${item.rules.en}`);
+      if (item.table) {
+        paragraph(item.table.columns.map(column => `${column.ru} / ${column.en}`).join(" · "));
+        for (const row of item.table.rows) paragraph(row.map(cell => `${cell.ru} / ${cell.en}`).join(" · "));
+      }
+      const table = randomEffectTable(item.randomTableId);
+      if (table) appendRandomTable(table);
+      if (!table || table.sourceUrl !== item.sourceUrl)
+        paragraph(`Источник: ${item.sourceUrl}`);
+    }
+  }
   const spells = [
     ...new Map(
-      [...c.selectedCantrips, ...c.selectedSpells, ...c.preparedSpells].map(
-        (s) => [s.id, s],
-      ),
+      [
+        ...c.selectedCantrips,
+        ...c.selectedSpells,
+        ...c.preparedSpells,
+        ...SPELLS.filter((s) => referenceSpellIds.has(s.id)),
+      ].map((s) => [s.id, s]),
     ).values(),
   ].sort((a, b) => a.level - b.level || a.name.localeCompare(b.name, "ru"));
   if (spells.length) {
@@ -162,16 +233,33 @@ export function createCharacterPdf(draft: CharacterDraft, fontBase64: string) {
       );
     const prepared = new Set(c.preparedSpells.map((s) => s.id));
     for (const s of spells) {
+      const metadata = spellMetadata(s);
       entry(
         `${s.name} · ${s.level ? `${s.level} круг` : "заговор"}${prepared.has(s.id) ? " · подготовлено" : ""}`,
-        `${s.school} · ${s.castingTime}\nДистанция: ${s.range} · Длительность: ${s.duration}${s.concentration ? " · Концентрация" : ""}${s.ritual ? " · Ритуал" : ""}\n${s.summary || ""}\n\nТекст редакции (English): ${s.description}`,
+        `${s.school} · ${metadata.castingTime}\nДистанция: ${metadata.range} · Длительность: ${metadata.duration}${s.concentration ? " · Концентрация" : ""}${s.ritual ? " · Ритуал" : ""}${metadata.components ? `\nКомпоненты: ${metadata.components}` : ""}\n${s.descriptionRu || s.summary || ""}\n\nEnglish: ${s.description}${s.sourceUrl ? `\n${s.source ?? "Источник"}: ${s.sourceUrl}` : ""}`,
       );
+      const spellTable=randomEffectTable(s.randomTableId);
+      if(spellTable) appendRandomTable(spellTable);
+      for (const id of s.randomTableIds ?? []) {
+        const table = randomEffectTable(id);
+        if (table) appendRandomTable(table);
+      }
     }
+  }
+  if (personalityEntries(draft.personality).length) {
+    section("Личность и история");
+    personalityEntries(draft.personality).forEach((field) =>
+      entry(field.label, field.text),
+    );
   }
   if (draft.notes) {
     section("Снаряжение и заметки");
     paragraph(draft.notes);
   }
+  section("Справочник состояний");
+  conditionsForEdition(draft.edition).forEach((condition) =>
+    entry(`${condition.name.ru} / ${condition.name.en}`, `${condition.rules.ru}\nEnglish: ${condition.rules.en}`),
+  );
   section("Примечания");
   c.warnings.forEach((w) => paragraph(w, 8));
   paragraph(

@@ -1,3 +1,11 @@
+import { ARTIFICER_PREPARED_2024, ARTISAN_TOOL_OPTIONS } from "./artificer-rules";
+import { BEAST_FORMS_2024 } from "./beast-forms-2024";
+import { BEAST_FORMS_2014 } from "./beast-forms-2014";
+import { RANGER_COMPANION_PHB } from "./ranger-subclasses";
+import { TOME_RULES, TALISMAN_RULES, CHAIN_RULES, CHAIN_SPECIAL_FORMS, BLADE_RULES } from "./warlock-pacts";
+export { BEAST_FORMS_2014 } from "./beast-forms-2014";
+import { ruleCreature } from "./rule-creatures";
+export { BEAST_FORMS_2024 } from "./beast-forms-2024";
 import {
   ABILITIES,
   ABILITY_LABELS,
@@ -21,6 +29,33 @@ import {
   featureTitle,
 } from "./feature-help";
 import { SKILL_HELP, choiceExplanation, choiceName } from "./choice-help";
+import {
+  PERSONALITY_FIELDS,
+  isPersonality,
+  type CharacterPersonality,
+} from "./personality";
+import { subclassExtension } from "./subclasses";
+
+export const selectedSubclassId = (
+  draft: CharacterDraft,
+  level = draft.targetLevel,
+) =>
+  draft.levels.find((step) => step.level <= level && step.subclassId)
+    ?.subclassId;
+const isDraconic = (draft: CharacterDraft, level: number) =>
+  draft.classId === "sorcerer" &&
+  selectedSubclassId(draft, level) === "draconic";
+export const LAND_TERRAINS_2024 = [
+  { id: "arid", ru: "Засушливая", en: "Arid", resistance: "Огонь / Fire" },
+  { id: "polar", ru: "Полярная", en: "Polar", resistance: "Холод / Cold" },
+  { id: "temperate", ru: "Умеренная", en: "Temperate", resistance: "Электричество / Lightning" },
+  { id: "tropical", ru: "Тропическая", en: "Tropical", resistance: "Яд / Poison" },
+];
+export function currentLandTerrain(draft: CharacterDraft) {
+  if (draft.edition !== "2024" || draft.classId !== "druid" || draft.targetLevel < 3 || selectedSubclassId(draft) !== "land") return undefined;
+  const id = draft.landTerrain ?? draft.levels.find(step => step.level === 3)?.featureChoices?.["land-terrain"]?.[0];
+  return LAND_TERRAINS_2024.find(terrain => terrain.id === id);
+}
 export interface LevelChoice {
   level: number;
   subclassId?: string;
@@ -32,6 +67,8 @@ export interface LevelChoice {
   featureChoices?: Record<string, string[]>;
 }
 export interface CharacterDraft {
+  /** Current 2024 Circle of the Land choice after the latest Long Rest. */
+  landTerrain?: string;
   name: string;
   playerName: string;
   edition: Edition;
@@ -45,6 +82,7 @@ export interface CharacterDraft {
   skillIds: string[];
   levels: LevelChoice[];
   notes: string;
+  personality?: CharacterPersonality;
 }
 export interface ValidationIssue {
   step: "identity" | "origin" | "abilities" | "skills" | "level";
@@ -56,7 +94,13 @@ export interface FeatureGain {
   id: string;
   name: string;
   description: string;
+  randomTableId?: string;
+  spellReferenceIds?: string[];
+  creatureReferenceIds?: string[];
+  itemReferenceIds?: string[];
   originalDescription?: string;
+  source?: string;
+  sourceUrl?: string;
   level: number;
 }
 export interface SpellcastingSource {
@@ -72,7 +116,16 @@ export interface FeatureChoiceOption {
   name: string;
   description: string;
   count: number;
-  options: { id: string; name: string; description: string }[];
+  optional?: boolean;
+  options: {
+    id: string;
+    name: string;
+    description: string;
+    originalDescription?: string;
+    spellReferenceIds?: string[];
+    creatureReferenceIds?: string[];
+    itemReferenceIds?: string[];
+  }[];
 }
 export interface LevelOptions {
   level: number;
@@ -212,6 +265,27 @@ const picked = (draft: CharacterDraft, key: string, through = 20) =>
 const unique = <T>(items: T[]) => [...new Set(items)];
 const currentLevel = (draft: CharacterDraft, level: number) =>
   draft.levels.find((l) => l.level === level);
+export const wizardBookBonusIds = (draft: CharacterDraft, level: number) =>
+  unique([
+    ...picked(draft, "evocation-savant", level),
+    ...(
+      subclassExtension(
+        draft.classId,
+        selectedSubclassId(draft, level),
+        draft.edition,
+      )?.bookSpells ?? []
+    )
+      .filter(
+        (entry) =>
+          entry.level <= level &&
+          !draft.levels.some(
+            (l) =>
+              l.level < entry.level &&
+              l.spellIds.includes(sid(entry.id, draft.edition)),
+          ),
+      )
+      .map((entry) => sid(entry.id, draft.edition)),
+  ]);
 const availableSpecies = (draft: CharacterDraft) =>
   SPECIES.find(
     (s) => s.id === draft.speciesId && s.editions.includes(draft.edition),
@@ -544,7 +618,7 @@ export function getLevelOptions(
     ABILITIES.map((a) => [a, abilityModifier(finalAbilities(draft, n)[a])]),
   ) as Record<Ability, number>;
   if (cls?.caster === "full") slots = FULL_CASTER_SLOTS[n - 1];
-  if (cls?.caster === "half" && (is24 || n >= 2))
+  if (cls?.caster === "half" && (is24 || n >= 2 || cls.id === "artificer"))
     slots = FULL_CASTER_SLOTS[Math.ceil(n / 2) - 1];
   if (cls?.caster === "pact") {
     pactSlots = n === 1 ? 1 : n < 11 ? 2 : n < 17 ? 3 : 4;
@@ -554,7 +628,7 @@ export function getLevelOptions(
     spellMode = is24 ? "prepared" : "known";
     if (["cleric", "druid", "wizard"].includes(cls.id))
       spellMode = cls.id === "wizard" ? "spellbook" : "prepared";
-    if (cls.id === "paladin") spellMode = "prepared";
+    if (["paladin", "artificer"].includes(cls.id)) spellMode = "prepared";
     const cantripBase =
       (
         {
@@ -569,6 +643,10 @@ export function getLevelOptions(
     cantripCount = cantripBase
       ? cantripBase + (n >= 4 ? 1 : 0) + (n >= 10 ? 1 : 0)
       : 0;
+    if (cls.id === "artificer") {
+      cantripCount = 2 + (n >= 10 ? 1 : 0) + (n >= 14 ? 1 : 0);
+      spellCount = is24 ? ARTIFICER_PREPARED_2024[n - 1] : Math.max(1, Math.floor(n / 2) + mods.int);
+    }
     if (cls.id === "bard")
       spellCount = is24
         ? PREPARED_2024[n - 1]
@@ -602,24 +680,61 @@ export function getLevelOptions(
     }
     if (!preparedCount && spellMode === "prepared") preparedCount = spellCount;
   }
+  const thirdCaster = subclassExtension(
+    draft.classId,
+    selectedSubclassId(draft, n),
+    draft.edition,
+  )?.thirdCaster;
+  if (thirdCaster && n >= 3) {
+    slots = FULL_CASTER_SLOTS[Math.ceil(n / 3) - 1];
+    spellMode = is24 ? "prepared" : "known";
+    cantripCount = n >= 10 ? 3 : 2;
+    spellCount =
+      [0, 0, 3, 4, 4, 4, 5, 6, 6, 7, 8, 8, 9, 10, 10, 11, 11, 11, 12, 13][
+        n - 1
+      ] - (thirdCaster.unrestrictedAt ?? []).filter((at) => at <= n).length;
+    preparedCount = spellCount;
+  }
   const spellSlots = Array.from({ length: 9 }, (_, i) => slots[i] ?? 0),
     maxSpellLevel = pactSlotLevel || slots.length;
   const freeSpells = grantedSpellIds(draft, n, true),
-    savant = picked(draft, "evocation-savant", n - 1);
+    savant = wizardBookBonusIds(draft, n).filter(
+      (id) =>
+        !currentLevel(draft, n)?.featureChoices?.["evocation-savant"]?.includes(
+          id,
+        ),
+    );
   const spells = editionSpells(draft.edition).filter(
     (s) =>
+      (!s.subclassOnly ||
+        (draft.classId === "wizard" &&
+          s.subclassOnly.includes(selectedSubclassId(draft, n) ?? ""))) &&
+      (!thirdCaster?.schools || thirdCaster.schools.includes(s.school)) &&
       s.level > 0 &&
       s.level <= maxSpellLevel &&
-      !freeSpells.includes(s.id) &&
+      (!freeSpells.includes(s.id) ||
+        (draft.classId === "wizard" &&
+          (currentLevel(draft, n - 1)?.spellIds ?? []).includes(s.id))) &&
       !savant.includes(s.id) &&
       (s.classes.includes(draft.classId) ||
+        (thirdCaster &&
+          n >= 3 &&
+          s.classes.includes(thirdCaster.classId ?? "wizard")) ||
+        (!is24 &&
+          draft.classId === "sorcerer" &&
+          selectedSubclassId(draft, n) === "divine-soul" &&
+          s.classes.includes("cleric")) ||
         (is24 &&
           draft.classId === "bard" &&
           n >= 10 &&
           s.classes.some((c) => ["cleric", "druid", "wizard"].includes(c)))),
   );
   // The Fiend's expanded list grants eligibility in 2014, not free known spells.
-  if (!is24 && draft.classId === "warlock")
+  if (
+    !is24 &&
+    draft.classId === "warlock" &&
+    selectedSubclassId(draft, n) === "fiend"
+  )
     for (const [at, ids] of [
       [1, ["burning-hands", "command"]],
       [3, ["blindness-deafness", "scorching-ray"]],
@@ -632,11 +747,22 @@ export function getLevelOptions(
           const s = SPELLS.find((x) => x.id === sid(id, draft.edition));
           if (s && !spells.some((x) => x.id === s.id)) spells.push(s);
         }
-  const features: FeatureGain[] = is24
+  for (const id of expandedSubclassSpellIds(draft, n)) {
+    const spell = SPELLS.find((s) => s.id === id);
+    if (
+      spell &&
+      spell.level > 0 &&
+      spell.level <= maxSpellLevel &&
+      !spells.some((s) => s.id === id)
+    )
+      spells.push(spell);
+  }
+  let features: FeatureGain[] = is24
     ? (FEATURES_2024[draft.classId] ?? [])
         .filter((f) => f.level === n)
         .map((f, i) => ({
           ...f,
+          ...(draft.classId === "druid" && f.name === "Wild Companion" ? { spellReferenceIds: ["find-familiar-2024"] } : {}),
           id: `${draft.classId}-${n}-${i}`,
           name: FEATURE_NAMES[f.name] ?? featureTitle(f.name),
           description: featureDescription(
@@ -672,6 +798,206 @@ export function getLevelOptions(
           ),
           level: n,
         }));
+  const selectedSubclass = selectedSubclassId(draft, n);
+  const extension = subclassExtension(
+    draft.classId,
+    selectedSubclass,
+    draft.edition,
+  );
+  const defaultSubclass = cls?.subclasses.find((s) =>
+    s.editions.includes(draft.edition),
+  );
+  if (extension || selectedSubclass !== defaultSubclass?.id) {
+    // Legacy tables contain the default SRD path inline with base features.
+    const defaultNames: Record<string, string[]> = {
+      barbarian: [
+        "Frenzy",
+        "Mindless Rage",
+        "Retaliation",
+        "Intimidating Presence",
+      ],
+      paladin: [
+        "Oath of Devotion Spells",
+        "Sacred Weapon",
+        "Aura of Devotion",
+        "Smite of Protection",
+        "Holy Nimbus",
+      ],
+      sorcerer: [
+        "Draconic Resilience",
+        "Draconic Spells",
+        "Elemental Affinity",
+        "Dragon Wings",
+        "Dragon Companion",
+      ],
+      cleric: [
+        "Disciple of Life",
+        "Life Domain Spells",
+        "Preserve Life",
+        "Blessed Healer",
+        "Supreme Healing",
+      ],
+      bard: [
+        "Bonus Proficiencies",
+        "Cutting Words",
+        "Magical Discoveries",
+        "Peerless Skill",
+      ],
+      warlock: [
+        "Dark One’s Blessing",
+        "Dark One’s Own Luck",
+        "Fiendish Resilience",
+        "Hurl Through Hell",
+        "Fiend Spells",
+      ],
+      druid: [
+        "Circle of the Land Spells",
+        "Land’s Aid",
+        "Natural Recovery",
+        "Nature’s Ward",
+        "Nature’s Sanctuary",
+      ],
+      ranger: [
+        "Hunter’s Lore",
+        "Hunter’s Prey",
+        "Defensive Tactics",
+        "Superior Hunter’s Prey",
+        "Superior Hunter’s Defense",
+      ],
+      rogue: [
+        "Fast Hands",
+        "Second-Story Work",
+        "Supreme Sneak",
+        "Use Magic Device",
+        "Thief’s Reflexes",
+      ],
+      monk: [
+        "Open Hand Technique",
+        "Wholeness of Body",
+        "Fleet Step",
+        "Quivering Palm",
+      ],
+      fighter: [
+        "Improved Critical",
+        "Remarkable Athlete",
+        "Additional Fighting Style",
+        "Heroic Warrior",
+        "Superior Critical",
+        "Survivor",
+      ],
+      wizard: [
+        "Evocation Savant",
+        "Potent Cantrip",
+        "Sculpt Spells",
+        "Empowered Evocation",
+        "Overchannel",
+      ],
+    };
+    const excluded = is24
+      ? (FEATURES_2024[draft.classId] ?? [])
+          .filter((f) => defaultNames[draft.classId]?.includes(f.name))
+          .map((f) => FEATURE_NAMES[f.name] ?? featureTitle(f.name))
+      : draft.classId === "sorcerer"
+        ? [
+            "Драконья кровь: драконья устойчивость",
+            "Стихийное родство",
+            "Крылья дракона",
+            "Драконье присутствие",
+          ]
+        : draft.classId === "paladin"
+          ? [
+              "Клятва преданности: божественный канал",
+              "Аура преданности",
+              "Чистота духа",
+              "Священный нимб",
+            ]
+          : draft.classId === "barbarian"
+            ? [
+                "Берсерк: неистовство",
+                "Бездумная ярость",
+                "Пугающее присутствие",
+                "Ответный удар",
+              ]
+            : draft.classId === "bard"
+              ? [
+                  "Коллегия знаний: острое словцо",
+                  "Дополнительные тайны магии",
+                  "Непревзойдённый навык",
+                ]
+              : draft.classId === "cleric"
+                ? [
+                    "Домен жизни: поборник жизни и тяжёлые доспехи",
+                    "Сохранение жизни",
+                    "Благословенный целитель",
+                    "Божественный удар",
+                    "Божественный удар: 2d8",
+                    "Высшее исцеление",
+                  ]
+                : draft.classId === "wizard"
+                  ? [
+                      "Школа воплощения: мастер воплощения и создание заклинаний",
+                      "Мощный заговор",
+                      "Усиленное воплощение",
+                      "Перегрузка",
+                    ]
+                  : draft.classId === "fighter"
+                    ? [
+                        "Чемпион: улучшенный критический удар",
+                        "Выдающийся атлет",
+                        "Дополнительный боевой стиль",
+                        "Превосходный критический удар",
+                        "Уцелевший",
+                      ]
+                    : draft.classId === "rogue"
+                      ? [
+                          "Вор: быстрые руки и форточник",
+                          "Высокая скрытность",
+                          "Использование магических устройств",
+                          "Воровские рефлексы",
+                        ]
+                      : draft.classId === "monk"
+                        ? [
+                            "Техника открытой ладони",
+                            "Целостность тела",
+                            "Безмятежность",
+                            "Дрожащая ладонь",
+                          ]
+                        : draft.classId === "ranger"
+                          ? [
+                              "Добыча охотника",
+                              "Защитная тактика",
+                              "Мультиатака",
+                              "Превосходная защита",
+                            ]
+                          : draft.classId === "druid"
+                            ? [
+                                "Круг земли: естественное восстановление",
+                                "Тропами земли",
+                                "Покровительство природы",
+                                "Природное убежище",
+                              ]
+                            : [];
+    if (!is24 && draft.classId === "warlock")
+      excluded.push(
+        "Покровитель: исчадие; благословение тёмного",
+        "Удача тёмного",
+        "Устойчивость исчадия",
+        "Бросок сквозь ад",
+      );
+    features = features.filter((f) => !excluded.includes(f.name));
+    if (extension)
+      features.push(
+        ...extension.features
+          .filter((f) => f.level === n)
+          .map(f => draft.edition === "2014" && draft.classId === "ranger" && extension.id === "beast-master" && f.level === 3 && picked(draft, "companion-rules", n).includes("phb") ? RANGER_COMPANION_PHB : f)
+          .map((f, i) => ({
+            ...f,
+            id: `${extension.id}-${n}-${i}`,
+            source: f.source ?? extension.source,
+            sourceUrl: f.sourceUrl ?? extension.sourceUrl,
+          })),
+      );
+  }
   if (!is24 && asiAvailable)
     features.push({
       id: `asi-${n}`,
@@ -707,7 +1033,21 @@ export function getLevelOptions(
     maxSpellLevel,
     spells,
     cantrips: editionSpells(draft.edition).filter(
-      (s) => s.level === 0 && s.classes.includes(draft.classId),
+      (s) =>
+        (!s.subclassOnly ||
+          (draft.classId === "wizard" &&
+            s.subclassOnly.includes(selectedSubclassId(draft, n) ?? ""))) &&
+        s.level === 0 &&
+        (!freeSpells.includes(s.id) ||
+          (currentLevel(draft, n - 1)?.cantripIds ?? []).includes(s.id)) &&
+        (s.classes.includes(draft.classId) ||
+          (thirdCaster &&
+            n >= 3 &&
+            s.classes.includes(thirdCaster.classId ?? "wizard")) ||
+          (!is24 &&
+            draft.classId === "sorcerer" &&
+            selectedSubclassId(draft, n) === "divine-soul" &&
+            s.classes.includes("cleric"))),
     ),
     features,
     featureChoiceOptions: getFeatureChoices(draft, n),
@@ -837,6 +1177,12 @@ export function getFeatureChoices(
         count,
         options: options.map((option) => ({
           ...option,
+          ...((id === "pact-boon" && option.id === "blade") || (id === "invocations" && option.id === "pact-of-the-blade") ? {originalDescription:BLADE_RULES[draft.edition].en} : {}),
+          ...((id === "pact-boon" && option.id === "chain") || (id === "invocations" && option.id === "pact-of-the-chain") ? {
+            originalDescription:CHAIN_RULES[draft.edition].en,
+            spellReferenceIds:[sid("find-familiar",draft.edition)],
+            creatureReferenceIds:CHAIN_SPECIAL_FORMS[draft.edition],
+          } : {}),
           name: choiceName(id, option.id, option.name),
           description: choiceExplanation(
             id,
@@ -850,7 +1196,116 @@ export function getFeatureChoices(
       });
   };
   const prior = (key: string) => picked(draft, key, level - 1);
+  if (c === "ranger" && !is24 && selectedSubclassId(draft, level) === "beast-master" && level >= 3) {
+    if (level === 3) add("companion-rules", "Правила спутника / Companion Rules", 1, [
+      {id:"tasha", name:"Первичный спутник / Primal Companion", description:"Альтернативное умение из Tasha’s Cauldron of Everything: выберите земного, морского или небесного духа.", originalDescription:"Optional replacement from Tasha’s Cauldron of Everything: choose a primal land, sea or sky spirit."},
+      {id:"phb", name:"Спутник следопыта / Ranger’s Companion", description:RANGER_COMPANION_PHB.description, originalDescription:RANGER_COMPANION_PHB.originalDescription},
+    ]);
+    if (picked(draft, "companion-rules", level).includes("phb")) add("ranger-companion", "Текущий зверь-спутник / Current Beast Companion", 1,
+      BEAST_FORMS_2014.filter(form => form.challenge <= 0.25 && ["Tiny", "Small", "Medium"].includes(form.size)).map(form => {
+        const creature = ruleCreature(form.id)!;
+        return {id:form.id, name:`${creature.name.ru} / ${creature.name.en}`, description:creature.profile.ru, originalDescription:creature.profile.en, creatureReferenceIds:[form.id]};
+      }), "Выберите текущего связанного зверя. После его смерти связь с новым невраждебным зверем занимает 8 часов. / Select the current bonded Beast. After its death, bonding with a new nonhostile Beast takes 8 hours.");
+  }
+  if (c === "druid" && !is24 && level >= 2) {
+    const moon = selectedSubclassId(draft, level) === "moon";
+    const maximum = moon ? (level >= 6 ? Math.floor(level / 3) : 1) : level >= 8 ? 1 : level >= 4 ? 0.5 : 0.25;
+    const forms = BEAST_FORMS_2014.filter(form => form.challenge <= maximum && (!form.fly || level >= 8) && (!form.swim || level >= 4))
+      .map(form => {
+        const creature = ruleCreature(form.id)!;
+        return { id: form.id, name: `${creature.name.ru} / ${creature.name.en}`,
+          description: `ПО ${creature.challenge}. ${creature.profile.ru}`,
+          originalDescription: `CR ${creature.challenge}. ${creature.profile.en}`,
+          creatureReferenceIds: [form.id] };
+      });
+    add("wild-shape-seen", "Виденные облики / Seen Beasts", forms.length, forms,
+      "Отметьте зверей, которых персонаж действительно видел и в которых сейчас может превращаться. Число виденных форм не ограничено правилами; пустой список допустим. Плавание доступно с 4 уровня, полёт — с 8. Каталог содержит 86 отдельных Зверей SRD 5.1. / Mark eligible Beasts your character has actually seen. No fixed number is required; an empty list is allowed. Swimming requires level 4, flight level 8. Contains 86 individual SRD 5.1 Beasts.");
+    result[result.length - 1].optional = true;
+  }
+  if (c === "druid" && is24 && level >= 2) {
+    const maximum = selectedSubclassId(draft, level) === "moon" && level >= 3
+      ? Math.floor(level / 3) : level >= 8 ? 1 : level >= 4 ? 0.5 : 0.25;
+    const recommended = ["rat-2024", "riding-horse-2024", "spider-2024", "wolf-2024"];
+    const forms = BEAST_FORMS_2024.filter(form => form.challenge <= maximum && (!form.fly || level >= 8))
+      .map(form => {
+        const creature = ruleCreature(form.id)!;
+        return { id: form.id, name: `${creature.name.ru} / ${creature.name.en}`,
+          description: `ПО ${creature.challenge}. ${creature.profile.ru}`,
+          originalDescription: `CR ${creature.challenge}. ${creature.profile.en}`,
+          creatureReferenceIds: [form.id] };
+      }).sort((a, b) => Number(!recommended.includes(a.id)) - Number(!recommended.includes(b.id)));
+    add("wild-shape-forms", "Изученные облики / Known Forms", level >= 8 ? 8 : level >= 4 ? 6 : 4, forms,
+      "Выберите текущие изученные облики Зверей. После долгого отдыха можно заменить один облик допустимым. Плавание разрешено со 2 уровня, полёт — с 8. Встроены все Звери раздела Animals SRD 5.2.1; другие источники требуют разрешения мастера.");
+  }
+  if (c === "artificer") {
+    const tools = picked(draft, "artificer-tool", level);
+    const specialistTools: Record<string, string[]> = {
+      alchemist:["alchemist"], armorer:["smith"], artillerist:["woodcarver"],
+      "battle-smith":["smith"], cartographer:["calligrapher","cartographer"], reanimator:["alchemist"],
+    };
+    const grantedTools = specialistTools[selectedSubclassId(draft, level) ?? ""] ?? [];
+    if (level === 3 && tools.some(t => grantedTools.includes(t)))
+      add("artificer-tool-replacement", "Замена повторного владения инструментами", 1,
+        ARTISAN_TOOL_OPTIONS.filter(t => !tools.includes(t.id) && !grantedTools.includes(t.id)));
+    if (level >= 11)
+      add("artificer-stored-magic", "Заклинание в хранящем предмете", 1, [
+        {id:"none", name:"Предмет не наполнен", description:"Сейчас в предмете нет сохранённого заклинания."},
+        ...editionSpells(draft.edition).filter(s => s.classes.includes("artificer") && s.level >= 1 && s.level <= (is24 ? 3 : 2) && /^(1 )?action$/i.test(s.castingTime) && (!is24 || !/consum/i.test(s.components ?? ""))).map(s => ({id:s.id,name:s.name,description:s.descriptionRu ?? s.description,spellReferenceIds:[s.id]})),
+      ], "Текущее наполнение можно изменить после долгого отдыха. Подготовка выбранного заклинания не требуется.");
+  }
+  for (const choice of subclassExtension(
+    c,
+    selectedSubclassId(draft, level),
+    draft.edition,
+  )?.choices ?? [])
+    if (
+      choice.level === level &&
+      (!choice.requires ||
+        picked(draft, choice.requires.choiceId, level).includes(
+          choice.requires.optionId,
+        ))
+    )
+      add(choice.id, choice.name, choice.count, choice.options);
+  const replaceable = subclassExtension(
+    c,
+    selectedSubclassId(draft, level),
+    draft.edition,
+  )?.replaceableSpells;
+  replaceable?.entries.forEach((entry, index) => {
+    if (entry.level > level) return;
+    const original = SPELLS.find((s) => s.id === sid(entry.id, draft.edition));
+    if (!original) return;
+    add(
+      `origin-spell-${index}`,
+      `Заклинание происхождения: ${original.name}`,
+      1,
+      [
+        original,
+        ...editionSpells(draft.edition)
+          .filter(
+            (s) =>
+              !s.subclassOnly ||
+              (draft.classId === "wizard" &&
+                s.subclassOnly.includes(
+                  selectedSubclassId(draft, level) ?? "",
+                )),
+          )
+          .filter(
+            (s) =>
+              s.id !== original.id &&
+              s.level === original.level &&
+              replaceable.schools.includes(s.school) &&
+              s.classes.some((id) => replaceable.classes.includes(id)),
+          ),
+      ],
+    );
+  });
   const skillIds = unique([
+    ...(subclassExtension(
+      draft.classId,
+      selectedSubclassId(draft, level),
+      draft.edition,
+    )?.skillIds ?? []),
     ...draft.skillIds,
     ...(availableBackground(draft)?.skillIds ?? []),
     ...picked(draft, "background-skills", level),
@@ -858,9 +1313,185 @@ export function getFeatureChoices(
     ...picked(draft, "half-elf-skills", level),
     ...picked(draft, "elf-skill", level),
     ...picked(draft, "lore-skills", level),
-    ...(draft.speciesId === "high-elf" && !is24 ? ["perception"] : []),
+    ...picked(draft, "genie-skill", level),
+    ...picked(draft, "totem-skills", level),
+    ...picked(draft, "moon-skill", level),
+    ...picked(draft, "fey-skill", level),
+    ...picked(draft, "domain-skills", level),
+    ...picked(draft, "enchanter-skill", level),
+    ...picked(draft, "bladesong-skill", level),
+    ...picked(draft, "fighter-training", level),
+    ...picked(draft, "banneret-skill", level - 1),
+    ...[
+      "archer-skill",
+      "archer-arcana",
+      "archer-nature",
+      "student-war-skill",
+    ].flatMap((key) => picked(draft, key, level - 1)),
+    ...(["high-elf", "wood-elf", "drow"].includes(draft.speciesId) && !is24
+      ? ["perception"]
+      : []),
     ...(draft.speciesId === "half-orc" ? ["intimidation"] : []),
   ]);
+  for (const pool of subclassExtension(
+    c,
+    selectedSubclassId(draft, level),
+    draft.edition,
+  )?.choicePools ?? []) {
+    if (pool.id === "primal-companion" && !is24 && picked(draft, "companion-rules", level).includes("phb")) continue;
+    const count = pool.counts.filter(([at]) => at <= level).at(-1)?.[1] ?? 0;
+    add(
+      pool.id,
+      pool.name,
+      count,
+      pool.options.filter(
+        (option) =>
+          (option.level ?? 0) <= level &&
+          (pool.id !== "artificer-plans" || !currentLevel(draft, level)?.featureChoices?.["artificer-armor-plan"]?.includes(option.id)) &&
+          (pool.id !== "artificer-armor-plan" || !currentLevel(draft, level)?.featureChoices?.["artificer-plans"]?.includes(option.id)) &&
+          (pool.id !== "ghost-proficiency" || !skillIds.includes(option.id)),
+      ),
+      [
+        level === pool.counts[0][0]
+          ? [
+              ...(pool.initialRequired ?? []).map(
+                (id) =>
+                  "Обязательно: " +
+                  pool.options.find((o) => o.id === id)?.name +
+                  ".",
+              ),
+              ...(pool.initialGroups ?? []).map(
+                (g) => g.name + ": " + g.count + ".",
+              ),
+            ].join(" ")
+          : "",
+        pool.replaceAt === "recreate" ? (pool.id.endsWith("cannon-mode") ? "Тип выбирается при создании пушки; при новом создании можно изменить его." : "При создании нового спутника можно выбрать все модификации заново.") : pool.replaceAt === "level" || (Array.isArray(pool.replaceAt) && pool.replaceAt.includes(level))
+          ? "При повышении можно заменить один ранее выбранный вариант."
+          : "Сохраните ранее выбранные варианты.",
+      ]
+        .filter(Boolean)
+        .join(" "),
+    );
+  }
+  skillIds.push(
+    ...(currentLevel(draft, level)?.featureChoices?.["ghost-proficiency"] ??
+      []),
+  );
+  if (
+    !is24 &&
+    c === "sorcerer" &&
+    selectedSubclassId(draft, level) === "divine-soul"
+  ) {
+    const affinity: Record<string, string> = {
+      good: "cure-wounds",
+      evil: "inflict-wounds",
+      law: "bless",
+      chaos: "bane",
+      neutral: "protection-from-evil-and-good",
+    };
+    const first = sid(
+      affinity[picked(draft, "divine-affinity", level)[0] ?? "good"],
+      draft.edition,
+    );
+    add(
+      "divine-bonus-spell",
+      "Божественная магия: дополнительное заклинание",
+      1,
+      editionSpells(draft.edition)
+        .filter(
+          (s) =>
+            !s.subclassOnly ||
+            (draft.classId === "wizard" &&
+              s.subclassOnly.includes(selectedSubclassId(draft, level) ?? "")),
+        )
+        .filter((s) =>
+          level === 1
+            ? s.id === first
+            : s.classes.includes("cleric") &&
+              s.level > 0 &&
+              s.level <= Math.min(9, Math.ceil(level / 2)),
+        ),
+    );
+  }
+  if (c === "cleric") {
+    const domain = selectedSubclassId(draft, level) ?? "";
+    if (level === (is24 ? 3 : 1)) {
+      const domains: Record<string, string[]> = {
+        knowledge: ["arcana", "history", "nature", "religion"],
+        nature: ["survival", "nature", "animal-handling"],
+        peace: ["insight", "performance", "persuasion"],
+        order: ["intimidation", "persuasion"],
+      };
+      if (is24)
+        domains.arcana = [
+          "arcana",
+          "history",
+          "insight",
+          "medicine",
+          "persuasion",
+          "religion",
+        ];
+      if (domains[domain])
+        add(
+          "domain-skills",
+          "Навыки домена",
+          domain === "knowledge" ? 2 : 1,
+          skillOpts(
+            domains[domain].filter(
+              (id) =>
+                !skillIds.includes(id) ||
+                picked(draft, "domain-skills", level).includes(id),
+            ),
+          ),
+        );
+      if (
+        (!is24 && domain === "arcana") ||
+        domain === "nature" ||
+        domain === "death"
+      )
+        add(
+          "domain-cantrips",
+          "Дополнительные заговоры домена",
+          domain === "arcana" ? 2 : 1,
+          editionSpells(draft.edition)
+            .filter(
+              (s) =>
+                !s.subclassOnly ||
+                (draft.classId === "wizard" &&
+                  s.subclassOnly.includes(
+                    selectedSubclassId(draft, level) ?? "",
+                  )),
+            )
+            .filter(
+              (s) =>
+                s.level === 0 &&
+                !currentLevel(draft, level)?.cantripIds.includes(s.id) &&
+                (domain === "death"
+                  ? s.school === "Некромантия"
+                  : s.classes.includes(
+                      domain === "nature" ? "druid" : "wizard",
+                    )),
+            ),
+        );
+    }
+    if (domain === "arcana" && is24 && level >= 3)
+      add(
+        "domain-cantrips",
+        "Заговоры домена: сохраните два или замените один",
+        2,
+        spellOpts(draft, "wizard", 0).filter(
+          (s) => !currentLevel(draft, level)?.cantripIds.includes(s.id),
+        ),
+      );
+    if (domain === "arcana" && (level === 17 || (is24 && level > 17)))
+      for (const circle of [6, 7, 8, 9])
+        add(
+          `domain-mastery-${circle}`,
+          `Мастерство магии: ${circle} круг`,
+          1,
+          spellOpts(draft, "wizard", circle),
+        );
+  }
   if (level === 1) {
     if (draft.backgroundId === "custom")
       add(
@@ -909,7 +1540,7 @@ export function getFeatureChoices(
           ),
         ),
       );
-    if (is24 && ["high-elf", "wood-elf"].includes(draft.speciesId))
+    if (is24 && ["high-elf", "wood-elf", "drow"].includes(draft.speciesId))
       add(
         "elf-skill",
         "Острые чувства",
@@ -931,9 +1562,16 @@ export function getFeatureChoices(
       );
     if (
       is24 &&
-      ["high-elf", "wood-elf", "rock-gnome", "tiefling"].includes(
-        draft.speciesId,
-      )
+      [
+        "high-elf",
+        "wood-elf",
+        "drow",
+        "rock-gnome",
+        "forest-gnome",
+        "tiefling",
+        "tiefling-abyssal",
+        "tiefling-chthonic",
+      ].includes(draft.speciesId)
     )
       add(
         "innate-ability",
@@ -943,7 +1581,7 @@ export function getFeatureChoices(
           ["int", "wis", "cha"].map((a) => [a, ABILITY_LABELS[a as Ability]]),
         ),
       );
-    if (draft.speciesId === "dragonborn" || (c === "sorcerer" && !is24))
+    if (draft.speciesId === "dragonborn" || (isDraconic(draft, level) && !is24))
       add(
         "ancestry",
         "Драконий предок",
@@ -1009,7 +1647,105 @@ export function getFeatureChoices(
     }
   }
   if (
-    (c === "fighter" && (level === 1 || level === (is24 ? 7 : 10))) ||
+    c === "fighter" &&
+    level === 3 &&
+    selectedSubclassId(draft, level) === "arcane-archer"
+  ) {
+    if (!is24)
+      add(
+        "archer-skill",
+        "Знания лучника: навык",
+        1,
+        skillOpts(["arcana", "nature"].filter((id) => !skillIds.includes(id))),
+      );
+    else
+      for (const id of ["arcana", "nature"]) {
+        const baseKnown = unique([
+          ...draft.skillIds,
+          ...(availableBackground(draft)?.skillIds ?? []),
+          ...["background-skills", "human-skill", "elf-skill"].flatMap((key) =>
+            picked(draft, key, 2),
+          ),
+        ]);
+        add(
+          "archer-" + id,
+          "Знания лучника: " + (id === "arcana" ? "Магия" : "Природа"),
+          1,
+          skillOpts(
+            baseKnown.includes(id)
+              ? (
+                  CLASSES.find((c) => c.id === "fighter")?.skillIds ?? []
+                ).filter((x) => !baseKnown.includes(x))
+              : [id],
+          ),
+        );
+      }
+  }
+  if (
+    c === "fighter" &&
+    is24 &&
+    level === 3 &&
+    selectedSubclassId(draft, level) === "battlemaster"
+  )
+    add(
+      "student-war-skill",
+      "Ученик войны: навык",
+      1,
+      skillOpts(
+        (CLASSES.find((c) => c.id === "fighter")?.skillIds ?? []).filter(
+          (id) => !skillIds.includes(id),
+        ),
+      ),
+    );
+  const thirdCaster = subclassExtension(
+    c,
+    selectedSubclassId(draft, level),
+    draft.edition,
+  )?.thirdCaster;
+  thirdCaster?.unrestrictedAt?.forEach((at, index) => {
+    if (at <= level)
+      add(
+        "third-caster-free-" + index,
+        "Заклинание любой школы: выбор " + (index + 1),
+        1,
+        editionSpells(draft.edition).filter(
+          (s) =>
+            s.level > 0 &&
+            s.level <= Math.ceil(level / 3 / 2) &&
+            s.classes.includes("wizard") &&
+            !s.subclassOnly &&
+            !currentLevel(draft, level)?.spellIds.includes(s.id),
+        ),
+      );
+  });
+  if (
+    c === "fighter" &&
+    !is24 &&
+    level === 7 &&
+    selectedSubclassId(draft, level) === "banneret"
+  ) {
+    const hasPersuasion = skillIds.includes("persuasion");
+    add(
+      "banneret-skill",
+      "Посланник короны: навык",
+      1,
+      skillOpts(
+        hasPersuasion
+          ? [
+              "animal-handling",
+              "insight",
+              "intimidation",
+              "performance",
+            ].filter((id) => !skillIds.includes(id))
+          : ["persuasion"],
+      ),
+    );
+  }
+  if (
+    (c === "fighter" &&
+      (level === 1 ||
+        (level === (is24 ? 7 : 10) &&
+          selectedSubclassId(draft, level) === "champion"))) ||
     (["paladin", "ranger"].includes(c) && level === 2)
   )
     add(
@@ -1058,7 +1794,11 @@ export function getFeatureChoices(
       skillOpts(ids),
     );
   }
-  if (c === "bard" && level === 3)
+  if (
+    c === "bard" &&
+    level === 3 &&
+    selectedSubclassId(draft, level) === "lore"
+  )
     add(
       "lore-skills",
       "Коллегия знаний: три навыка",
@@ -1068,6 +1808,78 @@ export function getFeatureChoices(
           (id) =>
             !skillIds.includes(id) ||
             picked(draft, "lore-skills", level).includes(id),
+        ),
+      ),
+    );
+  if (
+    is24 &&
+    c === "paladin" &&
+    level === 3 &&
+    selectedSubclassId(draft, level) === "noble-genies"
+  )
+    add(
+      "genie-skill",
+      "Великолепие гения: навык",
+      1,
+      skillOpts(
+        ["acrobatics", "performance", "intimidation", "persuasion"].filter(
+          (id) =>
+            !skillIds.includes(id) ||
+            picked(draft, "genie-skill", level).includes(id),
+        ),
+      ),
+    );
+  if (
+    is24 &&
+    c === "bard" &&
+    level >= 3 &&
+    selectedSubclassId(draft, level) === "moon"
+  ) {
+    add(
+      "moon-cantrip",
+      "Древние знания: сохраните или замените заговор друида",
+      1,
+      spellOpts(draft, "druid", 0).filter(
+        (s) => !currentLevel(draft, level)?.cantripIds.includes(s.id),
+      ),
+    );
+    if (level === 3)
+      add(
+        "moon-skill",
+        "Древние знания: навык",
+        1,
+        skillOpts(
+          [
+            "perception",
+            "survival",
+            "medicine",
+            "animal-handling",
+            "nature",
+            "insight",
+          ].filter(
+            (id) =>
+              !skillIds.includes(id) ||
+              picked(draft, "moon-skill", level).includes(id),
+          ),
+        ),
+      );
+  }
+  if (
+    !is24 &&
+    c === "barbarian" &&
+    level === 6 &&
+    selectedSubclassId(draft, level) === "totem-warrior" &&
+    picked(draft, "totem-aspect", level).includes("tiger")
+  )
+    add(
+      "totem-skills",
+      "Аспект тигра: два навыка",
+      2,
+      skillOpts(
+        ["acrobatics", "athletics", "survival", "stealth"].filter(
+          (id) =>
+            !skillIds.includes(id) ||
+            picked(draft, "totem-skills", level).includes(id),
         ),
       ),
     );
@@ -1213,6 +2025,7 @@ export function getFeatureChoices(
         "2024: призовите оружие договора.",
       ],
       ["pact-of-the-chain", "Договор цепи", "2024: особый фамильяр."],
+      ["pact-of-the-tome", "Договор книги / Pact of the Tome", TOME_RULES["2024"].ru],
       [
         "one-with-shadows",
         "Один среди теней",
@@ -1283,7 +2096,7 @@ export function getFeatureChoices(
                 name: `${o.name} — Мистический заряд`,
                 description: `В этой подборке целью улучшения выбран Мистический заряд. ${o.description}`,
               }
-            : o,
+            : o.id === "pact-of-the-tome" ? {...o, originalDescription:TOME_RULES["2024"].en} : o,
         ),
     );
     if (!is24 && level === 3)
@@ -1294,14 +2107,34 @@ export function getFeatureChoices(
         opts([
           ["blade", "Договор клинка"],
           ["chain", "Договор цепи"],
+          ["tome", "Договор книги / Pact of the Tome", TOME_RULES["2014"].ru],
+          ["talisman", "Договор талисмана / Pact of the Talisman", TALISMAN_RULES.ru],
         ]),
       );
+    const hasTome = is24 ? picked(draft, "invocations", level).includes("pact-of-the-tome") : picked(draft, "pact-boon", level).includes("tome");
+    if (hasTome && (is24 || level === 3)) {
+      const base = currentLevel(draft, level);
+      const withoutBook: CharacterDraft = {...draft, levels:draft.levels.map(step => ({...step, featureChoices:Object.fromEntries(Object.entries(step.featureChoices ?? {}).filter(([key]) => !key.startsWith("tome-")))}))};
+      const prepared = [...(base?.cantripIds ?? []), ...(base?.spellIds ?? []), ...grantedSpellIds(withoutBook, level)];
+      const eligible = editionSpells(draft.edition).filter(s => s.classes.length && !s.subclassOnly?.length && (!is24 || !prepared.includes(s.id)));
+      add("tome-cantrips", "Заговоры Книги теней / Book of Shadows Cantrips", 3, eligible.filter(s => s.level === 0));
+      if (is24) add("tome-rituals", "Ритуалы Книги теней / Book of Shadows Rituals", 2, eligible.filter(s => s.level === 1 && s.ritual));
+    }
+    if (!is24 && level === 3) {
+      const group = result.find(g => g.id === "pact-boon");
+      for (const option of group?.options ?? []) if (["tome","talisman"].includes(option.id)) option.originalDescription = option.id === "tome" ? TOME_RULES["2014"].en : TALISMAN_RULES.en;
+    }
     if ([11, 13, 15, 17].includes(level))
       add(
         `mystic-arcanum-${(level + 1) / 2}`,
         "Таинственный арканум: одно применение за долгий отдых",
         1,
-        spellOpts(draft, "warlock", (level + 1) / 2),
+        editionSpells(draft.edition).filter(
+          (s) =>
+            s.level === (level + 1) / 2 &&
+            (s.classes.includes("warlock") ||
+              expandedSubclassSpellIds(draft, level).includes(s.id)),
+        ),
       );
   }
   if (c === "ranger" && !is24) {
@@ -1352,7 +2185,11 @@ export function getFeatureChoices(
         ),
       );
   }
-  if (c === "ranger" && level === 3)
+  if (
+    c === "ranger" &&
+    selectedSubclassId(draft, level) === "hunter" &&
+    level === 3
+  )
     add(
       "hunter-prey",
       "Добыча охотника",
@@ -1379,7 +2216,12 @@ export function getFeatureChoices(
           : []),
       ]),
     );
-  if (c === "druid" && !is24 && level === 3)
+  if (
+    c === "druid" &&
+    !is24 &&
+    level === 3 &&
+    selectedSubclassId(draft, level) === "land"
+  )
     add(
       "land-terrain",
       "Заклинания круга земли: местность",
@@ -1392,53 +2234,126 @@ export function getFeatureChoices(
         ["grassland", "Луга"],
         ["mountain", "Горы"],
         ["swamp", "Болота"],
+        ["underdark", "Подземье"],
       ]),
     );
   if (
     c === "wizard" &&
+    level === (is24 ? 3 : 2) &&
+    selectedSubclassId(draft, level) === "illusion"
+  ) {
+    const known = currentLevel(draft, level - 1)?.cantripIds ?? [];
+    add(
+      "illusion-cantrip",
+      "Улучшенная малая иллюзия: дополнительный заговор",
+      1,
+      editionSpells(draft.edition)
+        .filter(
+          (s) =>
+            !s.subclassOnly ||
+            (draft.classId === "wizard" &&
+              s.subclassOnly.includes(selectedSubclassId(draft, level) ?? "")),
+        )
+        .filter(
+          (s) =>
+            s.level === 0 &&
+            s.classes.includes("wizard") &&
+            (known.includes(sid("minor-illusion", draft.edition))
+              ? !currentLevel(draft, level)?.cantripIds.includes(s.id)
+              : s.id === sid("minor-illusion", draft.edition)),
+        ),
+    );
+  }
+  if (
+    c === "wizard" &&
     is24 &&
+    (selectedSubclassId(draft, level) === "evocation" ||
+      !!subclassExtension(c, selectedSubclassId(draft, level), draft.edition)
+        ?.savantSchool) &&
     (level === 3 || [5, 7, 9, 11, 13, 15, 17].includes(level))
   )
     add(
       "evocation-savant",
-      "Мастер воплощения: дополнительные заклинания в книге",
+      "Учёный школы: дополнительные заклинания в книге",
       level === 3 ? 2 : 1,
-      editionSpells(draft.edition).filter(
-        (s) =>
-          s.classes.includes("wizard") &&
-          s.school === "Воплощение" &&
-          s.level > 0 &&
-          s.level <= Math.ceil(level / 2) &&
-          !currentLevel(draft, level)?.spellIds.includes(s.id) &&
-          !prior("evocation-savant").includes(s.id),
-      ),
+      editionSpells(draft.edition)
+        .filter(
+          (s) =>
+            !s.subclassOnly ||
+            (draft.classId === "wizard" &&
+              s.subclassOnly.includes(selectedSubclassId(draft, level) ?? "")),
+        )
+        .filter(
+          (s) =>
+            s.classes.includes("wizard") &&
+            s.school ===
+              (subclassExtension(
+                c,
+                selectedSubclassId(draft, level),
+                draft.edition,
+              )?.savantSchool ?? "Воплощение") &&
+            s.level > 0 &&
+            s.level <= Math.ceil(level / 2) &&
+            !currentLevel(draft, level)?.spellIds.includes(s.id) &&
+            !prior("evocation-savant").includes(s.id),
+        ),
     );
-  if (c === "bard" && !is24 && [6, 10, 14, 18].includes(level))
+  if (
+    c === "bard" &&
+    !is24 &&
+    ([10, 14, 18].includes(level) ||
+      (level === 6 && selectedSubclassId(draft, level) === "lore"))
+  )
     add(
       "magical-secrets",
       "Тайны магии: заклинания любых классов",
       2,
-      editionSpells(draft.edition).filter(
-        (s) =>
-          s.level <= Math.ceil(level / 2) &&
-          !prior("magical-secrets").includes(s.id) &&
-          !currentLevel(draft, level)?.spellIds.includes(s.id),
-      ),
+      editionSpells(draft.edition)
+        .filter(
+          (s) =>
+            !s.subclassOnly ||
+            (draft.classId === "wizard" &&
+              s.subclassOnly.includes(selectedSubclassId(draft, level) ?? "")),
+        )
+        .filter(
+          (s) =>
+            s.level <= Math.ceil(level / 2) &&
+            !prior("magical-secrets").includes(s.id) &&
+            !currentLevel(draft, level)?.spellIds.includes(s.id),
+        ),
     );
-  if (c === "bard" && is24 && level === 6)
+  if (
+    c === "bard" &&
+    is24 &&
+    level === 6 &&
+    selectedSubclassId(draft, level) === "lore"
+  )
     add(
       "magical-discoveries",
       "Магические открытия Коллегии знаний",
       2,
-      editionSpells(draft.edition).filter(
-        (s) =>
-          s.level <= 3 &&
-          s.classes.some((id) => ["cleric", "druid", "wizard"].includes(id)) &&
-          !currentLevel(draft, level)?.spellIds.includes(s.id) &&
-          !currentLevel(draft, level)?.cantripIds.includes(s.id),
-      ),
+      editionSpells(draft.edition)
+        .filter(
+          (s) =>
+            !s.subclassOnly ||
+            (draft.classId === "wizard" &&
+              s.subclassOnly.includes(selectedSubclassId(draft, level) ?? "")),
+        )
+        .filter(
+          (s) =>
+            s.level <= 3 &&
+            s.classes.some((id) =>
+              ["cleric", "druid", "wizard"].includes(id),
+            ) &&
+            !currentLevel(draft, level)?.spellIds.includes(s.id) &&
+            !currentLevel(draft, level)?.cantripIds.includes(s.id),
+        ),
     );
-  if (c === "ranger" && [7, ...(!is24 ? [11, 15] : [])].includes(level))
+  if (
+    c === "ranger" &&
+    selectedSubclassId(draft, level) === "hunter" &&
+    [7, ...(!is24 ? [11, 15] : [])].includes(level)
+  )
     add(
       `hunter-${level}`,
       "Тактика охотника",
@@ -1495,7 +2410,12 @@ export function getFeatureChoices(
         ["potent-spellcasting", "Мощное колдовство"],
       ]),
     );
-  if (is24 && c === "druid" && level === 3)
+  if (
+    is24 &&
+    c === "druid" &&
+    level === 3 &&
+    selectedSubclassId(draft, level) === "land"
+  )
     add(
       "land-terrain",
       "Круг земли: выбранная местность после отдыха",
@@ -1507,7 +2427,12 @@ export function getFeatureChoices(
         ["tropical", "Тропическая"],
       ]),
     );
-  if (!is24 && c === "druid" && level === 2)
+  if (
+    !is24 &&
+    c === "druid" &&
+    level === 2 &&
+    selectedSubclassId(draft, level) === "land"
+  )
     add(
       "land-cantrip",
       "Круг земли: дополнительный заговор",
@@ -1516,7 +2441,7 @@ export function getFeatureChoices(
         (s) => !currentLevel(draft, level)?.cantripIds.includes(s.id),
       ),
     );
-  if (is24 && c === "sorcerer" && level === 6)
+  if (is24 && isDraconic(draft, level) && level === 6)
     add(
       "elemental-affinity",
       "Стихийное родство драконьей крови",
@@ -1532,19 +2457,28 @@ export function getFeatureChoices(
   if (c === "wizard" && level === 18) {
     const book = unique([
       ...(currentLevel(draft, level)?.spellIds ?? []),
-      ...picked(draft, "evocation-savant", level),
+      ...wizardBookBonusIds(draft, level),
     ]);
     for (const circle of [1, 2])
       add(
         `spell-mastery-${circle}`,
         `Мастерство заклинаний: ${circle} круг`,
         1,
-        editionSpells(draft.edition).filter(
-          (s) =>
-            book.includes(s.id) &&
-            s.level === circle &&
-            (!is24 || s.castingTime === "Action"),
-        ),
+        editionSpells(draft.edition)
+          .filter(
+            (s) =>
+              !s.subclassOnly ||
+              (draft.classId === "wizard" &&
+                s.subclassOnly.includes(
+                  selectedSubclassId(draft, level) ?? "",
+                )),
+          )
+          .filter(
+            (s) =>
+              book.includes(s.id) &&
+              s.level === circle &&
+              (!is24 || s.castingTime === "Action"),
+          ),
       );
   }
   if (c === "wizard" && level === 20)
@@ -1552,16 +2486,50 @@ export function getFeatureChoices(
       "signature-spells",
       "Фирменные заклинания: два заклинания 3 круга",
       2,
-      editionSpells(draft.edition).filter(
-        (s) =>
-          s.level === 3 &&
-          [
-            ...(currentLevel(draft, level)?.spellIds ?? []),
-            ...picked(draft, "evocation-savant", level),
-          ].includes(s.id),
-      ),
+      editionSpells(draft.edition)
+        .filter(
+          (s) =>
+            !s.subclassOnly ||
+            (draft.classId === "wizard" &&
+              s.subclassOnly.includes(selectedSubclassId(draft, level) ?? "")),
+        )
+        .filter(
+          (s) =>
+            s.level === 3 &&
+            [
+              ...(currentLevel(draft, level)?.spellIds ?? []),
+              ...wizardBookBonusIds(draft, level),
+            ].includes(s.id),
+        ),
     );
   return result;
+}
+
+export function expandedSubclassSpellIds(
+  draft: CharacterDraft,
+  level: number,
+): string[] {
+  const sub = subclassExtension(
+    draft.classId,
+    selectedSubclassId(draft, level),
+    draft.edition,
+  );
+  const rows = [
+    ...(sub?.expandedSpells ?? []),
+    ...(sub?.conditionalSpells ?? [])
+      .filter(
+        (c) =>
+          c.expanded &&
+          (!picked(draft, c.choiceId, level).length ||
+            picked(draft, c.choiceId, level).includes(c.optionId)),
+      )
+      .flatMap((c) => c.entries),
+  ];
+  return unique(
+    rows
+      .filter(([at]) => at <= level)
+      .flatMap(([, ids]) => ids.map((id) => sid(id, draft.edition))),
+  );
 }
 
 export function grantedSpellIds(
@@ -1576,7 +2544,7 @@ export function grantedSpellIds(
   };
   const table = (rows: [number, string[]][]) =>
     rows.forEach(([at, s]) => grant(at, s));
-  if (draft.classId === "cleric")
+  if (draft.classId === "cleric" && selectedSubclassId(draft, level) === "life")
     table(
       is24
         ? [
@@ -1594,19 +2562,20 @@ export function grantedSpellIds(
           ],
     );
   if (draft.classId === "paladin") {
-    table([
-      [
-        3,
+    if (selectedSubclassId(draft, level) === "devotion")
+      table([
         [
-          "protection-from-evil-and-good",
-          is24 ? "shield-of-faith" : "sanctuary",
+          3,
+          [
+            "protection-from-evil-and-good",
+            is24 ? "shield-of-faith" : "sanctuary",
+          ],
         ],
-      ],
-      [5, [is24 ? "aid" : "lesser-restoration", "zone-of-truth"]],
-      [9, ["beacon-of-hope", "dispel-magic"]],
-      [13, ["freedom-of-movement", "guardian-of-faith"]],
-      [17, ["commune", "flame-strike"]],
-    ]);
+        [5, [is24 ? "aid" : "lesser-restoration", "zone-of-truth"]],
+        [9, ["beacon-of-hope", "dispel-magic"]],
+        [13, ["freedom-of-movement", "guardian-of-faith"]],
+        [17, ["commune", "flame-strike"]],
+      ]);
     if (is24) {
       grant(2, ["divine-smite"]);
       grant(5, ["find-steed"]);
@@ -1617,22 +2586,72 @@ export function grantedSpellIds(
   if (is24 && draft.classId === "warlock") grant(9, ["contact-other-plane"]);
   if (is24 && draft.classId === "bard")
     grant(20, ["power-word-heal", "power-word-kill"]);
-  if (is24 && draft.classId === "sorcerer")
+  if (is24 && isDraconic(draft, level))
     table([
       [3, ["alter-self", "chromatic-orb", "command", "dragons-breath"]],
       [5, ["fear", "fly"]],
       [7, ["arcane-eye", "charm-monster"]],
       [9, ["legend-lore", "summon-dragon"]],
     ]);
-  if (is24 && draft.classId === "warlock")
+  const subclass = subclassExtension(
+    draft.classId,
+    selectedSubclassId(draft, level),
+    draft.edition,
+  );
+  if (subclass?.grants) table(subclass.grants);
+  for (const c of subclass?.conditionalSpells ?? [])
+    if (!c.expanded && picked(draft, c.choiceId, level).includes(c.optionId))
+      table(c.entries);
+  if (
+    draft.classId === "wizard" &&
+    selectedSubclassId(draft, level) === "illusion"
+  )
+    ids.push(...picked(draft, "illusion-cantrip", level));
+  ids.push(...picked(draft, "archer-cantrip", level));
+  for (const pool of subclass?.choicePools ?? [])
+    if (["disciplines", "dread-allegiance"].includes(pool.id)) {
+      for (const option of pool.options)
+        if (
+          currentLevel(draft, level)?.featureChoices?.[pool.id]?.includes(
+            option.id,
+          )
+        )
+          ids.push(...(option.spellReferenceIds ?? []));
+    }
+  subclass?.thirdCaster?.unrestrictedAt?.forEach((at, index) => {
+    if (at <= level)
+      ids.push(
+        ...(currentLevel(draft, level)?.featureChoices?.[
+          "third-caster-free-" + index
+        ] ?? []),
+      );
+  });
+  subclass?.replaceableSpells?.entries.forEach((entry, index) => {
+    if (entry.level <= level)
+      ids.push(
+        ...(currentLevel(draft, level)?.featureChoices?.[
+          `origin-spell-${index}`
+        ] ?? []),
+      );
+  });
+  if (
+    is24 &&
+    draft.classId === "warlock" &&
+    selectedSubclassId(draft, level) === "fiend"
+  )
     table([
       [3, ["burning-hands", "command", "scorching-ray", "suggestion"]],
       [5, ["fireball", "stinking-cloud"]],
       [7, ["fire-shield", "wall-of-fire"]],
       [9, ["geas", "insect-plague"]],
     ]);
-  if (draft.classId === "druid") {
-    const terrain = picked(draft, "land-terrain", level)[0];
+  if (
+    draft.classId === "druid" &&
+    selectedSubclassId(draft, level) === "land"
+  ) {
+    const terrain = is24 && level === draft.targetLevel && draft.landTerrain
+      ? draft.landTerrain
+      : picked(draft, "land-terrain", level)[0];
     const rows: Record<string, string[][]> = is24
       ? {
           arid: [
@@ -1703,8 +2722,54 @@ export function grantedSpellIds(
             ["freedom-of-movement", "locate-creature"],
             ["insect-plague", "scrying"],
           ],
+          underdark: [
+            ["spider-climb", "web"],
+            ["gaseous-form", "stinking-cloud"],
+            ["greater-invisibility", "stone-shape"],
+            ["insect-plague", "cloudkill"],
+          ],
         };
     (rows[terrain] ?? []).forEach((spells, i) => grant(3 + 2 * i, spells));
+  }
+  if (
+    is24 &&
+    draft.classId === "bard" &&
+    selectedSubclassId(draft, level) === "moon"
+  ) {
+    const latest = [...draft.levels]
+      .reverse()
+      .find(
+        (l) => l.level <= level && l.featureChoices?.["moon-cantrip"]?.length,
+      );
+    ids.push(...(latest?.featureChoices?.["moon-cantrip"] ?? []));
+  }
+  if (draft.classId === "cleric")
+    for (const key of [
+      "domain-cantrips",
+      "domain-mastery-6",
+      "domain-mastery-7",
+      "domain-mastery-8",
+      "domain-mastery-9",
+    ])
+      ids.push(
+        ...(is24 && selectedSubclassId(draft, level) === "arcana"
+          ? (currentLevel(draft, level)?.featureChoices?.[key] ?? [])
+          : picked(draft, key, level)),
+      );
+  if (
+    !is24 &&
+    draft.classId === "sorcerer" &&
+    selectedSubclassId(draft, level) === "divine-soul"
+  )
+    ids.push(
+      ...(currentLevel(draft, level)?.featureChoices?.["divine-bonus-spell"] ??
+        []),
+    );
+  if (draft.classId === "warlock") {
+    const chain = is24 ? picked(draft, "invocations", level).includes("pact-of-the-chain") : picked(draft, "pact-boon", level).includes("chain");
+    if (chain) grant(is24 ? 1 : 3,["find-familiar"]);
+    const tome = is24 ? picked(draft, "invocations", level).includes("pact-of-the-tome") : picked(draft, "pact-boon", level).includes("tome");
+    if (tome) for (const key of ["tome-cantrips", "tome-rituals"]) ids.push(...(is24 ? currentLevel(draft, level)?.featureChoices?.[key] ?? [] : picked(draft, key, level)));
   }
   if (classOnly) return unique(ids);
   if (draft.speciesId === "tiefling") {
@@ -1723,17 +2788,48 @@ export function grantedSpellIds(
   }
   if (is24 && draft.speciesId === "rock-gnome")
     grant(1, ["mending", "prestidigitation"]);
+  if (is24 && draft.speciesId === "aasimar") grant(1, ["light"]);
+  if (draft.speciesId === "drow") {
+    grant(1, ["dancing-lights"]);
+    grant(3, ["faerie-fire"]);
+    grant(5, ["darkness"]);
+  }
+  if (draft.speciesId === "forest-gnome")
+    grant(
+      1,
+      is24 ? ["minor-illusion", "speak-with-animals"] : ["minor-illusion"],
+    );
+  if (is24 && draft.speciesId === "tiefling-abyssal") {
+    grant(1, ["thaumaturgy", "poison-spray"]);
+    grant(3, ["ray-of-sickness"]);
+    grant(5, ["hold-person"]);
+  }
+  if (is24 && draft.speciesId === "tiefling-chthonic") {
+    grant(1, ["thaumaturgy", "chill-touch"]);
+    grant(3, ["false-life"]);
+    grant(5, ["ray-of-enfeeblement"]);
+  }
   for (const l of draft.levels.filter((l) => l.level <= level))
     for (const [key, values] of Object.entries(l.featureChoices ?? {}))
       if (
-        key.endsWith("-cantrips") ||
-        key.endsWith("-cantrip") ||
-        key.endsWith("-spell") ||
-        key === "magical-secrets" ||
-        key === "magical-discoveries" ||
-        key === "signature-spells" ||
-        key.startsWith("mystic-arcanum-") ||
-        (is24 && key.startsWith("spell-mastery-"))
+        key !== "moon-cantrip" &&
+        key !== "divine-bonus-spell" &&
+        key !== "tome-cantrips" &&
+        !key.startsWith("origin-spell-") &&
+        !(
+          is24 &&
+          draft.classId === "cleric" &&
+          selectedSubclassId(draft, level) === "arcana" &&
+          (key === "domain-cantrips" || key.startsWith("domain-mastery-"))
+        ) &&
+        (key.endsWith("-cantrips") ||
+          key.endsWith("-cantrip") ||
+          key.endsWith("-spell") ||
+          key === "magical-secrets" ||
+          key === "magical-discoveries" ||
+          key === "signature-spells" ||
+          key.startsWith("mystic-arcanum-") ||
+          (is24 && key.startsWith("spell-mastery-")))
       )
         ids.push(...values);
   return unique(ids);
@@ -1745,6 +2841,15 @@ export function wizardAlwaysPreparedSpellIds(
 ): string[] {
   return draft.classId === "wizard"
     ? unique([
+        ...(
+          subclassExtension(
+            draft.classId,
+            selectedSubclassId(draft, level),
+            draft.edition,
+          )?.grants ?? []
+        )
+          .filter(([n]) => n <= level)
+          .flatMap(([, ids]) => ids.map((id) => sid(id, draft.edition))),
         ...picked(draft, "signature-spells", level),
         ...(draft.edition === "2024"
           ? ["spell-mastery-1", "spell-mastery-2"].flatMap((key) =>
@@ -1783,7 +2888,15 @@ export function deriveCharacter(
   let armorClass = 10 + modifiers.dex;
   if (cls?.id === "barbarian") armorClass += modifiers.con;
   if (cls?.id === "monk") armorClass += modifiers.wis;
-  if (cls?.id === "sorcerer" && (!is24 || n >= 3))
+  if (is24 && cls?.id === "bard" && selectedSubclassId(draft, n) === "dance")
+    armorClass += modifiers.cha;
+  if (
+    is24 &&
+    cls?.id === "paladin" &&
+    selectedSubclassId(draft, n) === "noble-genies"
+  )
+    armorClass += modifiers.cha;
+  if (isDraconic(draft, n) && (!is24 || n >= 3))
     armorClass = is24 ? 10 + modifiers.dex + modifiers.cha : 13 + modifiers.dex;
   armorClass = Math.max(10 + modifiers.dex, armorClass);
   let maxHp =
@@ -1791,14 +2904,33 @@ export function deriveCharacter(
     (n - 1) *
       Math.max(1, Math.floor((cls?.hitDie ?? 8) / 2) + 1 + modifiers.con);
   if (["hill-dwarf", "dwarf"].includes(draft.speciesId)) maxHp += n;
-  if (cls?.id === "sorcerer" && (!is24 || n >= 3)) maxHp += n;
+  if (isDraconic(draft, n) && (!is24 || n >= 3)) maxHp += n;
   let speed = species?.speed ?? 30;
+  if (
+    !is24 &&
+    draft.classId === "rogue" &&
+    selectedSubclassId(draft, n) === "scout" &&
+    n >= 9
+  )
+    speed += 10;
   if (is24 && ["lightfoot-halfling", "rock-gnome"].includes(draft.speciesId))
     speed = 30;
   if (cls?.id === "barbarian" && n >= 5) speed += 10;
   if (cls?.id === "monk" && n >= 2) speed += 10 + Math.floor((n - 2) / 4) * 5;
   if (is24 && cls?.id === "ranger" && n >= 6) speed += 10;
+  if (
+    cls?.id === "paladin" &&
+    selectedSubclassId(draft, n) === "glory" &&
+    n >= 7
+  )
+    speed += 10;
   const skillIds = unique([
+      ...(subclassExtension(
+        draft.classId,
+        selectedSubclassId(draft, n),
+        draft.edition,
+      )?.skillIds ?? []),
+      ...(currentLevel(draft, n)?.featureChoices?.["ghost-proficiency"] ?? []),
       ...draft.skillIds,
       ...(background?.skillIds ?? []),
       ...[
@@ -1807,21 +2939,59 @@ export function deriveCharacter(
         "background-skills",
         "elf-skill",
         "lore-skills",
+        "genie-skill",
+        "totem-skills",
+        "moon-skill",
+        "fey-skill",
+        "domain-skills",
+        "enchanter-skill",
+        "bladesong-skill",
+        "fighter-training",
+        "banneret-skill",
+        "student-war-skill",
+        "archer-skill",
+        "archer-arcana",
+        "archer-nature",
       ].flatMap((k) => picked(draft, k, n)),
-      ...(!is24 && draft.speciesId === "high-elf" ? ["perception"] : []),
+      ...(!is24 && ["high-elf", "wood-elf", "drow"].includes(draft.speciesId)
+        ? ["perception"]
+        : []),
       ...(draft.speciesId === "half-orc" ? ["intimidation"] : []),
     ]),
-    expert = picked(draft, "expertise", n);
+    expert = unique([
+      ...(!is24 &&
+      draft.classId === "fighter" &&
+      selectedSubclassId(draft, n) === "banneret" &&
+      n >= 7
+        ? ["persuasion"]
+        : []),
+      ...(!is24 &&
+      draft.classId === "rogue" &&
+      selectedSubclassId(draft, n) === "scout"
+        ? ["nature", "survival"]
+        : []),
+      ...picked(draft, "expertise", n),
+      ...(draft.classId === "cleric" &&
+      selectedSubclassId(draft, n) === "knowledge"
+        ? picked(draft, "domain-skills", n)
+        : []),
+    ]);
   const skills = SKILLS.map((s) => {
     const proficient = skillIds.includes(s.id);
     let bonus =
       modifiers[s.ability] +
+      (cls?.id === "ranger" &&
+      selectedSubclassId(draft, n) === "fey-wanderer" &&
+      s.ability === "cha"
+        ? Math.max(1, modifiers.wis)
+        : 0) +
       (proficient
         ? proficiencyBonus * (expert.includes(s.id) ? 2 : 1)
         : cls?.id === "bard" && n >= 2
           ? Math.floor(proficiencyBonus / 2)
           : !is24 &&
               cls?.id === "fighter" &&
+              selectedSubclassId(draft, n) === "champion" &&
               n >= 7 &&
               ["str", "dex", "con"].includes(s.ability)
             ? Math.ceil(proficiencyBonus / 2)
@@ -1834,10 +3004,24 @@ export function deriveCharacter(
           ["arcana", "nature"].includes(s.id)))
     )
       bonus += Math.max(1, modifiers.wis);
+    if (
+      is24 &&
+      draft.classId === "wizard" &&
+      picked(draft, "enchanter-skill", n).includes(s.id)
+    )
+      bonus += Math.max(1, modifiers.int);
+    if (
+      !is24 &&
+      draft.classId === "fighter" &&
+      selectedSubclassId(draft, n) === "samurai" &&
+      n >= 7 &&
+      s.id === "persuasion"
+    )
+      bonus += modifiers.wis;
     return { ...s, proficient, bonus };
   });
   const extra = grantedSpellIds(draft, n),
-    bookExtra = picked(draft, "evocation-savant", n),
+    bookExtra = wizardBookBonusIds(draft, n),
     catalog = editionSpells(draft.edition);
   const selectedSpells = catalog.filter(
       (s) =>
@@ -1861,21 +3045,60 @@ export function deriveCharacter(
   for (const step of draft.levels.filter((v) => v.level <= n))
     for (const group of getFeatureChoices(draft, step.level))
       for (const id of step.featureChoices?.[group.id] ?? []) {
-        const option = group.options.find((o) => o.id === id);
+        if (group.id === "companion-rules") continue;
+        if (draft.edition === "2024" && ["tome-cantrips", "tome-rituals"].includes(group.id) && step.level !== n) continue;
+        if (["wild-shape-forms", "wild-shape-seen", "ranger-companion"].includes(group.id) && step.level !== n) continue;
+        const pool = subclassExtension(
+          draft.classId,
+          selectedSubclassId(draft, n),
+          draft.edition,
+        )?.choicePools?.find((p) => p.id === group.id);
+        if (
+          pool &&
+          !currentLevel(draft, n)?.featureChoices?.[group.id]?.includes(id)
+        )
+          continue;
+        if (
+          group.id !== "wild-shape-forms" &&
+          group.id !== "wild-shape-seen" &&
+          group.id !== "ranger-companion" &&
+          !["tome-cantrips", "tome-rituals"].includes(group.id) &&
+          currentLevel(draft, step.level - 1)?.featureChoices?.[
+            group.id
+          ]?.includes(id)
+        )
+          continue;
+        const effectiveId = group.id === "land-terrain" && draft.edition === "2024" && n === draft.targetLevel && draft.landTerrain ? draft.landTerrain : id;
+        const option = group.options.find((o) => o.id === effectiveId);
+        const companion = group.id === "ranger-companion" ? ruleCreature(effectiveId) : undefined;
+        const companionRu = companion ? `Спутник: КД ${companion.armorClass + proficiencyBonus}; максимум хитов ${Math.max(companion.hp, 4 * n)}; к указанным в базовом статблоке броскам атаки и урона, а также навыкам и спасброскам с владением добавьте +${proficiencyBonus}. Базовые Кости Хитов остаются ${companion.hitDice}. ` : "";
+        const companionEn = companion ? `Companion: AC ${companion.armorClass + proficiencyBonus}; maximum Hit Points ${Math.max(companion.hp, 4 * n)}; add +${proficiencyBonus} to the base block's attack and damage rolls, proficient skills and saving throws. Base Hit Dice remain ${companion.hitDice}. ` : "";
         if (option)
           features.push({
             id: `choice-${step.level}-${group.id}-${id}`,
             name: option.name,
             description:
               SPELLS.find((s) => s.id === option.id)?.summary ||
-              option.description,
+              companionRu + option.description,
+            originalDescription: companion ? companionEn + (option.originalDescription ?? "") : option.originalDescription,
+            spellReferenceIds: option.spellReferenceIds,
+            itemReferenceIds: option.itemReferenceIds,
+            creatureReferenceIds: option.creatureReferenceIds,
             level: step.level,
           });
       }
+  const castingSubclass = subclassExtension(
+    draft.classId,
+    selectedSubclassId(draft, n),
+    draft.edition,
+  );
   const spellAbility =
-    options.maxSpellLevel > 0 || options.cantripCount > 0
+    (options.maxSpellLevel > 0 || options.cantripCount > 0
       ? cls?.spellAbility
-      : undefined;
+      : undefined) ??
+    (n >= (castingSubclass?.spellAbilityLevel ?? 0)
+      ? castingSubclass?.spellAbility
+      : undefined);
   const spellcastingSources: SpellcastingSource[] = [];
   const source = (
     id: string,
@@ -1883,7 +3106,7 @@ export function deriveCharacter(
     ability: Ability,
     ids: string[],
   ) => {
-    if (ids.length)
+    if (ids.length || (id === "class" && spellAbility))
       spellcastingSources.push({
         id,
         name,
@@ -1901,6 +3124,7 @@ export function deriveCharacter(
       ...grantedSpellIds(draft, n, true),
       ...[
         "order-cantrip",
+        "giant-cantrip",
         "land-cantrip",
         "magical-secrets",
         "magical-discoveries",
@@ -1928,7 +3152,10 @@ export function deriveCharacter(
     "innate",
     `Врождённая магия: ${species?.name ?? ""}`,
     (picked(draft, "innate-ability", n)[0] as Ability) ||
-      (!is24 && draft.speciesId === "tiefling" ? "cha" : "int"),
+      ((!is24 && ["tiefling", "drow"].includes(draft.speciesId)) ||
+      draft.speciesId === "aasimar"
+        ? "cha"
+        : "int"),
     innate,
   );
   for (const feat of feats.filter((f) => f.id.startsWith("magic-initiate-")))
@@ -1945,6 +3172,20 @@ export function deriveCharacter(
     spellcastingSources.find((s) => s.id === "class") ?? spellcastingSources[0];
   const saveProficient = (a: Ability) =>
     !!cls?.savingThrows.includes(a) ||
+    (cls?.id === "ranger" &&
+      selectedSubclassId(draft, n) === "gloom-stalker" &&
+      n >= 7 &&
+      a === "wis") ||
+    (!is24 &&
+      cls?.id === "fighter" &&
+      selectedSubclassId(draft, n) === "samurai" &&
+      n >= 7 &&
+      a === "wis") ||
+    (is24 &&
+      cls?.id === "cleric" &&
+      selectedSubclassId(draft, n) === "knowledge" &&
+      n >= 6 &&
+      a === "int") ||
     (cls?.id === "monk" && n >= 14) ||
     (cls?.id === "rogue" && n >= 15 && (a === "wis" || (is24 && a === "cha")));
   return {
@@ -1952,8 +3193,10 @@ export function deriveCharacter(
     class: cls,
     species,
     background,
-    subclass: cls?.subclasses.find((s) =>
-      draft.levels.some((v) => v.level <= n && v.subclassId === s.id),
+    subclass: cls?.subclasses.find(
+      (s) =>
+        s.editions.includes(draft.edition) &&
+        s.id === selectedSubclassId(draft, n),
     ),
     abilities,
     modifiers,
@@ -1962,10 +3205,33 @@ export function deriveCharacter(
     armorClass,
     initiative:
       modifiers.dex +
+      (cls?.id === "ranger" && selectedSubclassId(draft, n) === "gloom-stalker"
+        ? modifiers.wis
+        : 0) +
+      (!is24 &&
+      draft.classId === "rogue" &&
+      selectedSubclassId(draft, n) === "swashbuckler"
+        ? modifiers.cha
+        : 0) +
+      (!is24 &&
+      cls?.id === "wizard" &&
+      n >= 2 &&
+      ["war-magic", "chronurgy"].includes(selectedSubclassId(draft, n) ?? "")
+        ? modifiers.int
+        : 0) +
+      (!is24 &&
+      cls?.id === "paladin" &&
+      selectedSubclassId(draft, n) === "watchers" &&
+      n >= 7
+        ? proficiencyBonus
+        : 0) +
       (feats.some((f) => f.id === "alert") ? proficiencyBonus : 0) +
       (!is24 && cls?.id === "bard" && n >= 2
         ? Math.floor(proficiencyBonus / 2)
-        : !is24 && cls?.id === "fighter" && n >= 7
+        : !is24 &&
+            cls?.id === "fighter" &&
+            selectedSubclassId(draft, n) === "champion" &&
+            n >= 7
           ? Math.ceil(proficiencyBonus / 2)
           : 0),
     speed,
@@ -1979,6 +3245,13 @@ export function deriveCharacter(
       bonus:
         modifiers[a] +
         (saveProficient(a) ? proficiencyBonus : 0) +
+        (is24 &&
+        cls?.id === "ranger" &&
+        selectedSubclassId(draft, n) === "hollow-warden" &&
+        n >= 7 &&
+        a === "con"
+          ? Math.max(1, modifiers.wis)
+          : 0) +
         (cls?.id === "paladin" && n >= 6 ? Math.max(1, modifiers.cha) : 0),
     })),
     spellSaveDc: primarySource?.saveDc ?? null,
@@ -1998,7 +3271,7 @@ export function deriveCharacter(
     hitDice: `${n}d${cls?.hitDie ?? 8}`,
     warnings: [
       "КД рассчитан без доспехов и щита. Снаряжение, языки, инструменты и расходуемые ресурсы внесите в заметки по правилам кампании.",
-      "Один класс, фиксированный прирост хитов. Подклассы и черты — выбранная открытая подборка; мультикласс и другие книги не включены.",
+      "Один класс, фиксированный прирост хитов. Каталог SRD дополнен отдельными вариантами PHB/XGE; охват опубликованных подклассов и черт пока неполный. Мультикласс не поддерживается.",
     ],
   };
 }
@@ -2020,11 +3293,31 @@ export function validateDraft(
   const cls = CLASSES.find((c) => c.id === draft.classId),
     species = availableSpecies(draft),
     background = availableBackground(draft);
+  if (draft.landTerrain !== undefined && (draft.edition !== "2024" || draft.classId !== "druid" || draft.targetLevel < 3 || selectedSubclassId(draft) !== "land" || !["arid", "polar", "temperate", "tropical"].includes(draft.landTerrain)))
+    issue("identity", "land-terrain", "Выберите допустимую текущую местность Круга Земли 2024.");
   if (!["2014", "2024"].includes(draft.edition))
     issue("identity", "edition", "Выберите редакцию 2014 или 2024.");
   if (!draft.name.trim()) issue("identity", "name", "Укажите имя персонажа.");
   if (!draft.playerName.trim())
     issue("identity", "player-name", "Укажите имя игрока.");
+  if ([...draft.name].length > 120 || [...draft.playerName].length > 120)
+    issue(
+      "identity",
+      "name-length",
+      "Имя персонажа и игрока: не более 120 символов.",
+    );
+  if ([...draft.notes].length > 6000)
+    issue("identity", "notes-length", "Заметки: не более 6000 символов.");
+  if (!isPersonality(draft.personality))
+    issue("identity", "personality", "Некорректный формат описания личности.");
+  else
+    for (const field of PERSONALITY_FIELDS)
+      if ([...(draft.personality?.[field.id] ?? "")].length > field.limit)
+        issue(
+          "identity",
+          "personality-length",
+          `${field.label}: не более ${field.limit} символов.`,
+        );
   if (
     !Number.isInteger(draft.targetLevel) ||
     draft.targetLevel < 1 ||
@@ -2124,7 +3417,9 @@ export function validateDraft(
         (id) =>
           !cls.skillIds.includes(id) ||
           background?.skillIds.includes(id) ||
-          (!is24 && draft.speciesId === "high-elf" && id === "perception") ||
+          (!is24 &&
+            ["high-elf", "wood-elf", "drow"].includes(draft.speciesId) &&
+            id === "perception") ||
           (draft.speciesId === "half-orc" && id === "intimidation"),
       ))
   )
@@ -2178,6 +3473,15 @@ export function validateDraft(
         n < (is24 ? 3 : (cls?.subclasses[0]?.level2014 ?? 3)))
     )
       add("subclass-invalid", "Подкласс недоступен на этом уровне.");
+    if (
+      l.subclassId &&
+      !o.subclassRequired &&
+      l.subclassId !== selectedSubclassId(draft, n - 1)
+    )
+      add(
+        "subclass-change",
+        "Специализация выбирается один раз и не меняется на следующих уровнях.",
+      );
     if (asi.some((v) => !Number.isInteger(v) || v < 0 || v > 2))
       add("asi-invalid", "Некорректное повышение характеристики.");
     if (o.asiAvailable || o.epicBoonAvailable) {
@@ -2272,7 +3576,7 @@ export function validateDraft(
     if (o.spellMode === "spellbook") {
       const book = unique([
           ...l.spellIds,
-          ...picked(draft, "evocation-savant", n),
+          ...wizardBookBonusIds(draft, n),
         ]).filter((id) => !wizardAlwaysPreparedSpellIds(draft, n).includes(id)),
         prepared = l.preparedSpellIds ?? [];
       if (
@@ -2290,12 +3594,83 @@ export function validateDraft(
           "При повышении сохраняйте все заклинания в книге предыдущего уровня.",
         );
     }
+    const archerSkills = ["archer-arcana", "archer-nature"].flatMap(
+      (key) => l.featureChoices?.[key] ?? [],
+    );
+    if (unique(archerSkills).length !== archerSkills.length)
+      add(
+        "archer-skill-duplicate",
+        "Два владения лучника должны быть разными.",
+      );
+    for (const pool of subclassExtension(
+      draft.classId,
+      selectedSubclassId(draft, n),
+      draft.edition,
+    )?.choicePools ?? []) {
+      const before = previous?.featureChoices?.[pool.id] ?? [],
+        after = l.featureChoices?.[pool.id] ?? [];
+      if (n === pool.counts[0][0]) {
+        if (
+          pool.initialRequired?.some((id) => !after.includes(id)) ||
+          pool.initialGroups?.some(
+            (g) => after.filter((id) => g.ids.includes(id)).length !== g.count,
+          )
+        )
+          add(
+            "pool-initial",
+            "Не выполнены начальные требования: " + pool.name,
+          );
+      }
+      const allowed =
+        pool.replaceAt === "recreate" ? before.length : pool.replaceAt === "level" || (Array.isArray(pool.replaceAt) && pool.replaceAt.includes(n)) ? 1 : 0;
+      if (before.filter((id) => !after.includes(id)).length > allowed)
+        add("pool-replacement", `Недопустимая замена: ${pool.name}.`);
+    }
     if (previous) {
-      const removed = previous.spellIds.filter(
+      if (draft.classId === "artificer" && is24) {
+        const planIds = (step: LevelChoice) => unique([...(step.featureChoices?.["artificer-plans"] ?? []), ...(step.featureChoices?.["artificer-armor-plan"] ?? [])]);
+        if (planIds(previous).filter(id => !planIds(l).includes(id)).length > 1)
+          add("plan-replacement", "За уровень можно заменить одну схему, включая дополнительную схему Бронника.");
+      }
+      let removed = previous.spellIds.filter(
         (id) =>
           !l.spellIds.includes(id) &&
           !grantedSpellIds(draft, n, true).includes(id),
       ).length;
+      if (
+        !is24 &&
+        draft.classId === "sorcerer" &&
+        selectedSubclassId(draft, n) === "divine-soul"
+      )
+        removed += (
+          previous.featureChoices?.["divine-bonus-spell"] ?? []
+        ).filter(
+          (id) => !l.featureChoices?.["divine-bonus-spell"]?.includes(id),
+        ).length;
+      if (
+        subclassExtension(
+          draft.classId,
+          selectedSubclassId(draft, n),
+          draft.edition,
+        )?.thirdCaster
+      ) {
+        const free = (step: LevelChoice) =>
+          Object.entries(step.featureChoices ?? {})
+            .filter(([key]) => key.startsWith("third-caster-free-"))
+            .flatMap(([, ids]) => ids);
+        const before = [...previous.spellIds, ...free(previous)],
+          after = [...l.spellIds, ...free(l)];
+        if (unique(after).length !== after.length)
+          add(
+            "third-caster-duplicate",
+            "Выберите разные заклинания для всех ячеек выбора.",
+          );
+        if (before.filter((id) => !after.includes(id)).length > 1)
+          add(
+            "spell-replacement",
+            "За уровень можно заменить лишь одно заклинание, включая выборы любой школы.",
+          );
+      }
       if (
         ["bard", "sorcerer", "warlock", "ranger"].includes(draft.classId) &&
         removed > 1
@@ -2308,7 +3683,7 @@ export function validateDraft(
         (id) => !l.cantripIds.includes(id),
       ).length;
       if (
-        replacedCantrips > (is24 ? (draft.classId === "wizard" ? 100 : 1) : 0)
+        replacedCantrips > (is24 ? (draft.classId === "wizard" ? 100 : 1) : draft.classId === "artificer" ? 1 : 0)
       )
         add(
           "cantrip-replacement",
@@ -2317,11 +3692,76 @@ export function validateDraft(
             : "В SRD 2014 заговоры не заменяются при повышении.",
         );
     }
+    if (
+      is24 &&
+      draft.classId === "cleric" &&
+      selectedSubclassId(draft, n) === "arcana"
+    ) {
+      const previous = currentLevel(draft, n - 1)?.featureChoices ?? {};
+      if (
+        n > 3 &&
+        (l.featureChoices?.["domain-cantrips"] ?? []).filter(
+          (id) => !previous["domain-cantrips"]?.includes(id),
+        ).length > 1
+      )
+        add(
+          "domain-replacement",
+          "При повышении можно заменить только один заговор домена.",
+        );
+      if (
+        n > 17 &&
+        [6, 7, 8, 9].reduce(
+          (count, circle) =>
+            count +
+            (l.featureChoices?.[`domain-mastery-${circle}`] ?? []).filter(
+              (id) => !previous[`domain-mastery-${circle}`]?.includes(id),
+            ).length,
+          0,
+        ) > 1
+      )
+        add(
+          "domain-replacement",
+          "При повышении можно заменить только одно заклинание Магической искусности.",
+        );
+    }
+    const replaceable = subclassExtension(
+      draft.classId,
+      selectedSubclassId(draft, n),
+      draft.edition,
+    )?.replaceableSpells;
+    if (replaceable) {
+      const previous = currentLevel(draft, n - 1)?.featureChoices ?? {};
+      const selections = replaceable.entries.flatMap((entry, index) =>
+        entry.level <= n
+          ? (l.featureChoices?.[`origin-spell-${index}`] ?? [])
+          : [],
+      );
+      if (unique(selections).length !== selections.length)
+        add(
+          "origin-duplicates",
+          "Заклинания происхождения должны различаться.",
+        );
+      const changes = replaceable.entries.reduce((count, entry, index) => {
+        if (entry.level > n) return count;
+        const key = `origin-spell-${index}`,
+          before = previous[key] ?? [sid(entry.id, draft.edition)];
+        return (
+          count +
+          (l.featureChoices?.[key] ?? []).filter((id) => !before.includes(id))
+            .length
+        );
+      }, 0);
+      if (changes > 1)
+        add(
+          "origin-replacement",
+          "При повышении можно заменить только одно заклинание происхождения.",
+        );
+    }
     const groups = getFeatureChoices(draft, n);
     for (const group of groups) {
       const selections = l.featureChoices?.[group.id] ?? [];
       if (
-        selections.length !== group.count ||
+        (group.optional ? selections.length > group.count : selections.length !== group.count) ||
         unique(selections).length !== selections.length ||
         selections.some((id) => !group.options.some((s) => s.id === id))
       )
@@ -2420,7 +3860,47 @@ export function recommendLevelChoices(
   );
   for (let pass = 0; pass < 3; pass++)
     for (const group of getFeatureChoices(working, level)) {
-      const current = choice.featureChoices?.[group.id] ?? [],
+      const originEntry = group.id.startsWith("origin-spell-")
+        ? subclassExtension(
+            working.classId,
+            selectedSubclassId(working, level),
+            working.edition,
+          )?.replaceableSpells?.entries[
+            Number(group.id.slice("origin-spell-".length))
+          ]
+        : undefined;
+      const pool = subclassExtension(
+        working.classId,
+        selectedSubclassId(working, level),
+        working.edition,
+      )?.choicePools?.find((p) => p.id === group.id);
+      const current =
+          choice.featureChoices?.[group.id] ??
+          (pool
+            ? currentLevel(working, level - 1)?.featureChoices?.[group.id]
+            : undefined) ??
+          (group.id.startsWith("third-caster-free-")
+            ? currentLevel(working, level - 1)?.featureChoices?.[group.id]
+            : undefined) ??
+          (originEntry
+            ? (currentLevel(working, level - 1)?.featureChoices?.[group.id] ?? [
+                sid(originEntry.id, working.edition),
+              ])
+            : undefined) ??
+          ([
+            "moon-cantrip",
+            "wild-shape-forms",
+            "wild-shape-seen",
+            "ranger-companion",
+            "tome-cantrips",
+            "tome-rituals",
+            "storm-environment",
+            "domain-cantrips",
+            "divine-bonus-spell",
+          ].includes(group.id) || group.id.startsWith("domain-mastery-")
+            ? (currentLevel(working, level - 1)?.featureChoices?.[group.id] ??
+              [])
+            : []),
         occupied = new Set([
           ...choice.spellIds,
           ...choice.cantripIds,
@@ -2431,15 +3911,39 @@ export function recommendLevelChoices(
         ordered = [...group.options].sort(
           (a, b) => Number(occupied.has(a.id)) - Number(occupied.has(b.id)),
         );
+      const initial = level === pool?.counts[0][0];
+      const required = initial
+        ? [
+            ...(pool?.initialRequired ?? []),
+            ...(pool?.initialGroups ?? []).flatMap((g) =>
+              unique([
+                ...current.filter((id) => g.ids.includes(id)),
+                ...g.ids,
+              ]).slice(0, g.count),
+            ),
+          ]
+        : [];
       choice.featureChoices![group.id] = unique([
+        ...required,
         ...current.filter((id) => group.options.some((o) => o.id === id)),
-        ...ordered.map((o) => o.id),
+        ...(group.optional ? [] : ordered.map((o) => o.id)),
       ]).slice(0, group.count);
     }
+  options = getLevelOptions(working, level);
+  choice.spellIds = fill(
+    choice.spellIds,
+    [...options.spells].sort((a, b) => b.level - a.level),
+    options.spellCount,
+  );
+  choice.cantripIds = fill(
+    choice.cantripIds,
+    options.cantrips,
+    options.cantripCount,
+  );
   if (options.spellMode === "spellbook") {
     const book = unique([
       ...choice.spellIds,
-      ...picked(working, "evocation-savant", level),
+      ...wizardBookBonusIds(working, level),
     ])
       .filter(
         (id) => !wizardAlwaysPreparedSpellIds(working, level).includes(id),
@@ -2454,6 +3958,8 @@ export function recommendLevelChoices(
       ...book,
     ]).slice(0, options.preparedCount);
   }
+  const validGroups = getFeatureChoices(working, level);
+  choice.featureChoices = Object.fromEntries(Object.entries(choice.featureChoices ?? {}).filter(([key]) => validGroups.some(group => group.id === key)));
   return choice;
 }
 

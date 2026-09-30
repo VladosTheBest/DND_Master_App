@@ -1,5 +1,7 @@
 import type { Edition } from "./rules-data";
 import { FEATURE_REFERENCE } from "./feature-reference";
+import { DRUID_FEATURE_RU, WILD_SHAPE_RU } from "./druid-feature-translations";
+import { WARLOCK_FEATURE_RU } from "./warlock-feature-translations";
 
 const TITLES: Record<string, string> = Object.fromEntries(
   `
@@ -226,7 +228,7 @@ const HELP: Record<string, string> = {
   "Wild Companion":
     "Действием потратьте ячейку или использование Дикого облика, чтобы наложить Поиск фамильяра без материальных компонентов. Фамильяр — фея; исчезает после вашего долгого отдыха.",
   "Wild Resurgence":
-    "Если Дикий облик закончился, можно без действия потратить ячейку для восстановления одного использования. Раз за долгий отдых можно наоборот потратить использование облика, чтобы восстановить ячейку 1 круга.",
+    "Раз в каждый свой ход, если не осталось использований Дикого облика, можно без действия потратить ячейку любого круга и восстановить одно использование. Кроме того, без действия можно потратить одно использование Дикого облика, чтобы получить ячейку 1 круга; эту вторую возможность можно снова применить после долгого отдыха.",
   "Elemental Fury":
     "Выберите: Первобытный удар даёт одному попаданию оружием или атакой зверя в свой ход +1d8 холода, огня, электричества или грома; Мощное колдовство добавляет Мудрость к урону заговоров друида.",
   "Improved Elemental Fury":
@@ -238,7 +240,7 @@ const HELP: Record<string, string> = {
   "Circle of the Land Spells":
     "Выбранная местность даёт дополнительные всегда подготовленные заклинания. В 2024 местность можно менять после долгого отдыха. Заклинания не занимают обычный лимит подготовки.",
   "Land’s Aid":
-    "Действием потратьте Дикий облик: в сфере радиусом 10 футов в пределах 60 футов выбранная цель получает лечение 2d6, остальные выбранные существа совершают спасбросок Телосложения и получают 2d6 некротического урона (половину при успехе). Кости увеличиваются до 3d6 на 10 уровне и 4d6 на 14.",
+    "Действием Магия потратьте использование Дикого облика и выберите точку в пределах 60 фт. Каждое выбранное вами существо в сфере радиусом 10 фт. вокруг неё делает спасбросок Телосложения против Сл ваших заклинаний: провал — 2d6 некротического урона, успех — половина. Одно выбранное вами существо в той же области восстанавливает 2d6 хитов. Урон и лечение увеличиваются до 3d6 на 10 уровне друида и 4d6 на 14.",
   "Natural Recovery":
     "Восстановите ячейки после короткого отдыха: сумма их кругов не выше половины уровня друида с округлением вверх, ячейки 6 круга и выше исключены. После применения нужен долгий отдых. В 2024 дополнительно можно раз за долгий отдых бесплатно применить одно заклинание круга земли.",
   "Nature’s Ward":
@@ -486,6 +488,7 @@ const ALIASES: Record<string, string> = {
   "Высшее исцеление": "Supreme Healing",
   "Божественный канал: 3 использования": "Channel Divinity",
   "Круг земли: естественное восстановление": "Natural Recovery",
+  "Тропами земли": "Land’s Stride",
   "Покровительство природы": "Nature’s Ward",
   "Природное убежище": "Nature’s Sanctuary",
   "Чемпион: улучшенный критический удар": "Improved Critical",
@@ -530,6 +533,18 @@ export function featureOriginal(
   level: number,
 ): string {
   const key = ALIASES[name] || name.replaceAll("�", "’");
+  if (classId === "warlock" && /^(Mystic Arcanum|Таинственный арканум)/.test(key))
+    return FEATURE_REFERENCE[`${edition}/warlock/${edition === "2024" ? "Level 11: " : ""}Mystic Arcanum`];
+  if (classId === "warlock" && edition === "2014" && key === "Pact Magic")
+    return ["Pact Magic", "Cantrips", "Spell Slots", "Spells Known of 1st Level and Higher", "Spellcasting Ability", "Spellcasting Focus"]
+      .map(section => FEATURE_REFERENCE[`2014/warlock/${section}`]).filter(Boolean).join("\n\n");
+  if (classId === "druid" && key === "Wild Shape" && edition === "2014")
+    return `${FEATURE_REFERENCE["2014/druid/Wild Shape"]}\n\n${FEATURE_REFERENCE["2014/druid/Beast Shapes"]}`;
+  if (classId === "druid" && edition === "2014" && key === "Spellcasting")
+    return ["Spellcasting", "Cantrips", "Preparing and Casting Spells", "Spellcasting Ability", "Ritual Casting", "Spellcasting Focus"]
+      .map(section => FEATURE_REFERENCE[`2014/druid/${section}`]).filter(Boolean).join("\n\n");
+  if (classId === "druid" && edition === "2014" && key === "Natural Recovery")
+    return `${FEATURE_REFERENCE["2014/druid/Bonus Cantrip"]}\n\n${FEATURE_REFERENCE["2014/druid/Natural Recovery"]}`;
   return (
     FEATURE_REFERENCE[
       `${edition}/${classId}/${edition === "2024" ? `Level ${level}: ` : ""}${key}`
@@ -544,6 +559,10 @@ export function featureDescription(
   level: number,
 ): string {
   const key = ALIASES[name] || name.replaceAll("�", "’");
+  if (classId === "druid" && key === "Wild Shape") return WILD_SHAPE_RU[edition];
+  if (classId === "warlock" && /^(Mystic Arcanum|Таинственный арканум)/.test(key)) return WARLOCK_FEATURE_RU[edition]["Mystic Arcanum"];
+  if (classId === "warlock" && WARLOCK_FEATURE_RU[edition][key]) return WARLOCK_FEATURE_RU[edition][key];
+  if (classId === "druid" && DRUID_FEATURE_RU[edition][key]) return DRUID_FEATURE_RU[edition][key];
   if (key.endsWith(" Subclass"))
     return "На этом уровне открывается специализация класса. Выберите подкласс: его особенности описаны в карточке, а новые способности будут появляться на следующих шагах развития.";
   if (key === "Rage") {

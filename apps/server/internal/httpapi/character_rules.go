@@ -24,17 +24,73 @@ type characterCatalogOption struct {
 	Editions    []string `json:"editions"`
 }
 type characterClass struct {
+	Rules map[string]characterSubclass `json:"rules"`
 	characterCatalogOption
-	HitDie       int      `json:"hitDie"`
-	SavingThrows []string `json:"savingThrows"`
-	SkillCount   int      `json:"skillCount"`
-	SkillIDs     []string `json:"skillIds"`
-	SpellAbility string   `json:"spellAbility"`
-	Caster       string   `json:"caster"`
-	Subclasses   []struct {
-		characterCatalogOption
-		Level2014 int `json:"level2014"`
-	} `json:"subclasses"`
+	HitDie       int                 `json:"hitDie"`
+	SavingThrows []string            `json:"savingThrows"`
+	SkillCount   int                 `json:"skillCount"`
+	SkillIDs     []string            `json:"skillIds"`
+	SpellAbility string              `json:"spellAbility"`
+	Caster       string              `json:"caster"`
+	Subclasses   []characterSubclass `json:"subclasses"`
+}
+type characterSubclass struct {
+	ConditionalSpells []struct {
+		ChoiceID string            `json:"choiceId"`
+		OptionID string            `json:"optionId"`
+		Expanded bool              `json:"expanded"`
+		Entries  []json.RawMessage `json:"entries"`
+	} `json:"conditionalSpells,omitempty"`
+
+	ChoicePools []struct {
+		ID              string   `json:"id"`
+		Name            string   `json:"name"`
+		InitialRequired []string `json:"initialRequired"`
+		InitialGroups   []struct {
+			IDs   []string `json:"ids"`
+			Count int      `json:"count"`
+		} `json:"initialGroups"`
+		Counts    [][2]int        `json:"counts"`
+		ReplaceAt json.RawMessage `json:"replaceAt"`
+		Options   []struct {
+			ID    string `json:"id"`
+			Level int    `json:"level"`
+		} `json:"options"`
+	} `json:"choicePools,omitempty"`
+	ThirdCaster *struct {
+		ClassID        string   `json:"classId,omitempty"`
+		Schools        []string `json:"schools,omitempty"`
+		UnrestrictedAt []int    `json:"unrestrictedAt,omitempty"`
+	} `json:"thirdCaster,omitempty"`
+	Grants       []json.RawMessage `json:"grants,omitempty"`
+	SavantSchool string            `json:"savantSchool,omitempty"`
+	BookSpells   []struct {
+		Level int    `json:"level"`
+		ID    string `json:"id"`
+	} `json:"bookSpells,omitempty"`
+	characterCatalogOption
+	Level2014         int      `json:"level2014"`
+	SpellAbility      string   `json:"spellAbility,omitempty"`
+	SpellAbilityLevel int      `json:"spellAbilityLevel,omitempty"`
+	SkillIDs          []string `json:"skillIds,omitempty"`
+	ReplaceableSpells *struct {
+		Schools []string `json:"schools"`
+		Classes []string `json:"classes"`
+		Entries []struct {
+			Level int    `json:"level"`
+			ID    string `json:"id"`
+		} `json:"entries"`
+	} `json:"replaceableSpells,omitempty"`
+	Choices []struct {
+		ID       string `json:"id"`
+		Level    int    `json:"level"`
+		Count    int    `json:"count"`
+		Requires *struct {
+			ChoiceID string `json:"choiceId"`
+			OptionID string `json:"optionId"`
+		} `json:"requires,omitempty"`
+		Options []characterCatalogOption `json:"options"`
+	} `json:"choices,omitempty"`
 }
 type characterSpecies struct {
 	characterCatalogOption
@@ -56,12 +112,15 @@ type characterFeat struct {
 	Ability  []string `json:"ability"`
 }
 type characterSpell struct {
+	SubclassOnly []string `json:"subclassOnly,omitempty"`
 	characterCatalogOption
 	Level       int      `json:"level"`
 	Classes     []string `json:"classes"`
 	Classes2024 []string `json:"classes2024"`
 	School      string   `json:"school"`
 	CastingTime string   `json:"castingTime"`
+	Components  string   `json:"components"`
+	Ritual      bool     `json:"ritual"`
 }
 type characterSkill struct {
 	ID      string `json:"id"`
@@ -86,6 +145,22 @@ type characterProgressionLevel struct {
 	CantripIDs        []string `json:"cantripIds"`
 }
 type characterCatalogue struct {
+	TomeFixedGrants2024 struct {
+		Species map[string][][]string `json:"species"`
+		Patrons map[string][][]string `json:"patrons"`
+	} `json:"tomeFixedGrants2024"`
+	BeastForms2014 []struct {
+		ID        string  `json:"id"`
+		Challenge float64 `json:"challenge"`
+		Fly       bool    `json:"fly"`
+		Swim      bool    `json:"swim"`
+		Size      string  `json:"size"`
+	} `json:"beastForms2014"`
+	BeastForms2024 []struct {
+		ID        string  `json:"id"`
+		Challenge float64 `json:"challenge"`
+		Fly       bool    `json:"fly"`
+	} `json:"beastForms2024"`
 	Classes     []characterClass      `json:"classes"`
 	Species     []characterSpecies    `json:"species"`
 	Backgrounds []characterBackground `json:"backgrounds"`
@@ -93,9 +168,10 @@ type characterCatalogue struct {
 	Spells      []characterSpell      `json:"spells"`
 	Skills      []characterSkill      `json:"skills"`
 	Progression []struct {
-		Edition string                      `json:"edition"`
-		ClassID string                      `json:"classId"`
-		Levels  []characterProgressionLevel `json:"levels"`
+		Edition    string                      `json:"edition"`
+		ClassID    string                      `json:"classId"`
+		SubclassID string                      `json:"subclassId,omitempty"`
+		Levels     []characterProgressionLevel `json:"levels"`
 	} `json:"progression"`
 	ValidationFixtures []struct {
 		Name  string         `json:"name"`
@@ -278,11 +354,25 @@ func validateCharacterAbilities(d characterDraft, species characterSpecies, back
 }
 func validateAndDeriveCharacter(d characterDraft) (characterStats, error) {
 	var empty characterStats
+	if d.LandTerrain != "" && (d.Edition != "2024" || d.ClassID != "druid" || d.TargetLevel < 3 || characterSelectedSubclass(d, d.TargetLevel) != "land" || !characterHas([]string{"arid", "polar", "temperate", "tropical"}, d.LandTerrain)) {
+		return empty, fmt.Errorf("выберите допустимую текущую местность Круга Земли 2024")
+	}
 	if d.Edition != "2014" && d.Edition != "2024" {
 		return empty, fmt.Errorf("выберите редакцию 2014 или 2024")
 	}
 	if d.TargetLevel < 1 || d.TargetLevel > 20 {
 		return empty, fmt.Errorf("уровень должен быть от 1 до 20")
+	}
+	if d.Personality != nil {
+		p := d.Personality
+		if utf8.RuneCountInString(p.Backstory) > 3000 {
+			return empty, fmt.Errorf("история — до 3000 символов")
+		}
+		for _, value := range []string{p.Appearance, p.Traits, p.Ideals, p.Bonds, p.Flaws} {
+			if utf8.RuneCountInString(value) > 1000 {
+				return empty, fmt.Errorf("поле личности — до 1000 символов")
+			}
+		}
 	}
 	if strings.TrimSpace(d.Name) == "" || strings.TrimSpace(d.PlayerName) == "" || utf8.RuneCountInString(d.Name) > 120 || utf8.RuneCountInString(d.PlayerName) > 120 || utf8.RuneCountInString(d.Notes) > 6000 {
 		return empty, fmt.Errorf("укажите имя до 120 символов; заметки — до 6000")
@@ -307,10 +397,13 @@ func validateAndDeriveCharacter(d characterDraft) (characterStats, error) {
 		return empty, fmt.Errorf("заполните каждый уровень последовательно")
 	}
 	var progression []characterProgressionLevel
+	selectedSubclass := characterSelectedSubclass(d, d.TargetLevel)
 	for _, p := range characterRules.Progression {
-		if p.Edition == d.Edition && p.ClassID == d.ClassID {
+		if p.Edition == d.Edition && p.ClassID == d.ClassID && (p.SubclassID == "" || p.SubclassID == selectedSubclass) {
 			progression = p.Levels
-			break
+			if p.SubclassID == selectedSubclass {
+				break
+			}
 		}
 	}
 	if len(progression) < d.TargetLevel {
@@ -420,7 +513,7 @@ func validateCharacterLevel(d characterDraft, class characterClass, choice chara
 		preparedCount = max(1, choice.Level+characterModifier(abilities[class.SpellAbility]))
 	case "half-level+modifier":
 		preparedCount = max(1, choice.Level/2+characterModifier(abilities[class.SpellAbility]))
-		if choice.Level == 1 && d.Edition == "2014" {
+		if choice.Level == 1 && d.Edition == "2014" && d.ClassID == "paladin" {
 			preparedCount = 0
 		}
 	}
@@ -434,10 +527,31 @@ func validateCharacterLevel(d characterDraft, class characterClass, choice chara
 		return fmt.Errorf("выберите %d разных заговоров", p.CantripCount)
 	}
 	for _, id := range choice.SpellIDs {
-		if !characterHas(p.SpellIDs, id) {
+		if characterHas(characterConditionalSpells(d, choice.Level, false, false), id) {
+			return fmt.Errorf("заклинание уже подготовлено выбором покровителя")
+		}
+		if characterHas(characterConditionalSpells(d, choice.Level, true, true), id) && !characterHas(characterConditionalSpells(d, choice.Level, true, false), id) {
+			base := false
+			for _, spell := range characterRules.Spells {
+				if spell.ID == id && characterHas(spell.Classes, d.ClassID) {
+					base = true
+				}
+			}
+			if !base {
+				return fmt.Errorf("заклинание недоступно выбранному виду покровителя")
+			}
+		}
+
+		if characterHas(characterThirdCasterSpells(d, choice.Level), id) {
+			return fmt.Errorf("заклинание уже выбрано в ячейке любой школы")
+		}
+		if characterHas(choice.FeatureChoices["divine-bonus-spell"], id) {
+			return fmt.Errorf("дополнительное заклинание Божественной души не занимает обычный выбор")
+		}
+		if !characterHas(p.SpellIDs, id) && !characterWizardPreviouslyKnownBonus(d, choice.Level, id) {
 			return fmt.Errorf("заклинание недоступно классу, уровню или редакции")
 		}
-		if characterHas(characterPicked(d, "evocation-savant", choice.Level-1), id) {
+		if characterHas(characterWizardBookBonusSpells(d, choice.Level), id) {
 			return fmt.Errorf("заклинание уже дано особенностью Мастер воплощения")
 		}
 		if characterHas(characterLandGrantedSpells(d, choice.Level), id) {
@@ -445,14 +559,14 @@ func validateCharacterLevel(d characterDraft, class characterClass, choice chara
 		}
 	}
 	for _, id := range choice.CantripIDs {
-		if !characterHas(p.CantripIDs, id) {
+		if !characterHas(p.CantripIDs, id) && !(index > 0 && characterHas(d.Levels[index-1].CantripIDs, id)) {
 			return fmt.Errorf("заговор недоступен классу или редакции")
 		}
 	}
 	if p.SpellMode == "spellbook" {
 		alwaysPrepared := characterWizardAlwaysPrepared(d, choice.Level)
 		ordinaryBook := map[string]bool{}
-		for _, id := range append(append([]string{}, choice.SpellIDs...), characterPicked(d, "evocation-savant", choice.Level)...) {
+		for _, id := range append(append([]string{}, choice.SpellIDs...), characterWizardBookBonusSpells(d, choice.Level)...) {
 			if !characterHas(alwaysPrepared, id) {
 				ordinaryBook[id] = true
 			}
@@ -473,8 +587,22 @@ func validateCharacterLevel(d characterDraft, class characterClass, choice chara
 		previous := d.Levels[index-1]
 		removed := 0
 		for _, id := range previous.SpellIDs {
-			if !characterHas(choice.SpellIDs, id) && characterHas(p.SpellIDs, id) && !characterHas(characterLandGrantedSpells(d, choice.Level), id) {
+			if !characterHas(choice.SpellIDs, id) && (p.SpellMode == "spellbook" || characterHas(p.SpellIDs, id)) && !characterHas(characterLandGrantedSpells(d, choice.Level), id) && !characterHas(characterCurrentOriginSpells(d, choice.Level), id) && !characterHas(characterConditionalSpells(d, choice.Level, false, false), id) {
 				removed++
+			}
+		}
+		if d.Edition == "2014" && d.ClassID == "sorcerer" && characterSelectedSubclass(d, choice.Level) == "divine-soul" {
+			removed += len(characterExcept(previous.FeatureChoices["divine-bonus-spell"], choice.FeatureChoices["divine-bonus-spell"]))
+		}
+
+		if characterSelectedSubclassData(d, choice.Level).ThirdCaster != nil {
+			before := append(append([]string{}, previous.SpellIDs...), characterThirdCasterSpells(d, choice.Level-1)...)
+			after := append(append([]string{}, choice.SpellIDs...), characterThirdCasterSpells(d, choice.Level)...)
+			if !characterUnique(after) {
+				return fmt.Errorf("заклинания мистического рыцаря должны быть разными")
+			}
+			if len(characterExcept(before, after)) > 1 {
+				return fmt.Errorf("можно заменить только одно заклинание мистического рыцаря за уровень")
 			}
 		}
 		if (p.SpellMode == "spellbook" && removed > 0) || (characterHas([]string{"bard", "sorcerer", "warlock", "ranger"}, d.ClassID) && removed > 1) {
@@ -487,6 +615,9 @@ func validateCharacterLevel(d characterDraft, class characterClass, choice chara
 			}
 		}
 		cantripReplacementLimit := 0
+		if d.ClassID == "artificer" {
+			cantripReplacementLimit = 1
+		}
 		if d.Edition == "2024" {
 			cantripReplacementLimit = 1
 			if d.ClassID == "wizard" {
@@ -521,7 +652,13 @@ func deriveCharacterCore(d characterDraft, class characterClass, species charact
 	if d.ClassID == "monk" {
 		armor = max(armor, 10+modifiers["dex"]+modifiers["wis"])
 	}
-	if d.ClassID == "sorcerer" && (d.Edition == "2014" || d.TargetLevel >= 3) {
+	if d.Edition == "2024" && d.ClassID == "bard" && characterSelectedSubclass(d, d.TargetLevel) == "dance" {
+		armor = max(armor, 10+modifiers["dex"]+modifiers["cha"])
+	}
+	if d.Edition == "2024" && d.ClassID == "paladin" && characterSelectedSubclass(d, d.TargetLevel) == "noble-genies" {
+		armor = max(armor, 10+modifiers["dex"]+modifiers["cha"])
+	}
+	if characterIsDraconic(d, d.TargetLevel) && (d.Edition == "2014" || d.TargetLevel >= 3) {
 		hp += d.TargetLevel
 		if d.Edition == "2014" {
 			armor = max(armor, 13+modifiers["dex"])
@@ -544,6 +681,9 @@ func deriveCharacterCore(d characterDraft, class characterClass, species charact
 		hp += 2 * d.TargetLevel
 	}
 	speed := species.Speed
+	if d.Edition == "2014" && d.ClassID == "rogue" && characterSelectedSubclass(d, d.TargetLevel) == "scout" && d.TargetLevel >= 9 {
+		speed += 10
+	}
 	if d.Edition == "2024" && (species.ID == "lightfoot-halfling" || species.ID == "rock-gnome") {
 		speed = 30
 	}
@@ -556,6 +696,9 @@ func deriveCharacterCore(d characterDraft, class characterClass, species charact
 	if d.Edition == "2024" && d.ClassID == "ranger" && d.TargetLevel >= 6 {
 		speed += 10
 	}
+	if d.ClassID == "paladin" && characterSelectedSubclass(d, d.TargetLevel) == "glory" && d.TargetLevel >= 7 {
+		speed += 10
+	}
 	passive := 10 + modifiers["wis"]
 	if characterHas(characterSkillProficiencies(d, d.TargetLevel, ""), "perception") {
 		passive += proficiency
@@ -566,18 +709,33 @@ func deriveCharacterCore(d characterDraft, class characterClass, species charact
 		passive += proficiency
 	}
 	stats := characterStats{Level: d.TargetLevel, ClassName: class.Name, SpeciesName: species.Name, BackgroundName: background.Name, Abilities: abilities, Modifiers: modifiers, ProficiencyBonus: proficiency, MaxHP: hp, ArmorClass: armor, Initiative: modifiers["dex"], Speed: speed, PassivePerception: passive, SpellSlots: append([]int{}, p.SpellSlots...), PactSlots: p.PactSlots, PactSlotLevel: p.PactSlotLevel, HitDice: fmt.Sprintf("%dd%d", d.TargetLevel, class.HitDie)}
+	if d.ClassID == "ranger" && characterSelectedSubclass(d, d.TargetLevel) == "gloom-stalker" {
+		stats.Initiative += modifiers["wis"]
+	}
+	if d.Edition == "2014" && d.ClassID == "rogue" && characterSelectedSubclass(d, d.TargetLevel) == "swashbuckler" {
+		stats.Initiative += modifiers["cha"]
+	}
+	if d.Edition == "2014" && d.ClassID == "wizard" && d.TargetLevel >= 2 && characterHas([]string{"war-magic", "chronurgy"}, characterSelectedSubclass(d, d.TargetLevel)) {
+		stats.Initiative += modifiers["int"]
+	}
 	if d.Edition == "2024" && characterHas(feats, "alert") {
+		stats.Initiative += proficiency
+	}
+	if d.Edition == "2014" && d.ClassID == "paladin" && characterSelectedSubclass(d, d.TargetLevel) == "watchers" && d.TargetLevel >= 7 {
 		stats.Initiative += proficiency
 	}
 	if d.Edition == "2014" && d.ClassID == "bard" && d.TargetLevel >= 2 {
 		stats.Initiative += proficiency / 2
 	}
-	if d.Edition == "2014" && d.ClassID == "fighter" && d.TargetLevel >= 7 {
+	if d.Edition == "2014" && d.ClassID == "fighter" && characterSelectedSubclass(d, d.TargetLevel) == "champion" && d.TargetLevel >= 7 {
 		stats.Initiative += (proficiency + 1) / 2
 	}
 	for _, ability := range characterAbilities {
-		proficient := characterHas(class.SavingThrows, ability) || d.ClassID == "monk" && d.TargetLevel >= 14 || d.ClassID == "rogue" && d.TargetLevel >= 15 && (ability == "wis" || d.Edition == "2024" && ability == "cha")
+		proficient := characterHas(class.SavingThrows, ability) || d.ClassID == "ranger" && characterSelectedSubclass(d, d.TargetLevel) == "gloom-stalker" && d.TargetLevel >= 7 && ability == "wis" || d.Edition == "2014" && d.ClassID == "fighter" && characterSelectedSubclass(d, d.TargetLevel) == "samurai" && d.TargetLevel >= 7 && ability == "wis" || d.ClassID == "monk" && d.TargetLevel >= 14 || d.ClassID == "rogue" && d.TargetLevel >= 15 && (ability == "wis" || d.Edition == "2024" && ability == "cha") || d.Edition == "2024" && d.ClassID == "cleric" && characterSelectedSubclass(d, d.TargetLevel) == "knowledge" && d.TargetLevel >= 6 && ability == "int"
 		bonus := modifiers[ability]
+		if d.Edition == "2024" && d.ClassID == "ranger" && characterSelectedSubclass(d, d.TargetLevel) == "hollow-warden" && d.TargetLevel >= 7 && ability == "con" {
+			bonus += max(1, modifiers["wis"])
+		}
 		if proficient {
 			bonus += proficiency
 		}
@@ -590,14 +748,23 @@ func deriveCharacterCore(d characterDraft, class characterClass, species charact
 	for _, skill := range characterRules.Skills {
 		proficient := characterHas(proficiencies, skill.ID)
 		bonus := modifiers[skill.Ability]
+		if d.ClassID == "ranger" && characterSelectedSubclass(d, d.TargetLevel) == "fey-wanderer" && skill.Ability == "cha" {
+			bonus += max(1, modifiers["wis"])
+		}
+		if d.Edition == "2014" && d.ClassID == "fighter" && characterSelectedSubclass(d, d.TargetLevel) == "samurai" && d.TargetLevel >= 7 && skill.ID == "persuasion" {
+			bonus += modifiers["wis"]
+		}
+		if d.Edition == "2024" && d.ClassID == "wizard" && characterHas(characterPicked(d, "enchanter-skill", d.TargetLevel), skill.ID) {
+			bonus += max(1, modifiers["int"])
+		}
 		if proficient {
 			bonus += proficiency
-			if characterHas(characterPicked(d, "expertise", d.TargetLevel), skill.ID) {
+			if d.Edition == "2014" && d.ClassID == "rogue" && characterSelectedSubclass(d, d.TargetLevel) == "scout" && characterHas([]string{"nature", "survival"}, skill.ID) || d.Edition == "2014" && d.ClassID == "fighter" && characterSelectedSubclass(d, d.TargetLevel) == "banneret" && d.TargetLevel >= 7 && skill.ID == "persuasion" || characterHas(characterPicked(d, "expertise", d.TargetLevel), skill.ID) || d.ClassID == "cleric" && characterSelectedSubclass(d, d.TargetLevel) == "knowledge" && characterHas(characterPicked(d, "domain-skills", d.TargetLevel), skill.ID) {
 				bonus += proficiency
 			}
 		} else if d.ClassID == "bard" && d.TargetLevel >= 2 {
 			bonus += proficiency / 2
-		} else if d.Edition == "2014" && d.ClassID == "fighter" && d.TargetLevel >= 7 && characterHas([]string{"str", "dex", "con"}, skill.Ability) {
+		} else if d.Edition == "2014" && d.ClassID == "fighter" && characterSelectedSubclass(d, d.TargetLevel) == "champion" && d.TargetLevel >= 7 && characterHas([]string{"str", "dex", "con"}, skill.Ability) {
 			bonus += (proficiency + 1) / 2
 		}
 		if d.Edition == "2024" && (characterHas(characterPicked(d, "divine-order", d.TargetLevel), "thaumaturge") && characterHas([]string{"arcana", "religion"}, skill.ID) || characterHas(characterPicked(d, "primal-order", d.TargetLevel), "magician") && characterHas([]string{"arcana", "nature"}, skill.ID)) {
@@ -609,9 +776,15 @@ func deriveCharacterCore(d characterDraft, class characterClass, species charact
 	if class.SpellAbility != "" && (p.MaxSpellLevel > 0 || p.CantripCount > 0) {
 		spellAbility = class.SpellAbility
 	}
-	if spellAbility == "" && (species.ID == "high-elf" || species.ID == "tiefling" || d.Edition == "2024" && (species.ID == "wood-elf" || species.ID == "rock-gnome")) {
+	if spellAbility == "" {
+		subclass := characterSelectedSubclassData(d, d.TargetLevel)
+		if d.TargetLevel >= subclass.SpellAbilityLevel {
+			spellAbility = subclass.SpellAbility
+		}
+	}
+	if spellAbility == "" && (characterHas([]string{"high-elf", "tiefling", "drow", "forest-gnome"}, species.ID) || d.Edition == "2024" && characterHas([]string{"wood-elf", "rock-gnome", "drow", "forest-gnome", "tiefling-abyssal", "tiefling-chthonic", "aasimar"}, species.ID)) {
 		spellAbility = "int"
-		if d.Edition == "2014" && species.ID == "tiefling" {
+		if (d.Edition == "2014" && characterHas([]string{"tiefling", "drow"}, species.ID)) || species.ID == "aasimar" {
 			spellAbility = "cha"
 		}
 		if selected := characterPicked(d, "innate-ability", d.TargetLevel); len(selected) > 0 {

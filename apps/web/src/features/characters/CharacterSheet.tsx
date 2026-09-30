@@ -1,3 +1,7 @@
+import { spellMetadata } from "./spell-metadata";
+import { RandomEffectTable } from "./RandomEffectTable";
+import { RulesLibrary } from "./RulesLibrary";
+import { FeatureReferences } from "./RuleReference";
 import {
   useEffect,
   useId,
@@ -11,6 +15,7 @@ import {
   ABILITY_LABELS,
   SPELLS,
   deriveCharacter,
+  currentLandTerrain,
   type Ability,
   type CharacterDraft,
   type DerivedCharacter,
@@ -187,6 +192,7 @@ function SpellCard({
   hidden?: boolean;
   sources: SpellcastingSource[];
 }) {
+  const meta = spellMetadata(spell);
   return (
     <details className="chsheet-spell" hidden={hidden}>
       <summary>
@@ -196,7 +202,7 @@ function SpellCard({
         <span className="chsheet-spell-name">
           <strong>{spell.name}</strong>
           <small>
-            {spell.school} · {formatSpellFact(spell.castingTime)}
+            {spell.school} · {meta.castingTime}
           </small>
         </span>
         <span className="chsheet-spell-tags">
@@ -214,15 +220,15 @@ function SpellCard({
         <dl className="chsheet-spell-facts">
           <div>
             <dt>Время накладывания</dt>
-            <dd>{formatSpellFact(spell.castingTime)}</dd>
+            <dd>{meta.castingTime}</dd>
           </div>
           <div>
             <dt>Дистанция</dt>
-            <dd>{formatSpellFact(spell.range)}</dd>
+            <dd>{meta.range}</dd>
           </div>
           <div>
             <dt>Длительность</dt>
-            <dd>{formatSpellFact(spell.duration)}</dd>
+            <dd>{meta.duration}</dd>
           </div>
           <div>
             <dt>Уровень заклинания</dt>
@@ -257,8 +263,25 @@ function SpellCard({
         )}
         <p className="chsheet-spell-description">{spell.summary}</p>
         <details className="chsheet-rule-original">
-          <summary>Точные правила · {spell.editions[0]} (English)</summary>
-          <p className="chsheet-spell-description">{spell.description}</p>
+          <summary>
+            Правила · {spell.editions[0]} (
+            {spell.descriptionRu ? "Русский" : "English"})
+          </summary>
+          <p className="chsheet-spell-description">
+            {spell.descriptionRu || spell.description}
+          </p>
+          {spell.descriptionRu && (
+            <details>
+              <summary>English</summary>
+              <p>{spell.description}</p>
+            </details>
+          )}
+          {spell.components && <p>Компоненты: {meta.components}</p>}
+          {spell.sourceUrl && (
+            <a href={spell.sourceUrl} target="_blank" rel="noreferrer">
+              Источник{spell.source ? `: ${spell.source}` : ""}
+            </a>
+          )}
         </details>
       </div>
     </details>
@@ -460,6 +483,12 @@ export function CharacterSheet({
           </div>
           {character.subclass && (
             <p className="chsheet-subclass">{character.subclass.name}</p>
+          )}
+          {currentLandTerrain(draft) && (
+            <p className="chsheet-subclass">
+              Местность / Land: {currentLandTerrain(draft)?.ru} / {currentLandTerrain(draft)?.en}
+              {draft.targetLevel >= 10 && <> · Сопротивление / Resistance: {currentLandTerrain(draft)?.resistance}</>}
+            </p>
           )}
         </div>
         <div className="chsheet-level">
@@ -703,6 +732,7 @@ export function CharacterSheet({
             hidden={activePane !== "features"}
             aria-label="Особенности персонажа"
           >
+            <RulesLibrary edition={draft.edition} />
             <div className="chsheet-pane-heading">
               <h2>То, что делает вас героем</h2>
               <span>{character.class?.name}</span>
@@ -711,15 +741,26 @@ export function CharacterSheet({
               Способности класса, наследие и черты вашего персонажа.
             </p>
             <div className="chsheet-feature-grid">
-              {character.traits.map((trait, index) => (
-                <div className="chsheet-feature" key={`${index}-${trait}`}>
+              {character.traits.length > 0 && (
+                <div className="chsheet-feature">
                   <div className="chsheet-feature-heading">
                     <SheetIcon name="feather" />
-                    <h3>{trait}</h3>
-                    <small>{character.species?.name}</small>
+                    <h3>Наследие: {character.species?.name}</h3>
                   </div>
+                  {character.traits.map((trait, index) => (
+                    <p key={index}>{trait}</p>
+                  ))}
+                  {character.species?.sourceUrl && (
+                    <a
+                      href={character.species.sourceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Источник особенностей
+                    </a>
+                  )}
                 </div>
-              ))}
+              )}
               {character.feats.map((feat) => (
                 <div
                   className="chsheet-feature chsheet-feature--feat"
@@ -750,6 +791,17 @@ export function CharacterSheet({
                     <small>{feature.level} ур.</small>
                   </div>
                   <p>{feature.description}</p>
+                  <RandomEffectTable id={feature.randomTableId} />
+                  <FeatureReferences feature={feature} />
+                  {feature.sourceUrl && (
+                    <a
+                      href={feature.sourceUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      {feature.source} · источник
+                    </a>
+                  )}
                   {feature.originalDescription && (
                     <details className="chsheet-rule-original">
                       <summary>Текст правил этой редакции (English)</summary>
@@ -759,6 +811,22 @@ export function CharacterSheet({
                 </div>
               ))}
             </div>
+            {personalityEntries(draft.personality).length > 0 && (
+              <section className="chsheet-panel" style={{ marginTop: 20 }}>
+                <h3 className="chsheet-section-title">Личность и история</h3>
+                {personalityEntries(draft.personality).map((field) => (
+                  <div key={field.id}>
+                    <h4>{field.label}</h4>
+                    <p
+                      className="chsheet-note"
+                      style={{ whiteSpace: "pre-wrap" }}
+                    >
+                      {field.text}
+                    </p>
+                  </div>
+                ))}
+              </section>
+            )}
             {draft.notes.trim() && (
               <section className="chsheet-panel" style={{ marginTop: 20 }}>
                 <h3 className="chsheet-section-title">
@@ -1134,3 +1202,4 @@ export function CharacterSheet({
 }
 
 export default CharacterSheet;
+import { personalityEntries } from "./personality";

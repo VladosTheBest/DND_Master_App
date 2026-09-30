@@ -1,3 +1,8 @@
+.ch-random-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.ch-random-table th:first-child { width: 4.5rem; }
+.ch-random-table th, .ch-random-table td { text-align: left; vertical-align: top; padding: .65rem; border-bottom: 1px solid var(--ch-line); overflow-wrap: anywhere; }
+.ch-random-table td p { margin: 0 0 .5rem; white-space: pre-wrap; }
+.ch-rule-reference { margin: .5rem 0; padding: .5rem; border: 1px solid var(--ch-line); border-radius: .5rem; }
 .ch-public,
 .ch-campaign {
   --ch-gold: #e7c27e;

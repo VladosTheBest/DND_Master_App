@@ -1,4 +1,8 @@
+import { spellMetadata } from "./spell-metadata";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { RandomEffectTable } from "./RandomEffectTable";
+import { RulesLibrary } from "./RulesLibrary";
+import { FeatureReferences } from "./RuleReference";
 import {
   ABILITIES,
   ABILITY_LABELS,
@@ -7,6 +11,8 @@ import {
   SKILLS,
   SPECIES,
   SPELLS,
+  LAND_TERRAINS_2024,
+  currentLandTerrain,
   createDefaultDraft,
   deriveCharacter,
   getLevelOptions,
@@ -19,12 +25,15 @@ import {
   type LevelChoice,
   type SpellOption,
 } from "./rules";
-import { CharacterSheet, formatSpellFact } from "./CharacterSheet";
+import { CharacterSheet } from "./CharacterSheet";
 import type { PublicCharacterInvite } from "./characters.api";
 import "./characters.css";
 import { adjustAbility } from "./ability-controls";
 import { ABILITY_HELP, SKILL_HELP, SUBCLASS_HELP } from "./choice-help";
 import { RulesHelp } from "./RulesHelp";
+import { PERSONALITY_FIELDS, isPersonality } from "./personality";
+import { SUBCLASS_EXTENSIONS } from "./subclasses";
+import { SourceCoverage } from "./SourceCoverage";
 
 const mod = (value: number) => `${value >= 0 ? "+" : ""}${value}`;
 const emptyBonuses = () =>
@@ -41,6 +50,8 @@ const pointCost = (value: number) =>
 export function isUsableDraft(value: unknown): value is CharacterDraft {
   if (!value || typeof value !== "object") return false;
   const draft = value as CharacterDraft;
+  if (!isPersonality(draft.personality)) return false;
+  if (draft.landTerrain !== undefined && (typeof draft.landTerrain !== "string" || !LAND_TERRAINS_2024.some(terrain => terrain.id === draft.landTerrain))) return false;
   if (
     !["2014", "2024"].includes(draft.edition) ||
     !["standard", "point-buy"].includes(draft.abilityMethod)
@@ -358,6 +369,7 @@ function SpellPicker({
       </div>
       <div className="ch-spell-list">
         {filtered.map((spell) => {
+          const meta = spellMetadata(spell);
           const active = selected.includes(spell.id);
           const isLocked = locked.includes(spell.id);
           return (
@@ -373,7 +385,7 @@ function SpellPicker({
                   <strong>{spell.name}</strong>
                   <div className="ch-spell-tags">
                     <span>{spell.school}</span>
-                    <span>{formatSpellFact(spell.castingTime)}</span>
+                    <span>{meta.castingTime}</span>
                     {spell.concentration && <span>Концентрация</span>}
                     {spell.ritual && <span>Ритуал</span>}
                   </div>
@@ -405,12 +417,25 @@ function SpellPicker({
               </p>
               <details>
                 <summary>
-                  Точные правила заклинания · {spell.editions[0]} (English)
+                  Правила заклинания · {spell.editions[0]} (
+                  {spell.descriptionRu ? "Русский" : "English"})
                 </summary>
-                <p>{spell.description}</p>
+                <p>{spell.descriptionRu || spell.description}</p>
+                {spell.descriptionRu && (
+                  <details>
+                    <summary>English</summary>
+                    <p>{spell.description}</p>
+                  </details>
+                )}
+                {spell.components && <p>Компоненты: {meta.components}</p>}
+                {spell.sourceUrl && (
+                  <a href={spell.sourceUrl} target="_blank" rel="noreferrer">
+                    Источник{spell.source ? `: ${spell.source}` : ""}
+                  </a>
+                )}
                 <div className="ch-spell-tags">
-                  <span>Дистанция: {formatSpellFact(spell.range)}</span>
-                  <span>Длительность: {formatSpellFact(spell.duration)}</span>
+                  <span>Дистанция: {meta.range}</span>
+                  <span>Длительность: {meta.duration}</span>
                 </div>
               </details>
             </article>
@@ -467,7 +492,10 @@ export function CharacterBuilder({
   const derived = deriveCharacter(draft, currentLevel);
   const classOption = CLASSES.find((item) => item.id === draft.classId);
   const background = BACKGROUNDS.find((item) => item.id === draft.backgroundId);
-  const species = SPECIES.find((item) => item.id === draft.speciesId);
+  const species = SPECIES.find(
+    (item) =>
+      item.id === draft.speciesId && item.editions.includes(draft.edition),
+  );
   const levelOptions = getLevelOptions(draft, currentLevel);
   const levelChoice =
     draft.levels.find((item) => item.level === currentLevel) ||
@@ -525,7 +553,7 @@ export function CharacterBuilder({
   }, [step, started]);
 
   function patchBase(patch: Partial<CharacterDraft>) {
-    setDraft((value) => ({ ...value, ...patch, levels: [] }));
+    setDraft((value) => ({ ...value, ...patch, levels: [], landTerrain: undefined }));
     setErrors([]);
   }
   function patchLevel(patch: Partial<LevelChoice>) {
@@ -538,6 +566,7 @@ export function CharacterBuilder({
       };
       const next = {
         ...value,
+        landTerrain: patch.subclassId !== undefined && patch.subclassId !== "land" ? undefined : value.landTerrain,
         levels: [
           ...value.levels.filter((item) => item.level < currentLevel),
           choice,
@@ -743,6 +772,7 @@ export function CharacterBuilder({
                 setDraft((value) => ({
                   ...value,
                   targetLevel: Number(event.target.value),
+                  landTerrain: Number(event.target.value) < 3 ? undefined : value.landTerrain,
                 }))
               }
             >
@@ -781,9 +811,10 @@ export function CharacterBuilder({
               </button>
             )}
           <p className="ch-source-note">
-            Открытые правила SRD 5.1 / 5.2.1. Встроен отобранный каталог
-            вариантов. Мультикласс и дополнительные книги не включены.
+            Правила SRD 5.1 / 5.2.1 и отдельные варианты PHB/XGE. Один класс на
+            персонажа; каталог пока охватывает часть опубликованных вариантов.
           </p>
+          <SourceCoverage edition={draft.edition} />
         </div>
       </div>
     );
@@ -855,6 +886,7 @@ export function CharacterBuilder({
             style={{ width: `${((step + 1) / stepLabels.length) * 100}%` }}
           />
         </div>
+        <RulesLibrary edition={draft.edition} />
         <div className="ch-step-content" key={step}>
           <span className="ch-kicker">
             {step < 4
@@ -1238,7 +1270,9 @@ export function CharacterBuilder({
                     (draft.speciesId === "half-orc" &&
                       skill.id === "intimidation") ||
                     (draft.edition === "2014" &&
-                      draft.speciesId === "high-elf" &&
+                      ["high-elf", "wood-elf", "drow"].includes(
+                        draft.speciesId,
+                      ) &&
                       skill.id === "perception");
                   const inherited =
                     background?.skillIds.includes(skill.id) || inheritedSpecies;
@@ -1346,6 +1380,8 @@ export function CharacterBuilder({
                         <span aria-hidden="true">✦</span> {feature.name}
                       </summary>
                       <p className="ch-rule-text">{feature.description}</p>
+                      <RandomEffectTable id={feature.randomTableId} />
+                      <FeatureReferences feature={feature} />
                       {feature.originalDescription && (
                         <details>
                           <summary>
@@ -1363,7 +1399,7 @@ export function CharacterBuilder({
               {levelOptions.subclassRequired && (
                 <>
                   <div className="ch-section-heading">
-                    <h2>Ваш подкласс</h2>
+                    <h2>Ваша специализация</h2>
                     <span>Выберите путь</span>
                   </div>
                   <div className="ch-choices">
@@ -1377,6 +1413,40 @@ export function CharacterBuilder({
                       />
                     ))}
                   </div>
+                  {(() => {
+                    const sourceInfo = SUBCLASS_EXTENSIONS.find(s =>
+                      s.classId === draft.classId && s.id === levelChoice.subclassId && s.editions.includes(draft.edition));
+                    const chosenCompanion = draft.edition === "2014" && draft.classId === "ranger" && levelChoice.subclassId === "beast-master"
+                      ? getLevelOptions(draft, 3).features.find(f => f.name === "Спутник следопыта / Ranger’s Companion") : undefined;
+                    const info = sourceInfo && chosenCompanion ? {...sourceInfo, source:chosenCompanion.source ?? sourceInfo.source, features:sourceInfo.features.map(f => f.level === 3 ? chosenCompanion : f)} : sourceInfo;
+                    return info ? (
+                      <div className="ch-rule-callout">
+                        <a
+                          href={info.sourceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {info.source} · источник механики
+                        </a>
+                        <p>
+                          Неофициальное изложение механики. Связанные справки
+                          раскрываются ниже.
+                        </p>
+                        <h3>Развитие специализации</h3>
+                        {info.features.map((f, i) => (
+                          <details key={i}>
+                            <summary>
+                              {f.level} уровень · {f.name}
+                            </summary>
+                            <p>{f.description}</p>
+                            {f.originalDescription && <details><summary>English</summary><p>{f.originalDescription}</p></details>}
+                            <RandomEffectTable id={f.randomTableId} />
+                            <FeatureReferences feature={f} />
+                          </details>
+                        ))}
+                      </div>
+                    ) : null;
+                  })()}
                 </>
               )}
               {(levelOptions.asiAvailable ||
@@ -1575,18 +1645,60 @@ export function CharacterBuilder({
           )}
           {step === reviewStep && (
             <>
+              {currentLandTerrain(draft) && (
+                <section className="ch-bonus-section">
+                  <h2>Местность после долгого отдыха</h2>
+                  <p>Круг Земли позволяет менять местность после каждого долгого отдыха. Заклинания круга и сопротивление обновятся в листе. Если новое заклинание уже выбрано вручную, уточните подготовку на последнем уровне.</p>
+                  <label className="ch-notes-field">
+                    Текущая местность
+                    <select value={currentLandTerrain(draft)?.id} onChange={event => setDraft(value => ({ ...value, landTerrain: event.target.value }))}>
+                      {LAND_TERRAINS_2024.map(terrain => <option key={terrain.id} value={terrain.id}>{terrain.ru} / {terrain.en}</option>)}
+                    </select>
+                  </label>
+                </section>
+              )}
               <p className="ch-step-intro">
                 Проверьте лист перед{" "}
                 {invite ? "отправкой в кампанию" : "завершением"}. Вернитесь к
                 любому предыдущему шагу, если захотите изменить выбор.
               </p>
+              <section
+                className="ch-personality"
+                aria-label="Личность персонажа"
+              >
+                <h2>Кто ваш герой?</h2>
+                <p>
+                  Эти поля необязательны. Они сохраняются в листе и PDF и не
+                  меняют характеристики.
+                </p>
+                {PERSONALITY_FIELDS.map((field) => (
+                  <label className="ch-notes-field" key={field.id}>
+                    {field.label}
+                    <textarea
+                      rows={field.id === "backstory" ? 4 : 2}
+                      maxLength={field.limit}
+                      value={draft.personality?.[field.id] ?? ""}
+                      placeholder={field.prompt}
+                      onChange={(event) =>
+                        setDraft((value) => ({
+                          ...value,
+                          personality: {
+                            ...value.personality,
+                            [field.id]: event.target.value,
+                          },
+                        }))
+                      }
+                    />
+                  </label>
+                ))}
+              </section>
               <label className="ch-notes-field">
-                История, внешность и заметки
+                Снаряжение и прочие заметки
                 <textarea
-                  maxLength={10000}
+                  maxLength={6000}
                   rows={4}
                   value={draft.notes}
-                  placeholder="Что привело вашего героя к приключениям?"
+                  placeholder="Снаряжение, языки, инструменты и заметки для игры"
                   onChange={(event) =>
                     setDraft((value) => ({
                       ...value,
@@ -1762,7 +1874,7 @@ function FeatureChoiceGroup({
       />
     );
   const filtered = group.options.filter((option) =>
-    `${option.name} ${option.description}`
+    `${option.name} ${option.id.replaceAll("-", " ")} ${option.description} ${option.originalDescription ?? ""}`
       .toLocaleLowerCase("ru")
       .includes(query.toLocaleLowerCase("ru").trim()),
   );
@@ -1774,7 +1886,7 @@ function FeatureChoiceGroup({
           <p>{group.description}</p>
         </div>
         <span className="ch-selection-count" aria-live="polite">
-          {selected.length} / {group.count}
+          {selected.length} / {group.optional ? `до ${group.count}` : group.count}
         </span>
       </div>
       {group.options.length > 12 && (
@@ -1791,29 +1903,37 @@ function FeatureChoiceGroup({
       )}
       <div className="ch-choices">
         {filtered.map((option) => (
-          <ChoiceCard
-            key={option.id}
-            name={option.name}
-            description={option.description}
-            selected={selected.includes(option.id)}
-            disabled={
-              group.count !== 1 &&
-              !selected.includes(option.id) &&
-              selected.length >= group.count
-            }
-            onClick={() =>
-              onChange({
-                featureChoices: {
-                  ...choice.featureChoices,
-                  [group.id]: selected.includes(option.id)
-                    ? selected.filter((id) => id !== option.id)
-                    : group.count === 1
-                      ? [option.id]
-                      : [...selected, option.id],
-                },
-              })
-            }
-          />
+          <div key={option.id}>
+            <ChoiceCard
+              name={option.name}
+              description={option.description}
+              selected={selected.includes(option.id)}
+              disabled={
+                group.count !== 1 &&
+                !selected.includes(option.id) &&
+                selected.length >= group.count
+              }
+              onClick={() =>
+                onChange({
+                  featureChoices: {
+                    ...choice.featureChoices,
+                    [group.id]: selected.includes(option.id)
+                      ? selected.filter((id) => id !== option.id)
+                      : group.count === 1
+                        ? [option.id]
+                        : [...selected, option.id],
+                  },
+                })
+              }
+            />
+            {option.originalDescription && (
+              <details className="ch-rule-reference">
+                <summary>English</summary>
+                <p>{option.originalDescription}</p>
+              </details>
+            )}
+            <FeatureReferences feature={option} />
+          </div>
         ))}
       </div>
       {query && !filtered.length && (

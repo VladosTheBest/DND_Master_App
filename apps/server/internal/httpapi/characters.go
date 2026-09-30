@@ -19,6 +19,7 @@ var errCharacterNotFound = errors.New("Ссылка или персонаж не
 var errCharacterInvalid = errors.New("Неверный персонаж")
 
 type characterDraft struct {
+	LandTerrain    string                 `json:"landTerrain,omitempty"`
 	Name           string                 `json:"name"`
 	PlayerName     string                 `json:"playerName"`
 	Edition        string                 `json:"edition"`
@@ -32,6 +33,15 @@ type characterDraft struct {
 	SkillIDs       []string               `json:"skillIds"`
 	Levels         []characterLevelChoice `json:"levels"`
 	Notes          string                 `json:"notes"`
+	Personality    *characterPersonality  `json:"personality,omitempty"`
+}
+type characterPersonality struct {
+	Backstory  string `json:"backstory,omitempty"`
+	Appearance string `json:"appearance,omitempty"`
+	Traits     string `json:"traits,omitempty"`
+	Ideals     string `json:"ideals,omitempty"`
+	Bonds      string `json:"bonds,omitempty"`
+	Flaws      string `json:"flaws,omitempty"`
 }
 type characterLevelChoice struct {
 	Level            int                 `json:"level"`
