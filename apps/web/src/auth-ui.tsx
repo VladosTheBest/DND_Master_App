@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import loginBgUrl from "./assets/login-bg.jpg";
+import { OAuthControls } from "./app/OAuthControls";
 import { formatPlaybackTime } from "./playback";
 import { RailIcon } from "./rail-icon";
 
@@ -457,6 +458,7 @@ export function LoginScreen({
                 <span />
               </div>
 
+              <OAuthControls />
               <div className="login-public-note">
                 <div className="ghost login-secondary login-secondary-static" role="note">
                   <LoginFieldGlyph kind="users" />

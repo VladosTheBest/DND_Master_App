@@ -11,6 +11,7 @@ primary_region = 'ams'
 
 [env]
   PORT = '8080'
+  SHADOW_EDGE_PUBLIC_BASE_URL = 'https://dnd-master-app.fly.dev'
   SHADOW_EDGE_BESTIARY_CACHE_FILE = '/data/dndsu-bestiary.json'
   SHADOW_EDGE_DATA_FILE = '/data/store.json'
   SHADOW_EDGE_WEB_DIR = '/app/apps/web/dist'

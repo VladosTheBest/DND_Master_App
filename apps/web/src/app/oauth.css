@@ -1,0 +1,18 @@
+.oauth-controls { display: grid; gap: var(--space-3); }
+.oauth-row { display: grid; gap: var(--space-1); }
+.oauth-button { display: flex; align-items: center; justify-content: center; gap: var(--space-3); width: 100%; min-height: 44px; padding: var(--space-3) var(--space-4); border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--bg-panel-strong); color: var(--text); font: inherit; cursor: pointer; }
+@font-face { font-family: "OAuth Google Sans"; src: url("../assets/oauth/google-sans-button.ttf") format("truetype"); font-weight: 500; font-style: normal; font-display: swap; }
+.oauth-button img { width: 20px; height: 20px; flex-shrink: 0; object-fit: contain; }
+.oauth-google { background: #131314; border-color: #8e918f; color: #e3e3e3; font: 500 14px/20px "OAuth Google Sans", Arial, sans-serif; gap: 10px; padding: 12px; }
+.oauth-google img { background: #fff; border-radius: 50%; }
+.oauth-discord img { width: 24px; }
+.oauth-google:hover:not(:disabled) { background: #1f1f1f; border-color: #8e918f; }
+.oauth-button:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); }
+.oauth-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.oauth-button:disabled { opacity: .55; cursor: not-allowed; }
+.oauth-hint { margin: 0; color: var(--text-muted); font-size: .85rem; line-height: 1.5; }
+.oauth-success { margin: 0; color: var(--success); }
+.oauth-error { margin: 0; color: var(--danger); }
+.oauth-settings:not([open]) { display: none; }
+.oauth-settings::backdrop { background: rgba(0,0,0,.65); }
+.oauth-settings { width: min(calc(100% - 2rem), 32rem); max-height: 90vh; overflow: auto; display: grid; gap: var(--space-4); padding: var(--space-6); color: var(--text); background: var(--bg-panel-strong); border: 1px solid var(--line-strong); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); }

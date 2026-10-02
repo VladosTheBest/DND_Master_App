@@ -111,6 +111,7 @@ func NewServer(options Options) (http.Handler, error) {
 	mux.HandleFunc("/api/auth/login", srv.auth.handleLogin)
 	mux.HandleFunc("/api/auth/register", srv.auth.handleRegister)
 	mux.HandleFunc("/api/auth/logout", srv.auth.handleLogout)
+	mux.HandleFunc("/api/auth/oauth/", srv.auth.handleOAuth)
 	mux.HandleFunc("/api/campaigns", srv.handleCampaigns)
 	mux.HandleFunc("/api/campaigns/", srv.handleCampaignByPath)
 	mux.HandleFunc("/api/ai/proposals", srv.handleAIProposals)

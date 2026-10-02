@@ -290,11 +290,12 @@ type combatRewardShare struct {
 }
 
 type userAccount struct {
-	ID           string `json:"id"`
-	Username     string `json:"username"`
-	UsernameKey  string `json:"usernameKey"`
-	PasswordHash string `json:"passwordHash"`
-	CreatedAt    string `json:"createdAt"`
+	OAuthIdentities []oauthIdentity `json:"oauthIdentities,omitempty"`
+	ID              string          `json:"id"`
+	Username        string          `json:"username"`
+	UsernameKey     string          `json:"usernameKey"`
+	PasswordHash    string          `json:"passwordHash"`
+	CreatedAt       string          `json:"createdAt"`
 }
 
 type campaignData struct {

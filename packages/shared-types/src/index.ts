@@ -1126,6 +1126,13 @@ export interface AuthSessionResult {
   registrationEnabled?: boolean;
 }
 
+export interface OAuthProviderStatus {
+  label?: string;
+  provider: "google" | "discord";
+  enabled: boolean;
+  linked: boolean;
+}
+
 export interface LoginInput {
   username: string;
   password: string;
@@ -1138,6 +1145,8 @@ export interface RegisterInput {
 
 export interface ApiClient {
   getSession(): Promise<AuthSessionResult>;
+  getOAuthProviders(): Promise<OAuthProviderStatus[]>;
+  startOAuth(provider: "google" | "discord", link?: boolean, replace?: boolean): Promise<{ url: string }>;
   login(input: LoginInput): Promise<AuthSessionResult>;
   register(input: RegisterInput): Promise<AuthSessionResult>;
   logout(): Promise<AuthSessionResult>;

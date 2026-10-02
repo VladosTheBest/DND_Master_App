@@ -34,6 +34,7 @@ import {
   LoginScreen
 } from "./auth-ui";
 import { api } from "./app/api";
+import { AccountSettings } from "./app/OAuthControls";
 import { AppContentRouter } from "./app/AppContentRouter";
 import { CampaignCreateModal } from "./app/CampaignCreateModal";
 import { CloseConfirmDialog } from "./app/CloseConfirmDialog";
@@ -4386,15 +4387,17 @@ export default function App() {
       <>
         <div className="boot">
           <div className="panel boot-card stack">
-            <p className="eyebrow">Backend Connection</p>
-            <h1>Сервер не отдал активную кампанию</h1>
+            <p className="eyebrow">{bootError ? "Подключение" : "Кабинет мастера"}</p>
+            <h1>{bootError ? "Не удалось загрузить кампанию" : "Создай первую кампанию"}</h1>
             <p className="copy">
-              Убедись, что backend запущен и доступен на текущем домене. Для локальной разработки это обычно `http://localhost:8080`. Текущая ошибка: {bootError || "кампании не найдены"}.
+              {bootError || "Аккаунт готов. Начни новую историю — создай свою кампанию."}
             </p>
             <div className="actions">
               <button className="primary" onClick={openCampaignModal} type="button">
                 Создать кампанию
               </button>
+              <AccountSettings />
+              <button className="ghost" type="button" disabled={authBusy} onClick={() => void logout()}>Выйти</button>
               <button className="ghost ai-edit-button" onClick={aiProposalController.requestCampaignProposal} type="button">
                 Создать с AI
               </button>

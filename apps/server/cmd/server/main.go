@@ -95,6 +95,13 @@ func main() {
 			AllowedUsername:  firstEnv("SHADOW_EDGE_CODEX_ALLOWED_USERNAME"),
 		},
 		Auth: httpapi.AuthOptions{
+			OAuth: httpapi.OAuthOptions{
+				BaseURL:             firstEnv("SHADOW_EDGE_PUBLIC_BASE_URL"),
+				GoogleClientID:      firstEnv("SHADOW_EDGE_GOOGLE_CLIENT_ID"),
+				GoogleClientSecret:  firstEnv("SHADOW_EDGE_GOOGLE_CLIENT_SECRET"),
+				DiscordClientID:     firstEnv("SHADOW_EDGE_DISCORD_CLIENT_ID"),
+				DiscordClientSecret: firstEnv("SHADOW_EDGE_DISCORD_CLIENT_SECRET"),
+			},
 			Username:   firstEnv("SHADOW_EDGE_AUTH_USERNAME"),
 			Password:   firstEnv("SHADOW_EDGE_AUTH_PASSWORD"),
 			SessionTTL: 14 * 24 * time.Hour,

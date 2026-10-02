@@ -1,3 +1,4 @@
+import { AccountSettings } from "./OAuthControls";
 import type { KnowledgeEntity } from "@shadow-edge/shared-types";
 
 type DefaultHeaderProps = {
@@ -95,6 +96,7 @@ export function AppHeader(props: AppHeaderProps) {
           <button className="ghost" onClick={props.onOpenCombatSetupModal} type="button">
             Добавить врага
           </button>
+          <AccountSettings />
           <button className="ghost" disabled={props.authBusy} onClick={props.onLogout} type="button">
             {props.authBusy ? "Выходим..." : "Выйти"}
           </button>
@@ -164,6 +166,7 @@ export function AppHeader(props: AppHeaderProps) {
         </button>
         <button className="ghost" onClick={props.onOpenPlayerSurveys} type="button">Анкеты игроков</button>
         <button className="primary" onClick={props.onOpenSessionMap} type="button">Карта на ТВ</button>
+        <AccountSettings />
         <button className="ghost" disabled={props.authBusy} onClick={props.onLogout} type="button">
           {props.authBusy ? "Выходим..." : "Выйти"}
         </button>

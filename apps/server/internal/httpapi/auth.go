@@ -17,15 +17,20 @@ import (
 )
 
 type AuthOptions struct {
+	OAuth      OAuthOptions
 	Username   string
 	Password   string
 	SessionTTL time.Duration
 }
 
 type authManager struct {
-	store      *campaignStore
-	cookieName string
-	sessionTTL time.Duration
+	accounts     authAccountRepository
+	oauthClient  *http.Client
+	oauth        OAuthOptions
+	oauthPending map[string]oauthAttempt
+	store        *campaignStore
+	cookieName   string
+	sessionTTL   time.Duration
 
 	mu sync.Mutex
 	// sessions is the authoritative allowlist for both browser and ephemeral
@@ -39,9 +44,10 @@ type authUser struct {
 }
 
 type authSession struct {
-	UserID    string
-	Username  string
-	ExpiresAt time.Time
+	AuthenticatedAt time.Time
+	UserID          string
+	Username        string
+	ExpiresAt       time.Time
 }
 
 type loginInput struct {
@@ -76,10 +82,13 @@ func newAuthManager(options AuthOptions, store *campaignStore) (*authManager, er
 	}
 
 	return &authManager{
-		store:      store,
-		cookieName: "shadow_edge_session",
-		sessionTTL: ttl,
-		sessions:   make(map[string]authSession),
+		oauth:        options.OAuth,
+		oauthPending: make(map[string]oauthAttempt),
+		accounts:     store,
+		store:        store,
+		cookieName:   "shadow_edge_session",
+		sessionTTL:   ttl,
+		sessions:     make(map[string]authSession),
 	}, nil
 }
 
@@ -156,9 +165,10 @@ func (manager *authManager) handleSession(writer http.ResponseWriter, request *h
 			if previous, exists := manager.sessions[cookie.Value]; exists && previous.UserID == user.ID {
 				delete(manager.sessions, cookie.Value)
 				manager.sessions[token] = authSession{
-					UserID:    user.ID,
-					Username:  user.Username,
-					ExpiresAt: expiresAt,
+					AuthenticatedAt: previous.AuthenticatedAt,
+					UserID:          user.ID,
+					Username:        user.Username,
+					ExpiresAt:       expiresAt,
 				}
 				rotated = true
 			}
@@ -189,7 +199,7 @@ func (manager *authManager) handleLogin(writer http.ResponseWriter, request *htt
 		return
 	}
 
-	user, ok := manager.store.findUserByUsername(input.Username)
+	user, ok := manager.accounts.findUserByUsername(input.Username)
 	if !ok || !verifyPassword(user.PasswordHash, input.Password) {
 		writeError(writer, http.StatusUnauthorized, "invalid_credentials", "Неверный логин или пароль.")
 		return
@@ -210,7 +220,7 @@ func (manager *authManager) handleRegister(writer http.ResponseWriter, request *
 		return
 	}
 
-	user, err := manager.store.createUser(input.Username, input.Password)
+	user, err := manager.accounts.createUser(input.Username, input.Password)
 	if err != nil {
 		switch {
 		case errors.Is(err, errUsernameTaken):
@@ -235,9 +245,10 @@ func (manager *authManager) writeAuthenticatedSession(writer http.ResponseWriter
 	manager.mu.Lock()
 	manager.cleanupExpiredLocked(time.Now())
 	manager.sessions[token] = authSession{
-		UserID:    user.ID,
-		Username:  user.Username,
-		ExpiresAt: expiresAt,
+		AuthenticatedAt: time.Now(),
+		UserID:          user.ID,
+		Username:        user.Username,
+		ExpiresAt:       expiresAt,
 	}
 	manager.mu.Unlock()
 

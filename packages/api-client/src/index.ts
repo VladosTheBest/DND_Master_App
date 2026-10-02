@@ -7,6 +7,7 @@ import type {
   ApplyAIProposalInput,
   AttachAIProposalMediaInput,
   AuthSessionResult,
+  OAuthProviderStatus,
   BestiaryBrowseResult,
   BestiaryMonsterDetail,
   CampaignData,
@@ -191,6 +192,15 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
   return {
     async getSession() {
       return requestJson<AuthSessionResult>(sessionUrl);
+    },
+    async getOAuthProviders() {
+      return requestJson<OAuthProviderStatus[]>(`${baseUrl}/api/auth/oauth/providers`);
+    },
+    async startOAuth(provider, link = false, replace = false) {
+      const query = new URLSearchParams();
+      if (link) query.set("link", "1");
+      if (replace) query.set("replace", "1");
+      return requestJson<{ url: string }>(`${baseUrl}/api/auth/oauth/${provider}/start?${query}`, { method: "POST" });
     },
   async login(input) {
     return requestJson<AuthSessionResult>(`${baseUrl}/api/auth/login`, {
