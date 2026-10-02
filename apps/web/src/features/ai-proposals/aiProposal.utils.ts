@@ -280,7 +280,7 @@ export const formatProposalValue = (value: unknown) => {
   if (typeof value === "number" || typeof value === "boolean") return String(value);
   try {
     const serialized = JSON.stringify(value, null, 2);
-    return serialized.length > 900 ? `${serialized.slice(0, 900)}…` : serialized;
+    return serialized;
   } catch {
     return String(value);
   }

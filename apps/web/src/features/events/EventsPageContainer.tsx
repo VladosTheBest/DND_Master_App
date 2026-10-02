@@ -31,19 +31,40 @@ export function EventsPageContainer({
   hydrateCampaign: (campaign: CampaignData, focusEntityId?: string) => void;
   initialEventId?: string;
   onActiveEventChange?: (eventId: string) => void;
-  onOpenGenerator: (suggestions?: { locationId?: string; type?: WorldEventInput["type"] }) => void;
+  onOpenGenerator: (suggestions?: { locationId?: string; type?: WorldEventInput["type"]; newEvent?: boolean; generationMode?: "read_aloud" | "gm_event" }) => void;
   onOpenLocation: (locationId: string) => void;
   normalizeWorldEventForClient: (event: WorldEvent, locations?: LocationEntity[]) => WorldEvent;
   serializeWorldEventInput: (input: WorldEventInput) => WorldEventInput;
   worldEventToForm: (event: WorldEvent) => WorldEventInput;
 }) {
+  const draftStorageKey = `event-draft:${activeCampaignId}`;
+  const [restored] = useState<{ id: string; draft: WorldEventInput } | null>(() => {
+    try {
+      const value = JSON.parse(sessionStorage.getItem(draftStorageKey) || "null");
+      return value?.id && typeof value.draft?.summary === "string" && typeof value.draft?.sceneText === "string" && typeof value.draft?.title === "string" && (value.id === NEW_WORLD_EVENT_ID || campaign.events.some((event) => event.id === value.id)) ? value : null;
+    } catch { return null; }
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [eventEditorId, setEventEditorId] = useState("");
-  const [eventEditorDraft, setEventEditorDraft] = useState<WorldEventInput>(emptyWorldEventInput);
-  const [eventEditorDirty, setEventEditorDirty] = useState(false);
-  const [eventEditorNotice, setEventEditorNotice] = useState("");
+  const [eventEditorId, setEventEditorId] = useState(restored?.id || "");
+  const [eventEditorDraft, setEventEditorDraft] = useState<WorldEventInput>(() => restored?.draft || emptyWorldEventInput());
+  const [eventEditorDirty, setEventEditorDirty] = useState(Boolean(restored));
+  const [eventEditorNotice, setEventEditorNotice] = useState(restored ? "Несохранённый черновик восстановлен. Проверь и сохрани изменения." : "");
+
+  useEffect(() => {
+    try {
+      if (eventEditorDirty) sessionStorage.setItem(draftStorageKey, JSON.stringify({ id: eventEditorId, draft: eventEditorDraft }));
+      else sessionStorage.removeItem(draftStorageKey);
+    } catch { /* Storage may be disabled; editing must still work. */ }
+  }, [draftStorageKey, eventEditorDirty, eventEditorDraft, eventEditorId]);
+
+  useEffect(() => {
+    if (!eventEditorDirty) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [eventEditorDirty]);
 
   const activeWorldEvent =
     eventEditorId && eventEditorId !== NEW_WORLD_EVENT_ID
@@ -205,6 +226,7 @@ export function EventsPageContainer({
 
   return (
     <EventsWorkspace
+      dirty={eventEditorDirty}
       draft={eventEditorDraft}
       draftId={eventEditorId}
       error={error}
@@ -241,10 +263,12 @@ export function EventsPageContainer({
           loot: (current.loot ?? []).map((item, lootIndex) => (lootIndex === index ? value : item))
         }))
       }
-      onOpenGenerator={() =>
+      onOpenGenerator={(generationMode) =>
         onOpenGenerator({
           locationId: eventEditorDraft.locationId || undefined,
-          type: eventEditorDraft.type
+          type: eventEditorDraft.type,
+          newEvent: true,
+          generationMode
         })
       }
       onOpenLocation={onOpenLocation}

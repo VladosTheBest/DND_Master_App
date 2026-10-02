@@ -108,11 +108,8 @@ export function BestiaryPageContainer({
         <section className="card section-card directory-screen">
           <div className="directory-head">
             <div>
-              <p className="eyebrow">Bestiary Browser</p>
               <h2>{controller.bestiaryDetailLoading ? "Открываю карточку..." : "Каталог монстров"}</h2>
-              <p className="copy">Сначала выбери запись из списка, а уже потом откроется полная карточка монстра.</p>
             </div>
-            <span className={badge("accent")}>{controller.bestiary?.total ?? 0}</span>
           </div>
 
           <BestiarySearchResults

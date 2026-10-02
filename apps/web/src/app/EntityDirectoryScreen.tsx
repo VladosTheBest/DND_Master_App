@@ -17,7 +17,7 @@ import {
   truncateInlineText
 } from "../app-shared";
 import { usePageSearchHotkey } from "./hooks/usePageSearchHotkey";
-import { resolveQuestSceneArtwork, questStatusTone, type QuestCombatEntrySummary } from "../quests";
+import { resolveQuestSceneArtwork, questStatusTone, questStatusLabels, questUrgencyLabels, type QuestCombatEntrySummary } from "../quests";
 
 type EntityDirectoryScreenProps = {
   activeModule: ModuleId;
@@ -119,12 +119,12 @@ export function EntityDirectoryScreen({
                         <button className="directory-card-copy" onClick={() => onOpenQuestFocus(quest.id)} type="button">
                           <span className="directory-card-topline">
                             <strong>{quest.title}</strong>
-                            <span className={badge(questStatusTone(quest.status))}>{quest.status}</span>
+                            <span className={badge(questStatusTone(quest.status))}>{questStatusLabels[quest.status]}</span>
                           </span>
                           <small>{location?.title ?? issuer?.title ?? quest.subtitle}</small>
                           <p>{truncateInlineText(quest.summary, 150)}</p>
                           <span className="directory-meta">
-                            <span>{quest.urgency}</span>
+                            <span>{questUrgencyLabels[quest.urgency]}</span>
                             {preparedCombatCount ? <span>{preparedCombatCount} в бою</span> : null}
                           </span>
                         </button>

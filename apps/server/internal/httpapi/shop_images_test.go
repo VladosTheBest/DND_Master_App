@@ -97,8 +97,8 @@ func TestShopIllustrationPersistenceAndApproval(t *testing.T) {
 	if _, err := store.updateCampaign(campaign.ID, updateCampaignInput{Shops: []campaignShop{shop}}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := service.apply(user.ID, stale.ID, proposalApplyInput{}); proposalErrorCode(t, err) != "stale_revision" {
-		t.Fatalf("stale proposal not blocked: %v", err)
+	if _, err := service.apply(user.ID, stale.ID, proposalApplyInput{}); proposalErrorCode(t, err) != "proposal_no_changes" {
+		t.Fatalf("unchanged shop should report an empty proposal, not a revision conflict: %v", err)
 	}
 	input.Mode = "create"
 	if _, err := service.createEntity(user.ID, campaign.ID, input); proposalErrorCode(t, err) != "shop_image_only" {

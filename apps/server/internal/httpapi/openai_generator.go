@@ -165,7 +165,7 @@ func (generator openAIGenerator) GenerateWorldEvent(campaign campaignData, input
 	return generateWorldEventResult{
 		Provider: generator.config.activeProvider,
 		Notes: append(generator.buildNotes(campaign),
-			"Сцена подготовлена как подробная карточка для зачитки игрокам.",
+			"Событие подготовлено в выбранном режиме и ожидает проверки мастером.",
 		),
 		Event: normalizeWorldEventDraftInput(campaign, input, event),
 	}, nil
@@ -448,7 +448,7 @@ func (generator openAIGenerator) requestWorldEvent(campaign campaignData, input 
 	requestBody := openAIChatCompletionRequest{
 		Model: generator.config.model,
 		Messages: []openAIChatMessage{
-			{Role: "system", Content: buildOpenAIWorldEventSystemPrompt()},
+			{Role: "system", Content: worldEventSystemPrompt(input)},
 			{Role: "user", Content: buildOpenAIWorldEventUserPrompt(campaign, input)},
 		},
 		ResponseFormat: openAIResponseFormat{
@@ -868,7 +868,23 @@ Rules:
 - Do not invent image URLs.`)
 }
 
+func worldEventSystemPrompt(input generateWorldEventInput) string {
+	if input.GenerationMode != "gm_event" {
+		return buildOpenAIWorldEventSystemPrompt()
+	}
+	return `You create concise random encounters for a D&D Game Master, not long read-aloud scenes or full quests.
+Output only JSON matching the schema, in the campaign language (usually Russian). Respect campaign canon and selected type/location. Do not invent permanent IDs or image URLs.
+Use a memorable short title and a one-sentence summary. sceneText is GM-only: 150-250 words under short headings for what is happening, hidden cause and NPC motives, what players notice, 1-2 relevant checks with DC and failure/success clues where useful, and what happens if ignored. Keep it immediately playable. Never gate the essential hook behind a successful check.
+Use dialogueBranches for 2-3 plausible player approaches: title is the action, lines are brief GM guidance, outcome is the conditional consequence. Do not predetermine player choices or success.
+Use loot for 2-3 modest possible rewards/findings with explicit acquisition conditions: clues, useful contacts, favours or suitable treasure. Never treat rewards as already awarded, and do not invent party level or grant overpowered magic items.
+Tags must include gm-event and random-event. All GM secrets stay in the event; do not create player cards.`
+}
+
 func buildOpenAIWorldEventUserPrompt(campaign campaignData, input generateWorldEventInput) string {
+	if input.GenerationMode == "gm_event" {
+		return fmt.Sprintf("Create one short GM-only random event. Selected type: %s. Selected location ID: %s. GM idea: %s. Campaign context: %s", input.Type, input.LocationID, input.Prompt, marshalAIJSON(compactCampaignContext(campaign)))
+	}
+
 	return strings.TrimSpace(fmt.Sprintf(`Generate one detailed random read-aloud scene for a D&D GM app.
 
 Schema event type placeholder:

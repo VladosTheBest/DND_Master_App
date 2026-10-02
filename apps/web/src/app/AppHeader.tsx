@@ -94,14 +94,8 @@ export function AppHeader(props: AppHeaderProps) {
 
   return (
     <header className="panel topbar">
-      <div className="topbar-campaign">
-        <p className="eyebrow">Кампания</p>
-        <strong>{props.campaignTitle}</strong>
-        <small>{props.inWorldDate}</small>
-      </div>
-
       <button className="search-btn" onClick={props.onOpenSearch} type="button">
-        <strong>Поиск по кампании и правилам</strong>
+        <strong>Найти в кампании или правилах</strong>
         <span>Ctrl K</span>
       </button>
 
@@ -126,7 +120,7 @@ export function AppHeader(props: AppHeaderProps) {
                 ? "Codex: проверь результат"
                 : props.codexPromptOutcome === "error"
                   ? "Codex: нужна проверка"
-                  : "AI-черновики"}
+                  : "Черновики AI"}
           </span>
           {props.codexPromptRunning || props.codexPromptOutcome ? (
             <span aria-hidden="true" className={`ai-proposal-running-dot ${props.codexPromptOutcome || ""}`.trim()} />

@@ -97,7 +97,7 @@ export function AppContentRouter({
   onOpenDirectory: () => void;
   onOpenEntity: (entityId: string) => void;
   onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
-  onOpenEventGenerator: (suggestions?: { locationId?: string; type?: WorldEventInput["type"] }) => void;
+  onOpenEventGenerator: (suggestions?: { locationId?: string; type?: WorldEventInput["type"]; newEvent?: boolean; generationMode?: "read_aloud" | "gm_event" }) => void;
   onOpenGallery: (quest: QuestEntity) => void;
   onOpenGalleryViewer: (quest: QuestEntity, index: number) => void;
   onOpenPlaylist: (quest: QuestEntity) => void;
@@ -142,6 +142,7 @@ export function AppContentRouter({
   if (activeRailAlias === "events") {
     return (
       <EventsPageContainer
+        key={campaign.id}
         activeCampaignId={campaign.id}
         campaign={campaign}
         createEmptyWorldEventDialogueBranch={createEmptyWorldEventDialogueBranch}

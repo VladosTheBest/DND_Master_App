@@ -34,13 +34,6 @@ export function BestiaryFilters(props: BestiaryFiltersProps) {
   if (props.variant === "browse") {
     return (
       <section className="card section-card bestiary-toolbar">
-        <div className="row muted">
-          <span>Официальный bestiary dnd.su</span>
-          <span>
-            {props.bestiary?.status.total ?? 0} записей • {props.bestiary?.status.hydrated ?? 0} в детальном кэше
-          </span>
-        </div>
-
         <div className="bestiary-filter-grid">
           <label className="field field-full">
             <span>Поиск по названию</span>
@@ -145,13 +138,6 @@ export function BestiaryFilters(props: BestiaryFiltersProps) {
           </select>
         </label>
 
-        <div className="field">
-          <span>Что сейчас показано</span>
-          <div className="combat-selected-summary">
-            <strong>{props.count} монстров в выборке</strong>
-            <small>Фильтруются только уже импортированные монстры кампании, чтобы быстро открыть нужную карточку.</small>
-          </div>
-        </div>
       </div>
     </section>
   );

@@ -1588,6 +1588,21 @@ func TestCodexBridgeHelperProcess(t *testing.T) {
 			if len(turnParams.Input) > 0 {
 				inputText = turnParams.Input[0].Text
 			}
+
+			if strings.Contains(inputText, "This is a read-only extraction phase") {
+				var params map[string]any
+				_ = json.Unmarshal(request.Params, &params)
+				schema, ok := params["outputSchema"].(map[string]any)
+				properties, _ := schema["properties"].(map[string]any)
+				notes, _ := properties["notes"].(map[string]any)
+				status := "completed"
+				if !ok || schema["additionalProperties"] != false || notes["maxLength"] != float64(1000) {
+					status = "failed"
+				}
+				writeCodexHelperNotification("item/completed", map[string]any{"threadId": "thread-test", "turnId": "turn-test", "item": map[string]any{"type": "agentMessage", "text": `{"notes":"Факт [L1]."}`}})
+				writeCodexHelperNotification("turn/completed", map[string]any{"threadId": "thread-test", "turn": map[string]any{"id": "turn-test", "status": status, "error": map[string]any{"message": "missing bounded output schema"}}})
+				continue
+			}
 			partialFailedTurn := strings.Contains(inputText, "verified-proposal-before-failed-turn")
 			partialTimeoutInterrupt := strings.Contains(inputText, "verified-proposal-before-timeout-interrupt")
 			if partialFailedTurn || partialTimeoutInterrupt {
@@ -1716,4 +1731,35 @@ func writeCodexHelperNotification(method string, params any) {
 
 func writeCodexHelperError(id json.RawMessage, code int, message string) {
 	_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"id": id, "error": map[string]any{"code": code, "message": message}})
+}
+
+func TestCodexSessionExtractionSendsBoundedSchemaOverRPC(t *testing.T) {
+	t.Setenv("GO_WANT_CODEX_BRIDGE_HELPER", "1")
+	store, _, account, campaign := newProposalTestService(t)
+	auth, err := newAuthManager(AuthOptions{SessionTTL: time.Hour}, store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager := newCodexBridgeManager(CodexBridgeOptions{Enabled: true, Command: os.Args[0], Args: []string{"-test.run=TestCodexBridgeHelperProcess"}, HomeRoot: t.TempDir(), MCPCommand: os.Args[0], MCPArgs: []string{"fake-mcp"}, InternalBaseURL: "http://127.0.0.1:8080", RequestTimeout: 5 * time.Second, MaxUserProcesses: 2}, auth)
+	user := authUser{ID: account.ID, Username: account.Username}
+	defer manager.stopBridge(user.ID)
+	if _, err := manager.startDeviceCode(context.Background(), user); err != nil {
+		t.Fatal(err)
+	}
+	if status := manager.status(context.Background(), user); status.State != "connected" {
+		t.Fatalf("not connected: %s", status.State)
+	}
+	session, _ := parseImportedSession("Synthetic", "Реплика")
+	session.CampaignID = campaign.ID
+	session, _, err = store.importSession(session)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := manager.runPromptOnce(context.Background(), user, codexPromptInput{CampaignID: campaign.ID, SessionID: session.ID, Prompt: "Разбор", SessionExtract: "[L1] Реплика", SessionExtractLimit: 1000})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := extractSessionNotes(result.Message, 1000); err != nil {
+		t.Fatal(err)
+	}
 }

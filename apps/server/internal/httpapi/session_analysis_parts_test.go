@@ -43,6 +43,61 @@ func TestSessionPartNotesValidation(t *testing.T) {
 	}
 }
 
+func TestSessionPartOverflowRetryExplainsAndRepairsBudget(t *testing.T) {
+	store, campaign := newSessionTestStore(t)
+	session, _ := parseImportedSession("Synthetic", strings.Repeat("Реплика\n", 69956))
+	session.CampaignID = campaign.ID
+	session, _, _ = store.importSession(session)
+	manager := &codexBridgeManager{auth: &authManager{store: store}}
+	calls := 0
+	runner := func(_ context.Context, _ authUser, input codexPromptInput) (codexPromptResult, error) {
+		if input.SessionExtract == "" {
+			return codexPromptResult{SessionID: session.ID}, nil
+		}
+		calls++
+		if calls == 1 {
+			body, _ := json.Marshal(map[string]string{"notes": strings.Repeat("я", 6229)})
+			return codexPromptResult{Message: string(body)}, nil
+		}
+		if calls == 2 {
+			prompt := buildSessionAnalysisPrompt(input)
+			if !strings.Contains(prompt, "6229") || !strings.Contains(prompt, "вместо 5333") || !strings.Contains(prompt, "Repair the output") || !strings.Contains(prompt, "Aim for about 4266") {
+				t.Fatal("retry repeated the failed prompt instead of correcting its budget")
+			}
+		}
+		return codexPromptResult{Message: `{"notes":"Подтверждённый факт [L1]."}`}, nil
+	}
+	if _, err := manager.runSessionAnalysis(context.Background(), authUser{ID: "owner"}, codexPromptInput{CampaignID: campaign.ID, SessionID: session.ID, Prompt: "Разбор"}, runner); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 10 {
+		t.Fatalf("expected nine parts and one repair, got %d", calls)
+	}
+}
+
+func TestSessionPartFailurePreservesReportAndRevealsSafeReason(t *testing.T) {
+	store, campaign := newSessionTestStore(t)
+	session, _ := parseImportedSession("Synthetic", strings.Repeat("Реплика\n", 18000))
+	session.CampaignID = campaign.ID
+	session.Analysis = &sessionAnalysis{Summary: "Previously saved", Digest: session.Digest}
+	session, _, _ = store.importSession(session)
+	manager := &codexBridgeManager{auth: &authManager{store: store}}
+	runner := func(_ context.Context, _ authUser, _ codexPromptInput) (codexPromptResult, error) {
+		return codexPromptResult{Message: `{"notes":""}`}, nil
+	}
+	_, err := manager.runSessionAnalysis(context.Background(), authUser{ID: "owner"}, codexPromptInput{CampaignID: campaign.ID, SessionID: session.ID, Prompt: "Разбор"}, runner)
+	if err == nil || !strings.Contains(err.Error(), "пустые заметки") {
+		t.Fatalf("underlying validation cause hidden: %v", err)
+	}
+	got, _ := store.sessionForOwner("owner", campaign.ID, session.ID)
+	if got.Text != session.Text || got.Digest != session.Digest || got.Analysis == nil || got.Analysis.Summary != "Previously saved" {
+		t.Fatal("failed extraction altered transcript")
+	}
+	if note, err := extractSessionNotes("```json\n{\"notes\":\"да🐉\"}\n```", 3); err != nil || note != "да🐉" {
+		t.Fatal("bounded fenced JSON response rejected")
+	}
+}
+
 func TestLongSessionExtractionCacheAndFinalSaveRetry(t *testing.T) {
 	store, campaign := newSessionTestStore(t)
 	session, _ := parseImportedSession("Synthetic", strings.Repeat("Реплика\n", 18000))

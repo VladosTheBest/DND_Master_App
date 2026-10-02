@@ -21,6 +21,10 @@ func buildWorldEventDraft(campaign campaignData, input generateWorldEventInput) 
 	prompt := strings.TrimSpace(input.Prompt)
 	title, summary, sceneText, loot, branches := scaffoldWorldEventContent(eventType, locationLabel, prompt)
 	tags := []string{"event", eventType}
+	if input.GenerationMode == "gm_event" {
+		title, summary, sceneText, loot, branches = scaffoldGMEventContent(eventType, locationLabel, prompt)
+		tags = append(tags, "gm-event", "random-event")
+	}
 	if locationLabel != "" {
 		tags = append(tags, strings.ToLower(locationLabel))
 	}
@@ -151,4 +155,37 @@ func scaffoldReadAloudSceneContent(locationLabel string, prompt string) (string,
 
 func scaffoldWorldEventContent(_ string, locationLabel string, prompt string) (string, string, string, []string, []worldEventDialogueBranch) {
 	return scaffoldReadAloudSceneContent(locationLabel, prompt)
+}
+
+// Local fallback demonstrates the GM brief contract without pretending to use an AI model.
+func scaffoldGMEventContent(eventType, locationLabel, prompt string) (string, string, string, []string, []worldEventDialogueBranch) {
+	hooks := map[string]string{
+		"funny":  "Сбежавший козёл утащил сумку курьера и устроил погоню среди прохожих",
+		"combat": "Два наёмника пытаются отнять у курьера запечатанную сумку",
+		"heist":  "В толпе кто-то подменил сумку курьера похожей пустой сумкой",
+		"social": "Курьер просит рассудить спор о том, кому принадлежит найденная сумка",
+		"oddity": "Из закрытой сумки курьера доносится голос, повторяющий ещё не сказанные слова",
+		"danger": "Курьер провалился через прогнивший настил, а его сумка зацепилась над водой",
+	}
+	idea := extractReadAloudSceneRequest(prompt)
+	if idea == "" || idea == "Придумай неожиданную ситуацию самостоятельно." {
+		idea = hooks[eventType]
+	}
+	idea = firstNonEmpty(idea, hooks["social"])
+	title := draftTitle(idea, "Сумка курьера")
+	summary := idea
+	scene := "Что происходит\n" + firstNonEmpty(locationLabel, "На пути партии") + ": " + idea + ". Ситуация ещё не разрешилась; у партии есть время вмешаться или пройти мимо.\n\n" +
+		"Скрытая причина\nКурьер доставляет письмо, которое может раскрыть нечестную сделку. Он боится потерять работу и скрывает, кому адресован пакет. За сумкой наблюдает человек, которому выгодно исчезновение письма. Свяжите адресата с подходящим знакомым NPC, не меняя установленный канон.\n\n" +
+		"Что заметят игроки\nСумка помечена знаком местного торговца, а курьер всё время смотрит на один и тот же выход. Эти детали видны без проверки и дают понятный повод заговорить с ним.\n\n" +
+		"Проверки и подсказки\nВнимательность, СЛ 12: заметить наблюдателя; при неудаче он уйдёт, но оставит след обуви. Проницательность, СЛ 13: понять, что курьер боится работодателя; при неудаче получить только его официальную версию. Подстройте сложность под обстоятельства.\n\n" +
+		"Если пройти мимо\nПисьмо попадёт к заинтересованному наблюдателю. Позже партия услышит противоречивый слух о сделке; это возможный крючок, а не обязательный новый квест."
+	return title, summary, scene, []string{
+			"За помощь курьеру: небольшая плата или услуга доставки; размер определяет мастер.",
+			"Если проверить письмо с согласия курьера: имя участника сделки и полезная зацепка.",
+			"Если сохранить письмо и расположить к себе адресата: знакомство или доступ к местному торговцу.",
+		}, []worldEventDialogueBranch{
+			{Title: "Помочь курьеру", Lines: []string{"Дайте партии выбрать способ вмешательства и цену риска."}, Outcome: "При успехе сумка остаётся у курьера; он готов рассказать о доставке."},
+			{Title: "Проследить за наблюдателем", Lines: []string{"Он старается уйти через людное место; оставьте возможность разговора вместо боя."}, Outcome: "Партия может выяснить, кто заинтересован в письме, но курьер тем временем уходит."},
+			{Title: "Договориться", Lines: []string{"Обе стороны хотят избежать огласки. Спросите, какие гарантии предлагают игроки."}, Outcome: "Компромисс даёт информацию или услугу, но не решает спор о сделке окончательно."},
+		}
 }

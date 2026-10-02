@@ -1454,3 +1454,50 @@
   .codex-workflow-guide ol,
   .codex-prompt-steps { grid-template-columns: 1fr; }
 }
+
+/* Review the change first; full production cards stay one click away. */
+.ai-proposal-inbox { width: min(64rem, calc(100vw - 2rem)); grid-template-rows: auto; gap: 1rem; border-radius: 20px; }
+.ai-proposal-inbox-toolbar { display: grid; grid-template-columns: minmax(0, 1fr) 14rem auto; gap: .75rem; align-items: end; }
+.ai-proposal-scope { display: flex; align-items: center; gap: .4rem; padding-block: .7rem; font-size: .8rem; color: var(--text-soft); }
+.ai-proposal-scope input { accent-color: var(--accent); }
+.ai-proposal-list-count { color: var(--text-muted); font-size: .8rem; }
+.ai-proposal-inbox-item { padding: 1rem; border-radius: 13px; box-shadow: none; }
+.ai-proposal-inbox-copy strong { font-size: 1rem; }
+.ai-proposal-inbox-copy small { color: var(--text-muted); }
+.ai-proposal-review { width: min(76rem, calc(100vw - 2rem)); height: min(58rem, calc(100dvh - 2rem)); border-radius: 20px; }
+.ai-proposal-review-head { padding: 1.1rem 1.3rem; }
+.ai-proposal-review-head h2 { font-size: 1.5rem; margin-block: .5rem; }
+.ai-proposal-original-request summary { cursor: pointer; font-size: .78rem; color: var(--text-muted); }
+.ai-proposal-original-request p { max-height: 8rem; overflow: auto; padding-top: .5rem; white-space: pre-wrap; }
+.ai-proposal-review-tabs { padding-inline: 1.3rem; }
+.ai-proposal-review-tabs button { white-space: nowrap; }
+.ai-proposal-review-scroll { padding: 1.3rem; background: rgba(4, 6, 11, .2); }
+.ai-proposal-review-intro { border-bottom: 1px solid var(--line); padding-bottom: .9rem; }
+.ai-proposal-review-intro > strong { font-size: 1.05rem; }
+.ai-proposal-review-intro p { color: var(--text-soft); font-size: .85rem; margin: .4rem 0 0; line-height: 1.6; }
+.ai-proposal-warning-list summary { padding: .6rem .8rem; border: 1px solid rgba(215, 168, 79, .25); border-radius: 10px; color: var(--warning); font-size: .8rem; cursor: pointer; }
+.ai-proposal-warning-list > div { margin-top: .5rem; }
+.ai-proposal-diff-row { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); padding: 1rem; gap: .75rem; background: transparent; }
+.ai-proposal-diff-row > strong { grid-column: 1 / -1; font-size: .9rem; }
+.ai-proposal-diff-row pre { font-size: .87rem; line-height: 1.65; max-height: 24rem; overflow: auto; padding: .8rem; }
+.ai-proposal-diff-row > div:last-child pre { background: rgba(138, 211, 177, .06); }
+.ai-proposal-diff-row small { color: var(--text-muted); }
+.ai-proposal-media-card { grid-template-columns: minmax(0, 1fr); padding: .8rem; gap: 1rem; border-radius: 14px; }
+.ai-proposal-media-card .ai-proposal-image-comparison { display: flex; flex-wrap: wrap; gap: 1rem; }
+.ai-proposal-image-comparison figure { margin: 0; flex: 1 1 12rem; min-width: 0; display: grid; gap: .5rem; align-content: start; }
+.ai-proposal-image-comparison figcaption { color: var(--text-muted); font-size: .8rem; }
+.ai-proposal-image-comparison img, .ai-proposal-image-comparison .ai-proposal-media-placeholder { width: 100%; height: min(28rem, 44vh); object-fit: contain; background: rgba(0, 0, 0, .15); border-radius: 10px; }
+.ai-proposal-media-card details summary { color: var(--text-muted); cursor: pointer; font-size: .78rem; }
+.ai-proposal-media-card details p { line-height: 1.65; max-height: 10rem; overflow: auto; }
+.ai-proposal-support-section > header { flex-wrap: wrap; }
+.ai-proposal-review-footer { padding: 1rem 1.3rem; }
+.ai-proposal-review-footer > div:first-child { flex-wrap: wrap; }
+@media (max-width: 760px) {
+  .ai-proposal-inbox-toolbar { grid-template-columns: minmax(0, 1fr); }
+  .ai-proposal-inbox, .ai-proposal-review { width: 100%; max-width: 100%; max-height: 100dvh; border-radius: 0; }
+  .ai-proposal-review { height: 100dvh; }
+  .ai-proposal-review-scroll { padding: .8rem; }
+  .ai-proposal-diff-row { grid-template-columns: minmax(0, 1fr); }
+  .ai-proposal-diff-row > strong { grid-column: auto; }
+  .ai-proposal-image-comparison img { height: 16rem; }
+}

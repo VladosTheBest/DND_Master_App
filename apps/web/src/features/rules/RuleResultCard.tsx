@@ -79,12 +79,10 @@ export function RuleResultCard({
               <p className="rules-result-title"><HighlightedText text={rule.titleRu} query={query} /></p>
               <small className="rules-result-subtitle">{rule.titleEn}</small>
             </div>
-            <span className="rules-result-badge">SRD 5.2.1</span>
           </div>
 
           <div className="rules-result-meta">
             <span>{categoryLabel}</span>
-            <span>{rule.sourceSection}</span>
           </div>
 
           {primaryMechanic ? (

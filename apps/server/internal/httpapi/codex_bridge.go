@@ -96,17 +96,18 @@ type codexImageTarget struct {
 }
 
 type codexPromptInput struct {
-	SessionID           string            `json:"sessionId,omitempty"`
-	SessionRunID        string            `json:"-"`
-	SessionExtract      string            `json:"-"`
-	SessionExtractLimit int               `json:"-"`
-	SessionNotes        string            `json:"-"`
-	CampaignID          string            `json:"campaignId,omitempty"`
-	Prompt              string            `json:"prompt"`
-	ThreadID            string            `json:"threadId,omitempty"`
-	IncludeImages       bool              `json:"includeImages,omitempty"`
-	Model               string            `json:"model,omitempty"`
-	ImageTarget         *codexImageTarget `json:"imageTarget,omitempty"`
+	SessionID              string            `json:"sessionId,omitempty"`
+	SessionRunID           string            `json:"-"`
+	SessionExtract         string            `json:"-"`
+	SessionExtractFeedback string            `json:"-"`
+	SessionExtractLimit    int               `json:"-"`
+	SessionNotes           string            `json:"-"`
+	CampaignID             string            `json:"campaignId,omitempty"`
+	Prompt                 string            `json:"prompt"`
+	ThreadID               string            `json:"threadId,omitempty"`
+	IncludeImages          bool              `json:"includeImages,omitempty"`
+	Model                  string            `json:"model,omitempty"`
+	ImageTarget            *codexImageTarget `json:"imageTarget,omitempty"`
 }
 
 type codexPromptResult struct {
@@ -783,7 +784,7 @@ func (manager *codexBridgeManager) runPromptOnce(ctx context.Context, user authU
 		"type":          "readOnly",
 		"networkAccess": false,
 	}
-	err = bridge.client.call(callCtx, "turn/start", map[string]any{
+	turnParams := map[string]any{
 		"threadId": threadID,
 		"input": []map[string]any{{
 			"type": "text",
@@ -791,7 +792,11 @@ func (manager *codexBridgeManager) runPromptOnce(ctx context.Context, user authU
 		}},
 		"approvalPolicy": "never",
 		"sandboxPolicy":  sandboxPolicy,
-	}, &turnStarted)
+	}
+	if input.SessionExtract != "" {
+		turnParams["outputSchema"] = sessionPartOutputSchema(input.SessionExtractLimit)
+	}
+	err = bridge.client.call(callCtx, "turn/start", turnParams, &turnStarted)
 	cancel()
 	if err != nil {
 		manager.stopBridgeAfterCanceledRPC(user.ID, bridge, err)

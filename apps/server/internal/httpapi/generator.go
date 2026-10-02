@@ -249,7 +249,7 @@ func (generator scaffoldGenerator) GenerateCampaignBlueprint(input generateCampa
 func (generator scaffoldGenerator) GenerateWorldEvent(campaign campaignData, input generateWorldEventInput) (generateWorldEventResult, error) {
 	return generateWorldEventResult{
 		Provider: generator.config.activeProvider,
-		Notes:    append(generator.buildNotes(), "Зачитка для игроков собрана локальным scaffold-провайдером."),
+		Notes:    append(generator.buildNotes(), "Событие собрано локальным scaffold-провайдером; для AI-генерации подключите AI-провайдер."),
 		Event:    normalizeWorldEventDraftInput(campaign, input, buildWorldEventDraft(campaign, input)),
 	}, nil
 }

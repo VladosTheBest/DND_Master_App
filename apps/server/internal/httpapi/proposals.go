@@ -45,15 +45,18 @@ type entityProposalInput struct {
 }
 
 type eventProposalInput struct {
-	CampaignID   string                `json:"campaignId,omitempty"`
-	Mode         string                `json:"mode"`
-	EventID      string                `json:"eventId,omitempty"`
-	Prompt       string                `json:"prompt"`
-	Patch        json.RawMessage       `json:"patch,omitempty"`
-	Candidate    json.RawMessage       `json:"candidate,omitempty"`
-	Source       proposalSource        `json:"source,omitempty"`
-	Warnings     []string              `json:"warnings,omitempty"`
-	MediaIntents []proposalMediaIntent `json:"mediaIntents,omitempty"`
+	GenerationMode string                `json:"generationMode,omitempty"`
+	CampaignID     string                `json:"campaignId,omitempty"`
+	Mode           string                `json:"mode"`
+	EventID        string                `json:"eventId,omitempty"`
+	LocationID     string                `json:"locationId,omitempty"`
+	Type           string                `json:"type,omitempty"`
+	Prompt         string                `json:"prompt"`
+	Patch          json.RawMessage       `json:"patch,omitempty"`
+	Candidate      json.RawMessage       `json:"candidate,omitempty"`
+	Source         proposalSource        `json:"source,omitempty"`
+	Warnings       []string              `json:"warnings,omitempty"`
+	MediaIntents   []proposalMediaIntent `json:"mediaIntents,omitempty"`
 }
 
 type campaignProposalInput struct {
@@ -1086,7 +1089,12 @@ func (service *proposalService) apply(ownerID, proposalID string, input proposal
 			err = proposalFailure(409, "proposal_no_changes", "В черновике нет готовых изменений. Отклони его и повтори генерацию изображения.")
 		}
 		if err == nil {
-			result, err = applyEntityProposalLocked(proposal, &service.store.data.Campaigns[campaignIndex])
+			if proposal.Kind == "entity_update" {
+				err = mergeCurrentProposal(proposal, service.store.data.Campaigns[campaignIndex])
+			}
+			if err == nil {
+				result, err = applyEntityProposalLocked(proposal, &service.store.data.Campaigns[campaignIndex])
+			}
 		}
 	case "event_create", "event_update":
 		campaignIndex := findOwnedCampaignIndexLocked(&service.store.data, ownerID, proposal.CampaignID)
@@ -1100,7 +1108,12 @@ func (service *proposalService) apply(ownerID, proposalID string, input proposal
 		}
 		moves, err = service.promoteMediaLocked(proposal, service.store.data.Campaigns[campaignIndex].ID, nil)
 		if err == nil {
-			result, err = applyEventProposalLocked(proposal, &service.store.data.Campaigns[campaignIndex])
+			if proposal.Kind == "event_update" {
+				err = mergeCurrentProposal(proposal, service.store.data.Campaigns[campaignIndex])
+			}
+			if err == nil {
+				result, err = applyEventProposalLocked(proposal, &service.store.data.Campaigns[campaignIndex])
+			}
 		}
 	case "campaign_create":
 		campaignID := newID("campaign")
@@ -1221,7 +1234,7 @@ func (service *proposalService) undo(ownerID, proposalID string) (proposalAction
 			break
 		}
 		campaign := &service.store.data.Campaigns[campaignIndex]
-		if campaign.Revision != proposal.AppliedRevisions["campaign"] {
+		if proposal.Kind == "entity_create" && campaign.Revision != proposal.AppliedRevisions["campaign"] {
 			err = staleRevisionFailure("campaign")
 			break
 		}
@@ -1249,6 +1262,9 @@ func (service *proposalService) undo(ownerID, proposalID string) (proposalAction
 			restored.Kind = current.Kind
 			restored.Revision = current.Revision + 1
 			restored = ensureKnowledgeEntities([]knowledgeEntity{restored})[0]
+			if err = validateEntityReferencesStrict(*campaign, restored); err != nil {
+				break
+			}
 			(*entities)[entityIndex] = restored
 			campaign.Revision++
 			*campaign = ensureCampaignShape(*campaign)
@@ -1262,7 +1278,7 @@ func (service *proposalService) undo(ownerID, proposalID string) (proposalAction
 			break
 		}
 		campaign := &service.store.data.Campaigns[campaignIndex]
-		if campaign.Revision != proposal.AppliedRevisions["campaign"] {
+		if proposal.Kind == "event_create" && campaign.Revision != proposal.AppliedRevisions["campaign"] {
 			err = staleRevisionFailure("campaign")
 			break
 		}
@@ -1284,6 +1300,13 @@ func (service *proposalService) undo(ownerID, proposalID string) (proposalAction
 			}
 			restored.ID = current.ID
 			restored.Revision = current.Revision + 1
+			if restored.LocationID != "" {
+				_, _, location := findEntityInCampaign(campaign, restored.LocationID)
+				if location.ID == "" || location.Kind != "location" {
+					err = proposalFailure(400, "invalid_relationship", "Локация прежней сцены больше не существует.")
+					break
+				}
+			}
 			restored = normalizeWorldEventCandidate(restored, *campaign)
 			campaign.Events[eventIndex] = restored
 			campaign.Revision++
@@ -1341,35 +1364,21 @@ func proposalExpired(proposal aiProposal, now time.Time) bool {
 }
 
 func verifyProposalBaseRevisions(proposal aiProposal, campaign campaignData) error {
-	// Independent create proposals from one Codex request intentionally share a
-	// campaign base revision. Applying one increments the campaign, but does not
-	// make its siblings unsafe: create paths revalidate IDs, references and media
-	// against the current campaign immediately before insertion.
-	isRebasableCreate := proposal.Kind == "entity_create" || proposal.Kind == "event_create"
-	if expected, ok := proposal.BaseRevisions["campaign"]; ok && campaign.Revision != expected && !isRebasableCreate {
-		return staleRevisionFailure("campaign")
-	}
-	if proposal.Target.EntityID != "" {
-		entity := proposalTargetEntity(campaign, proposal.Target)
-		if expected, ok := proposal.BaseRevisions["entity:"+proposal.Target.EntityID]; ok {
-			if entity.ID == "" || entity.Revision != expected {
-				return staleRevisionFailure("entity")
-			}
+	// Creates validate IDs/references at insertion. Updates depend on the target
+	// snapshot, never on unrelated campaign authoring or sibling proposals.
+	if proposal.Kind == "entity_update" || proposal.Kind == "event_update" {
+		current, err := proposalCurrentSnapshot(proposal, campaign)
+		if err != nil {
+			return err
 		}
-	}
-	if proposal.Target.EventID != "" {
-		_, event := findEventInCampaign(&campaign, proposal.Target.EventID)
-		if expected, ok := proposal.BaseRevisions["event:"+proposal.Target.EventID]; ok {
-			if event.ID == "" || event.Revision != expected {
-				return staleRevisionFailure("event")
-			}
-		}
+		_, err = mergeProposalSnapshot(proposal.Before, proposal.After, current)
+		return err
 	}
 	return nil
 }
 
 func staleRevisionFailure(target string) error {
-	return proposalFailure(409, "stale_revision", fmt.Sprintf("The %s changed after this proposal was created", target))
+	return proposalFailure(409, "stale_revision", "Запись изменена или удалена. Обнови данные и проверь актуальную карточку перед применением.")
 }
 
 func applyEntityProposalLocked(proposal *aiProposal, campaign *campaignData) (proposalActionResult, error) {

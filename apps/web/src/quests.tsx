@@ -575,6 +575,8 @@ const dedupeQuestLines = (lines: string[], maxItems = 5) => {
     .slice(0, maxItems);
 };
 
+export const questStatusLabels = { active: "Активен", paused: "На паузе", completed: "Завершён" };
+export const questUrgencyLabels = { Low: "Низкая", Medium: "Обычная", High: "Срочный", Critical: "Критическая" };
 export const questStatusTone = (status: QuestEntity["status"]): QuickFactTone => {
   switch (status) {
     case "active":
@@ -1113,8 +1115,8 @@ export function QuestWorkspace({
         </div>
 
         <div className="quest-status-grid">
-          <QuestMetaPill label="Статус" tone={questStatusTone(quest.status)} value={quest.status} />
-          <QuestMetaPill label="Срочность" tone={questUrgencyTone(quest.urgency)} value={quest.urgency} />
+          <QuestMetaPill label="Статус" tone={questStatusTone(quest.status)} value={questStatusLabels[quest.status]} />
+          <QuestMetaPill label="Срочность" tone={questUrgencyTone(quest.urgency)} value={questUrgencyLabels[quest.urgency]} />
           <QuestMetaPill label="Игроки" tone={playerVisible ? "success" : "warning"} value={playerVisible ? "Есть версия" : "Не заполнено"} />
           <QuestMetaPill label="Бой" tone={preparedCombatCount ? "danger" : "default"} value={preparedCombatCount ? `${preparedCombatCount} в сцене` : "Не настроен"} />
           <QuestMetaPill

@@ -1,5 +1,7 @@
 import {
   useMemo,
+  useState,
+  useEffect,
   type MouseEvent as ReactMouseEvent
 } from "react";
 import type {
@@ -24,8 +26,22 @@ import {
   worldEventTypeOptions,
   worldEventTypeTones
 } from "./app-shared";
+import "./features/events/events.css";
 
 type LoreNoteEntity = Extract<KnowledgeEntity, { kind: "lore" }>;
+
+export function EventSceneCard({ event, onOpenLocation }: { event: WorldEventInput; onOpenLocation?: (id: string) => void }) {
+  const loot = (event.loot ?? []).filter((value) => value.trim());
+  const branches = (event.dialogueBranches ?? []).filter((branch) => branch.lines?.some((line) => line.trim()) || branch.outcome?.trim());
+  return <article className="event-scene-card">
+    <div className="event-scene-meta"><span className={badge(worldEventTypeTones[event.type])}>{worldEventTypeLabels[event.type]}</span>{event.date ? <span>{event.date}</span> : null}{event.locationLabel ? <button className="ghost" disabled={!onOpenLocation || !event.locationId} onClick={() => event.locationId && onOpenLocation?.(event.locationId)} type="button">{event.locationLabel}</button> : null}</div>
+    <h2>{event.title.trim() || "Новая сцена"}</h2>
+    {event.summary ? <p className="event-scene-summary">{event.summary}</p> : null}
+    <section className="event-read-aloud"><p className="eyebrow">{event.tags?.includes("gm-event") ? "Только для мастера · Краткий экскурс" : "Сцена за столом"}</p><div>{event.sceneText || "Текст сцены пока не добавлен."}</div></section>
+    {branches.length ? <section className="event-outcomes"><h3>Варианты развития</h3>{branches.map((branch, index) => <details key={index} open={index === 0}><summary>{branch.title || `Вариант ${index + 1}`}</summary>{branch.lines?.length ? <ul>{branch.lines.filter(Boolean).map((line, lineIndex) => <li key={lineIndex}>{line}</li>)}</ul> : null}{branch.outcome ? <p><strong>Результат: </strong>{branch.outcome}</p> : null}</details>)}</section> : null}
+    {loot.length ? <section className="event-rewards"><h3>{event.tags?.includes("gm-event") ? "Что могут получить игроки" : "Награды и находки"}</h3><ul>{loot.map((item, index) => <li key={index}>{item}</li>)}</ul></section> : null}
+  </article>;
+}
 
 export function EventsWorkspace({
   events,
@@ -52,7 +68,8 @@ export function EventsWorkspace({
   onLootChange,
   onAddLoot,
   onRemoveLoot,
-  readOnly = false
+  readOnly = false,
+  dirty = false
 }: {
   events: WorldEvent[];
   locations: LocationEntity[];
@@ -67,7 +84,7 @@ export function EventsWorkspace({
   onSearchChange: (value: string) => void;
   onSelectEvent: (eventId: string) => void;
   onCreateEvent: () => void;
-  onOpenGenerator: () => void;
+  onOpenGenerator: (generationMode: "read_aloud" | "gm_event") => void;
   onSave: () => void;
   onDelete: () => void;
   onOpenLocation: (locationId: string) => void;
@@ -79,11 +96,17 @@ export function EventsWorkspace({
   onAddLoot: () => void;
   onRemoveLoot: (index: number) => void;
   readOnly?: boolean;
+  dirty?: boolean;
 }) {
+  const [directoryOpen, setDirectoryOpen] = useState(false);
+  const [typeFilter, setTypeFilter] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
+  const [editing, setEditing] = useState(draftId === NEW_WORLD_EVENT_ID);
+  useEffect(() => { setEditing(draftId === NEW_WORLD_EVENT_ID); }, [draftId]);
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const filteredEvents = useMemo(
     () =>
-      events.filter((event) =>
+      events.filter((event) => (!typeFilter || event.type === typeFilter) && (!locationFilter || event.locationId === locationFilter)).filter((event) =>
         !normalizedQuery
           ? true
           : [
@@ -99,7 +122,7 @@ export function EventsWorkspace({
               .toLowerCase()
               .includes(normalizedQuery)
       ),
-    [events, normalizedQuery]
+    [events, normalizedQuery, typeFilter, locationFilter]
   );
   const selectedLocation = draft.locationId ? locations.find((location) => location.id === draft.locationId) ?? null : null;
   const resolvedLoot = (draft.loot ?? []).filter((item) => item.trim());
@@ -119,17 +142,15 @@ export function EventsWorkspace({
           <button className="ghost" onClick={onCreateEvent} type="button">
             Новое событие
           </button>
-          <button className="ghost" onClick={onOpenGenerator} type="button">
-            Сцена для зачитки
-          </button>
-          <button className="primary" disabled={saving || generating} onClick={onSave} type="button">
-            {saving ? "Сохраняю..." : "Сохранить"}
-          </button>
+          <button className="primary" onClick={() => onOpenGenerator("gm_event")} type="button">Случайное событие</button>
+          <button className="ghost" onClick={() => onOpenGenerator("read_aloud")} type="button">Зачитка с AI</button>
+
         </div> : null}
       </section>
 
+      {!readOnly ? <button className="ghost event-directory-toggle" aria-expanded={directoryOpen} aria-controls="events-directory" onClick={() => setDirectoryOpen((current) => !current)} type="button">{directoryOpen ? "Свернуть список" : "Выбрать событие"}<span>{events.length}</span></button> : null}
       <div className="notes-workspace-grid events-workspace-grid">
-        {!readOnly ? <aside className="card notes-directory-panel">
+        {!readOnly ? <aside id="events-directory" className={`card notes-directory-panel ${directoryOpen ? "directory-open" : ""}`}>
           <div className="row">
             <strong>Все события</strong>
             <small>{filteredEvents.length}</small>
@@ -145,25 +166,29 @@ export function EventsWorkspace({
             />
           </label>
 
+          <div className="event-directory-filters">
+            <label className="field"><span>Тип события</span><select className="input" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}><option value="">Все типы</option>{worldEventTypeOptions.map((type) => <option key={type} value={type}>{worldEventTypeLabels[type]}</option>)}</select></label>
+            <label className="field"><span>Место</span><select className="input" value={locationFilter} onChange={(event) => setLocationFilter(event.target.value)}><option value="">Все локации</option>{locations.map((location) => <option key={location.id} value={location.id}>{location.title}</option>)}</select></label>
+          </div>
           <div className="notes-list">
-            <button
-              className={`notes-list-item ${isDraft ? "selected unsaved" : ""}`}
+            {isDraft ? <button
+              className="notes-list-item selected unsaved"
               onClick={onCreateEvent}
               type="button"
             >
               <span className="notes-list-item-copy">
                 <strong>Новый черновик</strong>
                 <small>Ручная сценка</small>
-                <p>Пустой лист для короткого события без квестовой формы.</p>
+                <p>Добавь описание и сохрани сцену в кампанию.</p>
               </span>
-            </button>
+            </button> : null}
 
             {filteredEvents.length ? (
               filteredEvents.map((event) => (
                 <button
                   key={event.id}
                   className={`notes-list-item ${selectedEventId === event.id ? "selected" : ""}`}
-                  onClick={() => onSelectEvent(event.id)}
+                  onClick={() => { onSelectEvent(event.id); setDirectoryOpen(false); }}
                   type="button"
                 >
                   <span className="notes-list-item-copy">
@@ -181,8 +206,8 @@ export function EventsWorkspace({
               ))
             ) : (
               <div className="notes-empty-state">
-                <strong>Пока пусто</strong>
-                <span>Создай сценку вручную или попроси ИИ подбросить что-то живое.</span>
+                <strong>{events.length ? "Ничего не найдено" : "Первая сцена"}</strong>
+                <span>{events.length ? "Измени поиск или фильтры." : "Создай событие вручную или с AI, чтобы подготовить эпизод для игры."}</span>
               </div>
             )}
           </div>
@@ -192,24 +217,22 @@ export function EventsWorkspace({
           <div className="notes-editor-head">
             <div className="stack tight">
               <div className="row">
-                <strong>{draft.title.trim() || "Новое событие"}</strong>
-                <span className={badge(worldEventTypeTones[draft.type])}>{worldEventTypeLabels[draft.type]}</span>
-                <span className={badge(draft.origin === "ai" ? "accent" : "default")}>{draft.origin === "ai" ? "AI" : "Ручное"}</span>
+                <strong>{editing ? draft.title.trim() || "Новое событие" : "Просмотр сцены"}</strong>
+                {editing ? <span className={badge(worldEventTypeTones[draft.type])}>{worldEventTypeLabels[draft.type]}</span> : null}
               </div>
-              <small className="copy">
-                {selectedLocation ? `Привязано к локации ${selectedLocation.title}.` : "Можно оставить без привязки к локации."}
-              </small>
+              {editing ? <small className="copy">{selectedLocation ? `Место действия: ${selectedLocation.title}.` : "Место действия можно указать ниже."}</small> : null}
             </div>
-            {!readOnly && !isDraft ? (
-              <button className="ghost danger-action" disabled={saving} onClick={onDelete} type="button">
-                Удалить
-              </button>
-            ) : null}
+            {!readOnly ? <div className="actions event-editor-actions">
+              <small className={dirty ? "event-unsaved" : "copy"}>{dirty ? "Есть несохранённые изменения" : isDraft ? "Новая сцена" : "Сохранено"}</small>
+              {!isDraft ? <button className="ghost" onClick={() => setEditing((current) => !current)} type="button">{editing ? "Просмотреть" : "Редактировать"}</button> : null}
+              {(editing || dirty) ? <button className="primary" disabled={saving || generating || (!dirty && !isDraft)} onClick={onSave} type="button">{saving ? "Сохраняю…" : "Сохранить событие"}</button> : null}
+            </div> : null}
           </div>
 
           {notice ? <div className="notes-status notes-status-success">{notice}</div> : null}
           {error ? <div className="notes-status notes-status-error">{error}</div> : null}
 
+          {readOnly || !editing ? <EventSceneCard event={draft} onOpenLocation={onOpenLocation} /> : <>
           <div className="form-grid">
             <label className="field">
               <span>Название</span>
@@ -284,6 +307,18 @@ export function EventsWorkspace({
             </label>
           </div>
 
+          <label className="field notes-editor-field">
+            <span>{draft.tags?.includes("gm-event") ? "Памятка мастеру (скрытые детали)" : "Текст сцены"}</span>
+            <textarea
+              className="input textarea notes-editor-textarea event-scene-textarea"
+              disabled={readOnly}
+              onChange={(event) => onDraftChange((current) => ({ ...current, sceneText: event.target.value }))}
+              placeholder="Что происходит прямо сейчас, кто начинает сцену, чем она цепляет игроков и куда может качнуться."
+              value={draft.sceneText}
+            />
+          </label>
+
+          <details className="event-optional"><summary>Награды и находки · {resolvedLoot.length}</summary>
           <section className="card mini event-editor-block">
             <div className="row">
               <strong>Что можно получить</strong>
@@ -296,7 +331,7 @@ export function EventsWorkspace({
                     className="input"
                     disabled={readOnly}
                     onChange={(event) => onLootChange(index, event.target.value)}
-                    placeholder={index === 0 ? "15 зм" : "Кинжал, пропуск, 2 какашки бабуина"}
+                    placeholder={index === 0 ? "15 зм" : "Предмет, пропуск или полезный слух"}
                     value={item}
                   />
                   {!readOnly ? (
@@ -309,28 +344,18 @@ export function EventsWorkspace({
             </div>
             {!readOnly ? <div className="actions">
               <button className="ghost" onClick={onAddLoot} type="button">
-                Добавить лут
+                Добавить находку
               </button>
             </div> : null}
           </section>
-
-          <label className="field notes-editor-field">
-            <span>Текст сцены</span>
-            <textarea
-              className="input textarea notes-editor-textarea event-scene-textarea"
-              disabled={readOnly}
-              onChange={(event) => onDraftChange((current) => ({ ...current, sceneText: event.target.value }))}
-              placeholder="Что происходит прямо сейчас, кто начинает сцену, чем она цепляет игроков и куда может качнуться."
-              value={draft.sceneText}
-            />
-          </label>
-
+          </details>
+          <details className="event-optional"><summary>Варианты развития · {(draft.dialogueBranches ?? []).length}</summary>
           <section className="stack event-branch-list">
             <div className="row">
-              <strong>Ветки диалога</strong>
+              <strong>Варианты развития</strong>
               {!readOnly ? (
                 <button className="ghost" onClick={onAddBranch} type="button">
-                  Добавить ветку
+                  Добавить вариант
                 </button>
               ) : null}
             </div>
@@ -389,6 +414,8 @@ export function EventsWorkspace({
             ))}
           </section>
 
+          </details>
+          {!isDraft ? <details className="event-optional event-danger"><summary>Удаление события</summary><p className="copy">Удалить сцену из кампании.</p><button className="ghost danger-action" disabled={saving} onClick={onDelete} type="button">Удалить событие</button></details> : null}
           {!readOnly && selectedLocation ? (
             <div className="actions">
               <button className="ghost" onClick={() => onOpenLocation(selectedLocation.id)} type="button">
@@ -396,6 +423,7 @@ export function EventsWorkspace({
               </button>
             </div>
           ) : null}
+          </>}
         </section>
       </div>
     </div>
@@ -458,11 +486,6 @@ export function NotesWorkspace({
     <div className="notes-workspace">
       <section className="card notes-workspace-head">
         <div className="notes-workspace-copy">
-          <div className="quest-breadcrumbs">
-            <span className="quest-breadcrumb-btn">Главная</span>
-            <span>/</span>
-            <strong>Заметки</strong>
-          </div>
           <h1>Заметки мастера</h1>
           <p className="copy">
             Планы игры, идеи и секреты мастера.
@@ -526,34 +549,28 @@ export function NotesWorkspace({
                     type="button"
                   >
                     <strong>{note.title}</strong>
-                    <small>{note.visibility === "gm_only" ? "GM only" : "Player safe"}</small>
+                    <small>{note.visibility === "gm_only" ? "Только мастеру" : "Можно показать игрокам"}</small>
                     <p>{loreNoteExcerpt(note, 90)}</p>
                   </button>
                 </article>
               ))
-            ) : (
+            ) : !editingNewNote ? (
               <div className="notes-empty-state">
-                <strong>Ничего не найдено</strong>
-                <p className="copy">Либо заметок пока нет, либо текущий поиск ничего не дал.</p>
+                <strong>{searchQuery.trim() ? "Ничего не найдено" : "Заметок пока нет"}</strong>
+                <p className="copy">{searchQuery.trim() ? "Попробуйте другой запрос." : "Создайте первую заметку."}</p>
               </div>
-            )}
+            ) : null}
           </div>
         </aside>
 
         <section className="card notes-editor-panel">
           <div className="notes-editor-head">
             <div className="stack compact">
-              <p className="eyebrow">Редактор</p>
               <strong>{editorTitle}</strong>
-              <p className="copy">
-                {draftContent.trim()
-                  ? truncateInlineText(draftContent.replace(/\s+/g, " ").trim(), 180)
-                  : "Здесь можно вести сценовые заметки, планы сессии, скрытые мотивы, подсказки или просто быстрые GM-записи."}
-              </p>
             </div>
             {selectedNote && !editingNewNote ? (
               <button className="ghost" onClick={() => onOpenPreview(selectedNote.id)} type="button">
-                Открыть в preview
+                Быстрый просмотр
               </button>
             ) : null}
           </div>
@@ -585,7 +602,7 @@ export function NotesWorkspace({
               className="input textarea notes-editor-textarea"
               onContextMenu={onContentContextMenu}
               onChange={(event) => onContentChange(event.target.value)}
-              placeholder="Пиши заметку как есть: ход сцены, реплики, скрытые мотивы, проверку, последствия, слух или рабочий план на сессию."
+              placeholder="Что нужно помнить мастеру?"
               ref={editorRef}
               value={draftContent}
             />

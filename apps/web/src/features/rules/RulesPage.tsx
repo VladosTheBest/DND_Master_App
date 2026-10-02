@@ -53,13 +53,8 @@ export function RulesPage({
       <section className="rules-results-column">
         <header className="card rules-header">
           <div className="rules-header-copy">
-            <p className="eyebrow rules-kicker">Rules Compendium</p>
             <h1>Правила</h1>
-            <p className="copy">Быстрый справочник правил SRD 5.2.1 для боевых, исследовательских и общих вопросов за столом.</p>
-          </div>
-          <div className="rules-header-stats" aria-label="Статистика справочника">
-            <strong>{allRules.length}</strong>
-            <span>правил в справочнике</span>
+            <p className="copy">SRD 5.2.1 · найдите правило по названию или ситуации</p>
           </div>
         </header>
 
@@ -81,7 +76,6 @@ export function RulesPage({
               <p className="eyebrow">Результаты</p>
               <strong>{query.trim() ? `Найдено ${results.length}` : "Популярные правила"}</strong>
             </div>
-            <span className="rules-count-pill">1–{Math.min(results.length, 20)} из {results.length}</span>
           </div>
 
           {results.length ? (

@@ -1,6 +1,6 @@
 import type { AIProposal, CampaignData, KnowledgeEntity, WorldEvent, WorldEventInput } from "@shadow-edge/shared-types";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { EventsWorkspace } from "../../notes-events";
+import { EventSceneCard } from "../../notes-events";
 import { CampaignDashboard } from "../campaigns/CampaignDashboard";
 import type { AIProposalController } from "./useAIProposalController";
 import {
@@ -9,6 +9,8 @@ import {
   campaignWithEventCandidate,
   formatProposalDate,
   formatProposalValue,
+  normalizeProposalEntity,
+  normalizeProposalEvent,
   proposalAfterEntity,
   proposalAfterEvent,
   proposalAppliedCampaign,
@@ -125,6 +127,11 @@ function AIProposalPromptModal({ controller }: { controller: AIProposalControlle
 
 function AIProposalInbox({ controller, campaignId }: { controller: AIProposalController; campaignId?: string }) {
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [query, setQuery] = useState("");
+  const [kind, setKind] = useState("all");
+  const [allCampaigns, setAllCampaigns] = useState(false);
+  const scoped = controller.proposals.filter((proposal) => allCampaigns || !campaignId || (proposal.campaignId || proposal.target.campaignId) === campaignId || proposal.kind === "campaign_create");
+  const visible = scoped.filter((proposal) => (kind === "all" || proposal.kind.startsWith(kind)) && `${proposalTitle(proposal)} ${proposal.prompt}`.toLowerCase().includes(query.trim().toLowerCase()));
   useEffect(() => {
     if (controller.inboxOpen && controller.codexPromptOutcome) {
       controller.setCodexPromptOutcome(null);
@@ -151,12 +158,12 @@ function AIProposalInbox({ controller, campaignId }: { controller: AIProposalCon
       >
         <header className="ai-proposal-modal-head">
           <div>
-            <p className="eyebrow">Безопасная очередь изменений</p>
+            <p className="eyebrow">Проверка перед применением</p>
             <h2>AI-черновики</h2>
             <p className="copy">
               {controller.codexPromptRunning
                 ? "Codex готовит новый проверяемый черновик. Кампания в это время не изменяется."
-                : "Предложения из сайта, Codex App Server и MCP. Ни одно из них ещё не изменило кампанию."}
+                : "Выбери черновик, посмотри изменения и реши, что добавить в кампанию."}
             </p>
           </div>
           <div className="actions">
@@ -184,8 +191,14 @@ function AIProposalInbox({ controller, campaignId }: { controller: AIProposalCon
           }}
         />
 
+        <div className="ai-proposal-inbox-toolbar">
+          <label className="field"><span>Поиск черновика</span><input className="input" placeholder="Название или запрос…" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
+          <label className="field"><span>Содержимое</span><select className="input" value={kind} onChange={(event) => setKind(event.target.value)}><option value="all">Все типы</option><option value="entity">Карточки и изображения</option><option value="event">События</option><option value="campaign">Кампании</option></select></label>
+          <label className="ai-proposal-scope"><input type="checkbox" checked={allCampaigns} onChange={(event) => setAllCampaigns(event.target.checked)} />Все кампании</label>
+        </div>
+        <div className="ai-proposal-list-count">На проверке: {scoped.length}{visible.length !== scoped.length ? ` · найдено ${visible.length}` : ""}</div>
         <div className="ai-proposal-inbox-list">
-          {controller.proposals.length ? controller.proposals.map((proposal) => (
+          {visible.length ? visible.map((proposal) => (
             <button
               className="ai-proposal-inbox-item"
               key={proposal.id}
@@ -213,8 +226,8 @@ function AIProposalInbox({ controller, campaignId }: { controller: AIProposalCon
           ) : (
             <div className="ai-proposal-empty">
               <span>✓</span>
-              <strong>Очередь разобрана</strong>
-              <p>Новых AI-предложений для этой кампании пока нет.</p>
+              <strong>{scoped.length ? "Ничего не найдено" : "Все черновики разобраны"}</strong>
+              <p>{scoped.length ? "Попробуй другой запрос или тип." : "Здесь появятся подготовленные AI изменения. Можно создать их через панель Codex выше."}</p>
             </div>
           )}
         </div>
@@ -223,40 +236,8 @@ function AIProposalInbox({ controller, campaignId }: { controller: AIProposalCon
   );
 }
 
-const noOp = () => undefined;
-
-function ProductionEventPreview({ event, campaign }: { event: WorldEvent; campaign: CampaignData }) {
-  return (
-    <div className="ai-proposal-production-event">
-      <EventsWorkspace
-        draft={event as WorldEventInput}
-        draftId={event.id}
-        error=""
-        events={campaign.events}
-        generating={false}
-        locations={campaign.locations}
-        notice=""
-        onAddBranch={noOp}
-        onAddLoot={noOp}
-        onBranchChange={noOp}
-        onCreateEvent={noOp}
-        onDelete={noOp}
-        onDraftChange={noOp}
-        onLootChange={noOp}
-        onOpenGenerator={noOp}
-        onOpenLocation={noOp}
-        onRemoveBranch={noOp}
-        onRemoveLoot={noOp}
-        onSave={noOp}
-        onSearchChange={noOp}
-        onSelectEvent={noOp}
-        readOnly
-        saving={false}
-        searchQuery=""
-        selectedEventId={event.id}
-      />
-    </div>
-  );
+function ProductionEventPreview({ event }: { event: WorldEvent; campaign: CampaignData }) {
+  return <div className="ai-proposal-production-event"><EventSceneCard event={event as WorldEventInput} /></div>;
 }
 
 function ProposalSnapshot({
@@ -340,18 +321,31 @@ function ProposalSnapshot({
   );
 }
 
-function ProposalDiff({ proposal }: { proposal: AIProposal }) {
-  if (!proposal.diff.length) {
-    return <div className="ai-proposal-empty"><span>≡</span><strong>Структурный черновик</strong><p>Изменения перечислены в операциях ниже.</p></div>;
-  }
+const proposalFieldNames: Record<string, string> = { title: "Название", subtitle: "Подзаголовок", summary: "Краткое описание", content: "Описание для мастера", sceneText: "Текст сцены", art: "Изображение", url: "Файл", alt: "Описание изображения", caption: "Подпись", tags: "Теги", related: "Связи", quickFacts: "Ключевые факты", playerFacing: "Текст для игроков", playerFacingCards: "Карточки для игроков", playerCards: "Карточки для игроков", playerContent: "Текст для игроков", dialogueBranches: "Варианты развития", loot: "Награды и находки", type: "Тип", date: "Дата", locationId: "Локация", locationLabel: "Название локации", revision: "Версия", role: "Роль", status: "Статус", statBlock: "Характеристики", preparedCombats: "Подготовленные бои", reward: "Награда", gallery: "Галерея" };
+function proposalFieldLabel(path: string) {
+  return path.split(/[./]/).filter((part) => part && part !== "$").map((part) => proposalFieldNames[part] || (/^\d+$/.test(part) ? `№ ${Number(part) + 1}` : part)).join(" · ") || "Новая запись";
+}
+
+function proposalCurrentRecord(proposal: AIProposal, campaign: CampaignData | null): Record<string, unknown> | null {
+  if (!campaign) return null;
+  const record = proposal.target.entityKind === "shop" ? campaign.shops?.find((item) => item.id === proposal.target.entityId) : proposal.target.eventId ? campaign.events.find((item) => item.id === proposal.target.eventId) : [...campaign.locations, ...campaign.players, ...campaign.npcs, ...campaign.monsters, ...campaign.quests, ...campaign.lore].find((item) => item.id === proposal.target.entityId);
+  return record ? record as unknown as Record<string, unknown> : null;
+}
+function proposalValueAtPath(record: unknown, path: string): unknown {
+  return path.split(/[./]/).filter((part) => part && part !== "$").reduce<unknown>((value, key) => value && typeof value === "object" ? (value as Record<string, unknown>)[key.replace(/~1/g, "/").replace(/~0/g, "~")] : undefined, record);
+}
+function ProposalDiff({ proposal, campaign }: { proposal: AIProposal; campaign: CampaignData | null }) {
+  const live = proposal.status === "pending" ? proposalCurrentRecord(proposal, campaign) : null;
+  const changes = proposal.diff.filter((item) => !(proposal.mediaIntents.length && /^\/?art(?:[./]|$)/.test(item.path)) && item.path !== "/revision" && item.path !== "revision");
+  if (!changes.length) return null;
   return (
     <div className="ai-proposal-diff-list">
-      {proposal.diff.map((item, index) => (
+      {changes.map((item, index) => (
         <article className="ai-proposal-diff-row" key={`${item.path}-${index}`}>
-          <code>{item.path}</code>
+          <strong>{proposalFieldLabel(item.path)}</strong>
           <div>
-            <small>Сейчас</small>
-            <pre>{formatProposalValue(item.before)}</pre>
+            <small>{live ? "В карточке сейчас" : "До предложения"}</small>
+            <pre>{formatProposalValue(live ? proposalValueAtPath(live, item.path) : item.before)}</pre>
           </div>
           <span aria-hidden="true">→</span>
           <div>
@@ -366,25 +360,29 @@ function ProposalDiff({ proposal }: { proposal: AIProposal }) {
 
 function ProposalMedia({ controller, proposal }: { controller: AIProposalController; proposal: AIProposal }) {
   if (!proposal.mediaIntents.length) return null;
+  const previousArt = ((proposal.status === "pending" ? proposalCurrentRecord(proposal, controller.proposalCampaign) || proposal.before : proposal.before) as { art?: { url?: string } } | null)?.art?.url;
   return (
     <section className="ai-proposal-support-section">
-      <header><strong>Изображения предложения</strong><small>Выбранные staged-файлы продвигаются только при применении</small></header>
+      <header><strong>Изображения предложения</strong><small>Выбери изображение, которое будет добавлено в карточку</small></header>
       <div className="ai-proposal-media-grid">
         {proposal.mediaIntents.map((intent) => {
           const url = intent.finalUrl || intent.previewUrl;
           const selected = intent.selected !== false;
           return (
             <article className={`ai-proposal-media-card ${selected ? "selected" : "deselected"}`} key={intent.id}>
-              {url ? <img alt={intent.alt || intent.caption || intent.purpose || "AI preview"} src={url} /> : <div className="ai-proposal-media-placeholder">✦</div>}
+              <div className="ai-proposal-image-comparison">
+                {previousArt && intent.field?.startsWith("art.") ? <figure><figcaption>Текущее изображение</figcaption><img alt="Изображение до изменения" src={previousArt} /></figure> : null}
+                <figure><figcaption>{proposal.status === "applied" ? "Добавлено" : "Новое изображение"}</figcaption>{url ? <img alt={intent.alt || intent.caption || intent.purpose || "Новое изображение"} src={url} /> : <div className="ai-proposal-media-placeholder">Изображение пока не готово</div>}</figure>
+              </div>
               <div>
                 <strong>{intent.caption || intent.purpose || "Изображение"}</strong>
-                <small>{intent.status} · {intent.field || "art.url"}{intent.operationKey ? ` · ${intent.operationKey}` : ""}</small>
-                {intent.prompt ? <p>{intent.prompt}</p> : null}
+                <small>{({ staged: "Готово к применению", promoted: "Добавлено в карточку", placeholder: "Изображение не получено", failed: "Не удалось создать" } as Record<string, string>)[intent.status] || "Подготовка изображения"}</small>
+                {intent.prompt ? <details><summary>Описание для генерации</summary><p>{intent.prompt}</p></details> : null}
                 {proposal.status === "pending" ? (
                   <label className="ai-proposal-media-toggle">
                     <input
                       checked={selected}
-                      disabled={controller.action === "media"}
+                      disabled={Boolean(controller.action)}
                       onChange={(event) => void controller.setProposalMediaSelected(intent.id, event.target.checked)}
                       type="checkbox"
                     />
@@ -409,10 +407,10 @@ function ProposalOperations({
   selectedKeys: Set<string>;
   onToggle: (key: string, checked: boolean) => void;
 }) {
-  if (!proposal.operations.length) return null;
+  if (proposal.kind !== "campaign_create" || !proposal.operations.length) return null;
   return (
     <section className="ai-proposal-support-section">
-      <header><strong>Операции применения</strong><small>Связи проверяются сервером перед одной атомарной записью</small></header>
+      <header><strong>Что добавить в кампанию</strong><small>Связанные записи выбираются вместе</small></header>
       <div className="ai-proposal-operation-list">
         {proposal.operations.map((operation) => (
           <label className={operation.required ? "required" : ""} key={operation.key}>
@@ -424,7 +422,7 @@ function ProposalOperations({
             />
             <span>
               <strong>{operation.title || operation.key}</strong>
-              <small>{operation.action} · {operation.kind}{operation.dependsOn?.length ? ` · зависит от ${operation.dependsOn.join(", ")}` : ""}</small>
+              <small>{(entityKindLabel as Record<string, string>)[operation.kind] || "Событие"}{operation.dependsOn?.length ? " · есть связанные записи" : ""}</small>
             </span>
             {operation.required ? <em>обязательно</em> : null}
           </label>
@@ -436,18 +434,19 @@ function ProposalOperations({
 
 function AIProposalReviewModal({ controller, renderEntity }: AIProposalCenterProps) {
   const proposal = controller.selectedProposal;
-  const [tab, setTab] = useState<"before" | "after" | "diff">("after");
+  const [tab, setTab] = useState<"before" | "after" | "diff">("diff");
   const [selectedOperationKeys, setSelectedOperationKeys] = useState<Set<string>>(new Set());
   const [selectedCampaignItemId, setSelectedCampaignItemId] = useState("");
 
   useEffect(() => {
     if (!proposal) return;
-    setTab(proposal.before ? "after" : "after");
+    setTab("diff");
     setSelectedOperationKeys(new Set(proposal.operations.map((operation) => operation.key)));
     const firstEntity = proposalCampaignEntities(proposal)[0];
     setSelectedCampaignItemId(firstEntity ? `entity:${firstEntity.id}` : "");
   }, [proposal?.id]);
 
+  const currentRecord = proposal ? proposalCurrentRecord(proposal, controller.proposalCampaign) : null;
   const beforeEntity = useMemo(() => proposal ? proposalBeforeEntity(proposal) : null, [proposal]);
   const afterEntity = useMemo(() => proposal ? proposalAfterEntity(proposal) : null, [proposal]);
   const beforeEvent = useMemo(() => proposal ? proposalBeforeEvent(proposal) : null, [proposal]);
@@ -523,7 +522,7 @@ function AIProposalReviewModal({ controller, renderEntity }: AIProposalCenterPro
   const hasSelectedStagedMedia = proposal.mediaIntents.some((intent) =>
     intent.selected !== false && intent.status === "staged" && Boolean(intent.previewUrl)
   );
-  const hasApplicableChanges = proposal.diff.length > 0 || proposal.operations.length > 0 || hasSelectedStagedMedia;
+  const hasApplicableChanges = proposal.diff.length > 0 || (proposal.kind.endsWith("create") && proposal.operations.length > 0) || hasSelectedStagedMedia;
   const emptyEntityUpdate = proposal.kind === "entity_update" && !hasApplicableChanges;
 
   return (
@@ -537,58 +536,63 @@ function AIProposalReviewModal({ controller, renderEntity }: AIProposalCenterPro
               <span>{proposalSourceLabel(proposal.source)}</span>
             </div>
             <h2>{proposalTitle(proposal)}</h2>
-            <p>{proposal.prompt}</p>
+            <details className="ai-proposal-original-request"><summary>Исходный запрос</summary><p>{proposal.prompt}</p></details>
           </div>
           <button autoFocus className="ghost" disabled={Boolean(controller.action)} onClick={controller.closeProposal} type="button">К списку черновиков</button>
         </header>
 
         <div className="ai-proposal-review-tabs" role="tablist">
-          <button aria-selected={tab === "before"} className={tab === "before" ? "active" : ""} onClick={() => setTab("before")} role="tab" type="button">Сейчас</button>
-          <button aria-selected={tab === "after"} className={tab === "after" ? "active" : ""} onClick={() => setTab("after")} role="tab" type="button">После AI</button>
-          <button aria-selected={tab === "diff"} className={tab === "diff" ? "active" : ""} onClick={() => setTab("diff")} role="tab" type="button">Что изменилось <span>{proposal.diff.length}</span></button>
+          <button aria-selected={tab === "diff"} className={tab === "diff" ? "active" : ""} onClick={() => setTab("diff")} role="tab" type="button">Обзор изменений <span>{proposal.diff.length}</span></button>
+          <button aria-selected={tab === "before"} className={tab === "before" ? "active" : ""} onClick={() => setTab("before")} role="tab" type="button">{isPending && currentRecord ? "Текущая карточка" : "До изменений"}</button>
+          <button aria-selected={tab === "after"} className={tab === "after" ? "active" : ""} onClick={() => setTab("after")} role="tab" type="button">Версия AI целиком</button>
         </div>
 
         <div className="ai-proposal-review-scroll">
           {proposal.warnings.length ? (
-            <div className="ai-proposal-warning-list">
-              {proposal.warnings.map((warning, index) => <div key={`${warning}-${index}`}>⚠ {warning}</div>)}
-            </div>
+            <details className="ai-proposal-warning-list">
+              <summary>Замечания к черновику · {proposal.warnings.length}</summary>
+              {proposal.warnings.map((warning, index) => <div key={`${warning}-${index}`}>{warning}</div>)}
+            </details>
           ) : null}
-          {controller.conflict ? <div className="ai-proposal-alert danger"><strong>Конфликт ревизий</strong><span>{controller.conflict}</span></div> : null}
+          {controller.conflict ? <div className="ai-proposal-alert danger" role="alert"><strong>Нужно проверить пересекающиеся изменения</strong><span>{controller.conflict.replace(/\/[a-zA-Z][a-zA-Z0-9/~]*/g, (path) => proposalFieldLabel(path))}</span><button className="ghost" onClick={() => void controller.openProposal(proposal.id)} type="button">Обновить данные</button></div> : null}
           {controller.error ? <div className="ai-proposal-alert danger">{controller.error}</div> : null}
           {emptyEntityUpdate ? (
             <div className="ai-proposal-alert danger">
               <strong>В этом черновике нечего применять</strong>
-              <span>Изображение не было подготовлено. Отклони черновик и запусти генерацию ещё раз — ревизия карточки не изменится.</span>
+              <span>AI не подготовил изменений для этой карточки. Можно отклонить черновик и уточнить запрос.</span>
             </div>
           ) : null}
-          {isApplied ? <div className="ai-proposal-alert success"><strong>Изменения применены атомарно</strong><span>Создана новая ревизия. Отмена доступна, пока данные не были изменены ещё раз.</span></div> : null}
-          {proposal.status === "undone" ? <div className="ai-proposal-alert neutral">Применение отменено новой ревизией; история сохранена.</div> : null}
+          {isApplied ? <div className="ai-proposal-alert success"><strong>Изменения сохранены</strong><span>Карточка обновлена. При необходимости можно отменить применение.</span></div> : null}
+          {proposal.status === "undone" ? <div className="ai-proposal-alert neutral">Применение отменено. Предыдущее содержимое восстановлено.</div> : null}
           {proposal.status === "rejected" ? <div className="ai-proposal-alert neutral">Черновик отклонён. Данные кампании не менялись.</div> : null}
 
           {tab === "diff" ? (
-            <ProposalDiff proposal={proposal} />
+            <div className="stack">
+              <div className="ai-proposal-review-intro"><strong>{isApplied ? "Сохранённое содержимое" : proposal.kind.endsWith("create") ? "Готово к добавлению" : "Предлагаемые изменения"}</strong><p>{isApplied ? "Ниже сохранённый результат и сравнение с версией до применения." : proposal.mediaIntents.length && proposal.diff.every((item) => /^\/?art(?:[./]|$)/.test(item.path)) ? "Замена изображения. Остальные поля карточки сохранятся." : "Проверь содержимое ниже. Независимые изменения в кампании сохраняются автоматически."}</p></div>
+              <ProposalMedia controller={controller} proposal={proposal} />
+              {proposal.kind.endsWith("create") ? <ProposalSnapshot campaign={proposal.kind === "campaign_create" ? campaignAfter : controller.proposalCampaign} campaignPreview={proposal.kind === "campaign_create"} campaignEntities={campaignEntities} entity={afterEntity} event={afterEvent} onSelectCampaignItem={setSelectedCampaignItemId} renderEntity={renderEntity} selectedCampaignItemId={selectedCampaignItemId} /> : <ProposalDiff proposal={proposal} campaign={controller.proposalCampaign} />}
+            </div>
           ) : (
             <ProposalSnapshot
               campaign={proposal.kind === "campaign_create" && tab === "after" ? campaignAfter : controller.proposalCampaign}
               campaignPreview={proposal.kind === "campaign_create" && tab === "after"}
               campaignEntities={tab === "after" ? campaignEntities : []}
-              entity={tab === "before" ? beforeEntity : afterEntity}
-              event={tab === "before" ? beforeEvent : afterEvent}
+              entity={tab === "before" ? isPending && currentRecord ? normalizeProposalEntity(currentRecord) : beforeEntity : afterEntity}
+              event={tab === "before" ? isPending && currentRecord ? normalizeProposalEvent(currentRecord) : beforeEvent : afterEvent}
               onSelectCampaignItem={setSelectedCampaignItemId}
               renderEntity={renderEntity}
               selectedCampaignItemId={selectedCampaignItemId}
             />
           )}
 
-          <ProposalMedia controller={controller} proposal={proposal} />
+          {tab !== "diff" ? <ProposalMedia controller={controller} proposal={proposal} /> : null}
           <ProposalOperations proposal={proposal} selectedKeys={selectedOperationKeys} onToggle={toggleOperation} />
         </div>
 
         <footer className="ai-proposal-review-footer">
           <div>
             <small>Создан {formatProposalDate(proposal.createdAt)}</small>
-            {proposal.expiresAt ? <small>Истекает {formatProposalDate(proposal.expiresAt)}</small> : null}
+            {isPending && proposal.expiresAt ? <small>Истекает {formatProposalDate(proposal.expiresAt)}</small> : null}
           </div>
           <div className="actions">
             {isPending ? (
@@ -602,13 +606,13 @@ function AIProposalReviewModal({ controller, renderEntity }: AIProposalCenterPro
                   onClick={() => void controller.applyProposal(selectedKeys)}
                   type="button"
                 >
-                  {controller.action === "apply" ? "Проверяю ревизии и применяю…" : emptyEntityUpdate ? "Нет готовых изменений" : "Применить выбранное"}
+                  {controller.action === "apply" ? "Сохраняю изменения…" : emptyEntityUpdate ? "Нет готовых изменений" : proposal.mediaIntents.length && proposal.diff.every((item) => /^\/?art(?:[./]|$)/.test(item.path)) ? "Применить изображение" : "Применить изменения"}
                 </button>
               </>
             ) : null}
             {isApplied ? (
               <button className="ghost" disabled={Boolean(controller.action)} onClick={() => void controller.undoProposal()} type="button">
-                {controller.action === "undo" ? "Создаю отменяющую ревизию…" : "Отменить применение"}
+                {controller.action === "undo" ? "Отменяю…" : "Отменить применение"}
               </button>
             ) : null}
           </div>
@@ -619,6 +623,30 @@ function AIProposalReviewModal({ controller, renderEntity }: AIProposalCenterPro
 }
 
 export function AIProposalCenter({ campaignId, controller, renderEntity }: AIProposalCenterProps) {
+  const modalOpen = Boolean(controller.inboxOpen || controller.selectedProposal || controller.promptTarget);
+  useEffect(() => {
+    if (!modalOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        if (controller.action) return;
+        event.preventDefault();
+        if (controller.promptTarget) controller.closePrompt();
+        else if (controller.selectedProposal) controller.closeProposal();
+        else controller.closeInbox();
+      }
+      if (event.key !== "Tab") return;
+      const dialogs = document.querySelectorAll<HTMLElement>(".ai-proposal-overlay:not(.ai-proposal-hidden) [role='dialog']");
+      const dialog = dialogs[dialogs.length - 1];
+      const controls = dialog ? Array.from(dialog.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], summary, [tabindex='0']")).filter((element) => element.getClientRects().length) : [];
+      const first = controls[0], last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => { document.body.style.overflow = previousOverflow; document.removeEventListener("keydown", onKeyDown); };
+  }, [modalOpen, controller.action, controller.promptTarget, controller.selectedProposal, controller.closePrompt, controller.closeProposal, controller.closeInbox]);
   return (
     <>
       <AIProposalInbox campaignId={campaignId} controller={controller} />

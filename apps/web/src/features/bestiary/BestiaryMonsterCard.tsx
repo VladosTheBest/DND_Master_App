@@ -33,15 +33,14 @@ export function BestiaryMonsterCard(props: BestiaryMonsterCardProps) {
     return (
       <button className="directory-card bestiary-directory-card" onClick={onClick} type="button">
         <span className="directory-card-thumb">
-          <img alt={item.title} className="directory-card-image" loading="lazy" src={createBestiaryPortraitSource(item)} />
+          <img alt="" className="directory-card-image" loading="lazy" src={createBestiaryPortraitSource(item)} />
         </span>
         <span className="directory-card-copy">
           <span className="directory-card-topline">
             <strong>{item.title}</strong>
             <span className={badge("warning")}>{item.challenge ? `CR ${item.challenge}` : "CR ?"}</span>
           </span>
-          <small>{item.creatureTypeLabel || item.source}</small>
-          <p>{truncateInlineText(item.summary || item.subtitle, 140)}</p>
+          <small>{[item.creatureTypeLabel, item.size].filter(Boolean).join(" · ")}</small>
         </span>
       </button>
     );

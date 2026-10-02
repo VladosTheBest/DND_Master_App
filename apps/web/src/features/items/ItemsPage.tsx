@@ -93,8 +93,8 @@ const itemCategoryLabels: Record<ItemCategory, string> = {
 };
 
 const itemSourceLabels: Record<ItemSource, string> = {
-  builtin: "Built-in D&D",
-  custom: "Custom",
+  builtin: "Базовые D&D",
+  custom: "Мои предметы",
   "dndsu-magic": "DnD.su • магические",
   "dndsu-equipment": "DnD.su • снаряжение"
 };
@@ -921,6 +921,7 @@ function ItemListCard({
     summaryMetric,
     ...getItemMetrics(item).filter((metric) => metric.label !== summaryMetric.label)
   ])
+    .filter((metric) => metric.label !== "Категория" && metric.label !== "Подтип")
     .slice(0, 3);
   const primaryPrice = item.buyPriceGp != null ? resolveBuyPriceLabel(item) : resolveSellPriceLabel(item);
 
@@ -937,7 +938,7 @@ function ItemListCard({
           <div className="items-list-card-copy">
             <div className="items-list-card-kicker">
               <span>{itemCategoryLabels[item.category]}</span>
-              {item.subcategory ? <span>{item.subcategory}</span> : null}
+              {item.subcategory && item.subcategory !== itemCategoryLabels[item.category] ? <span>{item.subcategory}</span> : null}
             </div>
             <strong>{item.name}</strong>
             <p>{truncateInlineText(item.description, 132)}</p>
@@ -1538,6 +1539,9 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
     [allItems, selectedItemId]
   );
 
+  const [visibleCount, setVisibleCount] = useState(48);
+  useEffect(() => setVisibleCount(48), [activeTab, armorTypeFilter, categoryFilter, deferredSearchQuery, priceFilter, sortMode, sourceFilter]);
+
   useEffect(() => {
     if (!selectedItem || !isRemoteItem(selectedItem) || selectedItem.detailLoaded) {
       return;
@@ -1709,14 +1713,22 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
   };
 
   const armorFilterDisabled = categoryFilter !== "all" && categoryFilter !== "armor";
+  const activeFilterCount = [categoryFilter, armorTypeFilter, sourceFilter, priceFilter].filter(value => value && value !== "all").length;
+  const resetFilters = () => {
+    setSearchQuery("");
+    setCategoryFilter("all");
+    setArmorTypeFilter("all");
+    setSourceFilter("all");
+    setPriceFilter("all");
+    setSortMode("name-asc");
+  };
 
   return (
     <div className="items-workspace">
       <section className="card items-workspace-head">
         <div className="notes-workspace-copy">
-          <p className="eyebrow">Предметы</p>
           <h1>Предметы</h1>
-          <p className="copy">Базовые предметы D&D, ваши кастомные предметы и внешние официальные каталоги в одном поиске</p>
+          <p className="copy">Снаряжение, магические предметы и ваши находки</p>
         </div>
 
         <div className="actions">
@@ -1786,6 +1798,8 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
             })}
           </div>
 
+          <details className="catalog-filter-disclosure">
+            <summary>Фильтры{activeFilterCount ? ` · ${activeFilterCount}` : ""}</summary>
           <div className="items-filter-grid">
             <label className="field">
               <span>Категория</span>
@@ -1857,20 +1871,14 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
               <span>Фильтры</span>
               <button
                 className="ghost fill"
-                onClick={() => {
-                  setSearchQuery("");
-                  setCategoryFilter("all");
-                  setArmorTypeFilter("all");
-                  setSourceFilter("all");
-                  setPriceFilter("all");
-                  setSortMode("name-asc");
-                }}
+                onClick={resetFilters}
                 type="button"
               >
                 Сбросить фильтры
               </button>
             </div>
           </div>
+          </details>
 
           <div className="row muted items-directory-summary">
             <span>Найдено: {filteredItems.length}</span>
@@ -1920,7 +1928,7 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
 
           {filteredItems.length ? (
             <div className="items-card-grid">
-              {filteredItems.map((item) => (
+              {filteredItems.slice(0, visibleCount).map((item) => (
                 <ItemListCard
                   key={item.id}
                   item={item}
@@ -1933,7 +1941,15 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
             <div className="items-preview-empty">
               <p className="eyebrow">Каталог</p>
               <h3>Список пуст по текущим фильтрам</h3>
-              <p className="copy">Попробуй сбросить фильтры слева или выбрать более широкий ценовой диапазон.</p>
+              <p className="copy">Измените запрос или расширьте фильтры.</p>
+              <button className="ghost" onClick={resetFilters} type="button">Показать все предметы</button>
+            </div>
+          )}
+
+          {visibleCount < filteredItems.length && (
+            <div className="catalog-load-more">
+              <span className="muted">Показано {visibleCount} из {filteredItems.length}</span>
+              <button className="ghost" type="button" onClick={() => setVisibleCount((count) => count + 48)}>Показать ещё</button>
             </div>
           )}
 

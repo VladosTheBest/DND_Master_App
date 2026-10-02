@@ -1,10 +1,17 @@
-import type { CampaignData } from "@shadow-edge/shared-types";
+import type { CampaignData, WorldEventType } from "@shadow-edge/shared-types";
+import { worldEventTypeLabels, worldEventTypeOptions } from "../../app-shared";
+import "./events.css";
 import { DndGenerationProgress } from "../../auth-ui";
 
 type RandomEventIconName = "spark" | "location" | "card" | "text" | "book" | "close";
 
 type RandomEventModalProps = {
   campaign: CampaignData | null;
+  locationId: string;
+  type: WorldEventType;
+  generationMode: "read_aloud" | "gm_event";
+  onChangeLocationId: (value: string) => void;
+  onChangeType: (value: WorldEventType) => void;
   generating: boolean;
   generationSteps: string[];
   notes: string[];
@@ -72,6 +79,11 @@ function RandomEventIcon({ name }: { name: RandomEventIconName }) {
 
 export function RandomEventModal({
   campaign,
+  locationId,
+  type,
+  generationMode,
+  onChangeLocationId,
+  onChangeType,
   generating,
   generationSteps,
   notes,
@@ -87,6 +99,7 @@ export function RandomEventModal({
     return null;
   }
 
+  const isGMEvent = generationMode === "gm_event";
   const selectedDestination =
     campaign && selectedDestinationId
       ? [...campaign.quests, ...campaign.locations].find((entity) => entity.id === selectedDestinationId) ?? null
@@ -100,7 +113,7 @@ export function RandomEventModal({
 
   return (
     <div className="overlay random-event-overlay" onClick={onClose} role="presentation">
-      <div className="panel random-event-modal" onClick={(event) => event.stopPropagation()} role="dialog">
+      <div className="panel random-event-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label={isGMEvent ? "Случайное событие" : "Подготовить сцену"}>
         <div className="random-event-shell">
           <header className="random-event-hero">
             <div className="random-event-title-row">
@@ -108,8 +121,8 @@ export function RandomEventModal({
                 <RandomEventIcon name="spark" />
               </span>
               <div className="random-event-title-copy">
-                <p className="eyebrow">Зачитка</p>
-                <h2>Сцена для игроков</h2>
+                <p className="eyebrow">Создание с AI</p>
+                <h2>{isGMEvent ? "Случайное событие" : "Подготовить сцену"}</h2>
               </div>
             </div>
             <div className="random-event-hero-meta">
@@ -124,15 +137,15 @@ export function RandomEventModal({
 
           <div className="random-event-layout">
             <section className="random-event-editor-panel">
-              <label className="random-event-select-card">
+              {!isGMEvent ? <label className="random-event-select-card">
                 <span className="random-event-control-icon">
                   <RandomEventIcon name="location" />
                 </span>
                 <span className="random-event-select-copy">
-                  <span>Предложить изменение</span>
+                  <span>Куда добавить сцену</span>
                   <strong>{destinationLabel}</strong>
                 </span>
-                <select onChange={(event) => onChangeDestinationId(event.target.value)} value={selectedDestinationId}>
+                <select disabled={generating} onChange={(event) => onChangeDestinationId(event.target.value)} value={selectedDestinationId}>
                   <option value="">Новым событием кампании</option>
                   {campaign?.quests.length ? (
                     <optgroup label="Квесты">
@@ -153,19 +166,24 @@ export function RandomEventModal({
                     </optgroup>
                   ) : null}
                 </select>
-              </label>
+              </label> : null}
 
+              {!selectedDestination ? <div className="form-grid">
+                <label className="field"><span>Место действия</span><select className="input" disabled={generating} value={locationId} onChange={(event) => onChangeLocationId(event.target.value)}><option value="">Без привязки</option>{campaign?.locations.map((location) => <option key={location.id} value={location.id}>{location.title}</option>)}</select></label>
+                <label className="field"><span>{isGMEvent ? "Тип события" : "Тип сцены"}</span><select className="input" disabled={generating} value={type} onChange={(event) => onChangeType(event.target.value as WorldEventType)}>{worldEventTypeOptions.map((value) => <option key={value} value={value}>{worldEventTypeLabels[value]}</option>)}</select></label>
+              </div> : null}
               <label className="random-event-prompt-card">
                 <span className="random-event-prompt-head">
                   <span>
                     <RandomEventIcon name="text" />
-                    <strong>Где находятся игроки</strong>
+                    <strong>{isGMEvent ? "Задумка (необязательно)" : "Что должно произойти"}</strong>
                   </span>
                   <small>{promptLength ? `${promptLength} зн.` : "пусто"}</small>
                 </span>
                 <textarea
+                  disabled={generating}
                   onChange={(event) => onChangePrompt(event.target.value)}
-                  placeholder="Например: партия идёт по заброшенной дороге, впереди тянется дым от старой лесопилки, а у тропы кто-то спешно заметает следы."
+                  placeholder={isGMEvent ? "Например: ночью у маяка замечена лодка без огней. Или оставьте пустым — AI придумает ситуацию." : "Например: партия идёт по заброшенной дороге и замечает дым от лесопилки."}
                   value={prompt}
                 />
               </label>
@@ -174,7 +192,7 @@ export function RandomEventModal({
 
               <div className="random-event-actions">
                 <button className="random-event-secondary-action" onClick={onClose} type="button">
-                  Отмена
+                  {generating ? "Свернуть" : "Отмена"}
                 </button>
                 <button className="random-event-primary-action" disabled={generating} onClick={onGenerate} type="button">
                   <RandomEventIcon name="spark" />
@@ -190,7 +208,7 @@ export function RandomEventModal({
                 </span>
                 <div>
                   <p className="eyebrow">Результат</p>
-                  <h3>Карточка игроков</h3>
+                  <h3>{isGMEvent ? "Короткая памятка мастеру" : selectedDestination ? "Карточка для игроков" : "Новое событие"}</h3>
                 </div>
               </div>
 
@@ -211,7 +229,7 @@ export function RandomEventModal({
                 <span className="random-event-preview-kicker">После проверки</span>
                 <strong>{selectedDestination ? `Карточка у "${selectedDestination.title}"` : "Событие кампании"}</strong>
                 <p>
-                  AI сначала создаст черновик. Название, текст и все изменения можно проверить перед применением.
+                  {isGMEvent ? "Что происходит, скрытая причина, подсказки и проверки, варианты действий и последствия. Возможные находки — с условиями получения. Сначала черновик, затем ваше решение." : "AI сначала создаст черновик. Название, текст и все изменения можно проверить перед применением."}
                 </p>
               </div>
             </aside>
@@ -219,9 +237,9 @@ export function RandomEventModal({
 
           {generating ? (
             <DndGenerationProgress
-              detail="AI собирает название, детали и текст зачитки в отдельный черновик. Данные кампании пока не меняются."
-              steps={generationSteps}
-              title="Готовлю черновик сцены"
+              detail={isGMEvent ? "AI готовит ситуацию, варианты развития и возможные находки. Можно свернуть окно и продолжить работу." : "AI собирает название, детали и текст зачитки в отдельный черновик. Данные кампании пока не меняются."}
+              steps={isGMEvent ? ["Учитываю тип и место действия", "Придумываю ситуацию и скрытые мотивы", "Готовлю последствия и возможные находки"] : generationSteps}
+              title={isGMEvent ? "Придумываю случайное событие" : "Готовлю черновик сцены"}
             />
           ) : null}
         </div>

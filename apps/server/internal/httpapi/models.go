@@ -609,10 +609,11 @@ type linkedEntityDraft struct {
 }
 
 type generateWorldEventInput struct {
-	LocationID string                 `json:"locationId,omitempty"`
-	Type       string                 `json:"type"`
-	Prompt     string                 `json:"prompt,omitempty"`
-	Current    *createWorldEventInput `json:"current,omitempty"`
+	GenerationMode string                 `json:"generationMode,omitempty"`
+	LocationID     string                 `json:"locationId,omitempty"`
+	Type           string                 `json:"type"`
+	Prompt         string                 `json:"prompt,omitempty"`
+	Current        *createWorldEventInput `json:"current,omitempty"`
 }
 
 type generateWorldEventResult struct {

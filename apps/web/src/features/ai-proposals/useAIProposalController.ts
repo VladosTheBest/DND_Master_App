@@ -141,9 +141,8 @@ export function useAIProposalController({
     if (proposal.kind === "campaign_create") return null;
     const campaignId = proposal.campaignId || proposal.target.campaignId;
     if (!campaignId) return null;
-    if (activeCampaign?.id === campaignId) return activeCampaign;
     return api.getCampaign(campaignId);
-  }, [activeCampaign]);
+  }, []);
 
   const openProposal = useCallback(async (proposalOrId: AIProposal | string) => {
     setError("");
@@ -164,11 +163,6 @@ export function useAIProposalController({
     }
   }, [resolveProposalCampaign]);
 
-  useEffect(() => {
-    if (!selectedProposal || selectedProposal.kind === "campaign_create") return;
-    const campaignId = selectedProposal.campaignId || selectedProposal.target.campaignId;
-    if (activeCampaign?.id === campaignId) setProposalCampaign(activeCampaign);
-  }, [activeCampaign, selectedProposal]);
 
   const closeProposal = useCallback(() => {
     if (action) return;
@@ -345,7 +339,11 @@ export function useAIProposalController({
       return result;
     } catch (nextError) {
       if (isApiError(nextError) && nextError.code === "stale_revision") {
-        setConflict("Данные изменились после создания черновика. Обнови карточку и попроси AI подготовить предложение заново.");
+        setConflict(nextError.message);
+        const targetCampaignId = selectedProposal?.campaignId || selectedProposal?.target.campaignId;
+        if (targetCampaignId) {
+          try { setProposalCampaign(await api.getCampaign(targetCampaignId)); } catch { /* Keep the conflict visible if refreshing fails. */ }
+        }
       } else {
         setError(nextError instanceof Error ? nextError.message : "Не удалось обработать AI-черновик.");
       }
@@ -353,7 +351,7 @@ export function useAIProposalController({
     } finally {
       setAction(null);
     }
-  }, [refresh, syncMutationResult]);
+  }, [refresh, selectedProposal, syncMutationResult]);
 
   const applyProposal = useCallback(async (selectedOperationKeys?: string[]) => {
     if (!selectedProposal) return null;

@@ -556,7 +556,19 @@ func (srv *server) prepareGeneratedEventProposal(ownerID, campaignID string, inp
 	if err != nil {
 		return proposalFailure(http.StatusNotFound, "not_found", "Campaign not found")
 	}
-	generateInput := generateWorldEventInput{Prompt: strings.TrimSpace(input.Prompt)}
+	generateInput := generateWorldEventInput{GenerationMode: strings.TrimSpace(input.GenerationMode), Prompt: strings.TrimSpace(input.Prompt), LocationID: strings.TrimSpace(input.LocationID), Type: strings.TrimSpace(input.Type)}
+	if generateInput.GenerationMode != "" && generateInput.GenerationMode != "read_aloud" && generateInput.GenerationMode != "gm_event" {
+		return proposalFailure(http.StatusBadRequest, "invalid_generation_mode", "Неизвестный режим генерации события.")
+	}
+	if generateInput.LocationID != "" {
+		_, _, location := findEntityInCampaign(&campaign, generateInput.LocationID)
+		if location.ID == "" || location.Kind != "location" {
+			return proposalFailure(http.StatusBadRequest, "invalid_relationship", "Выбранная локация больше недоступна.")
+		}
+	}
+	if generateInput.Type != "" && normalizeWorldEventType(generateInput.Type) != generateInput.Type {
+		return proposalFailure(http.StatusBadRequest, "invalid_event_type", "Неизвестный тип события.")
+	}
 	isUpdate := strings.EqualFold(strings.TrimSpace(input.Mode), "update")
 	if isUpdate {
 		_, existing := findEventInCampaign(&campaign, strings.TrimSpace(input.EventID))
@@ -587,6 +599,16 @@ func (srv *server) prepareGeneratedEventProposal(ownerID, campaignID string, inp
 	generated, err := srv.generator.GenerateWorldEvent(campaign, generateInput)
 	if err != nil {
 		return proposalFailure(http.StatusInternalServerError, "generate_proposal_failed", err.Error())
+	}
+	if generateInput.LocationID != "" {
+		generated.Event.LocationID = generateInput.LocationID
+		generated.Event.LocationLabel = lookupLocationLabel(campaign.Locations, generateInput.LocationID)
+	}
+	if generateInput.Type != "" {
+		generated.Event.Type = generateInput.Type
+	}
+	if generateInput.GenerationMode == "gm_event" {
+		generated.Event.Tags = appendUniqueStrings(generated.Event.Tags, "gm-event", "random-event")
 	}
 	raw, err := json.Marshal(generated.Event)
 	if err != nil {

@@ -734,8 +734,11 @@ export interface ProposeEntityInput {
 }
 
 export interface ProposeWorldEventInput {
+  generationMode?: "read_aloud" | "gm_event";
   mode: "create" | "update";
   eventId?: string;
+  locationId?: string;
+  type?: WorldEventType;
   prompt: string;
   patch?: Partial<WorldEventInput>;
   candidate?: WorldEventInput;
@@ -907,6 +910,7 @@ export interface FormatPlayerFacingCardResult {
 }
 
 export interface GenerateWorldEventInput {
+  generationMode?: "read_aloud" | "gm_event";
   locationId?: string;
   type: WorldEventType;
   prompt?: string;

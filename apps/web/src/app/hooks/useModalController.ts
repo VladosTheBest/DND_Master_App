@@ -81,13 +81,7 @@ export function useModalController({
     );
   };
 
-  const requestRandomEventModalClose = () => {
-    requestModalClose(
-      "Закрыть генератор случайного события?",
-      closeRandomEventModal,
-      "Описание сцены и текущий результат генерации могут пропасть, если окно закрыть сейчас."
-    );
-  };
+  const requestRandomEventModalClose = () => closeRandomEventModal();
 
   const requestCombatPlaylistModalClose = () => {
     requestModalClose(

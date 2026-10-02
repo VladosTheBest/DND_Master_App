@@ -3726,6 +3726,11 @@ export default function App() {
     generateRandomEvent,
     openRandomEventModal,
     randomEventDestinationId,
+    randomEventLocationId,
+    randomEventType,
+    randomEventMode,
+    setRandomEventLocationId,
+    setRandomEventType,
     randomEventGenerating,
     randomEventModalOpen,
     randomEventNotes,
@@ -4496,7 +4501,7 @@ export default function App() {
   return (
     <>
       <div
-        className={`shell ${!previewEntity && !(bestiaryController.isBrowseMode && bestiaryController.selectedBestiaryMonster) ? "without-preview" : ""} ${activeModule === "dashboard" || activeRailAlias ? "dashboard-shell" : ""} ${isCombatScreen ? "combat-layout" : ""} ${isCombatPrepScreen ? "combat-prep-shell" : ""} ${isItemsRail || isShopsRail ? "items-shell" : ""} ${isShopsRail ? "shops-shell" : ""} ${hasFeatureOwnedDetailsPanel ? "feature-owned-details-shell" : ""}`.trim()}
+        className={`shell ${activeModule === "dashboard" && !activeRailAlias ? "home-shell" : ""} ${!previewEntity && !(bestiaryController.isBrowseMode && bestiaryController.selectedBestiaryMonster) ? "without-preview" : ""} ${activeModule === "dashboard" || activeRailAlias ? "dashboard-shell" : ""} ${isCombatScreen ? "combat-layout" : ""} ${isCombatPrepScreen ? "combat-prep-shell" : ""} ${isItemsRail || isShopsRail ? "items-shell" : ""} ${isShopsRail ? "shops-shell" : ""} ${hasFeatureOwnedDetailsPanel ? "feature-owned-details-shell" : ""}`.trim()}
         style={shellStyle}
       >
         {!isCombatScreen ? (
@@ -4638,6 +4643,7 @@ export default function App() {
                 onOpenEntity={openEntity}
                 onOpenEntityImage={openEntityImage}
                 onOpenEvent={openWorldEvent}
+                onCreateEvent={() => openRandomEventModal({ newEvent: true, generationMode: "gm_event" })}
                 onOpenPreview={openPreview}
                 onNavigate={section => {
                   if (section === "sessions" || section === "events") openRailAlias(section);
@@ -5387,6 +5393,11 @@ export default function App() {
 
       <RandomEventModal
         campaign={campaign}
+        locationId={randomEventLocationId}
+        type={randomEventType}
+        generationMode={randomEventMode}
+        onChangeLocationId={setRandomEventLocationId}
+        onChangeType={setRandomEventType}
         generating={randomEventGenerating}
         generationSteps={randomEventGenerationSteps}
         notes={randomEventNotes}

@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/json"
+	"reflect"
 	"strings"
 	"time"
 )
@@ -71,6 +72,15 @@ func applyShopImageProposalLocked(proposal *aiProposal, campaign *campaignData, 
 	var candidate knowledgeEntity
 	if err := json.Unmarshal(raw, &candidate); err != nil {
 		return proposalActionResult{}, err
+	}
+	if undo {
+		var applied knowledgeEntity
+		if err := json.Unmarshal(proposal.AppliedResult, &applied); err != nil {
+			return proposalActionResult{}, err
+		}
+		if !reflect.DeepEqual(current.Art, applied.Art) {
+			return proposalActionResult{}, staleRevisionFailure("shop image")
+		}
 	}
 	if !undo {
 		if err := validateProposalEntityMedia(candidate, &current, proposal.OwnerID, campaign.ID); err != nil {
