@@ -61,9 +61,8 @@ export function EntityDirectoryScreen({
       <section className="card section-card directory-screen">
         <div className="directory-head">
           <div>
-            <p className="eyebrow">{activeSectionLabel}</p>
-            <h2>Выбери запись</h2>
-            <p className="copy">Сначала показываю весь список по разделу. Когда выберешь сущность, здесь откроется её полноценная страница.</p>
+            <h1>{activeSectionLabel}</h1>
+            <p className="copy">{moduleEntitySearch ? "Найдено" : "Записей в кампании"}: {moduleDirectoryEntities.length}</p>
           </div>
           <div className="actions">
             {activeModule === "quests" ? (
@@ -72,7 +71,7 @@ export function EntityDirectoryScreen({
               </button>
             ) : null}
             <button className="primary" onClick={() => onOpenEntityModal(defaultCreateKind)} type="button">
-              Создать сущность
+              Добавить запись
             </button>
           </div>
         </div>
@@ -171,8 +170,9 @@ export function EntityDirectoryScreen({
           </div>
         ) : (
           <div className="directory-empty">
-            <h3>Ничего не найдено</h3>
-            <p className="copy">Либо в разделе пока нет записей, либо текущий поиск/фильтр ничего не дал.</p>
+            <h3>{moduleEntitySearch ? "Ничего не найдено" : "Здесь пока пусто"}</h3>
+            <p className="copy">{moduleEntitySearch ? "Попробуйте другое название или очистите поиск." : "Добавьте первую запись — описание можно дополнить позже."}</p>
+            {moduleEntitySearch ? <button className="ghost" onClick={() => onChangeSearch("")} type="button">Очистить поиск</button> : null}
           </div>
         )}
       </section>

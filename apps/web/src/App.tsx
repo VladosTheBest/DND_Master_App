@@ -1902,7 +1902,7 @@ export default function App() {
     setCampaign(normalized);
     setActiveCampaignId(normalized.id);
     setActiveEntityId(preferredId ?? currentActiveId ?? "");
-    setPreviewEntityId(preferredId ?? currentPreviewId ?? "");
+    setPreviewEntityId(currentPreviewId);
     setCombatTitle(normalized.activeCombat?.title ?? normalized.preparedCombat?.title ?? "Активный бой");
     setCombatPartySize(normalized.activeCombat?.partySize ?? (preparedPartySize > 0 ? preparedPartySize : 4));
     setCombatThresholds(normalized.activeCombat?.thresholds ?? createDefaultCombatThresholds());
@@ -2876,6 +2876,7 @@ export default function App() {
 
   const scrollContentToTop = () => {
     contentRef.current?.scrollTo({ top: 0, behavior: "auto" });
+    if (window.matchMedia("(max-width: 1120px)").matches) window.scrollTo({ top: 0 });
   };
 
   const openModuleDirectory = (moduleId: ModuleId = activeModule, tabId?: string) => {
@@ -2925,7 +2926,7 @@ export default function App() {
       setActiveTab(nextTab);
       setActiveEntityId(id);
     });
-    setPreviewEntityId(id);
+    setPreviewEntityId("");
 
     requestAnimationFrame(scrollContentToTop);
   };
@@ -2936,6 +2937,11 @@ export default function App() {
     }
 
     setPreviewEntityId(id);
+    requestAnimationFrame(() => {
+      if (window.matchMedia("(max-width: 1120px)").matches) {
+        document.querySelector(".preview")?.scrollIntoView({ block: "start" });
+      }
+    });
   };
 
   const openWorldEvent = (eventId: string) => {
@@ -2973,7 +2979,7 @@ export default function App() {
       setActiveEntityId(id);
     });
 
-    setPreviewEntityId(id);
+    setPreviewEntityId("");
     requestAnimationFrame(scrollContentToTop);
   };
 
@@ -4344,8 +4350,8 @@ export default function App() {
       <div className="boot">
         <div className="panel boot-card">
           <p className="eyebrow">Shadow Edge Ward</p>
-          <h1>Проверяю ключ от мастерской</h1>
-          <p>Поднимаю сессию и убеждаюсь, что кабинет можно открыть безопасно.</p>
+          <h1>Проверяем вход</h1>
+          <p>Открываем ваш кабинет.</p>
         </div>
       </div>
     );
@@ -4372,9 +4378,9 @@ export default function App() {
       <>
         <div className="boot">
           <div className="panel boot-card">
-            <p className="eyebrow">Phase 1 Foundation</p>
+            <p className="eyebrow">Shadow Edge GM</p>
             <h1>Собираем кабинет мастера</h1>
-            <p>Загружаю кампанию, связи и рабочий shell для мастера.</p>
+            <p>Загружаем вашу кампанию.</p>
           </div>
         </div>
         <AIProposalCenter campaignId={activeCampaignId} controller={aiProposalController} key="ai-proposal-center" renderEntity={renderProposalEntity} />
@@ -4462,7 +4468,7 @@ export default function App() {
   return (
     <>
       <div
-        className={`shell ${isCombatScreen ? "combat-layout" : ""} ${isCombatPrepScreen ? "combat-prep-shell" : ""} ${isItemsRail || isShopsRail ? "items-shell" : ""} ${isShopsRail ? "shops-shell" : ""} ${hasFeatureOwnedDetailsPanel ? "feature-owned-details-shell" : ""}`.trim()}
+        className={`shell ${!previewEntity && !(bestiaryController.isBrowseMode && bestiaryController.selectedBestiaryMonster) ? "without-preview" : ""} ${activeModule === "dashboard" || activeRailAlias ? "dashboard-shell" : ""} ${isCombatScreen ? "combat-layout" : ""} ${isCombatPrepScreen ? "combat-prep-shell" : ""} ${isItemsRail || isShopsRail ? "items-shell" : ""} ${isShopsRail ? "shops-shell" : ""} ${hasFeatureOwnedDetailsPanel ? "feature-owned-details-shell" : ""}`.trim()}
         style={shellStyle}
       >
         {!isCombatScreen ? (
@@ -4558,7 +4564,7 @@ export default function App() {
                 variant="default"
               />
 
-              {!hasFeatureOwnedDetailsPanel ? (
+              {!hasFeatureOwnedDetailsPanel && !activeRailAlias && activeModule !== "dashboard" ? (
                 <div className="panel tabs">
                   {tabs[activeModule].map((tab) => (
                     <button
@@ -4567,10 +4573,8 @@ export default function App() {
                       onClick={() => {
                         setModuleEntitySearch("");
                         setActiveTab(tab);
-                        if (activeModule !== "dashboard") {
-                          setActiveEntityId("");
-                          setPreviewEntityId("");
-                        }
+                        setActiveEntityId("");
+                        setPreviewEntityId("");
                         if (activeModule === "monsters") {
                           bestiaryController.resetBrowseSelection();
                         }
@@ -4607,6 +4611,10 @@ export default function App() {
                 onOpenEntityImage={openEntityImage}
                 onOpenEvent={openWorldEvent}
                 onOpenPreview={openPreview}
+                onNavigate={section => {
+                  if (section === "sessions" || section === "events") openRailAlias(section);
+                  else switchModule(section);
+                }}
               />
             ) : activeModule === "combat" ? (
               <CombatPage
@@ -4827,8 +4835,8 @@ export default function App() {
           </section>
         </main>
 
-        {!isCombatScreen && !hasFeatureOwnedDetailsPanel ? (
-          <AppPreviewPanel onPointerDown={(event) => startResize("preview", event)}>
+        {!isCombatScreen && !hasFeatureOwnedDetailsPanel && (previewEntity || (bestiaryController.isBrowseMode && bestiaryController.selectedBestiaryMonster)) ? (
+          <AppPreviewPanel onClose={bestiaryController.isBrowseMode ? undefined : () => { setPreviewEntityId(""); requestAnimationFrame(scrollContentToTop); }} onPointerDown={(event) => startResize("preview", event)}>
           {bestiaryController.isBrowseMode ? (
             <BestiaryPreviewPanel controller={bestiaryController} />
           ) : (

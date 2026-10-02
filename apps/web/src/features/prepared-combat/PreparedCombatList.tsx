@@ -79,7 +79,8 @@ export function PreparedCombatList({
   return (
     <>
       <CollapsibleSection
-        action={<span className={badge(cards.length ? "danger" : "default")}>{cards.length ? `${cards.length} карточек` : "Черновик нужен"}</span>}
+        defaultCollapsed={!cards.length}
+        action={<span className={badge(cards.length ? "danger" : "default")}>{cards.length ? `${cards.length} карточек` : "Не добавлены"}</span>}
         className="entity-prepared-combat-stack entity-player-facing-collapsible"
         hint={copy.description}
         summary={

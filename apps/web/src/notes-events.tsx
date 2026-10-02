@@ -110,10 +110,9 @@ export function EventsWorkspace({
       <section className="card notes-workspace-head">
         <div className="notes-workspace-copy">
           <p className="eyebrow">События</p>
-          <h1>Маленькие сценки для стола</h1>
+          <h1>События и сцены</h1>
           <p className="notes-workspace-copy">
-            Здесь живут короткие смешные, тревожные или боевые эпизоды. Они не тянут на полноценный квест, зато
-            отлично оживляют сессию и дают мгновенную сцену с репликами, лутом и быстрым выбором.
+            Короткие эпизоды для игры: место действия, текст сцены и возможные последствия.
           </p>
         </div>
         {!readOnly ? <div className="actions">
@@ -466,7 +465,7 @@ export function NotesWorkspace({
           </div>
           <h1>Заметки мастера</h1>
           <p className="copy">
-            Только рабочий текст и быстрые записи. Здесь новая заметка создаётся без общей формы сущности и без лишних полей.
+            Планы игры, идеи и секреты мастера.
           </p>
         </div>
 
@@ -544,7 +543,7 @@ export function NotesWorkspace({
         <section className="card notes-editor-panel">
           <div className="notes-editor-head">
             <div className="stack compact">
-              <p className="eyebrow">Editor</p>
+              <p className="eyebrow">Редактор</p>
               <strong>{editorTitle}</strong>
               <p className="copy">
                 {draftContent.trim()

@@ -271,10 +271,10 @@ export function EntityDetailsRenderer({
                   </button>
                 ) : null}
                 <button className="ghost" onClick={onTogglePin} type="button">
-                  {activeEntityPinned ? "Unpin" : "Pin"}
+                  {activeEntityPinned ? "Убрать закладку" : "В закладки"}
                 </button>
                 <button className="primary" onClick={onOpenPreview} type="button">
-                  Открыть в preview
+                  Быстрый просмотр
                 </button>
               </div>
             )}
@@ -381,10 +381,10 @@ export function EntityDetailsRenderer({
             </button>
           ) : null}
           <button className="ghost" onClick={onTogglePin} type="button">
-            {activeEntityPinned ? "Unpin" : "Pin"}
+            {activeEntityPinned ? "Убрать закладку" : "В закладки"}
           </button>
           <button className="primary" onClick={onOpenPreview} type="button">
-            Открыть в preview
+            Быстрый просмотр
           </button>
         </div> : null}
       </section>
@@ -397,27 +397,6 @@ export function EntityDetailsRenderer({
           ))}
         </nav>
       ) : null}
-
-      <div id={dossierKind ? `${dossierKind}-handouts` : undefined}>
-        <PlayerFacingCardStrip
-          cards={activeEntityPlayerCards}
-          createDescription="Отдельная сцена, handout или короткая заметка для игроков. Откроется сразу в режиме редактирования."
-          description={
-            activeEntity.kind === "location"
-              ? "Создавай сколько угодно отдельных карточек-сцен и handout-описаний для игроков."
-              : "Храни здесь player-safe описания, речи, handout-карточки и любые отдельные тексты, которые удобно открывать по одной."
-          }
-          emptyDescription="Пока карточек нет. Создай первую, и она сразу появится в отдельном удобном просмотре для зачитывания игрокам."
-          entityId={activeEntity.id}
-          onCreateCard={onCreatePlayerFacingCard}
-          onDeleteCard={onDeletePlayerFacingCard}
-          onEditCard={onEditPlayerFacingCard}
-          onOpenCard={onOpenPlayerFacingCard}
-          readOnly={readOnly}
-        />
-      </div>
-
-      {preparedCombatSection}
 
       {visibleFacts.length ? (
         <div id={dossierKind ? `${dossierKind}-summary` : undefined}>
@@ -446,10 +425,42 @@ export function EntityDetailsRenderer({
         </div>
       ) : null}
 
+      <div id={dossierKind ? `${dossierKind}-master-notes` : undefined}>
+      <MasterKnowledgeCard
+        content={activeEntity.content}
+        entityByTitle={entityByTitle}
+        onContextMenu={onContentContextMenu}
+        onMentionClick={onOpenPreview}
+        summary={activeEntity.summary}
+      />
+      </div>
+
+      <div id={dossierKind ? `${dossierKind}-handouts` : undefined}>
+        <PlayerFacingCardStrip
+          cards={activeEntityPlayerCards}
+          createDescription="Отдельная сцена, handout или короткая заметка для игроков. Откроется сразу в режиме редактирования."
+          description={
+            activeEntity.kind === "location"
+              ? "Создавай сколько угодно отдельных карточек-сцен и handout-описаний для игроков."
+              : "Храни здесь player-safe описания, речи, handout-карточки и любые отдельные тексты, которые удобно открывать по одной."
+          }
+          emptyDescription="Пока карточек нет. Создай первую, и она сразу появится в отдельном удобном просмотре для зачитывания игрокам."
+          entityId={activeEntity.id}
+          onCreateCard={onCreatePlayerFacingCard}
+          onDeleteCard={onDeletePlayerFacingCard}
+          onEditCard={onEditPlayerFacingCard}
+          onOpenCard={onOpenPlayerFacingCard}
+          readOnly={readOnly}
+        />
+      </div>
+
+      {preparedCombatSection}
+
       {activeEntity.kind === "location" ? (
         <div id="location-shops">
         <CollapsibleSection
           key={`${activeEntity.id}-shops`}
+          defaultCollapsed={!locationShops.length}
           hint="Торговые точки, привязанные к этой локации"
           summary={
             <p className="copy">
@@ -531,6 +542,7 @@ export function EntityDetailsRenderer({
         <div id="npc-quests">
         <CollapsibleSection
           key={`${activeEntity.id}-quests`}
+          defaultCollapsed={!activeNpcQuests.length}
           action={readOnly ? undefined : (
             <button className="ghost" onClick={onOpenNpcQuestModal} type="button">
               Создать квест
@@ -568,19 +580,10 @@ export function EntityDetailsRenderer({
 
       {isRewardableEntity(activeEntity) ? <RewardSection kind={activeEntity.kind} rewardProfile={activeEntity.rewardProfile} /> : null}
 
-      <div id={dossierKind ? `${dossierKind}-master-notes` : undefined}>
-      <MasterKnowledgeCard
-        content={activeEntity.content}
-        entityByTitle={entityByTitle}
-        onContextMenu={onContentContextMenu}
-        onMentionClick={onOpenPreview}
-        summary={activeEntity.summary}
-      />
-      </div>
-
       <div id={dossierKind ? `${dossierKind}-relations` : undefined}>
       <CollapsibleSection
         key={`${activeEntity.id}-related`}
+        defaultCollapsed={!activeEntity.related.length}
         hint="Быстрые переходы без перегруза интерфейса"
         summary={
           <p className="copy">

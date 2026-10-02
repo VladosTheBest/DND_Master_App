@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { AccountSettings } from "./OAuthControls";
 import type { CampaignSummary } from "@shadow-edge/shared-types";
 import { RailIcon, type RailIconName } from "../rail-icon";
 
@@ -29,7 +31,6 @@ export function AppSidebar({
   activeCampaignId,
   activeRailKey,
   campaigns,
-  pinnedCount,
   settingName,
   inWorldDate,
   items,
@@ -37,9 +38,16 @@ export function AppSidebar({
   onCreateCampaign,
   onLogout
 }: AppSidebarProps) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const groups = [
+    { label: "За столом", keys: ["dashboard", "sessions", "players"] },
+    { label: "Мир и история", keys: ["quests", "locations", "npcs", "events", "notes", "shops"] },
+    { label: "Справочники", keys: ["monsters", "items", "rules"] }
+  ];
   return (
-    <aside className="panel rail">
-      <div className="rail-shell">
+    <aside className={`panel rail ${mobileOpen ? "rail-open" : ""}`}>
+      <button className="ghost rail-mobile-toggle" type="button" aria-expanded={mobileOpen} aria-controls="campaign-navigation" onClick={() => setMobileOpen(!mobileOpen)}>Меню · {items.find(item => item.key === activeRailKey)?.label ?? "Кампания"} <span aria-hidden="true">⌄</span></button>
+      <div className="rail-shell" id="campaign-navigation">
         <div className="rail-brand">
           <span className="rail-brand-mark">
             <RailIcon name="brand" />
@@ -53,13 +61,13 @@ export function AppSidebar({
         <section className="rail-group">
           <div className="rail-group-head">
             <p className="eyebrow">Кампания</p>
-            <button className="rail-plus-btn" onClick={onCreateCampaign} title="Новая кампания" type="button">
+            <button className="rail-plus-btn" onClick={onCreateCampaign} aria-label="Новая кампания" title="Новая кампания" type="button">
               +
             </button>
           </div>
 
           <div className="rail-select-shell">
-            <select className="rail-select" onChange={(event) => onCampaignSelect(event.target.value)} value={activeCampaignId}>
+            <select aria-label="Кампания" className="rail-select" onChange={(event) => onCampaignSelect(event.target.value)} value={activeCampaignId}>
               {campaigns.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.title}
@@ -74,38 +82,20 @@ export function AppSidebar({
           </div>
         </section>
 
-        <section className="rail-group rail-group-nav">
-          <p className="eyebrow">Навигация</p>
-          <nav className="rail-nav" aria-label="Основная навигация">
-            {items.map((item) => (
-              <button
-                key={item.key}
-                className={`rail-nav-item ${activeRailKey === item.key ? "active" : ""}`}
-                onClick={item.onClick}
-                type="button"
-              >
-                <span className="rail-nav-icon">
-                  <RailIcon name={item.icon} />
-                </span>
-                <span className="rail-nav-label">{item.label}</span>
+        <nav className="rail-group-nav" aria-label="Разделы кампании">
+          {groups.map(group => <section className="rail-group" key={group.label}>
+            <p className="eyebrow">{group.label}</p>
+            <div className="rail-nav">{group.keys.map(key => items.find(item => item.key === key)).filter((item): item is AppSidebarItem => Boolean(item)).map(item => (
+              <button key={item.key} className={`rail-nav-item ${activeRailKey === item.key ? "active" : ""}`} aria-current={activeRailKey === item.key ? "page" : undefined}
+                onClick={() => { item.onClick(); setMobileOpen(false); }} type="button">
+                <span className="rail-nav-icon"><RailIcon name={item.icon} /></span><span className="rail-nav-label">{item.label}</span>
               </button>
-            ))}
-          </nav>
-        </section>
-
+            ))}</div>
+          </section>)}
+        </nav>
         <div className="meta rail-meta">
-          <div className="rail-meta-row">
-            <span>Мир</span>
-            <strong>{settingName}</strong>
-          </div>
-          <div className="rail-meta-row">
-            <span>Дата</span>
-            <strong>{inWorldDate}</strong>
-          </div>
-          <div className="rail-meta-row">
-            <span>Пины</span>
-            <strong>{pinnedCount}</strong>
-          </div>
+          <small>{settingName} · {inWorldDate}</small>
+          <AccountSettings />
           <button className="ghost rail-logout" disabled={authBusy} onClick={onLogout} type="button">
             {authBusy ? "Выходим..." : "Выйти"}
           </button>

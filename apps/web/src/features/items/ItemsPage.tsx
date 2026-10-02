@@ -1886,10 +1886,6 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
             </label>
           </div>
 
-          <div className="items-directory-note">
-            <strong>Витрина предметов</strong>
-            <span>Карточки держат стабильный размер, а подробности открываются в отдельной модалке без сдвига сетки.</span>
-          </div>
         </aside>
 
         <section className="card items-catalog-panel">
@@ -1898,14 +1894,11 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
 
           <div className="items-catalog-header">
             <div className="stack tight">
-              <p className="eyebrow">Каталог</p>
-              <strong>{selectedItem ? `Открыт предмет: ${selectedItem.name}` : "Нажми на карточку, чтобы открыть предмет"}</strong>
-              <small>Карточки остаются аккуратной сеткой, а полная информация открывается в отдельном окне поверх каталога.</small>
+              <h2>Каталог</h2>
             </div>
 
             <div className="items-catalog-summary">
               <span>{filteredItems.length} предметов</span>
-              <span>{selectedItem ? "Открыта модалка предмета" : "Сетка карточек активна"}</span>
             </div>
           </div>
 

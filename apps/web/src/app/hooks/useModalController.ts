@@ -70,12 +70,7 @@ export function useModalController({
   };
 
   const requestPaletteClose = () => {
-    requestModalClose(
-      "Закрыть глобальный поиск?",
-      () => setPaletteOpen(false),
-      "Текущий поиск закроется. Если ещё не открыл нужную сущность, его придётся набрать заново.",
-      "Закрыть поиск"
-    );
+    setPaletteOpen(false);
   };
 
   const requestEntityModalClose = () => {
@@ -157,12 +152,7 @@ export function useModalController({
   };
 
   const requestGalleryViewerClose = () => {
-    requestModalClose(
-      "Закрыть просмотр галереи?",
-      closeGalleryViewer,
-      "Окно полноэкранного просмотра закроется.",
-      "Закрыть просмотр"
-    );
+    closeGalleryViewer();
   };
 
   const requestPlayerFacingViewClose = () => {

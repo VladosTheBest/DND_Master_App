@@ -21,7 +21,7 @@ export function CloseConfirmDialog({
         <div className="stack wide">
           <div className="row">
             <div>
-              <p className="eyebrow">Confirm Close</p>
+              <p className="eyebrow">Несохранённые изменения</p>
               <strong>{state.title}</strong>
             </div>
           </div>

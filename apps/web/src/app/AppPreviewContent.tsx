@@ -137,9 +137,9 @@ export function AppPreviewContent({
     return (
       <div className="stack wide">
         <div className="row">
-          <p className="eyebrow">Peek / Preview</p>
+          <p className="eyebrow">Быстрый просмотр</p>
           <button className={badge(previewPinned ? "success" : "default")} onClick={() => onTogglePin(previewEntity.id)} type="button">
-            {previewPinned ? "Pinned" : "Pin"}
+            {previewPinned ? "Убрать закладку" : "В закладки"}
           </button>
         </div>
 

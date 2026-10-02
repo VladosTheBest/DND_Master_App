@@ -199,7 +199,8 @@ export function PlayerFacingCardStrip({
   return (
     <>
       <CollapsibleSection
-      action={<span className={badge(cards.length ? cardBadgeTone : "default")}>{countLabel ?? (cards.length ? `${cards.length} карточек` : "Черновик нужен")}</span>}
+      defaultCollapsed={!cards.length}
+      action={<span className={badge(cards.length ? cardBadgeTone : "default")}>{countLabel ?? (cards.length ? `${cards.length} карточек` : "Не добавлены")}</span>}
       className="entity-player-facing-stack entity-player-facing-collapsible"
       hint={description}
       summary={
@@ -366,7 +367,7 @@ export function PreparedCombatCardStrip({
   return (
     <>
       <CollapsibleSection
-        action={<span className={badge(cards.length ? "danger" : "default")}>{cards.length ? `${cards.length} карточек` : "Черновик нужен"}</span>}
+        action={<span className={badge(cards.length ? "danger" : "default")}>{cards.length ? `${cards.length} карточек` : "Не добавлены"}</span>}
         className="entity-prepared-combat-stack entity-player-facing-collapsible"
         hint={description}
         summary={

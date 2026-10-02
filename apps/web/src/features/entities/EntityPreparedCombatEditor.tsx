@@ -31,9 +31,9 @@ export function EntityPreparedCombatEditor({
           onChange={(event) => setEntityForm((current) => ({ ...current, status: event.target.value as typeof current.status }))}
           value={entityForm.status ?? "active"}
         >
-          <option value="active">active</option>
-          <option value="paused">paused</option>
-          <option value="completed">completed</option>
+          <option value="active">Активен</option>
+          <option value="paused">Приостановлен</option>
+          <option value="completed">Завершён</option>
         </select>
       </label>
       <label className="field">
@@ -43,10 +43,10 @@ export function EntityPreparedCombatEditor({
           onChange={(event) => setEntityForm((current) => ({ ...current, urgency: event.target.value as typeof current.urgency }))}
           value={entityForm.urgency ?? "Medium"}
         >
-          <option value="Low">Low</option>
-          <option value="Medium">Medium</option>
-          <option value="High">High</option>
-          <option value="Critical">Critical</option>
+          <option value="Low">Низкая</option>
+          <option value="Medium">Средняя</option>
+          <option value="High">Высокая</option>
+          <option value="Critical">Критическая</option>
         </select>
       </label>
       <label className="field">

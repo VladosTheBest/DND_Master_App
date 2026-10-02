@@ -151,53 +151,6 @@ function LoginFieldGlyph({ kind }: { kind: "user" | "lock" | "eye" | "eye-off" |
   }
 }
 
-type LoginHeroGlyphName = "quest" | "initiative" | "map" | "note";
-
-function LoginHeroGlyph({ name }: { name: LoginHeroGlyphName }) {
-  const common = {
-    fill: "none",
-    stroke: "currentColor",
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-    strokeWidth: 1.85
-  };
-
-  switch (name) {
-    case "quest":
-      return (
-        <svg aria-hidden="true" className="login-hero-glyph" viewBox="0 0 32 32">
-          <path {...common} d="M9 7.5h12.5c1.8 0 3.2 1.4 3.2 3.2v.6H12.4A3.4 3.4 0 0 0 9 14.7V24" />
-          <path {...common} d="M7.3 7.5h3.1A3.6 3.6 0 0 1 14 11.1v13.4H9.6a3.6 3.6 0 0 1-3.6-3.6V8.8c0-.7.6-1.3 1.3-1.3Z" />
-          <path {...common} d="M14 16.4h10.2M14 20.4h7" />
-        </svg>
-      );
-    case "initiative":
-      return (
-        <svg aria-hidden="true" className="login-hero-glyph" viewBox="0 0 32 32">
-          <path {...common} d="m9 8 15 15M23 8 8 23" />
-          <path {...common} d="m7.2 5.8 4.9 4.9M24.8 5.8l-4.9 4.9M5.8 24.8l4.9-4.9M26.2 24.8l-4.9-4.9" />
-          <path {...common} d="m6 5 3.2 1.1L7.1 8.2 6 5ZM26 5l-1.1 3.2-2.1-2.1L26 5ZM6 27l1.1-3.2 2.1 2.1L6 27ZM26 27l-3.2-1.1 2.1-2.1L26 27Z" />
-        </svg>
-      );
-    case "map":
-      return (
-        <svg aria-hidden="true" className="login-hero-glyph" viewBox="0 0 32 32">
-          <path {...common} d="m6.5 9.2 6.3-2.7 6.4 2.7 6.3-2.7v16.3l-6.3 2.7-6.4-2.7-6.3 2.7V9.2Z" />
-          <path {...common} d="M12.8 6.5v16.3M19.2 9.2v16.3" />
-        </svg>
-      );
-    case "note":
-      return (
-        <svg aria-hidden="true" className="login-hero-glyph" viewBox="0 0 32 32">
-          <path {...common} d="M10 6.5h12l3 3v15a1.8 1.8 0 0 1-1.8 1.8H10A1.8 1.8 0 0 1 8.2 24.5V8.3A1.8 1.8 0 0 1 10 6.5Z" />
-          <path {...common} d="M22 6.5v4h4" />
-          <path {...common} d="M12 14.3h8M12 18.3h8M12 22.3h5.4" />
-          <path {...common} d="M12.2 4.5v4M18.2 4.5v4" />
-        </svg>
-      );
-  }
-}
-
 export function LoginScreen({
   username,
   password,
@@ -223,16 +176,8 @@ export function LoginScreen({
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordConfirm, setShowPasswordConfirm] = useState(false);
-  const [ritualMode, setRitualMode] = useState(false);
   const isRegistering = authMode === "register";
   const submitLabel = busy ? (isRegistering ? "Создаю аккаунт..." : "Открываю кабинет...") : isRegistering ? "Создать аккаунт" : "Войти в кабинет";
-  const loginFeatures: Array<{ title: string; detail: string; icon: LoginHeroGlyphName }> = [
-    { title: "Квесты", detail: "Веди истории и кампании", icon: "quest" },
-    { title: "Инициатива", detail: "Удобные боевые сцены", icon: "initiative" },
-    { title: "Карты", detail: "Локации и регионы", icon: "map" },
-    { title: "Заметки", detail: "Твои записи и идеи", icon: "note" }
-  ];
-
   useEffect(() => {
     if (typeof window === "undefined") {
       return;
@@ -257,7 +202,7 @@ export function LoginScreen({
 
   return (
     <div className="login-screen">
-      <div className={`login-scene ${ritualMode ? "ritual-mode" : ""}`} style={{ backgroundImage: `url(${loginBgUrl})` }}>
+      <div className="login-scene login-simplified" style={{ backgroundImage: `url(${loginBgUrl})` }}>
         <div className="login-scene-glow" aria-hidden="true" />
         <div className="login-frame">
           <header className="login-topbar">
@@ -271,82 +216,26 @@ export function LoginScreen({
               </div>
             </div>
 
-            <button
-              aria-label={ritualMode ? "Переключить на лунный тон" : "Переключить на ритуальный тон"}
-              className="login-theme-toggle"
-              onClick={() => setRitualMode((current) => !current)}
-              type="button"
-            >
-              <span className={`login-theme-icon ${!ritualMode ? "active" : ""}`}>
-                <LoginFieldGlyph kind="sun" />
-              </span>
-              <span className={`login-theme-icon ${ritualMode ? "active" : ""}`}>
-                <LoginFieldGlyph kind="moon" />
-              </span>
-            </button>
           </header>
 
           <div className="login-shell">
             <section className="login-copy">
               <div className="login-copy-inner">
-                <div className="login-kicker">
-                  <span className="login-kicker-line" aria-hidden="true" />
-                  <span className="eyebrow">Врата мастерской</span>
-                  <span className="login-kicker-gem" aria-hidden="true">
-                    <RailIcon name="brand" />
-                  </span>
-                  <span className="login-kicker-line" aria-hidden="true" />
-                </div>
-
-                <h1>
-                  <span>Только</span>
-                  <span>
-                    для <em>мастера</em>
-                  </span>
-                </h1>
-                <p className="copy">
-                  Карты, квесты, заметки и боевые сцены теперь открываются только после входа.
-                </p>
+                <p className="eyebrow">Для мастеров D&D</p>
+                <h1>Меньше подготовки.<br />Больше приключений.</h1>
+                <p className="copy">Соберите игроков, подготовьте мир и ведите игру. Квесты, карты и заметки — в одной кампании.</p>
               </div>
-
-              <div className="login-feature-grid">
-                {loginFeatures.map((feature) => (
-                  <article key={feature.title} className="login-feature-card">
-                    <span className="login-feature-icon" aria-hidden="true">
-                      <LoginHeroGlyph name={feature.icon} />
-                    </span>
-                    <strong>{feature.title}</strong>
-                    <small>{feature.detail}</small>
-                  </article>
-                ))}
-              </div>
-
-              <blockquote className="login-quote-card">
-                <span className="login-quote-mark" aria-hidden="true">
-                  <LoginFieldGlyph kind="spark" />
-                </span>
-                <p>
-                  <strong>Мир ждёт твоей истории.</strong>
-                  <small>Создавай легенды, которые запомнятся навсегда.</small>
-                </p>
-              </blockquote>
               <a className="ghost" href="#characters" style={{ display: "block", textAlign: "center", padding: "14px", marginTop: "16px" }}>
-                ✦ Создать персонажа D&D · без регистрации
+                Я игрок · создать персонажа без регистрации
               </a>
             </section>
 
             <form className="panel login-card" onSubmit={handleSubmit}>
-              <div className="login-card-ornament" aria-hidden="true">
-                <span />
-                <i />
-                <span />
-              </div>
-
               <h2>{isRegistering ? "Создать аккаунт" : "Войти в Shadow Edge"}</h2>
               <p className="copy">
                 {isRegistering
-                  ? "Зарегистрируй отдельный кабинет мастера. Кампании и заметки будут видны только этому аккаунту."
-                  : "Один логин открывает кабинет мастера, а публичный экран для игроков остаётся отдельной ссылкой."}
+                  ? "Создайте аккаунт, чтобы сохранять свои кампании."
+                  : "Войдите, чтобы продолжить свою кампанию."}
               </p>
 
               <div className="login-auth-switch" role="tablist" aria-label="Режим входа">
@@ -380,12 +269,12 @@ export function LoginScreen({
                     autoComplete="username"
                     className="input login-input"
                     onChange={(event) => onUsernameChange(event.target.value)}
-                    placeholder="vladyur4ik"
+                    placeholder="Ваш логин"
                     value={username}
                   />
                   {username ? (
-                    <button className="login-input-action" onClick={() => onUsernameChange("")} type="button">
-                      Г—
+                    <button aria-label="Очистить логин" className="login-input-action" onClick={() => onUsernameChange("")} type="button">
+                      ×
                     </button>
                   ) : null}
                 </div>
@@ -405,7 +294,7 @@ export function LoginScreen({
                     type={showPassword ? "text" : "password"}
                     value={password}
                   />
-                  <button className="login-input-action" onClick={() => setShowPassword((current) => !current)} type="button">
+                  <button aria-label={showPassword ? "Скрыть пароль" : "Показать пароль"} className="login-input-action" onClick={() => setShowPassword((current) => !current)} type="button">
                     <LoginFieldGlyph kind={showPassword ? "eye-off" : "eye"} />
                   </button>
                 </div>
@@ -426,7 +315,7 @@ export function LoginScreen({
                       type={showPasswordConfirm ? "text" : "password"}
                       value={passwordConfirm}
                     />
-                    <button className="login-input-action" onClick={() => setShowPasswordConfirm((current) => !current)} type="button">
+                    <button aria-label={showPasswordConfirm ? "Скрыть повтор пароля" : "Показать повтор пароля"} className="login-input-action" onClick={() => setShowPasswordConfirm((current) => !current)} type="button">
                       <LoginFieldGlyph kind={showPasswordConfirm ? "eye-off" : "eye"} />
                     </button>
                   </div>
@@ -437,14 +326,14 @@ export function LoginScreen({
                 <label className="login-remember">
                   <input checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} type="checkbox" />
                   <span className="login-checkbox" aria-hidden="true" />
-                  <span>Запомнить меня</span>
+                  <span>Запомнить логин</span>
                 </label>
                 <button className="login-link" onClick={() => setAuthMode(isRegistering ? "login" : "register")} type="button">
-                  {isRegistering ? "Уже есть аккаунт?" : "Забыли пароль?"}
+                  {isRegistering ? "Уже есть аккаунт?" : "Создать аккаунт"}
                 </button>
               </div>
 
-              {error ? <p className="login-error">{error}</p> : null}
+              {error ? <p className="login-error" role="alert">{error}</p> : null}
 
               <button className="primary login-submit" disabled={busy} type="submit">
                 <LoginFieldGlyph kind="shield" />
@@ -459,13 +348,7 @@ export function LoginScreen({
               </div>
 
               <OAuthControls />
-              <div className="login-public-note">
-                <div className="ghost login-secondary login-secondary-static" role="note">
-                  <LoginFieldGlyph kind="users" />
-                  <span>Публичный трекер для игроков</span>
-                  <LoginFieldGlyph kind="arrow" />
-                </div>
-              </div>
+              <p className="copy login-player-hint">Играете у другого мастера? Откройте его ссылку-приглашение.</p>
             </form>
           </div>
 

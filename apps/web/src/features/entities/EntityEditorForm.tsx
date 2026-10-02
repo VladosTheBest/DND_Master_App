@@ -92,6 +92,18 @@ export function EntityEditorForm({
           value={entityForm.title}
         />
       </label>
+      <label className="field field-full">
+        <span>Краткое описание</span>
+        <textarea
+          className="input textarea"
+          onChange={(event) => setEntityForm((current) => ({ ...current, summary: event.target.value }))}
+          value={entityForm.summary}
+        />
+      </label>
+
+      <details className="editor-disclosure field-full">
+        <summary>Подробности и классификация</summary>
+        <div className="form-grid">
       <label className="field">
         <span>Подзаголовок</span>
         <input
@@ -118,36 +130,6 @@ export function EntityEditorForm({
         />
       </label>
 
-      <EntityArtEditor controller={controller} />
-
-      {entityModalMode === "create" ? (
-        <div className="field field-full">
-          <PlaylistEditorSection
-            hint="Во время создания можно сразу добавить музыку сцены. Для уже существующей сущности плейлист редактируется отдельно маленькой модалкой прямо из её карточки."
-            onAdd={addEntityPlaylistTrack}
-            onChange={updateEntityPlaylistTrack}
-            onRemove={removeEntityPlaylistTrack}
-            title="Плейлист сущности"
-            tracks={entityForm.playlist ?? []}
-          />
-        </div>
-      ) : null}
-      {entityModalMode === "create" ? (
-        <div className="field field-full">
-          <GalleryEditorSection
-            hint="Во время создания можно сразу прикрепить карты, письма, handout-арты и любые другие изображения. Для существующей сущности галерея потом редактируется отдельной маленькой модалкой."
-            items={entityForm.gallery ?? []}
-            onAdd={addEntityGalleryItem}
-            onChange={updateEntityGalleryItem}
-            onRemove={removeEntityGalleryItem}
-            onUpload={uploadEntityGalleryFile}
-            title="Галерея сущности"
-            uploadDisabled={galleryUploadKey.startsWith("entity-form:")}
-            uploadingIndex={galleryUploadKey.startsWith("entity-form:") ? Number.parseInt(galleryUploadKey.split(":")[1] ?? "-1", 10) : null}
-          />
-        </div>
-      ) : null}
-
       {entityForm.kind === "location" ? (
         <>
           <label className="field">
@@ -157,10 +139,10 @@ export function EntityEditorForm({
               onChange={(event) => setEntityForm((current) => ({ ...current, category: event.target.value as CreateEntityInput["category"] }))}
               value={entityForm.category ?? "City"}
             >
-              <option value="City">City</option>
-              <option value="Region">Region</option>
-              <option value="Dungeon">Dungeon</option>
-              <option value="POI">POI</option>
+              <option value="City">Город</option>
+              <option value="Region">Регион</option>
+              <option value="Dungeon">Подземелье</option>
+              <option value="POI">Место</option>
             </select>
           </label>
           <label className="field">
@@ -178,10 +160,10 @@ export function EntityEditorForm({
               onChange={(event) => setEntityForm((current) => ({ ...current, danger: event.target.value as CreateEntityInput["danger"] }))}
               value={entityForm.danger ?? "Tense"}
             >
-              <option value="Safe">Safe</option>
-              <option value="Tense">Tense</option>
-              <option value="Dangerous">Dangerous</option>
-              <option value="Deadly">Deadly</option>
+              <option value="Safe">Безопасно</option>
+              <option value="Tense">Неспокойно</option>
+              <option value="Dangerous">Опасно</option>
+              <option value="Deadly">Смертельно</option>
             </select>
           </label>
         </>
@@ -223,9 +205,9 @@ export function EntityEditorForm({
               onChange={(event) => setEntityForm((current) => ({ ...current, status: event.target.value as CreateEntityInput["status"] }))}
               value={entityForm.status ?? "Active"}
             >
-              <option value="Active">Active</option>
-              <option value="Reserve">Reserve</option>
-              <option value="Guest">Guest</option>
+              <option value="Active">Активен</option>
+              <option value="Reserve">Резерв</option>
+              <option value="Guest">Гость</option>
             </select>
           </label>
         </>
@@ -250,17 +232,17 @@ export function EntityEditorForm({
             >
               {entityForm.kind === "monster" ? (
                 <>
-                  <option value="Hostile">Hostile</option>
-                  <option value="Territorial">Territorial</option>
-                  <option value="Summoned">Summoned</option>
-                  <option value="Neutral">Neutral</option>
+                  <option value="Hostile">Враждебный</option>
+                  <option value="Territorial">Защищает территорию</option>
+                  <option value="Summoned">Призванный</option>
+                  <option value="Neutral">Нейтральный</option>
                 </>
               ) : (
                 <>
-                  <option value="Unknown">Unknown</option>
-                  <option value="Ally">Ally</option>
-                  <option value="Watcher">Watcher</option>
-                  <option value="Threat">Threat</option>
+                  <option value="Unknown">Неизвестно</option>
+                  <option value="Ally">Союзник</option>
+                  <option value="Watcher">Наблюдатель</option>
+                  <option value="Threat">Угроза</option>
                 </>
               )}
             </select>
@@ -274,16 +256,16 @@ export function EntityEditorForm({
             >
               {entityForm.kind === "monster" ? (
                 <>
-                  <option value="Minion">Minion</option>
-                  <option value="Standard">Standard</option>
-                  <option value="Elite">Elite</option>
-                  <option value="Boss">Boss</option>
+                  <option value="Minion">Миньон</option>
+                  <option value="Standard">Обычный</option>
+                  <option value="Elite">Элитный</option>
+                  <option value="Boss">Босс</option>
                 </>
               ) : (
                 <>
-                  <option value="Background">Background</option>
-                  <option value="Major">Major</option>
-                  <option value="Critical">Critical</option>
+                  <option value="Background">Фоновый</option>
+                  <option value="Major">Важный</option>
+                  <option value="Critical">Ключевой</option>
                 </>
               )}
             </select>
@@ -306,7 +288,6 @@ export function EntityEditorForm({
         </>
       ) : null}
 
-      <EntityPreparedCombatEditor campaign={campaign} controller={controller} />
 
       {entityForm.kind === "lore" ? (
         <>
@@ -317,10 +298,10 @@ export function EntityEditorForm({
               onChange={(event) => setEntityForm((current) => ({ ...current, category: event.target.value as CreateEntityInput["category"] }))}
               value={entityForm.category ?? "History"}
             >
-              <option value="History">History</option>
-              <option value="Rumor">Rumor</option>
-              <option value="Religion">Religion</option>
-              <option value="Threat">Threat</option>
+              <option value="History">История</option>
+              <option value="Rumor">Слух</option>
+              <option value="Religion">Религия</option>
+              <option value="Threat">Угроза</option>
             </select>
           </label>
           <label className="field">
@@ -330,22 +311,52 @@ export function EntityEditorForm({
               onChange={(event) => setEntityForm((current) => ({ ...current, visibility: event.target.value as CreateEntityInput["visibility"] }))}
               value={entityForm.visibility ?? "gm_only"}
             >
-              <option value="gm_only">gm_only</option>
-              <option value="player_safe">player_safe</option>
+              <option value="gm_only">Только мастер</option>
+              <option value="player_safe">Можно показать игрокам</option>
             </select>
           </label>
         </>
       ) : null}
 
-      <label className="field field-full">
-        <span>Краткое описание</span>
-        <textarea
-          className="input textarea"
-          onChange={(event) => setEntityForm((current) => ({ ...current, summary: event.target.value }))}
-          value={entityForm.summary}
-        />
-      </label>
+        </div>
+      </details>
+      <details className="editor-disclosure field-full">
+        <summary>Изображения, музыка и галерея</summary>
+        <div className="form-grid">
+      <EntityArtEditor controller={controller} />
 
+      {entityModalMode === "create" ? (
+        <div className="field field-full">
+          <PlaylistEditorSection
+            hint="Необязательно. Музыку можно добавить и позже в карточке."
+            onAdd={addEntityPlaylistTrack}
+            onChange={updateEntityPlaylistTrack}
+            onRemove={removeEntityPlaylistTrack}
+            title="Плейлист сущности"
+            tracks={entityForm.playlist ?? []}
+          />
+        </div>
+      ) : null}
+      {entityModalMode === "create" ? (
+        <div className="field field-full">
+          <GalleryEditorSection
+            hint="Необязательно. Карты, письма и иллюстрации для этой записи."
+            items={entityForm.gallery ?? []}
+            onAdd={addEntityGalleryItem}
+            onChange={updateEntityGalleryItem}
+            onRemove={removeEntityGalleryItem}
+            onUpload={uploadEntityGalleryFile}
+            title="Галерея сущности"
+            uploadDisabled={galleryUploadKey.startsWith("entity-form:")}
+            uploadingIndex={galleryUploadKey.startsWith("entity-form:") ? Number.parseInt(galleryUploadKey.split(":")[1] ?? "-1", 10) : null}
+          />
+        </div>
+      ) : null}
+
+        </div>
+      </details>
+      <details className="editor-disclosure field-full">
+        <summary>Текст и карточки для игроков</summary>
       {entityForm.kind === "location" ? (
         <section className="card npc-section form-subsection field-full player-card-editor-section">
           <div className="row muted">
@@ -463,6 +474,9 @@ export function EntityEditorForm({
         </label>
       )}
 
+      </details>
+      <details className="editor-disclosure field-full">
+        <summary>Заметки и секреты мастера</summary>
       <label className="field field-full">
         <span>Информация для мастера</span>
         <small className="field-hint">
@@ -477,8 +491,18 @@ export function EntityEditorForm({
         />
       </label>
 
-      <EntityStatBlockEditor controller={controller} />
-      <EntityRewardEditor controller={controller} />
+      </details>
+      {entityForm.kind === "quest" ? <details className="editor-disclosure field-full">
+        <summary>Подготовка сцены и боя</summary>
+        <div className="form-grid"><EntityPreparedCombatEditor campaign={campaign} controller={controller} /></div>
+      </details> : <EntityPreparedCombatEditor campaign={campaign} controller={controller} />}
+      {["player", "npc", "monster"].includes(entityForm.kind) ? <details className="editor-disclosure field-full">
+        <summary>Боевые характеристики</summary>
+        <div className="form-grid"><EntityStatBlockEditor controller={controller} /></div>
+      </details> : <EntityStatBlockEditor controller={controller} />}
+      {["npc", "monster", "quest"].includes(entityForm.kind) ? <details className="editor-disclosure field-full">
+        <summary>Награды и добыча</summary><EntityRewardEditor controller={controller} />
+      </details> : null}
     </div>
   );
 }

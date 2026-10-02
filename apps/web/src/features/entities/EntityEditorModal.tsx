@@ -30,9 +30,7 @@ export function EntityEditorModal({
     draftNotes,
     draftPrompt,
     entityFormImageUploading,
-    entityModalDescription,
     entityModalOpen,
-    entityModalTitle,
     entitySubmitLabel,
     generateDraft,
     isEditingEntity,
@@ -46,20 +44,23 @@ export function EntityEditorModal({
 
   return (
     <div className="overlay" role="presentation">
-      <div className="panel palette form-modal" onClick={(event) => event.stopPropagation()} role="dialog">
+      <div className="panel palette form-modal entity-editor-modal" aria-label={isEditingEntity ? "Редактирование записи" : "Новая запись"} onClick={(event) => event.stopPropagation()} role="dialog">
         <div className="row">
           <div>
-            <p className="eyebrow">{entityModalTitle}</p>
-            <strong>{entityModalDescription}</strong>
+            <h2>{isEditingEntity ? "Редактирование записи" : "Новая запись"}</h2>
+            <p className="copy">Начните с названия и описания. Остальное можно дополнить позже.</p>
           </div>
           <button className="ghost" onClick={onClose} type="button">
-            Esc
+            Закрыть
           </button>
         </div>
 
+        <details className="editor-disclosure">
+          <summary>Заполнить с помощью AI</summary>
         <div className="field field-full">
-          <span>Описание для AI</span>
+          <label htmlFor="entity-ai-prompt">Описание для AI</label>
           <textarea
+            id="entity-ai-prompt"
             className="input textarea"
             disabled={generating}
             onChange={(event) => setDraftPrompt(event.target.value)}
@@ -73,6 +74,8 @@ export function EntityEditorModal({
             {generating ? "Генерирую..." : "Сгенерировать и заполнить"}
           </button>
         </div>
+
+        </details>
 
         {error ? (
           <div className="card mini form-error" role="status">
@@ -97,7 +100,7 @@ export function EntityEditorModal({
           onContentContextMenu={onContentContextMenu}
         />
 
-        <div className="actions">
+        <div className="actions editor-submit-bar">
           {isEditingEntity ? (
             <button className="ghost danger-action" disabled={saving || generating} onClick={() => void deleteEntity()} type="button">
               Удалить

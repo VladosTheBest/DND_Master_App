@@ -14,6 +14,7 @@ type CampaignDashboardProps = {
   onOpenEvent?: (eventId: string) => void;
   onOpenPreview?: (entityId: string) => void;
   readOnly?: boolean;
+  onNavigate?: (section: "players" | "quests" | "locations" | "sessions" | "events") => void;
 };
 
 const featuredEntities = (campaign: CampaignData): KnowledgeEntity[] => [
@@ -29,59 +30,44 @@ export function CampaignDashboard({
   onOpenEntity,
   onOpenEntityImage,
   onOpenEvent,
-  onOpenPreview,
+  onNavigate,
   readOnly = false
 }: CampaignDashboardProps) {
-  const firstEntityId = campaign.locations[0]?.id ?? campaign.npcs[0]?.id ?? campaign.monsters[0]?.id ?? "";
-  const previewEntityId = campaign.quests[0]?.id ?? campaign.lore[0]?.id ?? campaign.monsters[0]?.id ?? "";
-
   return (
     <div className="stack wide campaign-dashboard">
       <section className="card hero">
         <div className="hero-copy-block">
-          <p className="eyebrow">GM Cockpit</p>
+          <p className="eyebrow">Обзор кампании</p>
           <h1>{campaign.title}</h1>
-          <p className="copy">
-            Один кабинет для мира, квестов и живой сессии. Сущности открываются в центре без прыжков страницы,
-            а справа можно держать быстрый preview и закреплённые карточки.
-          </p>
+          <p className="copy">{campaign.settingName} · {campaign.inWorldDate}</p>
         </div>
-
-        {!readOnly ? (
-          <div className="actions">
-            <button className="primary" onClick={() => onOpenEntity?.(firstEntityId)} type="button">
-              Открыть первую сущность
-            </button>
-            <button className="ghost" onClick={() => onOpenPreview?.(previewEntityId)} type="button">
-              Preview квеста
-            </button>
-          </div>
-        ) : null}
       </section>
 
-      <section className="stats">
-        {campaign.dashboardCards.map((card) => (
-          <article key={card.label} className={`card stat dashboard-stat-card dashboard-stat-${card.tone}`}>
-            <span aria-hidden="true" className="dashboard-stat-mark">
-              {card.label === "Локации" ? "⌖" : card.label === "Игроки" ? "♙" : card.label === "НПС" ? "♜" : card.label === "Монстры" ? "♞" : card.label === "Бой" ? "⚔" : "✦"}
-            </span>
-            <span className="dashboard-stat-copy">
-              <span className={badge(card.tone)}>{card.label}</span>
-              <strong>{card.value}</strong>
-              <p>{card.detail}</p>
-            </span>
-          </article>
-        ))}
-      </section>
+      {!readOnly && onNavigate ? <section className="dashboard-start" aria-label="Быстрый старт">
+        <div><h2>{campaign.players.length || campaign.locations.length ? "К следующей игре" : "Начните с вашей группы"}</h2>
+          <p className="copy">Игроки → место действия → история. Остальное можно добавить по ходу игры.</p></div>
+        <div className="dashboard-shortcuts">
+          {([
+            ["players", "01", "Собрать группу", "Персонажи и приглашения", campaign.players.length],
+            ["locations", "02", "Подготовить мир", "Места, карты и описания", campaign.locations.length],
+            ["quests", "03", "Продумать историю", "Квесты и сцены", campaign.quests.length],
+            ["sessions", "04", "Открыть журнал", "Записи и итоги ваших игр", null]
+          ] as const).map(([key, number, title, detail, count]) => <button className="dashboard-shortcut" key={key} onClick={() => onNavigate(key)} type="button">
+            <span className="dashboard-step">{number}</span><strong>{title}</strong><small>{detail}</small>
+            {count !== null ? <span className="muted">Записей: {count}</span> : null}
+          </button>)}
+        </div>
+      </section> : null}
 
       <section className="split">
         <article className="card section-card">
           <div className="row muted">
-            <span>События</span>
-            <span>{campaign.events.length}</span>
+            <h2>События</h2>
+            {onNavigate ? <button className="ghost" onClick={() => onNavigate("events")} type="button">Все · {campaign.events.length}</button> : <span>{campaign.events.length}</span>}
           </div>
           <div className="stack">
-            {campaign.events.map((event) => (
+            {!campaign.events.length ? <p className="copy dashboard-empty">Здесь появятся подготовленные сцены и события мира. Добавьте первое в разделе «События».</p> : null}
+            {campaign.events.slice(0, 4).map((event) => (
               <button
                 className="card mini ghost fill"
                 disabled={readOnly}
@@ -103,12 +89,12 @@ export function CampaignDashboard({
         <article className="card section-card dashboard-hot-entities">
           <div className="dashboard-hot-head">
             <div>
-              <span className="eyebrow">В фокусе</span>
-              <h2>Важные сущности</h2>
+              <h2>Записи кампании</h2>
             </div>
             <span className="muted">Быстрый переход</span>
           </div>
           <div className="dashboard-hot-grid">
+            {!featuredEntities(campaign).length ? <p className="copy dashboard-empty">Добавьте локацию или квест, чтобы открыть их отсюда.</p> : null}
             {featuredEntities(campaign).slice(0, 4).map((entity) => (
               <article
                 className="dashboard-hot-card"

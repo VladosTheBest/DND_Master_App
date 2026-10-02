@@ -1,4 +1,4 @@
-import { AccountSettings } from "./OAuthControls";
+import { ActionMenu } from "./ActionMenu";
 import type { KnowledgeEntity } from "@shadow-edge/shared-types";
 
 type DefaultHeaderProps = {
@@ -75,31 +75,15 @@ export function AppHeader(props: AppHeaderProps) {
 
         <div className="chips">
           {props.hasActiveCombat ? <span className="chip active-combat-indicator">Активный бой • {props.activeCombatCount}</span> : null}
-          <button className="ghost" onClick={props.onPlayCombatPlaylist} type="button">
-            {props.isCombatPlaylistActive ? "Следующий трек боя" : "Случайный трек боя"}
-          </button>
-          <button className="ghost" onClick={props.onOpenCombatPlaylistModal} type="button">
-            Плейлист боя
-          </button>
-          <button className="ghost" disabled={!props.hasActiveCombat} onClick={props.onOpenInitiativeTracker} type="button">
-            Трекер
-          </button>
-          <button className="ghost" disabled={props.initiativeShareBusy} onClick={props.onOpenPublicInitiativeTracker} type="button">
-            {props.initiativeShareBusy ? "Готовлю..." : "Публичный трекер"}
-          </button>
-          <button className="ghost" disabled={props.initiativeShareBusy} onClick={props.onCopyPublicInitiativeTracker} type="button">
-            {props.initiativeShareBusy ? "Готовлю..." : "Копировать публичную ссылку"}
-          </button>
-          <button className="ghost" disabled={props.saving} onClick={props.onSyncCombatPortraits} type="button">
-            Подтянуть фотки
-          </button>
-          <button className="ghost" onClick={props.onOpenCombatSetupModal} type="button">
-            Добавить врага
-          </button>
-          <AccountSettings />
-          <button className="ghost" disabled={props.authBusy} onClick={props.onLogout} type="button">
-            {props.authBusy ? "Выходим..." : "Выйти"}
-          </button>
+          <button className="ghost" disabled={!props.hasActiveCombat} onClick={props.onOpenInitiativeTracker} type="button">Трекер</button>
+          <button className="ghost" onClick={props.onOpenCombatSetupModal} type="button">Добавить участника</button>
+          <ActionMenu label="Инструменты боя">
+            <button className="ghost" onClick={props.onPlayCombatPlaylist} type="button">{props.isCombatPlaylistActive ? "Следующий трек" : "Включить музыку"}</button>
+            <button className="ghost" onClick={props.onOpenCombatPlaylistModal} type="button">Плейлист боя</button>
+            <button className="ghost" disabled={props.initiativeShareBusy} onClick={props.onOpenPublicInitiativeTracker} type="button">Экран игроков</button>
+            <button className="ghost" disabled={props.initiativeShareBusy} onClick={props.onCopyPublicInitiativeTracker} type="button">Копировать ссылку для игроков</button>
+            <button className="ghost" disabled={props.saving} onClick={props.onSyncCombatPortraits} type="button">Обновить портреты</button>
+          </ActionMenu>
           <button className="primary" disabled={!props.hasActiveCombat || props.saving} onClick={props.onFinishCombat} type="button">
             Завершить бой
           </button>
@@ -117,34 +101,19 @@ export function AppHeader(props: AppHeaderProps) {
       </div>
 
       <button className="search-btn" onClick={props.onOpenSearch} type="button">
-        <span>Ctrl + K</span>
-        <strong>Поиск сущностей, сцен и слухов</strong>
+        <strong>Поиск по кампании и правилам</strong>
+        <span>Ctrl K</span>
       </button>
 
       <div className="chips">
-        <button className={`ghost ${props.isCombatScreen ? "active" : ""}`} onClick={props.onOpenCombat} type="button">
-          Бой
+        {props.canOpenDirectory ? <button className="ghost" onClick={props.onOpenDirectory} type="button">← К списку</button> : null}
+        <button className={props.hasActiveCombat ? "primary active-combat-indicator" : "ghost"} onClick={props.onOpenCombat} type="button">
+          {props.hasActiveCombat ? "Продолжить бой" : "Подготовить бой"}
         </button>
-        {props.canOpenDirectory ? (
-          <button className="ghost" onClick={props.onOpenDirectory} type="button">
-            К списку
-          </button>
-        ) : null}
-        {props.hasActiveCombat ? (
-          <button className="chip active-combat-indicator" onClick={props.onOpenCombat} type="button">
-            Активный бой
-          </button>
-        ) : null}
-        {props.pinnedEntities.map((entity) => (
-          <button key={entity.id} className="chip" onClick={() => props.onOpenPinnedEntity(entity.id)} type="button">
-            {entity.title}
-          </button>
-        ))}
-        {props.activeModule === "quests" && !props.isCombatScreen ? (
-          <button className="ghost" onClick={props.onOpenRandomEvent} type="button">
-            Сцена для зачитки
-          </button>
-        ) : null}
+        {props.pinnedEntities.length ? <ActionMenu label={`Закладки · ${props.pinnedEntities.length}`}>
+          {props.pinnedEntities.map(entity => <button key={entity.id} className="ghost" onClick={() => props.onOpenPinnedEntity(entity.id)} type="button">{entity.title}</button>)}
+        </ActionMenu> : null}
+        <ActionMenu label="Инструменты">
         <button
           className={`ghost ai-proposal-inbox-button ${props.codexPromptRunning ? "working" : props.codexPromptOutcome ? "needs-attention" : ""}`.trim()}
           onClick={props.onOpenAIProposals}
@@ -165,16 +134,13 @@ export function AppHeader(props: AppHeaderProps) {
           {props.pendingProposalCount ? <span className="ai-proposal-count">{props.pendingProposalCount}</span> : null}
         </button>
         <button className="ghost" onClick={props.onOpenPlayerSurveys} type="button">Анкеты игроков</button>
-        <button className="primary" onClick={props.onOpenSessionMap} type="button">Карта на ТВ</button>
-        <AccountSettings />
-        <button className="ghost" disabled={props.authBusy} onClick={props.onLogout} type="button">
-          {props.authBusy ? "Выходим..." : "Выйти"}
-        </button>
-        {!props.isItemsRail ? (
-          <button className="ghost" onClick={props.onCreateEntity} type="button">
-            Создать
-          </button>
-        ) : null}
+        <button className="ghost" onClick={props.onOpenSessionMap} type="button">Карта и экран игроков</button>
+        {props.activeModule === "quests" ? <button className="ghost" onClick={props.onOpenRandomEvent} type="button">Сцена для зачитки</button> : null}
+        {!props.isItemsRail ? <button className="ghost" onClick={props.onCreateEntity} type="button">Создать запись</button> : null}
+        </ActionMenu>
+        {props.codexPromptRunning || props.codexPromptOutcome || props.pendingProposalCount ? <button className="ghost" onClick={props.onOpenAIProposals} type="button" aria-live="polite">
+          {props.codexPromptRunning ? "AI работает…" : props.codexPromptOutcome ? "AI: проверьте результат" : `AI: ${props.pendingProposalCount} на проверке`}
+        </button> : null}
       </div>
     </header>
   );

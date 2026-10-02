@@ -337,30 +337,16 @@ export function CombatTrackerPage({
         <section className="card combat-summary-card">
           <div className="row muted">
             <span>Быстрые действия</span>
-            <span>{initiativeShareBusy ? "Готовлю ссылку" : "На стол"}</span>
+            <span>Сцена</span>
           </div>
           <div className="combat-summary-action-grid">
-            <button className="ghost" disabled={saving} onClick={onSyncCombatPortraits} type="button">
-              Подтянуть фотки
-            </button>
-            <button className="ghost" onClick={onOpenCombatSetupModal} type="button">
-              Добавить врага
-            </button>
-            <button className="ghost" disabled={initiativeShareBusy} onClick={onOpenPublicTracker} type="button">
-              {initiativeShareBusy ? "Готовлю..." : "Публичный трекер"}
-            </button>
-            <button className="ghost" disabled={initiativeShareBusy} onClick={onCopyPublicTracker} type="button">
-              Копировать ссылку
-            </button>
             <button className="ghost" onClick={onOpenRandomEventModal} type="button">
               Случайное событие
             </button>
             <button className="ghost" disabled={combatStateBusy || saving} onClick={onDeclarePlayersVictory} type="button">
               Победа игроков
             </button>
-            <button className="danger-action ghost" disabled={saving} onClick={onFinishCombat} type="button">
-              Завершить бой
-            </button>
+
           </div>
         </section>
       </div>
