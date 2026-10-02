@@ -180,8 +180,8 @@ function CodexPromptProgress({ activePrompt, elapsedSeconds }: { activePrompt: A
       </div>
 
       <div className="codex-prompt-guardrails">
-        <div><strong>Можно свернуть окно</strong><span>Запрос продолжится, пока эта вкладка открыта.</span></div>
-        <div className="warning"><strong>Не закрывай и не обновляй вкладку</strong><span>Иначе текущая работа будет прервана.</span></div>
+        <div><strong>Можно свернуть окно</strong><span>Запрос продолжится на сервере.</span></div>
+        <div><strong>Можно закрыть страницу</strong><span>Статус и результат останутся в «Задачах AI».</span></div>
         <div><strong>Ориентир по времени</strong><span>Обычно 1–3 минуты; основной этап ограничен примерно 4 минутами.</span></div>
       </div>
 
@@ -436,15 +436,7 @@ export function CodexConnectionPanel({
     return () => window.clearInterval(interval);
   }, [promptStartedAt]);
 
-  useEffect(() => {
-    if (!promptBusy) return undefined;
-    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", warnBeforeUnload);
-    return () => window.removeEventListener("beforeunload", warnBeforeUnload);
-  }, [promptBusy]);
+
 
   const limits = useMemo(() => {
     const values = [status?.rateLimits, ...Object.values(status?.rateLimitsByLimitId ?? {})]
@@ -568,9 +560,13 @@ export function CodexConnectionPanel({
       onPromptOutcome?.(result.warning ? "warning" : null);
       onProposalsCreated?.(result.proposalIds, Boolean(result.warning));
     } catch (nextError) {
-      setPromptFailure(describePromptFailure(nextError));
+      const statusUnavailable = isApiError(nextError) && nextError.code === "ai_job_status_unavailable";
+      if (statusUnavailable) {
+        setPromptFailure(null);
+        setPromptWarning(nextError.message);
+      } else setPromptFailure(describePromptFailure(nextError));
       setOpen(true);
-      onPromptOutcome?.("error");
+      onPromptOutcome?.(statusUnavailable ? "warning" : "error");
     } finally {
       setPromptBusy(false);
       setPromptStartedAt(null);
@@ -697,7 +693,7 @@ export function CodexConnectionPanel({
                   </details>
                   <div className="codex-prompt-expectations">
                     <span><strong>Обычно 1–3 минуты</strong><small>Сложные запросы и изображения могут занять почти весь лимит.</small></span>
-                    <span><strong>Можно свернуть это окно</strong><small>Но вкладку нужно оставить открытой до результата.</small></span>
+                    <span><strong>Можно свернуть это окно</strong><small>Результат останется в «Задачах AI».</small></span>
                     <span><strong>Без автоприменения</strong><small>После создания ты увидишь сравнение «до / после».</small></span>
                   </div>
                   <div className="codex-embedded-prompt-actions">

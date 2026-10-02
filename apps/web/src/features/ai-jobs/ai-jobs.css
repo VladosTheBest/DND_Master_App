@@ -1,0 +1,34 @@
+.ai-background-progress { display:flex; align-items:center; gap:20px; padding:22px; border:1px solid rgba(168,145,245,.3); border-radius:18px; background:linear-gradient(120deg,rgba(133,102,212,.13),rgba(79,157,159,.08)); position:relative; overflow:hidden; }
+.ai-background-copy { flex:1; min-width:0; display:grid; gap:8px; }
+.ai-background-copy small { color:var(--accent); font-size:.75rem; letter-spacing:.04em; }
+.ai-background-copy strong { font-size:1.05rem; overflow-wrap:anywhere; }
+.ai-background-copy p { margin:0; color:var(--text); }
+.ai-background-copy>span { color:var(--text-muted); font-size:.8rem; line-height:1.5; }
+.ai-background-progress time { align-self:flex-start; color:var(--text-muted); font-variant-numeric:tabular-nums; font-size:.85rem; }
+.ai-background-orbit { width:62px; height:62px; flex:0 0 62px; position:relative; display:grid; place-items:center; }
+.ai-background-orbit span { color:#c6b5ff; font-size:30px; animation:ai-breathe 2.8s ease-in-out infinite; }
+.ai-background-orbit i,.ai-background-orbit b { position:absolute; inset:0; border:1px solid rgba(181,159,244,.18); border-top-color:#b59ff4; border-radius:50%; animation:ai-orbit 5s linear infinite; }
+.ai-background-orbit b { inset:8px; border-top-color:#77d9bf; animation-direction:reverse; animation-duration:3.5s; }
+.ai-background-track { height:3px; background:rgba(167,141,225,.15); overflow:hidden; border-radius:4px; }
+.ai-background-track i { display:block; width:35%; height:100%; background:linear-gradient(90deg,transparent,#b59ff4,#77d9bf,transparent); animation:ai-travel 2.8s ease-in-out infinite; }
+.ai-jobs-launcher { position:fixed; bottom:18px; right:22px; z-index:80; display:flex; gap:9px; align-items:center; padding:11px 16px; background:var(--bg-panel-strong); color:var(--text); border:1px solid var(--line-strong); border-radius:24px; box-shadow:var(--shadow-lg); cursor:pointer; font:inherit; font-size:.85rem; }
+.ai-jobs-launcher.working { border-color:var(--accent); }
+.ai-jobs-launcher.working span { color:var(--accent); animation:ai-breathe 2.8s ease-in-out infinite; }
+.ai-jobs-dialog { width:min(850px,calc(100% - 24px)); max-height:88vh; overflow:auto; padding:24px; background:var(--bg-panel-strong); color:var(--text); border:1px solid var(--line-strong); border-radius:20px; }
+.ai-jobs-dialog::backdrop { background:rgba(0,0,0,.65); }
+.ai-jobs-dialog:not([open]) { display:none; }
+.ai-jobs-dialog>header { display:flex; gap:16px; justify-content:space-between; align-items:flex-start; }
+.ai-jobs-dialog h2 { margin:0; }
+.ai-jobs-dialog>header p,.ai-jobs-dialog>small { color:var(--text-muted); }
+.ai-job-card { padding:16px 0; border-bottom:1px solid var(--line-strong); margin-bottom:14px; }
+.ai-job-card .actions { margin-top:12px; flex-wrap:wrap; }
+.ai-job-result { margin-top:14px; padding:16px; border-radius:12px; background:var(--bg-panel); }
+.ai-job-result-text { white-space:pre-wrap; overflow-wrap:anywhere; line-height:1.6; max-height:55vh; overflow:auto; }
+.ai-job-error { color:var(--danger); }
+.session-badge.analyzing { color:var(--accent); background:rgba(167,141,225,.12); }
+.session-badge.analyzing::before { content:'✦'; margin-right:6px; display:inline-block; animation:ai-breathe 2.8s ease-in-out infinite; }
+@keyframes ai-orbit { to { transform:rotate(360deg); } }
+@keyframes ai-breathe { 50% { opacity:.5; transform:scale(.86); } }
+@keyframes ai-travel { from { transform:translateX(-100%); } to { transform:translateX(390%); } }
+@media(max-width:600px) { .ai-background-progress { padding:16px; gap:12px; flex-wrap:wrap; } .ai-background-orbit { width:38px; height:38px; flex-basis:38px; } .ai-background-copy { flex-basis:calc(100% - 70px); } .ai-background-progress time { margin-left:50px; } .ai-jobs-dialog { padding:16px; } .ai-jobs-launcher { bottom:12px; right:12px; } }
+@media(prefers-reduced-motion:reduce) { .ai-background-orbit span,.ai-background-orbit i,.ai-background-orbit b,.ai-background-track i,.ai-jobs-launcher.working span,.session-badge.analyzing::before { animation:none; } }

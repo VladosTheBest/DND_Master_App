@@ -34,6 +34,7 @@ type server struct {
 	proposals  *proposalService
 	codex      *codexBridgeManager
 	characters *characterManager
+	aiJobs     *aiJobManager
 }
 
 type envelope struct {
@@ -93,6 +94,10 @@ func NewServer(options Options) (http.Handler, error) {
 	}
 	srv.surveys = newSurveyManager(store, options.PublicBaseURL)
 	srv.characters = newCharacterManager(store, options.PublicBaseURL)
+	srv.aiJobs, err = newAIJobManager(store.path + ".ai-jobs.json")
+	if err != nil {
+		return nil, err
+	}
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", srv.handleHealth)
@@ -120,6 +125,8 @@ func NewServer(options Options) (http.Handler, error) {
 	mux.HandleFunc("/api/ai/codex/connect", srv.handleCodexConnect)
 	mux.HandleFunc("/api/ai/codex/disconnect", srv.handleCodexDisconnect)
 	mux.HandleFunc("/api/ai/codex/prompts", srv.handleCodexPrompt)
+	mux.HandleFunc("/api/ai/jobs", srv.handleAIJobs)
+	mux.HandleFunc("/api/ai/jobs/", srv.handleAIJobs)
 	mux.HandleFunc("/api/bestiary", srv.handleBestiary)
 	mux.HandleFunc("/api/bestiary/", srv.handleBestiaryByPath)
 	mux.HandleFunc("/api/items-catalog", srv.handleItemCatalog)
@@ -146,6 +153,9 @@ func NewServer(options Options) (http.Handler, error) {
 		}
 		switch {
 		case isServerManagedPath(request.URL.Path):
+			if srv.queueAIGeneration(writer, request, mux) {
+				return
+			}
 			mux.ServeHTTP(writer, request)
 		case srv.web != nil:
 			srv.web.ServeHTTP(writer, request)

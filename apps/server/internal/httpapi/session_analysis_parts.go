@@ -66,6 +66,7 @@ func (manager *codexBridgeManager) runSessionAnalysis(ctx context.Context, user 
 		limit := min(6000, 48000/len(parts))
 		notes := make([]string, 0, len(parts))
 		for index, part := range parts {
+			reportAIJobStage(ctx, fmt.Sprintf("Разбираю часть %d из %d", index+1, len(parts)))
 			if err := ctx.Err(); err != nil {
 				return codexPromptResult{}, err
 			}
@@ -105,6 +106,7 @@ func (manager *codexBridgeManager) runSessionAnalysis(ctx context.Context, user 
 	// Never treat a prose answer or an old report as success. A second isolated turn can
 	// repair missing/invalid save arguments while reusing all long-session extraction.
 	var result codexPromptResult
+	reportAIJobStage(ctx, "Собираю отчёт мастера и проверяю сохранение")
 	var err error
 	for attempt := 0; attempt < 2; attempt++ {
 		current, exists := manager.auth.store.sessionForOwner(user.ID, input.CampaignID, input.SessionID)

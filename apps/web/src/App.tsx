@@ -1,3 +1,4 @@
+import { AIJobsPanel } from "./features/ai-jobs/AIJobsPanel";
 import "@shadow-edge/design-tokens/theme.css";
 import { SessionsPage } from "./features/sessions/SessionsPage";
 import {
@@ -4383,7 +4384,16 @@ export default function App() {
             <p>Загружаем вашу кампанию.</p>
           </div>
         </div>
-        <AIProposalCenter campaignId={activeCampaignId} controller={aiProposalController} key="ai-proposal-center" renderEntity={renderProposalEntity} />
+        <AIJobsPanel onOpenSession={(job) => {
+        if (!job.campaignId || !job.sessionId) return;
+        localStorage.setItem(`session-selected:${job.campaignId}`, job.sessionId);
+        void (async () => {
+          if (job.campaignId !== activeCampaignId) await handleCampaignSelect(job.campaignId!);
+          setActiveRailAlias("sessions");
+          window.dispatchEvent(new CustomEvent("ai-open-session", { detail: { campaignId: job.campaignId, sessionId: job.sessionId } }));
+        })();
+      }} onOpenProposal={(id) => void aiProposalController.openProposal(id)} />
+      <AIProposalCenter campaignId={activeCampaignId} controller={aiProposalController} key="ai-proposal-center" renderEntity={renderProposalEntity} />
       </>
     );
   }
@@ -4443,7 +4453,16 @@ export default function App() {
           open={campaignModalOpen}
           saving={saving}
         />
-        <AIProposalCenter campaignId={activeCampaignId} controller={aiProposalController} key="ai-proposal-center" renderEntity={renderProposalEntity} />
+        <AIJobsPanel onOpenSession={(job) => {
+        if (!job.campaignId || !job.sessionId) return;
+        localStorage.setItem(`session-selected:${job.campaignId}`, job.sessionId);
+        void (async () => {
+          if (job.campaignId !== activeCampaignId) await handleCampaignSelect(job.campaignId!);
+          setActiveRailAlias("sessions");
+          window.dispatchEvent(new CustomEvent("ai-open-session", { detail: { campaignId: job.campaignId, sessionId: job.sessionId } }));
+        })();
+      }} onOpenProposal={(id) => void aiProposalController.openProposal(id)} />
+      <AIProposalCenter campaignId={activeCampaignId} controller={aiProposalController} key="ai-proposal-center" renderEntity={renderProposalEntity} />
       </>
     );
   }
@@ -4460,7 +4479,16 @@ export default function App() {
         onNextTurn={() => void nextCombatTurn()}
         onSelectTurn={(entryId) => void setCombatTurn(entryId)}
         />
-        <AIProposalCenter campaignId={activeCampaignId} controller={aiProposalController} key="ai-proposal-center" renderEntity={renderProposalEntity} />
+        <AIJobsPanel onOpenSession={(job) => {
+        if (!job.campaignId || !job.sessionId) return;
+        localStorage.setItem(`session-selected:${job.campaignId}`, job.sessionId);
+        void (async () => {
+          if (job.campaignId !== activeCampaignId) await handleCampaignSelect(job.campaignId!);
+          setActiveRailAlias("sessions");
+          window.dispatchEvent(new CustomEvent("ai-open-session", { detail: { campaignId: job.campaignId, sessionId: job.sessionId } }));
+        })();
+      }} onOpenProposal={(id) => void aiProposalController.openProposal(id)} />
+      <AIProposalCenter campaignId={activeCampaignId} controller={aiProposalController} key="ai-proposal-center" renderEntity={renderProposalEntity} />
       </>
     );
   }
@@ -5425,6 +5453,15 @@ export default function App() {
         onOpenEntityImage={openEntityImage}
       />
 
+      <AIJobsPanel onOpenSession={(job) => {
+        if (!job.campaignId || !job.sessionId) return;
+        localStorage.setItem(`session-selected:${job.campaignId}`, job.sessionId);
+        void (async () => {
+          if (job.campaignId !== activeCampaignId) await handleCampaignSelect(job.campaignId!);
+          setActiveRailAlias("sessions");
+          window.dispatchEvent(new CustomEvent("ai-open-session", { detail: { campaignId: job.campaignId, sessionId: job.sessionId } }));
+        })();
+      }} onOpenProposal={(id) => void aiProposalController.openProposal(id)} />
       <AIProposalCenter campaignId={activeCampaignId} controller={aiProposalController} key="ai-proposal-center" renderEntity={renderProposalEntity} />
 
       <CloseConfirmDialog

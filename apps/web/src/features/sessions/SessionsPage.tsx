@@ -5,6 +5,8 @@ import { sessionsApi, type ImportedSession, type SourceRange, type SpeechKind } 
 import { SessionJournal } from "./SessionJournal";
 import { SessionRecap } from "./SessionRecap";
 import { SessionDMReport } from "./SessionDMReport";
+import { isActiveJob, useAIJobs } from "../ai-jobs/useAIJobs";
+import { AIJobProgress } from "../ai-jobs/AIJobProgress";
 import { classifySpeech, journalKinds, overlapsSource, speechLabels } from "./session-journal";
 import {
   highlightedParts,
@@ -77,8 +79,13 @@ export function SessionsPage({
       files: TranscriptFile[];
     } | null>(null),
     [saving, setSaving] = useState(false),
-    [busyId, setBusyId] = useState("");
-  const [elapsed, setElapsed] = useState(0);
+    [startingId, setStartingId] = useState("");
+  const background = useAIJobs(campaignId);
+  const sessionJobs = background.jobs.filter(job => job.kind === "session");
+  const activeJobs = sessionJobs.filter(isActiveJob);
+  const busyId = startingId || activeJobs.find(job => job.sessionId === selected?.id)?.sessionId || "";
+  const analysisUnavailable = Boolean(busyId || background.loading || background.error);
+  const observedJobs = useRef(new Set<string>());
   const [speechFilter, setSpeechFilter] = useState<SpeechKind | "all">("all");
   const [sourceFocus, setSourceFocus] = useState<SourceRange | null>(null);
   const [journalCategory, setJournalCategory] = useState("");
@@ -95,8 +102,10 @@ export function SessionsPage({
   const select = async (id: string) => {
     const version = ++loadVersion.current;
     currentId.current = id;
+    localStorage.setItem(`session-selected:${campaignId}`, id);
     setLoading(true);
     setError("");
+    setNotice("");
     setSelected(null);
     setSpeaker("");
     setQuery("");
@@ -126,7 +135,8 @@ export function SessionsPage({
       .then((items) => {
         if (!active) return;
         setSessions(items);
-        if (items[0]) void select(items[0].id);
+        const remembered = localStorage.getItem(`session-selected:${campaignId}`);
+        if (items[0]) void select(items.find(item => item.id === remembered)?.id || items[0].id);
         else setLoading(false);
       })
       .catch((e) => {
@@ -140,11 +150,36 @@ export function SessionsPage({
     };
   }, [campaignId]);
   useEffect(() => {
-    if (!busyId) return;
-    setElapsed(0);
-    const timer = window.setInterval(() => setElapsed((v) => v + 1), 1000);
-    return () => clearInterval(timer);
-  }, [busyId]);
+    const completed = background.jobs.filter(job => job.kind === "session" && !isActiveJob(job) && !observedJobs.current.has(job.id));
+    if (!completed.length) return;
+    completed.forEach(job => observedJobs.current.add(job.id));
+    const id = currentId.current;
+    const version = loadVersion.current;
+    void (async () => {
+      try {
+        const items = await sessionsApi.list(campaignId);
+        if (!mounted.current) return;
+        setSessions(items);
+        if (id && currentId.current === id && loadVersion.current === version && completed.some(job => job.sessionId === id)) {
+          const refreshVersion = ++loadVersion.current;
+          const updated = await sessionsApi.get(campaignId,id);
+          if (mounted.current && currentId.current === id && loadVersion.current === refreshVersion) {
+            setSelected(updated);
+            setLoading(false);
+            setNotice(completed.find(job => job.sessionId === id)?.state === "succeeded" ? "Анализ завершён. Отчёт обновлён." : "");
+          }
+        }
+      } catch (e) { completed.forEach(job => observedJobs.current.delete(job.id)); if(mounted.current) { setError(errorMessage(e)); if(currentId.current === id) setLoading(false); } }
+    })();
+  }, [background.jobs, campaignId]);
+  useEffect(() => {
+    const openSession = (event: Event) => {
+      const detail = (event as CustomEvent<{campaignId:string;sessionId:string}>).detail;
+      if (detail.campaignId === campaignId) void select(detail.sessionId);
+    };
+    window.addEventListener("ai-open-session", openSession);
+    return () => window.removeEventListener("ai-open-session",openSession);
+  }, [campaignId]);
   const entries = useMemo(
     () => parseSessionText(selected?.text || ""),
     [selected?.text],
@@ -247,9 +282,9 @@ export function SessionsPage({
     }
   };
   const analyze = async () => {
-    if (!selected || busyId) return;
+    if (!selected || analysisUnavailable) return;
     const id = selected.id;
-    setBusyId(id);
+    setStartingId(id);
     setError("");
     setNotice("");
     try {
@@ -262,24 +297,19 @@ export function SessionsPage({
         return;
       }
       const model = localStorage.getItem("dnd-master.codex-model") || undefined;
-      const result = await api.runCodexPrompt({
+      await api.startCodexPrompt({
         campaignId,
         sessionId: id,
         model,
         prompt: `Подготовь dmReport для мастера: хронологию и темп, решения, инициативы и гипотезы об интересах игроков, прямой отзыв (что понравилось и что мешало), состояние мира, открытые линии, проверки непрерывности и план следующей игры. Не выдумывай отзывы и не оценивай удовольствие по количеству речи. Также собери удобную хронику D&D: важные события, диалоги и договорённости, добычу (что нашли, взяли, потратили и у кого осталось), открытия (что изучили и узнали), встречи и отдельные итоги по каждой посещённой локации. Отдели события от планов, игровую речь от обсуждения за столом; неоднозначное помечай, не угадывай. Привяжи выводы к исходным репликам. Также подготовь действия участников, подсказки к следующей игре и проверяемые предложения изменений кампании.${master ? ` Мастер обозначен именем ${JSON.stringify(master)}; его описание мира является игровой речью, а не автоматически обсуждением за столом.` : " Мастер не указан, не угадывай роли участников."}`,
       });
       if (!mounted.current) return;
-      setSessions(await sessionsApi.list(campaignId));
-      const updated = await sessionsApi.get(campaignId, id);
-      if (mounted.current && currentId.current === id) setSelected(updated);
-      setNotice(
-        result.warning ||
-          "Анализ сохранён. Предложения изменений готовы к проверке.",
-      );
+      await background.refresh();
+      setNotice("");
     } catch (e) {
       if (mounted.current) setError(errorMessage(e));
     } finally {
-      if (mounted.current) setBusyId("");
+      if (mounted.current) setStartingId("");
     }
   };
   const remove = async () => {
@@ -416,18 +446,11 @@ export function SessionsPage({
           {notice}
         </div>
       )}
-      {busyId && (
-        <div className="session-analyzing" role="status">
-          <span className="session-orbit" />
-          <div>
-            <strong>AI читает сессию и контекст кампании</strong>
-            <p>
-              Разбирает длинные записи по частям, затем сохраняет общий отчёт ·{" "}
-              {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")}
-            </p>
-          </div>
-        </div>
-      )}
+      {background.loading && <p role="status">Проверяю фоновые анализы…</p>}
+      {background.error && <p role="alert">{background.error} Повторный запуск временно недоступен.</p>}
+      {activeJobs.map(job => <AIJobProgress key={job.id} job={job}/>)}
+      {busyId === selected?.id && selected?.analysis && <p className="session-muted">Ниже показан предыдущий отчёт. После завершения анализа он обновится автоматически.</p>}
+      {selected && sessionJobs.find(job => job.sessionId === selected.id)?.state === "failed" && <p className="session-error" role="alert">Последний анализ не завершён. Открой «Задачи AI», чтобы увидеть причину. Прежний отчёт сохранён.</p>}
       {draft && (
         <section className="session-import-card">
           <div>
@@ -516,8 +539,8 @@ export function SessionsPage({
                   {s.analysis?.summary ||
                     "Текст сохранён. Итоги появятся после анализа."}
                 </p>
-                <span className={`session-badge ${s.analysis ? "ready" : ""}`}>
-                  {s.analysis
+                <span className={`session-badge ${activeJobs.some(job => job.sessionId === s.id) ? "analyzing" : s.analysis ? "ready" : ""}`}>
+                  {activeJobs.some(job => job.sessionId === s.id) ? "Анализ в фоне" : sessionJobs.find(job => job.sessionId === s.id)?.state === "failed" ? "Анализ не завершён" : s.analysis
                     ? "✓ Итоги готовы"
                     : `${s.participants.length || "—"} участников`}
                 </span>
@@ -580,7 +603,7 @@ export function SessionsPage({
                 </div>
                 <button
                   className="primary"
-                  disabled={!!busyId}
+                  disabled={analysisUnavailable}
                   onClick={() => void analyze()}
                 >
                   {busyId === selected.id
@@ -607,10 +630,10 @@ export function SessionsPage({
                 ))}
               </nav>
               <div className="session-tab-content" key={tab}>
-                {tab === "Мастеру" && <SessionDMReport session={selected} master={master} onMaster={name => { setMaster(name); localStorage.setItem(`session-gm:${campaignId}:${selected.id}`, name); }} onSource={openSource} sourceLabel={sourceLabel} onAnalyze={() => void analyze()} busy={!!busyId} />}
+                {tab === "Мастеру" && <SessionDMReport session={selected} master={master} onMaster={name => { setMaster(name); localStorage.setItem(`session-gm:${campaignId}:${selected.id}`, name); }} onSource={openSource} sourceLabel={sourceLabel} onAnalyze={() => void analyze()} busy={analysisUnavailable} />}
                 {tab === "Обзор" && (
                   <>
-                    <SessionRecap analysis={selected.analysis} busy={!!busyId} onAnalyze={() => void analyze()} />
+                    <SessionRecap analysis={selected.analysis} busy={analysisUnavailable} onAnalyze={() => void analyze()} />
                     <div className="session-detail-intro"><h3>Подробнее о приключении</h3><p className="session-muted">Выберите раздел: внутри — детали и ссылки на исходные реплики.</p></div>
                     <div className="session-overview-categories">
                       {journalKinds.map(category => <button key={category.id} onClick={() => { setJournalCategory(category.id); setTab("Хроника"); }}><span>{category.icon}</span><strong>{selected.analysis?.journal?.entries.filter(entry => entry.kind === category.id).length ?? "—"}</strong><small>{category.label}</small></button>)}
@@ -672,7 +695,7 @@ export function SessionsPage({
                     )}
                   </>
                 )}
-                {(tab === "Хроника" || tab === "Локации") && <SessionJournal key={`${selected.id}:${tab}`} journal={selected.analysis?.journal} byLocation={tab === "Локации"} onSource={openSource} sourceLabel={sourceLabel} onAnalyze={() => void analyze()} busy={!!busyId} initialKind={tab === "Хроника" ? journalCategory : ""} />}
+                {(tab === "Хроника" || tab === "Локации") && <SessionJournal key={`${selected.id}:${tab}`} journal={selected.analysis?.journal} byLocation={tab === "Локации"} onSource={openSource} sourceLabel={sourceLabel} onAnalyze={() => void analyze()} busy={analysisUnavailable} initialKind={tab === "Хроника" ? journalCategory : ""} />}
                 {tab === "Игроки" && (
                   <>
                     <div className="session-player-tabs" aria-label="Участники">

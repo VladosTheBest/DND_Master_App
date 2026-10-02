@@ -196,14 +196,8 @@ export function EntityImageModal({
       () => setElapsedSeconds(Math.floor((Date.now() - inFlightStartedAtRef.current) / 1000)),
       1000
     );
-    const warnBeforeUnload = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
-      event.returnValue = "";
-    };
-    window.addEventListener("beforeunload", warnBeforeUnload);
     return () => {
       window.clearInterval(timer);
-      window.removeEventListener("beforeunload", warnBeforeUnload);
     };
   }, [inFlightKey]);
 
@@ -423,7 +417,7 @@ export function EntityImageModal({
               <span className="entity-image-progress-orbit" aria-hidden="true"><i /><i /><i /></span>
               <div>
                 <strong>Готовлю изображение и безопасный черновик · {formatElapsed(elapsedSeconds)}</strong>
-                <span>Обычно 1–4 минуты. Можно свернуть это окно, но оставь вкладку открытой.</span>
+                <span>Обычно 1–4 минуты. Можно закрыть страницу. Результат останется в «Задачах AI».</span>
               </div>
             </div>
           ) : null}

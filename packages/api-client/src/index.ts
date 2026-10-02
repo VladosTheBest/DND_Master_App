@@ -1,4 +1,5 @@
 import type {
+  AIJob,
   AIProposal,
   AIProposalListParams,
   AIProposalMediaResult,
@@ -189,6 +190,28 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
     return ensureJson<T>(response);
   };
 
+  const startGeneration = (url: string, init?: RequestInit) => requestJson<AIJob>(url, {
+    ...init, headers: { "Content-Type": "application/json", ...init?.headers, Prefer: "respond-async" }
+  });
+  const requestGeneration = async <T>(url: string, init?: RequestInit): Promise<T> => {
+    let job = await startGeneration(url, init);
+    let pollFailures = 0;
+    while (job.state === "queued" || job.state === "running") {
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      try {
+        job = await requestJson<AIJob>(`${baseUrl}/api/ai/jobs/${encodeURIComponent(job.id)}`);
+        pollFailures = 0;
+      } catch (error) {
+        if (++pollFailures < 5 && !(isApiError(error) && (error.status === 401 || error.status === 404))) continue;
+        throw new ApiError("Задача принята сервером, но её статус сейчас недоступен. Не запускай её повторно: после восстановления связи открой «Задачи AI».", 503, "ai_job_status_unavailable");
+      }
+    }
+    if (job.state === "failed" || job.result?.error) {
+      throw new ApiError(job.result?.error?.message || job.stage, job.httpStatus || 500, job.result?.error?.code || "ai_job_failed");
+    }
+    return job.result?.data as T;
+  };
+
   return {
     async getSession() {
       return requestJson<AuthSessionResult>(sessionUrl);
@@ -294,7 +317,7 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
     });
   },
   async generateEntityDraft(campaignId, input) {
-    return requestJson<GenerateEntityDraftResult>(`${baseUrl}/api/campaigns/${campaignId}/ai/drafts`, {
+    return requestGeneration<GenerateEntityDraftResult>(`${baseUrl}/api/campaigns/${campaignId}/ai/drafts`, {
       method: "POST",
       body: JSON.stringify(input satisfies GenerateEntityDraftInput)
     });
@@ -310,19 +333,19 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
     return requestJson<AIProposal>(proposalRoutes.detail(proposalId));
   },
   async proposeEntity(campaignId, input) {
-    return requestJson<AIProposal>(proposalRoutes.entity(campaignId), {
+    return requestGeneration<AIProposal>(proposalRoutes.entity(campaignId), {
       method: "POST",
       body: JSON.stringify(input satisfies ProposeEntityInput)
     });
   },
   async proposeCampaign(input) {
-    return requestJson<AIProposal>(proposalRoutes.campaign, {
+    return requestGeneration<AIProposal>(proposalRoutes.campaign, {
       method: "POST",
       body: JSON.stringify(input satisfies ProposeCampaignInput)
     });
   },
   async proposeWorldEvent(campaignId, input) {
-    return requestJson<AIProposal>(proposalRoutes.event(campaignId), {
+    return requestGeneration<AIProposal>(proposalRoutes.event(campaignId), {
       method: "POST",
       body: JSON.stringify(input satisfies ProposeWorldEventInput)
     });
@@ -363,13 +386,22 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
     });
   },
   async runCodexPrompt(input) {
-    return requestJson<CodexPromptResult>(codexRoutes.prompts, {
+    return requestGeneration<CodexPromptResult>(codexRoutes.prompts, {
       method: "POST",
       body: JSON.stringify(input satisfies CodexPromptInput)
     });
   },
+  async startCodexPrompt(input) {
+    return startGeneration(codexRoutes.prompts, { method: "POST", body: JSON.stringify(input) });
+  },
+  async listAIJobs(campaignId) {
+    return requestJson<AIJob[]>(`${baseUrl}/api/ai/jobs${campaignId ? `?campaignId=${encodeURIComponent(campaignId)}` : ""}`);
+  },
+  async getAIJob(id) {
+    return requestJson<AIJob>(`${baseUrl}/api/ai/jobs/${encodeURIComponent(id)}`);
+  },
   async formatPlayerFacingCard(campaignId, input) {
-    return requestJson<FormatPlayerFacingCardResult>(`${baseUrl}/api/campaigns/${campaignId}/ai/player-facing/format`, {
+    return requestGeneration<FormatPlayerFacingCardResult>(`${baseUrl}/api/campaigns/${campaignId}/ai/player-facing/format`, {
       method: "POST",
       body: JSON.stringify(input satisfies FormatPlayerFacingCardInput)
     });
@@ -392,7 +424,7 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
     });
   },
   async generateWorldEvent(campaignId, input) {
-    return requestJson<GenerateWorldEventResult>(`${baseUrl}/api/campaigns/${campaignId}/events/generate`, {
+    return requestGeneration<GenerateWorldEventResult>(`${baseUrl}/api/campaigns/${campaignId}/events/generate`, {
       method: "POST",
       body: JSON.stringify(input satisfies GenerateWorldEventInput)
     });
@@ -442,7 +474,7 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
     });
   },
   async generateCombat(campaignId, input) {
-    return requestJson<GenerateCombatResult>(`${baseUrl}/api/campaigns/${campaignId}/combat/generate`, {
+    return requestGeneration<GenerateCombatResult>(`${baseUrl}/api/campaigns/${campaignId}/combat/generate`, {
       method: "POST",
       body: JSON.stringify(input satisfies GenerateCombatInput)
     });

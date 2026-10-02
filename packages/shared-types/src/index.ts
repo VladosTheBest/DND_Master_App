@@ -864,6 +864,21 @@ export interface CodexPromptInput {
   };
 }
 
+export interface AIJob {
+  id: string;
+  campaignId?: string;
+  sessionId?: string;
+  kind: string;
+  title: string;
+  state: "queued" | "running" | "succeeded" | "failed";
+  stage: string;
+  createdAt: string;
+  startedAt?: string;
+  finishedAt?: string;
+  httpStatus?: number;
+  result?: { data?: unknown; error?: { code: string; message: string } };
+}
+
 export interface CodexPromptResult {
   sessionId?: string;
   threadId: string;
@@ -1221,6 +1236,9 @@ export interface ApiClient {
   connectCodexChatGPT(): Promise<CodexDeviceCodeResult>;
   disconnectCodexChatGPT(): Promise<CodexConnectionStatus>;
   runCodexPrompt(input: CodexPromptInput): Promise<CodexPromptResult>;
+  startCodexPrompt(input: CodexPromptInput): Promise<AIJob>;
+  listAIJobs(campaignId?: string): Promise<AIJob[]>;
+  getAIJob(id: string): Promise<AIJob>;
   formatPlayerFacingCard(
     campaignId: string,
     input: FormatPlayerFacingCardInput,
