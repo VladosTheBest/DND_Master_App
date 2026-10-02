@@ -136,7 +136,7 @@ export function AppContentRouter({
   }
 
   if (activeRailAlias === "shops") {
-    return <ShopsPage campaign={campaign} focusedShopId={focusedShopId} hydrateCampaign={hydrateCampaign} />;
+    return <ShopsPage key={campaign.id} campaign={campaign} focusedShopId={focusedShopId} hydrateCampaign={hydrateCampaign} />;
   }
 
   if (activeRailAlias === "events") {

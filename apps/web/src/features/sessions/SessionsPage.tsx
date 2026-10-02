@@ -4,6 +4,7 @@ import { api } from "../../app/api";
 import { sessionsApi, type ImportedSession, type SourceRange, type SpeechKind } from "./sessions.api";
 import { SessionJournal } from "./SessionJournal";
 import { SessionRecap } from "./SessionRecap";
+import { SessionDMReport } from "./SessionDMReport";
 import { classifySpeech, journalKinds, overlapsSource, speechLabels } from "./session-journal";
 import {
   highlightedParts,
@@ -20,7 +21,7 @@ const colors = [
   "#83b9ed",
   "#b9d982",
 ];
-const tabs = ["Обзор", "Хроника", "Локации", "Игроки", "Активность", "Полный текст"] as const;
+const tabs = ["Мастеру", "Обзор", "Хроника", "Локации", "Игроки", "Активность", "Полный текст"] as const;
 type SessionTab = (typeof tabs)[number];
 const dateLabel = (value: string) =>
   new Date(value).toLocaleDateString("ru-RU", {
@@ -65,7 +66,7 @@ export function SessionsPage({
     [notice, setNotice] = useState("");
   const [filter, setFilter] = useState(""),
     [query, setQuery] = useState(""),
-    [tab, setTab] = useState<SessionTab>("Обзор"),
+    [tab, setTab] = useState<SessionTab>("Мастеру"),
     [speaker, setSpeaker] = useState("");
   const [master, setMaster] = useState(""),
     [metric, setMetric] = useState<"words" | "time">("words"),
@@ -104,7 +105,7 @@ export function SessionsPage({
     setSpeechFilter("all");
     setSourceFocus(null);
     setJournalCategory("");
-    setTab("Обзор");
+    setTab("Мастеру");
     try {
       const session = await sessionsApi.get(campaignId, id);
       if (mounted.current && loadVersion.current === version) {
@@ -265,7 +266,7 @@ export function SessionsPage({
         campaignId,
         sessionId: id,
         model,
-        prompt: `Собери удобную хронику D&D: важные события, диалоги и договорённости, добычу (что нашли, взяли, потратили и у кого осталось), открытия (что изучили и узнали), встречи и отдельные итоги по каждой посещённой локации. Отдели события от планов, игровую речь от обсуждения за столом; неоднозначное помечай, не угадывай. Привяжи выводы к исходным репликам. Также подготовь действия участников, подсказки к следующей игре и проверяемые предложения изменений кампании.${master ? ` Мастер обозначен именем ${JSON.stringify(master)}; его описание мира является игровой речью, а не автоматически обсуждением за столом.` : " Мастер не указан, не угадывай роли участников."}`,
+        prompt: `Подготовь dmReport для мастера: хронологию и темп, решения, инициативы и гипотезы об интересах игроков, прямой отзыв (что понравилось и что мешало), состояние мира, открытые линии, проверки непрерывности и план следующей игры. Не выдумывай отзывы и не оценивай удовольствие по количеству речи. Также собери удобную хронику D&D: важные события, диалоги и договорённости, добычу (что нашли, взяли, потратили и у кого осталось), открытия (что изучили и узнали), встречи и отдельные итоги по каждой посещённой локации. Отдели события от планов, игровую речь от обсуждения за столом; неоднозначное помечай, не угадывай. Привяжи выводы к исходным репликам. Также подготовь действия участников, подсказки к следующей игре и проверяемые предложения изменений кампании.${master ? ` Мастер обозначен именем ${JSON.stringify(master)}; его описание мира является игровой речью, а не автоматически обсуждением за столом.` : " Мастер не указан, не угадывай роли участников."}`,
       });
       if (!mounted.current) return;
       setSessions(await sessionsApi.list(campaignId));
@@ -606,6 +607,7 @@ export function SessionsPage({
                 ))}
               </nav>
               <div className="session-tab-content" key={tab}>
+                {tab === "Мастеру" && <SessionDMReport session={selected} master={master} onMaster={name => { setMaster(name); localStorage.setItem(`session-gm:${campaignId}:${selected.id}`, name); }} onSource={openSource} sourceLabel={sourceLabel} onAnalyze={() => void analyze()} busy={!!busyId} />}
                 {tab === "Обзор" && (
                   <>
                     <SessionRecap analysis={selected.analysis} busy={!!busyId} onAnalyze={() => void analyze()} />

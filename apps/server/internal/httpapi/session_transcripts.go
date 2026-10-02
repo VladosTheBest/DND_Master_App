@@ -37,6 +37,7 @@ type sessionPlayerAnalysis struct {
 	NextSessionFocus string   `json:"nextSessionFocus"`
 }
 type sessionAnalysis struct {
+	DMReport      *sessionDMReport        `json:"dmReport,omitempty"`
 	Journal       *sessionJournal         `json:"journal,omitempty"`
 	RunID         string                  `json:"runId"`
 	Digest        string                  `json:"digest"`

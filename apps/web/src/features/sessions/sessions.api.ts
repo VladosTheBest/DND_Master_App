@@ -5,6 +5,7 @@ export interface PlayerAnalysis {
   nextSessionFocus: string;
 }
 export interface SessionAnalysis {
+  dmReport?: SessionDMReport;
   journal?: SessionJournal;
   runId: string;
   digest: string;
@@ -18,6 +19,20 @@ export interface SessionAnalysis {
   proposalIds: string[];
 }
 export interface SourceRange { fromLine: number; toLine: number }
+export interface DMFinding {
+  section: "decisions" | "spotlight" | "interests" | "feedback" | "world" | "threads" | "continuity" | "preparation";
+  title: string;
+  detail: string;
+  basis: "observed" | "explicit" | "hypothesis" | "suggestion";
+  speaker?: string;
+  status?: "open" | "resolved" | "uncertain";
+  sources: SourceRange[];
+}
+export interface SessionDMReport {
+  version: 1;
+  scenes: { title: string; detail: string; sources: SourceRange[] }[];
+  findings: DMFinding[];
+}
 export type SpeechKind = "game" | "table" | "uncertain";
 export type JournalKind = "event" | "dialogue" | "loot" | "discovery" | "encounter";
 export interface JournalEntry {

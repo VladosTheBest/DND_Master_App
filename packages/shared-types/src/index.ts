@@ -484,6 +484,8 @@ export interface ShopInventoryItem {
 }
 
 export interface CampaignShop {
+  gmNotes?: string;
+  art?: HeroArt;
   id: string;
   name: string;
   locationId?: string;
@@ -636,7 +638,7 @@ export interface AIProposalTarget {
   campaignId?: string;
   entityId?: string;
   eventId?: string;
-  entityKind?: EntityKind;
+  entityKind?: EntityKind | "shop";
 }
 
 export interface AIProposalSource {
@@ -858,7 +860,7 @@ export interface CodexPromptInput {
   model?: string;
   imageTarget?: {
     entityId: string;
-    entityKind: EntityKind;
+    entityKind: EntityKind | "shop";
   };
 }
 

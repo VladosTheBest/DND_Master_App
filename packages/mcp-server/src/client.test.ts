@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import { DndApiError, DndMasterClient } from "./client.js";
 import type { DndMcpConfig } from "./config.js";
-import { SessionJournalSchema } from "./schemas.js";
+import { SessionJournalSchema, SessionDMReportSchema } from "./schemas.js";
 
 function config(overrides: Partial<DndMcpConfig> = {}): DndMcpConfig {
   return {
@@ -35,6 +35,7 @@ test("session transcript pages preserve Unicode and session analysis writes stay
     keyEvents: ["Осмотр моста"], players: [{ name: "Арина", actions: ["Нашла следы"], moments: [], nextSessionFocus: "Исследовать следы" }],
     nextSession: ["Продолжить путь"], uncertainties: [], proposalIds: [],
     journal: { version: 1, locations: [], entries: [], speech: [] },
+    dmReport: { version: 1, scenes: [], findings: [{ section: "feedback", title: "Отзыв", detail: "Игрок попросил больше диалогов.", basis: "explicit", sources: [{ fromLine: 4, toLine: 4 }] }] },
   };
   const calls:Array<{url:string;init?:RequestInit}>=[];
   const client = new DndMasterClient(config(), (async (url, init) => {
@@ -526,4 +527,26 @@ test("external MCP staging retains the caller-owned source image", async () => {
 
   await client.stageProposalMedia({ proposalId: "proposal-1", localPath: imagePath });
   await access(imagePath);
+});
+
+
+test("shop image context excludes private notes and unavailable stock", async () => {
+ const client = new DndMasterClient(config(), (async () => jsonResponse({id:"campaign", shops:[{
+  id:"shop",name:"Store",description:"Visible shelves",gmNotes:"SECRET",
+  inventory:[{itemName:"Ring",quantity:2,note:"CURSED"},{itemName:"Hidden",quantity:0}],
+ }]})) as typeof fetch);
+ const result = await client.getEntity("campaign","shop","shop");
+ assert.deepEqual(result.entity.inventory,[{itemName:"Ring",quantity:2}]);
+ assert.equal(JSON.stringify(result).includes("SECRET"),false);
+ assert.equal(JSON.stringify(result).includes("CURSED"),false);
+});
+
+
+test("GM report keeps evidence and rejects inferred feedback", () => {
+  const f = {section:"feedback",title:"Отзыв",detail:"Попросил диалог",basis:"explicit",sources:[{fromLine:4,toLine:4}]};
+  const report = {version:1,scenes:[],findings:[f]};
+  assert.deepEqual(SessionDMReportSchema.parse(report),report);
+  for (const invalid of [{...f,basis:"hypothesis"},{...f,sources:[]},{...f,section:"preparation"},{...f,status:"maybe"}]) {
+    assert.equal(SessionDMReportSchema.safeParse({...report,findings:[invalid]}).success,false);
+  }
 });

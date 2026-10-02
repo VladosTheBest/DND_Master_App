@@ -82,7 +82,7 @@ func main() {
 		},
 		Codex: httpapi.CodexBridgeOptions{
 			Enabled:          envBool("SHADOW_EDGE_CODEX_BRIDGE_ENABLED", true),
-			Command:          firstEnv("SHADOW_EDGE_CODEX_COMMAND", "CODEX_COMMAND"),
+			Command:          resolveCodexCommand(firstEnv("SHADOW_EDGE_CODEX_COMMAND", "CODEX_COMMAND"), codexMCPScript),
 			Args:             []string{"app-server", "--strict-config"},
 			HomeRoot:         codexHomeRoot,
 			MCPCommand:       firstEnv("SHADOW_EDGE_CODEX_MCP_COMMAND"),

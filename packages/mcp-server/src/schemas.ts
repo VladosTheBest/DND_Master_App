@@ -32,6 +32,7 @@ export const EntityKindSchema = z.enum([
 export const ReadableEntityKindSchema = z.enum([
   ...EntityKindSchema.options,
   "event",
+  "shop",
 ]);
 
 export const ProposalStatusSchema = z.enum([
@@ -424,6 +425,10 @@ export const ProposeEntityCreateInputSchema = z.union([
 ]);
 
 export const ProposeEntityUpdateInputSchema = z.union([
+  ProposeEntityCommonSchema.extend({
+    kind: z.literal("shop"), entityId: id,
+    patch: z.object({}).strict().describe("Shop illustration only: empty patch, then stage art.url."),
+  }).strict(),
   ProposeKnowledgeEntityBaseSchema.extend({
     kind: EntityKindSchema,
     entityId: id.describe("Existing entity ID to update"),
@@ -515,6 +520,24 @@ export const SessionJournalSchema = z.object({
     fromLine: z.number().int().min(1), toLine: z.number().int().min(1),
     kind: z.enum(["game", "table", "uncertain"]),
   }).strict().refine(range => range.toLine >= range.fromLine, "Speech range is reversed")).max(4000),
+}).strict();
+export const SessionDMReportSchema = z.object({
+  version: z.literal(1),
+  scenes: z.array(z.object({
+    title: z.string().trim().min(1).max(200),
+    detail: z.string().trim().min(1).max(2000),
+    sources: z.array(SessionSourceRangeSchema).min(1).max(6),
+  }).strict()).max(40),
+  findings: z.array(z.object({
+    section: z.enum(["decisions", "spotlight", "interests", "feedback", "world", "threads", "continuity", "preparation"]),
+    title: z.string().trim().min(1).max(200),
+    detail: z.string().trim().min(1).max(2000),
+    basis: z.enum(["observed", "explicit", "hypothesis", "suggestion"]),
+    speaker: z.string().trim().min(1).max(100).optional(),
+    status: z.enum(["open", "resolved", "uncertain"]).optional(),
+    sources: z.array(SessionSourceRangeSchema).min(1).max(6),
+  }).strict().refine(f => f.section !== "feedback" || f.basis === "explicit", "Feedback must be explicit")
+    .refine(f => f.section !== "preparation" || f.basis === "suggestion", "Preparation is a suggestion")).max(100),
 }).strict();
 export type ProposeEntityCreateInput = z.infer<typeof ProposeEntityCreateInputSchema>;
 export type ProposeEntityUpdateInput = z.infer<typeof ProposeEntityUpdateInputSchema>;

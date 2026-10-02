@@ -17,6 +17,7 @@ export interface SpeakerStats {
 }
 const stampSeconds = (stamp: string) => {
   const [h, m, s] = stamp.split(":").map(Number);
+  if (m >= 60 || s >= 60) return NaN;
   return h * 3600 + m * 60 + s;
 };
 export const wordCount = (text: string) =>
@@ -78,7 +79,7 @@ export function speakerStatistics(
     string,
     { words: number; turns: number; intervals: [number, number][] }
   >();
-  for (const entry of entries) {
+  for (const entry of uniqueTimedUtterances(entries)) {
     if (entry.name === excluded) continue;
     const value = speakers.get(entry.name) || {
       words: 0,
@@ -116,6 +117,28 @@ export function speakerStatistics(
       timeShare: seconds ? (s.seconds / seconds) * 100 : 0,
     }))
     .sort((a, b) => b.words - a.words);
+}
+/** Identical timed ASR records are duplicates; repeated words at different times are not. */
+export function uniqueTimedUtterances(entries: SessionUtterance[]): SessionUtterance[] {
+  const seen = new Set<string>();
+  return entries.filter(entry => {
+    if (entry.start === null || entry.end === null) return true;
+    const key = JSON.stringify([entry.name, entry.start, entry.end, entry.text]);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+export function transcriptDiagnostics(text: string, entries: SessionUtterance[]) {
+  const unique = uniqueTimedUtterances(entries);
+  const timed = unique.filter(entry => entry.start !== null && entry.end !== null);
+  const lastSecond = timed.reduce((last, entry) => Math.max(last, entry.end!), 0);
+  // Only Quill's service header, never a player's quoted log line.
+  const header = text.split(/^\[/m)[0];
+  const technicalEvents = [...header.matchAll(/^- \d{2,}:\d{2}:\d{2}\.\d{3} (?:pause|stop|packet_loss|clock_discontinuity)\b.*$/gm)].length;
+  return { duplicates: entries.length - unique.length, utterances: unique.length,
+    lastSecond: timed.length ? lastSecond : null, technicalEvents,
+    untimed: unique.length - timed.length };
 }
 export function highlightedParts(
   text: string,

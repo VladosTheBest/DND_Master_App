@@ -154,6 +154,7 @@
   align-items: start;
 }
 .session-journal {
+  min-width: 0;
   position: sticky;
   top: 15px;
 }
@@ -219,6 +220,7 @@
   color: #91cbb1;
 }
 .session-workspace {
+  min-width: 0;
   min-width: 0;
   border: 1px solid var(--session-line);
   border-radius: 19px;
@@ -701,7 +703,7 @@
     gap: 18px;
   }
   .sessions-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .session-journal {
     position: static;

@@ -223,6 +223,8 @@ type shopInventoryItem struct {
 }
 
 type campaignShop struct {
+	GMNotes       string              `json:"gmNotes,omitempty"`
+	Art           *heroArt            `json:"art,omitempty"`
 	ID            string              `json:"id"`
 	Name          string              `json:"name"`
 	LocationID    string              `json:"locationId,omitempty"`

@@ -191,6 +191,9 @@ func normalizeAndValidateProposalMediaIntents(proposal *aiProposal) error {
 }
 
 func validateProposalMediaIntent(proposal aiProposal, media proposalMediaIntent) error {
+	if proposal.Target.EntityKind == "shop" && media.Field != "art.url" {
+		return proposalFailure(400, "shop_image_only", "Магазин поддерживает только основное изображение.")
+	}
 	if media.Field != "art.url" && media.Field != "gallery" {
 		return proposalFailure(400, "unsupported_media_field", "Proposal media field must be art.url or gallery")
 	}
@@ -276,6 +279,9 @@ func (service *proposalService) createEntity(ownerID, campaignID string, input e
 		return aiProposal{}, proposalFailure(404, "not_found", "Campaign not found")
 	}
 	campaign := ensureCampaignShape(service.store.data.Campaigns[campaignIndex])
+	if input.Kind == "shop" {
+		return service.createShopImageProposalLocked(ownerID, campaign, input)
+	}
 	mode := strings.ToLower(strings.TrimSpace(input.Mode))
 	if mode != "create" && mode != "update" {
 		return aiProposal{}, proposalFailure(400, "invalid_mode", "mode must be create or update")
@@ -1219,6 +1225,10 @@ func (service *proposalService) undo(ownerID, proposalID string) (proposalAction
 			err = staleRevisionFailure("campaign")
 			break
 		}
+		if proposal.Target.EntityKind == "shop" {
+			result, err = applyShopImageProposalLocked(proposal, campaign, true)
+			break
+		}
 		entities, entityIndex, current := findEntityInCampaign(campaign, proposal.Target.EntityID)
 		if entities == nil || current.Revision != proposal.AppliedRevisions["entity:"+proposal.Target.EntityID] {
 			err = staleRevisionFailure("entity")
@@ -1340,7 +1350,7 @@ func verifyProposalBaseRevisions(proposal aiProposal, campaign campaignData) err
 		return staleRevisionFailure("campaign")
 	}
 	if proposal.Target.EntityID != "" {
-		_, _, entity := findEntityInCampaign(&campaign, proposal.Target.EntityID)
+		entity := proposalTargetEntity(campaign, proposal.Target)
 		if expected, ok := proposal.BaseRevisions["entity:"+proposal.Target.EntityID]; ok {
 			if entity.ID == "" || entity.Revision != expected {
 				return staleRevisionFailure("entity")
@@ -1363,6 +1373,9 @@ func staleRevisionFailure(target string) error {
 }
 
 func applyEntityProposalLocked(proposal *aiProposal, campaign *campaignData) (proposalActionResult, error) {
+	if proposal.Target.EntityKind == "shop" {
+		return applyShopImageProposalLocked(proposal, campaign, false)
+	}
 	var candidate knowledgeEntity
 	if err := json.Unmarshal(proposal.After, &candidate); err != nil {
 		return proposalActionResult{}, proposalFailure(400, "invalid_candidate", err.Error())

@@ -72,6 +72,7 @@ func ensureCampaignShops(shops []campaignShop, locations []knowledgeEntity) []ca
 		shop.LocationID = strings.TrimSpace(shop.LocationID)
 		shop.LocationLabel = firstNonEmpty(strings.TrimSpace(shop.LocationLabel), lookupLocationLabel(locations, shop.LocationID))
 		shop.Description = strings.TrimSpace(shop.Description)
+		shop.GMNotes = strings.TrimSpace(shop.GMNotes)
 		shop.Inventory = ensureShopInventory(shop.Inventory)
 		result = append(result, shop)
 	}

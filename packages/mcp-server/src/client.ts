@@ -47,6 +47,7 @@ export interface CampaignData extends CampaignSummary {
   quests?: Array<Record<string, unknown>>;
   lore?: Array<Record<string, unknown>>;
   events?: Array<Record<string, unknown>>;
+  shops?: Array<Record<string, unknown>>;
 }
 
 const entityCollections = {
@@ -57,6 +58,7 @@ const entityCollections = {
   quest: "quests",
   lore: "lore",
   event: "events",
+  shop: "shops",
 } as const satisfies Record<string, keyof CampaignData>;
 
 export type ReadableEntityKind = keyof typeof entityCollections;
@@ -122,12 +124,12 @@ function conciseEntity(kind: ReadableEntityKind, entity: Record<string, unknown>
   const id = boundedText(entity.id, 200);
   if (!id) return undefined;
   const subtitle = boundedText(entity.subtitle, 240);
-  const summary = boundedText(entity.summary, 400);
+  const summary = boundedText(kind === "shop" ? entity.description : entity.summary, 400);
   const tags = boundedTags(entity.tags);
   return {
     id,
     kind,
-    title: boundedText(entity.title, 240) ?? id,
+    title: boundedText(kind === "shop" ? entity.name : entity.title, 240) ?? id,
     ...(subtitle ? { subtitle } : {}),
     ...(summary ? { summary } : {}),
     ...(tags ? { tags } : {}),
@@ -504,6 +506,14 @@ export class DndMasterClient {
       : undefined;
     if (!entity) {
       throw new DndApiError(404, "entity_not_found", `${kind} entity was not found in the campaign`);
+    }
+    if (kind === "shop") {
+      const stock = Array.isArray(entity.inventory) ? entity.inventory as Record<string, unknown>[] : [];
+      return { campaignId: campaign.id, kind, entity: {
+        id: entity.id, name: entity.name, title: entity.name, description: entity.description,
+        locationLabel: entity.locationLabel,
+        inventory: stock.filter(item => item.quantity !== 0).map(item => ({ itemName: item.itemName, quantity: item.quantity })),
+      } };
     }
     return { campaignId: campaign.id, kind, entity };
   }

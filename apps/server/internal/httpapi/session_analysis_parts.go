@@ -69,7 +69,7 @@ func (manager *codexBridgeManager) runSessionAnalysis(ctx context.Context, user 
 			if err := ctx.Err(); err != nil {
 				return codexPromptResult{}, err
 			}
-			key := fmt.Sprintf("%x", sha256.Sum256([]byte(fmt.Sprintf("v1|%s|%s|%s|%s|%s|%s|%d", user.ID, input.CampaignID, session.ID, session.Digest, input.Model, input.Prompt, index))))
+			key := fmt.Sprintf("%x", sha256.Sum256([]byte(fmt.Sprintf("v2-dm-report|%s|%s|%s|%s|%s|%s|%d", user.ID, input.CampaignID, session.ID, session.Digest, input.Model, input.Prompt, index))))
 			manager.mu.Lock()
 			note := manager.sessionPartNotes[key]
 			manager.mu.Unlock()

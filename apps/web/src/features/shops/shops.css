@@ -914,3 +914,84 @@
     grid-row: 1;
   }
 }
+
+/* Spacious shop workspace: directory above, stock and catalog at full width. */
+.shops-shell .content { overflow: auto; padding: 16px; }
+.shops-workspace { display: flex; flex-direction: column; height: auto; min-height: 100%; overflow: visible; border-radius: 12px; background: var(--panel, #111923); }
+.shops-panel { display: flex; flex-direction: column; overflow: visible; padding: 20px; background: transparent; border: 0; box-shadow: none; }
+.shops-directory-panel { gap: 12px; border-bottom: 1px solid var(--shops-line); }
+.shops-directory-panel .shops-search-row { max-width: 420px; }
+.shops-list { display: flex; gap: 8px; overflow-x: auto; max-height: 155px; }
+.shops-list-card { flex: 0 0 220px; }
+.shops-directory-foot { display: none; }
+.shops-editor-panel { gap: 20px; }
+.shops-overview-grid { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; }
+.shops-description-card textarea { min-height: 115px; }
+.shops-stat-card { min-width: 110px; padding: 12px; }
+.shops-stock-section { min-height: 260px; padding: 16px; border: 2px dashed var(--shops-line); border-radius: 12px; }
+.shops-stock-section.drop-active { border-color: #aa8ae9; background: #7c5cb522; }
+.shops-drop-hint { margin: 8px 0 16px; color: var(--text-muted); font-size: .85rem; }
+.shops-stock-table { overflow: visible; }
+.shops-stock-header { display: none; }
+.shops-stock-row { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) minmax(150px, auto) 110px 32px; gap: 12px; padding: 14px 0; }
+.shops-drag-handle, .shops-stock-category { display: none; }
+.shops-stock-product, .shops-note-input, .shops-price-cell, .shops-quantity-cell { grid-column: auto; }
+.shops-delete-stock { grid-column: auto; grid-row: auto; }
+.shops-catalog-panel { min-height: 0; border-top: 1px solid var(--shops-line); }
+.shops-catalog-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+.shops-catalog-filters label { display: grid; gap: 5px; color: var(--text-muted); font-size: .85rem; flex: 1 1 155px; }
+.shops-catalog-filters select { width: 100%; min-height: 40px; }
+.shops-picker-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; max-height: 530px; overflow: auto; }
+.shops-picker-item { min-height: 90px; grid-template-columns: minmax(0, 1fr) auto; }
+.shops-picker-add { width: auto; min-width: 44px; white-space: nowrap; height: 38px; padding: 0 10px; border-radius: 8px; }
+.shops-picker-copy small { white-space: normal; }
+.shops-gm-notes { padding: 16px; border: 1px solid var(--shops-line); border-radius: 10px; }
+.shops-gm-notes summary { cursor: pointer; font-weight: 600; }
+.shops-gm-notes label { display: grid; gap: 8px; margin-top: 16px; }
+.shops-gm-notes textarea { width: 100%; resize: vertical; }
+.shops-gm-notes small { display: block; margin-top: 8px; color: var(--text-muted); }
+.shops-art { display: flex; gap: 18px; flex-wrap: wrap; align-items: start; }
+.shops-art img { max-width: 100%; width: 320px; max-height: 220px; object-fit: cover; border-radius: 10px; }
+.shops-art-controls { display: grid; gap: 10px; flex: 1 1 240px; }
+.shops-art-controls label { display: grid; gap: 6px; }
+.shops-art-controls p { margin: 0; color: var(--text-muted); }
+@media (max-width: 1100px) {
+ .shops-stock-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 32px; }
+ .shops-stock-product { grid-column: 1 / 3; }
+ .shops-delete-stock { grid-column: 3; grid-row: 1; }
+ .shops-note-input { grid-column: 1 / -1; }
+ .shops-price-cell { grid-column: 1; }
+ .shops-quantity-cell { grid-column: 2; }
+ .shops-overview-grid { grid-template-columns: 1fr 1fr; }
+ .shops-description-card { grid-column: 1 / -1; }
+}
+@media (max-width: 600px) {
+ .shops-shell .content { padding: 8px; }
+ .shops-panel { padding: 14px; }
+ .shops-stock-section { padding: 10px; }
+ .shops-picker-list { grid-template-columns: 1fr; }
+ .shops-hero-actions { flex-wrap: wrap; }
+ .shops-stat-card { min-width: 0; }
+ .shops-price-cell, .shops-quantity-cell { grid-column: 1 / -1; }
+}
+
+.shops-directory-panel { display: grid; grid-template-columns: 1fr minmax(180px, 320px); align-items: center; }
+.shops-list { grid-column: 1 / -1; max-height: 100px; }
+.shops-list-card { padding: 10px; gap: 10px; }
+.shops-list-card .shops-thumb { width: 40px; height: 40px; flex-basis: 40px; }
+.shops-image-details > summary { cursor: pointer; font-weight: 600; }
+.shops-image-details .shops-art { margin-top: 16px; }
+.shops-art-controls > button { justify-self: start; }
+.shops-gm-notes textarea, .shops-art textarea { border: 1px solid var(--shops-line); border-radius: 8px; background: var(--shops-bg-soft); color: var(--text); padding: 12px; font: inherit; }
+.shops-catalog-drop { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; border: 2px dashed var(--shops-line); border-radius: 10px; padding: 16px; min-height: 80px; background: var(--shops-bg-soft); }
+.shops-catalog-drop span { flex: 1; color: var(--text-muted); font-size: .85rem; }
+.shops-catalog-drop.drop-active { border-color: #aa8ae9; background: #7c5cb522; }
+@media(max-width: 700px) { .shops-directory-panel { display: flex; } .shops-directory-panel .shops-search-row { width: 100%; } .shops-list { width: 100%; } .shops-catalog-drop { align-items: start; flex-direction: column; } }
+
+.shops-catalog-filters select { background: #18212e; color: var(--text); border: 1px solid var(--shops-line); border-radius: 8px; padding: 8px; font: inherit; }
+.shops-search-row { grid-template-columns: minmax(0, 1fr); }
+.shops-picker-info { grid-template-columns: 38px minmax(0, 1fr); gap: 8px; }
+.shops-picker-info .shops-item-thumb { width: 38px; height: 38px; }
+.shops-picker-copy small { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+@media(max-width:600px) { .shops-catalog-filters label { flex-basis: 125px; min-width: 0; } .shops-catalog-filters select { min-width: 0; } }

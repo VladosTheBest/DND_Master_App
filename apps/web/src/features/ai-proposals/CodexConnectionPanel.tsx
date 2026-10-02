@@ -371,19 +371,21 @@ function CodexModelPicker({
 }
 
 export function CodexConnectionPanel({
+  connectionOnly = false,
   campaignId,
   onPromptOutcome,
   onPromptRunningChange,
   onPromptSettled,
   onProposalsCreated
 }: {
+  connectionOnly?: boolean;
   campaignId?: string;
   onPromptOutcome?: (outcome: "error" | "warning" | null) => void;
   onPromptRunningChange?: (running: boolean) => void;
   onPromptSettled?: () => Promise<number | undefined>;
   onProposalsCreated?: (proposalIds: string[], hasWarning: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(connectionOnly);
   const [status, setStatus] = useState<CodexConnectionStatus | null>(null);
   const [ceremony, setCeremony] = useState<CodexDeviceCodeResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -407,7 +409,7 @@ export function CodexConnectionPanel({
       if (!silent) setBusy(true);
       const next = await api.getCodexConnectionStatus();
       setStatus(next);
-      if (next.state === "connected") setCeremony(null);
+      if (next.state !== "connecting") setCeremony(null);
       if (!silent) setError("");
     } catch (nextError) {
       if (!silent) setError(nextError instanceof Error ? nextError.message : "Не удалось проверить Codex App Server.");
@@ -590,7 +592,7 @@ export function CodexConnectionPanel({
       <button className="codex-connection-summary" onClick={() => setOpen((current) => !current)} type="button">
         <span className="codex-connection-orb" />
         <span>
-          <small>Подключение AI</small>
+          <small>Мой Codex · подписка ChatGPT</small>
           <strong>{promptBusy ? `Codex готовит черновик · ${formatElapsed(elapsedSeconds)}` : promptOutcomeLabel || (status ? stateLabel[status.state] : "Проверяю Codex App Server…")}</strong>
         </span>
         {status?.planType ? <em>{status.planType}</em> : null}
@@ -599,6 +601,8 @@ export function CodexConnectionPanel({
 
       {open ? (
         <div className="codex-connection-body">
+          <p className="codex-connection-message">Подключи свой ChatGPT один раз: анализ TXT сессий и генерация изображений через Codex будут использовать доступные лимиты этого аккаунта. API-ключ не нужен, автоматического перехода на платный API нет.</p>
+          <p className="codex-connection-message">Доступность изображений зависит от аккаунта и инструментов Codex. Аудиозапись сначала нужно расшифровать в TXT — распознавание аудио этим подключением не выполняется.</p>
           {status?.message ? <p className="codex-connection-message">{status.message}</p> : null}
           {error ? <div className="ai-proposal-alert danger">{error}</div> : null}
 
@@ -617,8 +621,9 @@ export function CodexConnectionPanel({
           ) : null}
 
           {limits.length ? <div className="codex-limits">{limits.map((limit, index) => <RateLimitCard key={limit.limitId || limit.limitName || index} snapshot={limit} />)}</div> : null}
+          {status?.state === "connected" ? <p className="codex-connection-message">Подключение готово. Открой «Сессии» для анализа или карточку для генерации изображения. Лимиты общие с другими запусками Codex в этом аккаунте.{!limits.length ? " Сейчас Codex не сообщил остаток лимитов." : ""}</p> : null}
 
-          {status?.state === "connected" ? (
+          {!connectionOnly && status?.state === "connected" ? (
             <section aria-busy={promptBusy} className="codex-embedded-prompt">
               <div>
                 <strong>Попросить Codex подготовить предложение</strong>
@@ -711,7 +716,7 @@ export function CodexConnectionPanel({
             </section>
           ) : null}
 
-          {status?.modes.length ? (
+          {!connectionOnly && status?.modes.length ? (
             <details className="codex-provider-details">
               <summary>Технические режимы подключения AI</summary>
               <div className="codex-provider-modes">
@@ -727,6 +732,7 @@ export function CodexConnectionPanel({
 
           <div className="ai-proposal-actions">
             <button className="ghost" disabled={busy} onClick={() => void refresh()} type="button">{busy ? "Проверяю…" : "Обновить статус"}</button>
+            {status?.state === "connecting" || ceremony ? <button className="ghost" disabled={busy} onClick={() => void disconnect()} type="button">Отменить вход</button> : null}
             {status?.state === "connected" ? (
               <button className="ghost danger-action" disabled={busy || promptBusy} onClick={() => void disconnect()} type="button">
                 {promptBusy ? "Codex занят" : "Отключить ChatGPT"}

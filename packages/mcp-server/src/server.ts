@@ -18,6 +18,7 @@ import {
   SearchEntitiesInputSchema,
   StageProposalMediaInputSchema,
   SessionJournalSchema,
+  SessionDMReportSchema,
 } from "./schemas.js";
 
 const readAnnotations = {
@@ -166,6 +167,7 @@ const CampaignEntityCountsSchema = z
     quest: z.number().int().nonnegative(),
     lore: z.number().int().nonnegative(),
     event: z.number().int().nonnegative(),
+    shop: z.number().int().nonnegative(),
   })
   .strict();
 const GetCampaignOutlineOutputSchema = z
@@ -605,6 +607,7 @@ export function createDndMcpServer(client: DndMasterClient): McpServer {
     inputSchema: z.object({
       campaignId:z.string().min(1),sessionId:z.string().min(1),runId:z.string().min(1).max(100),digest:z.string().length(64),
       journal:SessionJournalSchema,
+      dmReport:SessionDMReportSchema.describe("Required GM report: sourced scenes, decisions, observed initiative, interests as hypotheses, explicit feedback, world state, threads, continuity checks and preparation suggestions."),
       recap:z.string().trim().min(1).max(24000).describe("Standalone chronological session recap in Russian prose, short paragraphs separated by blank lines; cover important events, consequences and where the party stopped. No table chatter or invented facts."),
       summary:z.string().min(1).max(6000),keyEvents:z.array(z.string().max(2000)).max(50),
       players:z.array(z.object({name:z.string().max(100),actions:z.array(z.string().max(2000)).max(30),moments:z.array(z.string().max(2000)).max(20),nextSessionFocus:z.string().max(2000)})).max(100),

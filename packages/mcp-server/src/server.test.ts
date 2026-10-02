@@ -457,6 +457,7 @@ test("proposal media schemas match backend target boundaries", () => {
 test("session analysis tool persists the complete JSON report over HTTP", async (t) => {
   const analysis = {
     runId: "analysis-test", digest: "a".repeat(64), summary: "Партия нашла мост.",
+    dmReport: { version: 1, scenes: [], findings: [{ section: "feedback", title: "Пожелание", detail: "Больше диалогов", basis: "explicit", sources: [{ fromLine: 4, toLine: 4 }] }] },
     recap: "Партия подошла к мосту.\n\nНа другом берегу заметили следы 🐉.",
     keyEvents: ["Обнаружены следы"],
     players: [{ name: "Арина", actions: ["Осмотрела берег"], moments: [], nextSessionFocus: "Проверить следы" }],

@@ -14,7 +14,7 @@ const compiled = ts.transpileModule(source, {
     module: ts.ModuleKind.ES2022,
   },
 }).outputText;
-const { parseSessionText, speakerStatistics, highlightedParts } = await import(
+const { parseSessionText, speakerStatistics, highlightedParts, transcriptDiagnostics } = await import(
   `data:text/javascript;base64,${Buffer.from(compiled).toString("base64")}`
 );
 const text =
@@ -65,3 +65,15 @@ assert.deepEqual(filterJournal(cards,{location:"__unknown"}).map(e=>e.id), ["c"]
 assert.equal(filterJournal(cards,{status:"planned",location:"bridge"}).length, 0);
 assert.equal(filterJournal(cards,{}).length,3);
 console.log("PASS: source line tracking, mixed/unclassified speech, source navigation and combined journal filters.");
+
+const duplicateText = text + "\n[00:00:11.000–00:00:12.000] Мастер: Всё спокойно.";
+const duplicateEntries = parseSessionText(duplicateText);
+assert.equal(duplicateEntries.length, 5);
+assert.equal(speakerStatistics(duplicateEntries).find(s => s.name === "Мастер").turns, 1);
+assert.equal(transcriptDiagnostics(duplicateText, duplicateEntries).duplicates, 1);
+assert.equal(transcriptDiagnostics(duplicateText, duplicateEntries).technicalEvents, 1);
+assert.equal(transcriptDiagnostics(duplicateText, duplicateEntries).lastSecond, 12);
+assert.equal(parseSessionText("[00:99:00.000–01:99:00.000] Имя: Фраза.")[0].start, null);
+assert.equal(transcriptDiagnostics("Текст", parseSessionText("Текст")).lastSecond, null);
+assert.equal(speakerStatistics(parseSessionText("[00:00:01.000–00:00:02.000] Имя: Да\n[00:00:03.000–00:00:04.000] Имя: Да"))[0].turns, 2);
+console.log("PASS: exact timestamped duplicate suppression, raw source preservation, technical log counts and invalid/missing timestamps.");

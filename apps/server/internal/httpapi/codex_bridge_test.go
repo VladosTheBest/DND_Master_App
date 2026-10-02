@@ -1519,6 +1519,10 @@ func TestCodexBridgeHelperProcess(t *testing.T) {
 		case "initialize":
 			writeCodexHelperMessage(request.ID, map[string]any{"userAgent": "test"})
 		case "account/read":
+			if _, err := os.Stat(filepath.Join(homeDir, "helper-api-key")); err == nil {
+				writeCodexHelperMessage(request.ID, map[string]any{"account": map[string]any{"type": "apiKey"}})
+				continue
+			}
 			if connected {
 				writeCodexHelperMessage(request.ID, map[string]any{
 					"requiresOpenaiAuth": true,
@@ -1528,6 +1532,10 @@ func TestCodexBridgeHelperProcess(t *testing.T) {
 				writeCodexHelperMessage(request.ID, map[string]any{"requiresOpenaiAuth": true, "account": nil})
 			}
 		case "account/login/start":
+			if _, err := os.Stat(filepath.Join(homeDir, "helper-pending-login")); err == nil {
+				writeCodexHelperMessage(request.ID, map[string]any{"type": "chatgptDeviceCode", "loginId": "pending-test", "verificationUrl": "https://auth.openai.com/codex/device", "userCode": "TEST-PENDING"})
+				continue
+			}
 			connected = true
 			writeCodexHelperMessage(request.ID, map[string]any{
 				"type":            "chatgptDeviceCode",
@@ -1642,6 +1650,9 @@ func TestCodexBridgeHelperProcess(t *testing.T) {
 				"threadId": "thread-test",
 				"turn":     map[string]any{"id": "turn-test", "status": "completed", "items": []any{}},
 			})
+		case "account/login/cancel":
+			_ = os.WriteFile(filepath.Join(homeDir, "helper-login-cancelled"), request.Params, 0o600)
+			writeCodexHelperMessage(request.ID, map[string]any{"status": "canceled"})
 		case "account/logout":
 			connected = false
 			if homeDir != "" {

@@ -114,8 +114,8 @@ func (srv *server) validateCodexImageTarget(ownerID string, input *codexPromptIn
 	if target.EntityID == "" || target.EntityKind == "" {
 		return proposalFailure(http.StatusBadRequest, "invalid_image_target", "imageTarget должен содержать entityId и entityKind.")
 	}
-	if _, ok := supportedProposalEntityKinds[target.EntityKind]; !ok {
-		return proposalFailure(http.StatusBadRequest, "unsupported_image_target_kind", "Изображение можно подготовить только для локации, персонажа, NPC, монстра, квеста или лора.")
+	if _, ok := supportedProposalEntityKinds[target.EntityKind]; !ok && target.EntityKind != "shop" {
+		return proposalFailure(http.StatusBadRequest, "unsupported_image_target_kind", "Изображение можно подготовить только для локации, персонажа, NPC, монстра, квеста, лора или магазина.")
 	}
 	if srv == nil || srv.store == nil {
 		return proposalFailure(http.StatusServiceUnavailable, "image_target_unavailable", "Хранилище кампании недоступно.")
@@ -124,7 +124,7 @@ func (srv *server) validateCodexImageTarget(ownerID string, input *codexPromptIn
 	if err != nil {
 		return proposalFailure(http.StatusNotFound, "image_target_not_found", "Кампания или карточка не найдена.")
 	}
-	_, _, entity := findEntityInCampaign(&campaign, target.EntityID)
+	entity := proposalTargetEntity(campaign, proposalTarget{EntityID: target.EntityID, EntityKind: target.EntityKind})
 	if entity.ID == "" {
 		return proposalFailure(http.StatusNotFound, "image_target_not_found", "Карточка для генерации изображения не найдена в выбранной кампании.")
 	}

@@ -134,7 +134,7 @@ func TestSessionInputAndVerifiedAnalysis(t *testing.T) {
 	session.CampaignID = campaign.ID
 	session, _, _ = store.importSession(session)
 	srv := &server{store: store}
-	analysis := sessionAnalysis{RunID: "fresh-run", Digest: session.Digest, Summary: "Итог", ProposalIDs: []string{}}
+	analysis := sessionAnalysis{DMReport: syntheticDMReport(), RunID: "fresh-run", Digest: session.Digest, Summary: "Итог", ProposalIDs: []string{}}
 	payload, _ := json.Marshal(analysis)
 	recorder := httptest.NewRecorder()
 	srv.handleSessionAnalysis(recorder, httptest.NewRequest("PUT", "/", strings.NewReader(string(payload))), "owner", campaign.ID, session.ID)

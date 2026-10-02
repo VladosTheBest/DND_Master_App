@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { OAuthProviderStatus } from "@shadow-edge/shared-types";
 import { api } from "./api";
+import { CodexConnectionPanel } from "../features/ai-proposals/CodexConnectionPanel";
+import "../features/ai-proposals/ai-proposals.css";
 import "./oauth.css";
 
 const messages: Record<string, string> = {
@@ -77,6 +79,8 @@ export function AccountSettings() {
     {createPortal(<dialog ref={dialog} className="panel oauth-settings" aria-label="Настройки аккаунта" onCancel={close}>
       {open ? <>
         <h2>Настройки аккаунта</h2>
+        <CodexConnectionPanel connectionOnly />
+        <h3>Вход в приложение</h3>
         <OAuthControls account />
         <button className="ghost" type="button" onClick={close}>Закрыть</button>
       </> : null}
