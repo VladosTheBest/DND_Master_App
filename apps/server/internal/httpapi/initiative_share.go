@@ -2673,11 +2673,7 @@ func shouldShowPublicDisplayImage(campaign campaignData, display publicDisplaySn
 	if campaign.ActiveCombat != nil {
 		return display.Image.SessionMap
 	}
-	if campaign.LastCombatSummary == nil {
-		return true
-	}
-
-	return publicTimeAfter(display.UpdatedAt, campaign.LastCombatSummary.FinishedAt)
+	return true
 }
 
 func publicTimeAfter(left string, right string) bool {
@@ -3707,48 +3703,7 @@ func buildPublicInitiativeSnapshot(campaign campaignData) publicInitiativeSnapsh
 	}
 
 	if campaign.ActiveCombat == nil {
-		if campaign.LastCombatSummary != nil {
-			snapshot.Result = &publicInitiativeResult{
-				CombatID:            campaign.LastCombatSummary.CombatID,
-				Title:               campaign.LastCombatSummary.Title,
-				Outcome:             campaign.LastCombatSummary.Outcome,
-				DefeatedCount:       campaign.LastCombatSummary.DefeatedCount,
-				TotalExperience:     campaign.LastCombatSummary.TotalExperience,
-				ExperiencePerPlayer: campaign.LastCombatSummary.ExperiencePerPlayer,
-				Round:               campaign.LastCombatSummary.Round,
-				Entries:             buildPublicInitiativeEntries(campaign, campaign.LastCombatSummary.Entries, "", true),
-				PlayerRewards:       buildPublicInitiativeRewards(campaign.LastCombatSummary.PlayerRewards),
-				FinishedAt:          campaign.LastCombatSummary.FinishedAt,
-			}
-		}
-		snapshot.Mode = publicInitiativeSnapshotMode(snapshot)
-		return snapshot
-	}
-
-	if combatShouldShowVictory(campaign.ActiveCombat) {
-		playerRewards := make([]combatRewardShare, 0)
-		for _, entry := range campaign.ActiveCombat.Entries {
-			if combatEntrySide(entry) != "player" || entry.EntityKind != "player" {
-				continue
-			}
-			playerRewards = append(playerRewards, combatRewardShare{
-				Title:      strings.TrimSpace(entry.Title),
-				Experience: publicCombatVictoryExperiencePerPlayer(campaign.ActiveCombat),
-			})
-		}
-
-		snapshot.Result = &publicInitiativeResult{
-			CombatID:            campaign.ActiveCombat.ID,
-			Title:               campaign.ActiveCombat.Title,
-			Outcome:             "victory",
-			DefeatedCount:       countPublicDefeatedEnemies(campaign.ActiveCombat.Entries),
-			TotalExperience:     publicCombatVictoryTotalExperience(campaign.ActiveCombat),
-			ExperiencePerPlayer: publicCombatVictoryExperiencePerPlayer(campaign.ActiveCombat),
-			Round:               campaign.ActiveCombat.Round,
-			Entries:             buildPublicInitiativeEntries(campaign, campaign.ActiveCombat.Entries, campaign.ActiveCombat.CurrentTurnEntryID, true),
-			PlayerRewards:       buildPublicInitiativeRewards(playerRewards),
-		}
-		snapshot.Mode = publicInitiativeSnapshotMode(snapshot)
+		snapshot.Mode = publicScreenModeWaiting
 		return snapshot
 	}
 

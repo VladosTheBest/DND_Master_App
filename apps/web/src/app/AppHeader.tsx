@@ -58,25 +58,20 @@ export function AppHeader(props: AppHeaderProps) {
       <header className="panel topbar combat-topbar">
         <div className="actions combat-topbar-left">
           <button className="ghost" onClick={props.onReturnToApp} type="button">
-            Вернуться в приложение
+            ← К кампании
           </button>
-          <div className="topbar-campaign">
-            <p className="eyebrow">Кампания</p>
-            <strong>{props.campaignTitle}</strong>
-            <small>{props.inWorldDate}</small>
-          </div>
         </div>
 
         <div className="combat-screen-title">
           <p className="eyebrow">Сцена боя</p>
           <strong>{props.combatTitle}</strong>
-          <small>{props.hasActiveCombat ? `${props.activeCombatCount} участников в сцене` : "Подготовка новой сцены боя"}</small>
+          <small>{props.hasActiveCombat ? `Участников: ${props.activeCombatCount}` : "Подготовка новой сцены боя"}</small>
         </div>
 
         <div className="chips">
-          {props.hasActiveCombat ? <span className="chip active-combat-indicator">Активный бой • {props.activeCombatCount}</span> : null}
+
           <button className="ghost" disabled={!props.hasActiveCombat} onClick={props.onOpenInitiativeTracker} type="button">Трекер</button>
-          <button className="ghost" onClick={props.onOpenCombatSetupModal} type="button">Добавить участника</button>
+          <button className="ghost" onClick={props.onOpenCombatSetupModal} type="button">{props.hasActiveCombat ? "Участники" : "Настроить бой"}</button>
           <ActionMenu label="Инструменты боя">
             <button className="ghost" onClick={props.onPlayCombatPlaylist} type="button">{props.isCombatPlaylistActive ? "Следующий трек" : "Включить музыку"}</button>
             <button className="ghost" onClick={props.onOpenCombatPlaylistModal} type="button">Плейлист боя</button>
@@ -84,7 +79,7 @@ export function AppHeader(props: AppHeaderProps) {
             <button className="ghost" disabled={props.initiativeShareBusy} onClick={props.onCopyPublicInitiativeTracker} type="button">Копировать ссылку для игроков</button>
             <button className="ghost" disabled={props.saving} onClick={props.onSyncCombatPortraits} type="button">Обновить портреты</button>
           </ActionMenu>
-          <button className="primary" disabled={!props.hasActiveCombat || props.saving} onClick={props.onFinishCombat} type="button">
+          <button className="ghost" disabled={!props.hasActiveCombat || props.saving} onClick={props.onFinishCombat} type="button">
             Завершить бой
           </button>
         </div>

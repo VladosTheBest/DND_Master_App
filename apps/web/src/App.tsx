@@ -1,3 +1,4 @@
+import { FinishCombatDialog } from "./features/combat/FinishCombatDialog";
 import { AIJobsPanel } from "./features/ai-jobs/AIJobsPanel";
 import "@shadow-edge/design-tokens/theme.css";
 import { SessionsPage } from "./features/sessions/SessionsPage";
@@ -94,6 +95,7 @@ import {
 import { CombatPage } from "./features/combat/CombatPage";
 import { CombatPrepPage } from "./features/combat/CombatPrepPage";
 import "./features/combat/combat.css";
+import "./features/combat/combat-modern.css";
 import { BestiaryPageContainer } from "./features/bestiary/BestiaryPageContainer";
 import { BestiaryPreviewPanel } from "./features/bestiary/BestiaryPreviewPanel";
 import { useBestiaryController } from "./features/bestiary/useBestiaryController";
@@ -213,12 +215,10 @@ import type {
   CreateEntityInput,
   CreateEntityResult,
   EntityKind,
-  FinishCombatResult,
   GalleryImage,
   GenerateCombatResult,
   HeroArt,
   KnowledgeEntity,
-  LastCombatSummary,
   LocationEntity,
   ModuleId,
   MonsterLootEntry,
@@ -1592,10 +1592,10 @@ export default function App() {
   const [combatPlayerManagerOpen, setCombatPlayerManagerOpen] = useState(true);
   const [combatEnemyCatalogOpen, setCombatEnemyCatalogOpen] = useState(true);
   const [combatDifficultyDetailsOpen, setCombatDifficultyDetailsOpen] = useState(true);
+  const [finishCombatConfirmOpen, setFinishCombatConfirmOpen] = useState(false);
   const [combatPlayerEntityId, setCombatPlayerEntityId] = useState("");
   const [combatPlayerInitiative, setCombatPlayerInitiative] = useState(0);
   const [combatPortraitNotice, setCombatPortraitNotice] = useState("");
-  const [combatReport, setCombatReport] = useState<FinishCombatResult | null>(null);
   const [moduleEntitySearch, setModuleEntitySearch] = useState("");
   const [railWidth, setRailWidth] = useState(220);
   const [listWidth, setListWidth] = useState(284);
@@ -3564,7 +3564,6 @@ export default function App() {
     hydrateCampaign(result.campaign);
     setActiveModule("combat");
     setActiveTab("Encounter");
-    setCombatReport(null);
     focusCombatTurnFromState(result.combat);
   };
 
@@ -3619,7 +3618,7 @@ export default function App() {
     const quest = questId ? nextCampaign.quests.find((item) => item.id === questId) ?? null : null;
 
     if (!quest) {
-      openQuestList();
+      switchModule("dashboard");
       return;
     }
 
@@ -4035,17 +4034,13 @@ export default function App() {
       return;
     }
 
-    if (!window.confirm("Завершить бой, очистить активную сцену и посчитать опыт за всех врагов, которые уже выведены или имеют 0 HP?")) {
-      return;
-    }
-
     try {
       const finishedCombatId = activeCombat.id;
       setSaving(true);
       const result = await api.finishCombat(activeCampaignId);
-      setCombatReport(result);
       hydrateCampaign(result.campaign);
       closeCombatSetupModal();
+      setFinishCombatConfirmOpen(false);
       navigateAfterCombatFinish(result.campaign, consumeCombatReturnTarget(finishedCombatId));
     } catch (error) {
       setBootError(error instanceof Error ? error.message : "Не удалось завершить бой.");
@@ -4061,18 +4056,6 @@ export default function App() {
   const isItemsRail = activeRailAlias === "items";
   const isShopsRail = activeRailAlias === "shops";
   const hasFeatureOwnedDetailsPanel = isItemsRail || isShopsRail || activeRailAlias === "sessions" || activeModule === "rules";
-  const latestCombatSummary =
-    campaign?.lastCombatSummary ??
-    (combatReport
-      ? {
-          combatId: combatReport.combatId,
-          title: "Последний бой",
-          outcome: "victory" as const,
-          defeatedCount: combatReport.defeatedCount,
-          totalExperience: combatReport.totalExperience,
-          experiencePerPlayer: combatReport.experiencePerPlayer
-        }
-      : null);
   const hasActiveCombat = Boolean(activeCombat?.entries.length);
   const activeRailKey = railNavKeyFromView(activeModule, activeRailAlias);
   const activeSectionLabel = campaign ? railSectionTitle(campaign, activeModule, activeRailAlias) : "";
@@ -4189,6 +4172,8 @@ export default function App() {
         campaignPreparedCombatNotice={campaignPreparedCombatNotice}
         campaignTitle={campaign.title}
         dangerProps={{
+          partyLevelText: resolvedCombatPartyLevelsText,
+          onPartyLevelChange: updateCombatPartyLevelText,
           combatDangerDetailText,
           combatDangerText,
           combatDangerThresholdText,
@@ -4477,7 +4462,6 @@ export default function App() {
       <>
         <InitiativeTrackerScreen
           activeCombat={campaign.activeCombat ?? null}
-          lastCombatSummary={campaign.lastCombatSummary ?? null}
           busy={combatStateBusy}
           error={bootError}
           entityMap={entityMap}
@@ -4539,9 +4523,7 @@ export default function App() {
               onCopyPublicInitiativeTracker={() => {
                 void copyPublicInitiativeTrackerLink();
               }}
-              onFinishCombat={() => {
-                void finishCombat();
-              }}
+              onFinishCombat={() => { setBootError(""); setFinishCombatConfirmOpen(true); }}
               onLogout={() => {
                 void logout();
               }}
@@ -4668,7 +4650,6 @@ export default function App() {
                 canStartConfiguredCombat={canStartConfiguredCombat}
                 initiativePublishNotice={initiativePublishNotice}
                 isCombatPlaylistActive={isCombatPlaylistActive}
-                latestCombatSummary={latestCombatSummary}
                 onCombatPartyLevelsChange={updateCombatPartyLevelText}
                 onOpenCombatPlaylistModal={openCombatPlaylistModal}
                 onOpenCombatSetupModal={() => openCombatSetupModal()}
@@ -5081,11 +5062,11 @@ export default function App() {
 
       {combatSetupOpen && hasActiveCombat ? (
         <div className="overlay" role="presentation">
-          <div className="panel palette form-modal combat-setup-modal" onClick={(event) => event.stopPropagation()} role="dialog">
+          <div className="panel palette form-modal combat-setup-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="Участники и настройки боя">
             <div className="row">
               <div>
-                <p className="eyebrow">Combat Setup</p>
-                <strong>Добавь существующих врагов или сгенерируй encounter под нужную сложность</strong>
+                <h2>Участники и настройки боя</h2>
+                <strong>Добавьте участника или подготовьте противников с AI.</strong>
               </div>
               <div className="actions">
                 <button
@@ -5110,10 +5091,10 @@ export default function App() {
               </div>
             ) : null}
 
-            <section className="card section-card combat-party-card">
+            <details className="card section-card combat-party-card"><summary>Уровень группы и расчёт сложности</summary>
               <div className="row muted">
                 <span>Партия</span>
-                <span>Один источник правды для расчёта сложности и генерации</span>
+
               </div>
 
               <div className="form-grid">
@@ -5131,12 +5112,17 @@ export default function App() {
               <p className="copy combat-inline-note">
                 {combatPartySummary}
               </p>
-            </section>
+            </details>
+
+            {activeCombat ? <details className="card section-card"><summary>Добавить игрока в текущий бой</summary>
+              <div className="form-grid"><label className="field"><span>Игрок</span><select className="input" value={combatPlayerEntityId} onChange={event => setCombatPlayerEntityId(event.target.value)}><option value="">Выберите игрока</option>{campaign.players.filter(player => !activeCombat.entries.some(entry => entry.entityId === player.id && entry.side === "player")).map(player => <option key={player.id} value={player.id}>{player.title}</option>)}</select></label><label className="field"><span>Инициатива игрока</span><input className="input" type="number" value={combatPlayerInitiative} onChange={event => setCombatPlayerInitiative(Number.parseInt(event.target.value, 10) || 0)} /></label></div>
+              <button className="primary" disabled={saving || !combatPlayerEntityId || activeCombat.entries.some(entry => entry.entityId === combatPlayerEntityId && entry.side === "player")} onClick={() => void addManualPlayerToCombat()} type="button">Добавить игрока</button>
+            </details> : null}
 
             <section className="card section-card combat-tool-card">
               <div className="row muted">
-                <span>Добавить из сущностей</span>
-                <span>Поиск идёт по кампании и dnd.su, фильтр по CR работает для обоих источников</span>
+                <span>Добавить противника</span>
+
               </div>
 
               <div className="form-grid">
@@ -5145,7 +5131,7 @@ export default function App() {
                   <input
                     className="input"
                     onChange={(event) => setCombatSearchQuery(event.target.value)}
-                    placeholder="Ищи по имени: бандит, волк, giant spider, капитан..."
+                    placeholder="Имя противника…"
                     value={combatSearchQuery}
                   />
                 </label>
@@ -5266,11 +5252,7 @@ export default function App() {
               </div>
             </section>
 
-            <section className="card section-card combat-tool-card">
-              <div className="row muted">
-                <span>Автогенерация encounter</span>
-                <span>Кампания, мир и параметры партии уходят в генерацию как контекст</span>
-              </div>
+            <details className="card section-card combat-tool-card"><summary>Подготовить противников с AI</summary>
 
               <div className="form-grid">
                 <label className="field field-full">
@@ -5331,27 +5313,8 @@ export default function App() {
                   ? `Для расчёта сейчас используется ${effectivePartySize} ${
                       effectivePartySize === 1 ? "игрок" : effectivePartySize < 5 ? "игрока" : "игроков"
                     }: ${effectivePartyLevels.join(", ")} уровни.`
-                  : "Сначала укажи общий уровень партии, затем генерируй encounter."}
+                  : "Сначала укажи общий уровень партии, затем генерируйте противников."}
               </p>
-
-              <div className="combat-threshold-grid">
-                <article className="card mini fact-box">
-                  <small>Easy</small>
-                  <strong className="fact-value">{effectiveCombatThresholds.easy}</strong>
-                </article>
-                <article className="card mini fact-box">
-                  <small>Medium</small>
-                  <strong className="fact-value">{effectiveCombatThresholds.medium}</strong>
-                </article>
-                <article className="card mini fact-box">
-                  <small>Hard</small>
-                  <strong className="fact-value">{effectiveCombatThresholds.hard}</strong>
-                </article>
-                <article className="card mini fact-box">
-                  <small>Deadly</small>
-                  <strong className="fact-value">{effectiveCombatThresholds.deadly}</strong>
-                </article>
-              </div>
 
               <div className="actions">
                 <button
@@ -5375,7 +5338,7 @@ export default function App() {
                   title="Оракул собирает бой"
                 />
               ) : null}
-            </section>
+            </details>
           </div>
         </div>
       ) : null}
@@ -5474,6 +5437,8 @@ export default function App() {
         })();
       }} onOpenProposal={(id) => void aiProposalController.openProposal(id)} />
       <AIProposalCenter campaignId={activeCampaignId} controller={aiProposalController} key="ai-proposal-center" renderEntity={renderProposalEntity} />
+
+      {finishCombatConfirmOpen && activeCombat ? <FinishCombatDialog busy={saving} error={bootError} onCancel={() => setFinishCombatConfirmOpen(false)} onConfirm={() => void finishCombat()} /> : null}
 
       <CloseConfirmDialog
         onCancel={cancelModalCloseRequest}

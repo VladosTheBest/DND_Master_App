@@ -44,18 +44,6 @@ export function CombatPartyPanel({
           <h2>Состав группы</h2>
           <span>{`${draftPreparedCombatPartyCount} ${formatParticipantCountLabel(draftPreparedCombatPartyCount)} на стороне партии`}</span>
         </div>
-        <button className="combat-prep-small-icon" type="button" aria-label="Настройки состава">
-          ⚙
-        </button>
-      </div>
-
-      <div className="combat-prep-party-tabs">
-        <button className="active" type="button">
-          Игроки {draftPreparedCombatPlayers.length}
-        </button>
-        <button className={draftPreparedCombatAllyCount > 0 ? "active ally" : "ally"} type="button">
-          Союзники {draftPreparedCombatAllyCount}
-        </button>
       </div>
 
       <div className="combat-prep-subhead">
@@ -69,7 +57,7 @@ export function CombatPartyPanel({
         <span>⌕</span>
         <input
           onChange={(event) => onCombatPlayerSearchQueryChange(event.target.value)}
-          placeholder="Поиск игрока..."
+          aria-label="Поиск игрока" placeholder="Поиск игрока…"
           value={combatPlayerSearchQuery}
         />
       </label>
@@ -89,7 +77,7 @@ export function CombatPartyPanel({
                   className={`combat-prep-check ${selected ? "active" : ""}`}
                   onClick={() => onTogglePlayer(player.id)}
                   type="button"
-                  aria-label={selected ? "Убрать игрока" : "Добавить игрока"}
+                  aria-pressed={selected} aria-label={`${selected ? "Убрать" : "Добавить"} игрока: ${player.title}`}
                 >
                   {selected ? "✓" : "+"}
                 </button>
@@ -101,6 +89,7 @@ export function CombatPartyPanel({
         )}
       </div>
 
+      <details className="combat-prep-allies"><summary>Союзники · {draftPreparedCombatAllyCount}</summary>
       <div className="combat-prep-subhead allies-head">
         <strong>{`Союзники (${draftPreparedCombatAllyCount})`}</strong>
         <button className="combat-prep-purple-button" onClick={() => onRequestSwapToEntity("npc")} type="button">
@@ -112,7 +101,7 @@ export function CombatPartyPanel({
         <span>⌕</span>
         <input
           onChange={(event) => onCombatAllySearchQueryChange(event.target.value)}
-          placeholder="Поиск союзника среди NPC и монстров..."
+          aria-label="Поиск союзника" placeholder="Поиск союзника…"
           value={combatAllySearchQuery}
         />
       </label>
@@ -132,7 +121,7 @@ export function CombatPartyPanel({
                   className={`combat-prep-check ally-toggle ${selected ? "active" : ""}`}
                   onClick={() => onToggleAlly(entity.id)}
                   type="button"
-                  aria-label={selected ? "Убрать союзника" : "Добавить союзника"}
+                  aria-pressed={selected} aria-label={`${selected ? "Убрать" : "Добавить"} союзника: ${entity.title}`}
                 >
                   {selected ? "✓" : "+"}
                 </button>
@@ -146,6 +135,7 @@ export function CombatPartyPanel({
           </div>
         )}
       </div>
+      </details>
     </section>
   );
 }

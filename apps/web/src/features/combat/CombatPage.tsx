@@ -3,7 +3,6 @@ import type {
   CampaignPreparedCombat,
   CampaignData,
   KnowledgeEntity,
-  LastCombatSummary,
   MonsterEntity,
   NpcEntity,
   PlayerEntity
@@ -12,11 +11,9 @@ import type { ReactNode } from "react";
 import { EntityVisual, badge, kindTitle } from "../../app-shared";
 import { PlaylistSection } from "../../media";
 import { CombatTrackerPage, type CombatTrackerPageProps } from "./CombatTrackerPage";
-import { CombatVictoryModal } from "./CombatVictoryModal";
 import { getEntityChallenge } from "./combat.utils";
 
 type CombatPageProps = {
-  latestCombatSummary: LastCombatSummary | null;
   activeCombat: ActiveCombat | null;
   combatSetupOpen: boolean;
   bootError: string;
@@ -48,7 +45,6 @@ type CombatPageProps = {
 };
 
 export function CombatPage({
-  latestCombatSummary,
   activeCombat,
   combatSetupOpen,
   bootError,
@@ -80,30 +76,12 @@ export function CombatPage({
 }: CombatPageProps) {
   return (
     <div className={`stack wide ${combatSetupOpen && !activeCombat?.entries.length ? "combat-prep-only" : ""}`}>
-      <CombatVictoryModal latestCombatSummary={latestCombatSummary} />
 
       {activeCombat?.entries.length ? (
         <CombatTrackerPage {...trackerProps} onOpenEntityImage={onOpenEntityImage} />
       ) : (
         <>
-          <PlaylistSection
-            action={
-              <button className="ghost" onClick={onOpenCombatPlaylistModal} type="button">
-                Настроить
-              </button>
-            }
-            activeTrackLabel={currentPlaybackTrackLabel}
-            activeTrackUrl={currentPlaybackTrackUrl}
-            defaultCollapsed={!(campaign.combatPlaylist ?? []).length}
-            hint="Один общий плейлист кампании для всех старых и новых боёв"
-            isActive={isCombatPlaylistActive}
-            onNextRandom={onPlayNextRandomTrack}
-            onPlayRandom={onPlayCombatPlaylist}
-            onPlayTrack={onPlayCombatTrack}
-            onStop={onStopPlayback}
-            title="Общий боевой плейлист"
-            tracks={campaign.combatPlaylist ?? []}
-          />
+
 
           {combatPortraitNotice ? (
             <div className="card mini form-success" role="status">
@@ -132,10 +110,10 @@ export function CombatPage({
             <section className="card section-card combat-screen-shell">
               <div className="row muted">
                 <span>Активного боя пока нет</span>
-                <span>{hasConfiguredCombat ? "Сцена подготовлена" : "Нужна предварительная настройка"}</span>
+                <span>{hasConfiguredCombat ? "Сцена подготовлена" : "Выберите участников и инициативу"}</span>
               </div>
               <div className="stack">
-                <h2>Подготовь сцену перед стартом</h2>
+                <h2>Новый бой</h2>
                 <p className="copy">
                   {hasConfiguredCombat
                     ? "Состав боя уже подготовлен. Открой подготовку, впиши инициативу рядом с участниками и стартуй бой сразу."
@@ -182,28 +160,29 @@ export function CombatPage({
                     </div>
                   </div>
                 ) : null}
-                <label className="field field-full">
-                  <span>Уровень партии</span>
-                  <small className="field-hint">Нужны только для расчёта сложности. На сам запуск боя они не влияют.</small>
-                  <input
-                    className="input"
-                    onChange={(event) => onCombatPartyLevelsChange(event.target.value)}
-                    placeholder="Например: 3"
-                    value={resolvedCombatPartyLevelsText}
-                  />
-                </label>
-                <p className="copy combat-inline-note">{combatPartySummary}</p>
-                <div className="actions">
-                  <button className="ghost" onClick={onOpenCombatSetupModal} type="button">
-                    Настроить бой
-                  </button>
-                  <button className="primary" disabled={!canStartConfiguredCombat} onClick={onOpenCombatSetupModal} type="button">
-                    К старту боя
-                  </button>
-                </div>
+                <div className="actions"><button className="primary" onClick={onOpenCombatSetupModal} type="button">{hasConfiguredCombat ? "Открыть подготовленный бой" : "Подготовить бой"}</button></div>
               </div>
             </section>
           )}
+          {!combatSetupOpen ? <PlaylistSection
+            action={
+              <button className="ghost" onClick={onOpenCombatPlaylistModal} type="button">
+                Настроить
+              </button>
+            }
+            activeTrackLabel={currentPlaybackTrackLabel}
+            activeTrackUrl={currentPlaybackTrackUrl}
+            defaultCollapsed={!(campaign.combatPlaylist ?? []).length}
+            hint="Один общий плейлист кампании для всех старых и новых боёв"
+            isActive={isCombatPlaylistActive}
+            onNextRandom={onPlayNextRandomTrack}
+            onPlayRandom={onPlayCombatPlaylist}
+            onPlayTrack={onPlayCombatTrack}
+            onStop={onStopPlayback}
+            title="Общий боевой плейлист"
+            tracks={campaign.combatPlaylist ?? []}
+          /> : null}
+
         </>
       )}
     </div>

@@ -28,17 +28,13 @@ export function CombatParticipantRow({
 }: CombatParticipantRowProps) {
   return (
     <article className={className}>
-      <span className="combat-prep-drag-handle">⋮⋮</span>
       <EntityVisual entity={entity} onOpenEntityImage={onOpenEntityImage} />
       <div className="combat-prep-field-copy">
         <strong>{title}</strong>
         <span>{subtitle || entity.role || entity.subtitle || kindTitle[entity.kind]}</span>
       </div>
-      <CombatInitiativeInput value={initiative} onChange={onInitiativeChange} />
-      <button className="combat-prep-note-button" type="button" aria-label="Заметка">
-        ▱
-      </button>
-      <button className="combat-prep-remove-ref" onClick={onRemove} type="button" aria-label={removeLabel}>
+      <CombatInitiativeInput label={`Инициатива: ${title}`} value={initiative} onChange={onInitiativeChange} />
+      <button className="combat-prep-remove-ref" onClick={onRemove} type="button" aria-label={`${removeLabel}: ${title}`}>
         ×
       </button>
     </article>

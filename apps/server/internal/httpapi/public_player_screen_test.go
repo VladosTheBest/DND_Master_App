@@ -414,7 +414,7 @@ func TestPublicDisplaySanitizesViewport(t *testing.T) {
 	}
 }
 
-func TestPublicScreenResultStaysUntilNewImageIsShown(t *testing.T) {
+func TestPublicScreenResumesPreviousImageAfterCombat(t *testing.T) {
 	store, campaign := newPublicScreenTestStore(t)
 	manager := newInitiativeShareManager(store, "https://players.example")
 	request := httptest.NewRequest(http.MethodPost, "/api/campaigns/"+campaign.ID+"/initiative-share", nil)
@@ -456,11 +456,11 @@ func TestPublicScreenResultStaysUntilNewImageIsShown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("snapshotForToken() error = %v", err)
 	}
-	if resultSnapshot.Mode != publicScreenModeResult {
-		t.Fatalf("expected combat result to outlive an older image, got %q", resultSnapshot.Mode)
+	if resultSnapshot.Mode != publicScreenModeImage {
+		t.Fatalf("expected previous scene image to resume after combat, got %q", resultSnapshot.Mode)
 	}
-	if resultSnapshot.Result == nil || resultSnapshot.Image != nil {
-		t.Fatalf("expected result snapshot without image payload, got result=%+v image=%+v", resultSnapshot.Result, resultSnapshot.Image)
+	if resultSnapshot.Result != nil || resultSnapshot.Image == nil {
+		t.Fatalf("expected scene image without result payload, got result=%+v image=%+v", resultSnapshot.Result, resultSnapshot.Image)
 	}
 
 	if _, err := manager.showPlayerDisplayImage(campaign.ID, request, playerDisplayImageInput{

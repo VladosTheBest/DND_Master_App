@@ -662,7 +662,6 @@ export function CombatEntryCard({
   onApplyDamage,
   onChangeInitiative,
   onSetCurrentTurn,
-  onNextTurn,
   onOpenEntityImage
 }: {
   entry: CombatEntry;
@@ -674,7 +673,7 @@ export function CombatEntryCard({
   onApplyDamage?: (entry: CombatEntry, damageAmount: number) => void;
   onChangeInitiative: (entry: CombatEntry, nextInitiative: number) => void;
   onSetCurrentTurn: (entryId: string) => void;
-  onNextTurn: () => void;
+  onNextTurn?: () => void;
   onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
 }) {
   const kindLabel = entry.entityKind === "monster" ? "Монстр" : entry.entityKind === "player" ? "Игрок" : "НПС";
@@ -735,22 +734,25 @@ export function CombatEntryCard({
   }, [entry.id]);
 
   const commitInitiativeDraft = () => {
+    if (busy) return;
     const nextValue = Number.parseInt(initiativeDraft, 10);
     onChangeInitiative(entry, Number.isFinite(nextValue) ? nextValue : 0);
   };
 
   const commitHitPointsDraft = () => {
+    if (busy || effectiveDraftHitPoints === entry.currentHitPoints) return;
     onChangeHitPoints(entry, effectiveDraftHitPoints);
   };
 
   const applyHitPointsDelta = (nextValue: number) => {
+    if (busy) return;
     const clampedValue = clamp(nextValue, 0, Math.max(entry.maxHitPoints, 0));
     setHitPointsDraft(String(clampedValue));
     onChangeHitPoints(entry, clampedValue);
   };
 
   const applyDamageDraft = () => {
-    if (!onApplyDamage || effectiveDamageDraft <= 0 || entry.maxHitPoints <= 0) {
+    if (busy || !onApplyDamage || effectiveDamageDraft <= 0 || entry.maxHitPoints <= 0) {
       return;
     }
 
@@ -781,9 +783,9 @@ export function CombatEntryCard({
     );
 
   return (
-    <article className={`card combat-focus-card ${isCombatEntryOut(entry) ? "defeated" : ""}`}>
+    <article className={`card combat-focus-card ${entry.side === "player" ? "player" : "enemy"} ${isCombatEntryBloodied(entry) ? "bloodied" : ""} ${isCombatEntryOut(entry) ? "defeated" : ""}`}>
       <header className="combat-focus-hero">
-        {linkedEntity && onOpenEntityImage ? (
+        {linkedEntity && hasVisibleArt(linkedEntity.art) && onOpenEntityImage ? (
           <button
             aria-haspopup="dialog"
             aria-label={`Открыть изображение «${linkedEntity.title}»`}
@@ -798,7 +800,7 @@ export function CombatEntryCard({
           </button>
         ) : (
           <div className={`combat-focus-portrait-shell ${isCombatEntryBloodied(entry) ? "combat-bloodied-shell" : ""}`}>
-            <img alt={linkedEntity?.art?.alt ?? entry.title} className="combat-focus-portrait" loading="lazy" src={portraitSource} />
+            {linkedEntity && hasVisibleArt(linkedEntity.art) ? <img alt={linkedEntity.art?.alt ?? entry.title} className="combat-focus-portrait" loading="lazy" src={portraitSource} /> : <span className="combat-avatar-initial" aria-hidden="true">{entry.title.trim().slice(0, 1)}</span>}
             {isCombatEntryBloodied(entry) ? (
               <img alt="" aria-hidden="true" className="combat-blood-overlay" loading="lazy" src={victoryBloodOverlayUrl} />
             ) : null}
@@ -825,22 +827,17 @@ export function CombatEntryCard({
           </div>
 
           <div className="combat-focus-hero-metrics">
-            <span className="combat-focus-hero-pill">КД {entry.armorClass}</span>
-            <span className="combat-focus-hero-pill">Инициатива +{combatEntryInitiative(entry)}</span>
-            <span className="combat-focus-hero-pill">Скорость {entry.statBlock?.speed || "—"}</span>
-            <span className="combat-focus-hero-pill">
-              {entry.maxHitPoints > 0 ? `${entry.currentHitPoints}/${entry.maxHitPoints} HP` : "HP не отслеживается"}
-            </span>
+            <span className="combat-focus-hero-pill"><small>Класс брони</small><strong>{entry.armorClass}</strong></span>
+            <span className="combat-focus-hero-pill"><small>Инициатива</small><strong>{combatEntryInitiative(entry)}</strong></span>
+            <span className="combat-focus-hero-pill"><small>Скорость</small><strong>{entry.statBlock?.speed || "—"}</strong></span>
           </div>
         </div>
 
         <div className="combat-focus-hero-actions">
-          <button className="ghost" disabled={busy || isCurrentTurn} onClick={() => onSetCurrentTurn(entry.id)} type="button">
-            {isCurrentTurn ? "Ход активен" : "Сделать текущим"}
-          </button>
-          <button className="primary" disabled={busy} onClick={onNextTurn} type="button">
-            {busy ? "Переключаю..." : "Следующий ход"}
-          </button>
+          {!isCurrentTurn ? <button className="ghost" disabled={busy} onClick={() => onSetCurrentTurn(entry.id)} type="button">
+            Сделать текущим
+          </button> : null}
+
         </div>
       </header>
 
@@ -848,7 +845,7 @@ export function CombatEntryCard({
         {combatFocusTabs.map((tab) => (
           <button
             key={`${entry.id}-${tab.id}`}
-            className={`combat-focus-tab ${activeTab === tab.id ? "active" : ""}`}
+            aria-pressed={activeTab === tab.id} className={`combat-focus-tab ${activeTab === tab.id ? "active" : ""}`}
             onClick={() => setActiveTab(tab.id)}
             type="button"
           >
@@ -858,7 +855,7 @@ export function CombatEntryCard({
       </nav>
 
       {activeTab === "overview" ? (
-        <div className="combat-focus-body">
+        <div className={`combat-focus-body combat-overview-layout ${visibleActions.length || visibleTraits.length ? "" : "combat-overview-empty"}`}>
           <div className="combat-focus-overview-grid">
             <section className="card mini combat-focus-health-card">
               <small>Здоровье</small>
@@ -869,26 +866,26 @@ export function CombatEntryCard({
                     <span style={{ width: `${combatEntryHealthPercent(entry)}%` }} />
                   </div>
                   <div className="combat-focus-health-adjust">
-                    <button className="ghost" onClick={() => applyHitPointsDelta(Math.max(0, effectiveDraftHitPoints - 5))} type="button">
+                    <button className="ghost" disabled={busy} onClick={() => applyHitPointsDelta(Math.max(0, effectiveDraftHitPoints - 5))} type="button">
                       -5
                     </button>
-                    <button className="ghost" onClick={() => applyHitPointsDelta(Math.max(0, effectiveDraftHitPoints - 1))} type="button">
+                    <button className="ghost" disabled={busy} onClick={() => applyHitPointsDelta(Math.max(0, effectiveDraftHitPoints - 1))} type="button">
                       -1
                     </button>
-                    <button className="ghost" onClick={() => applyHitPointsDelta(Math.min(entry.maxHitPoints, effectiveDraftHitPoints + 1))} type="button">
+                    <button className="ghost" disabled={busy} onClick={() => applyHitPointsDelta(Math.min(entry.maxHitPoints, effectiveDraftHitPoints + 1))} type="button">
                       +1
                     </button>
-                    <button className="ghost" onClick={() => applyHitPointsDelta(Math.min(entry.maxHitPoints, effectiveDraftHitPoints + 5))} type="button">
+                    <button className="ghost" disabled={busy} onClick={() => applyHitPointsDelta(Math.min(entry.maxHitPoints, effectiveDraftHitPoints + 5))} type="button">
                       +5
                     </button>
-                    <button className="ghost" onClick={() => applyHitPointsDelta(entry.maxHitPoints)} type="button">
-                      / Max
+                    <button className="ghost" disabled={busy} aria-label="Восстановить все ХП" title="Восстановить все ХП" onClick={() => applyHitPointsDelta(entry.maxHitPoints)} type="button">
+                      ↺
                     </button>
                   </div>
                   {onApplyDamage ? (
                     <div className="combat-focus-damage-form">
                       <label className="field combat-damage-field">
-                        <span>Урон</span>
+                        <span>Урон или лечение</span>
                         <input
                           aria-label="Количество урона"
                           className="input combatant-damage-input"
@@ -906,18 +903,19 @@ export function CombatEntryCard({
                         />
                       </label>
                       <button
-                        className="primary danger-action combat-damage-button"
+                        className="ghost danger-action combat-damage-button"
                         disabled={busy || effectiveDamageDraft <= 0 || entry.currentHitPoints <= 0}
                         onClick={applyDamageDraft}
                         type="button"
                       >
                         Урон
                       </button>
+                      <button className="ghost combat-heal-button" disabled={busy || effectiveDamageDraft <= 0 || entry.currentHitPoints >= entry.maxHitPoints} onClick={() => applyHitPointsDelta(entry.currentHitPoints + effectiveDamageDraft)} type="button">Лечение</button>
                     </div>
                   ) : null}
-                  <div className="combat-focus-health-form">
+                  <details className="combat-extra"><summary>Задать ХП вручную</summary><div className="combat-focus-health-form">
                     <input
-                      className="input combatant-health-input"
+                      aria-label="Текущие хит-поинты" className="input combatant-health-input"
                       max={entry.maxHitPoints}
                       min={0}
                       onBlur={commitHitPointsDraft}
@@ -931,34 +929,35 @@ export function CombatEntryCard({
                       type="number"
                       value={hitPointsDraft}
                     />
-                    <button className="ghost" onClick={() => applyHitPointsDelta(0)} type="button">
+                    <button className="ghost" disabled={busy} onClick={() => applyHitPointsDelta(0)} type="button">
                       Вывести
                     </button>
-                    <button className="primary" onClick={commitHitPointsDraft} type="button">
+                    <button className="primary" disabled={busy} onClick={commitHitPointsDraft} type="button">
                       Сохранить
                     </button>
-                  </div>
+                  </div></details>
                 </>
               ) : (
                 <p className="copy">Для этого участника ХП не заведены.</p>
               )}
             </section>
 
-            <section className="card mini combat-focus-kpi-card">
+            <details className="card mini combat-focus-kpi-card"><summary>Защита и бонусы</summary>
               <small>Класс брони</small>
               <strong>{entry.armorClass}</strong>
-              <span>{entry.statBlock?.armorClass ? `Базовый КД: ${entry.statBlock.armorClass}` : "Из карточки боя"}</span>
+              <span>{entry.statBlock?.armorClass ? `Базовая КБ: ${entry.statBlock.armorClass}` : "Из карточки боя"}</span>
               <div className="combat-focus-inline-metrics">
-                <span>Init {combatEntryInitiative(entry)}</span>
+                <span>Инициатива {combatEntryInitiative(entry)}</span>
                 <span>{entry.statBlock?.proficiencyBonus ? `ПМ ${entry.statBlock.proficiencyBonus}` : "Без ПМ"}</span>
               </div>
-            </section>
+            </details>
 
-            <CombatFactListCard emptyLabel="Спасброски не заполнены" rows={savingThrowRows} title="Спасброски" />
-            <CombatFactListCard emptyLabel="Навыки не заполнены" rows={skillRows} title="Навыки" />
+            {savingThrowRows.length ? <CombatFactListCard emptyLabel="" rows={savingThrowRows} title="Спасброски" /> : null}
+            {skillRows.length ? <CombatFactListCard emptyLabel="" rows={skillRows} title="Навыки" /> : null}
           </div>
 
-          <section className="card mini combat-focus-section">
+          {visibleActions.length ? <>
+          <section className="card mini combat-focus-section combat-focus-actions-section">
             <div className="row muted">
               <span>Атаки</span>
               <span>{visibleActions.length ? `${visibleActions.length} записей` : "Пока пусто"}</span>
@@ -966,13 +965,16 @@ export function CombatEntryCard({
             {renderStatEntries(visibleActions.slice(0, 4), "Атаки ещё не заполнены.")}
           </section>
 
-          <section className="card mini combat-focus-section">
+          </> : null}
+          {visibleTraits.length ? <>
+          <section className="card mini combat-focus-section combat-focus-traits-section">
             <div className="row muted">
               <span>Особенности</span>
               <span>{visibleTraits.length ? `${visibleTraits.length} записей` : "Пока пусто"}</span>
             </div>
             {renderStatEntries(visibleTraits.slice(0, 4), "Особенности ещё не заполнены.")}
           </section>
+          </> : null}
         </div>
       ) : null}
 
@@ -1152,7 +1154,7 @@ export function CombatEntryTile({
 
   return (
     <article
-      className={`combat-roster-tile ${selected ? "selected" : ""} ${currentTurn ? "current" : ""} ${isCombatEntryOut(entry) ? "defeated" : ""}`}
+      className={`combat-roster-tile ${entry.side === "player" ? "player" : "enemy"} ${selected ? "selected" : ""} ${currentTurn ? "current" : ""} ${isCombatEntryOut(entry) ? "defeated" : ""}`}
     >
       {damageFlash ? (
         <span key={damageFlash.token} className="combat-roster-damage-burst" aria-live="polite">
@@ -1160,7 +1162,7 @@ export function CombatEntryTile({
         </span>
       ) : null}
       <span className={`combat-roster-initiative ${entry.side === "player" ? "player" : "enemy"}`}>{combatEntryInitiative(entry)}</span>
-      {linkedEntity && onOpenEntityImage ? (
+      {linkedEntity && hasVisibleArt(linkedEntity.art) && onOpenEntityImage ? (
         <button
           aria-haspopup="dialog"
           aria-label={`Открыть изображение «${linkedEntity.title}»`}
@@ -1175,7 +1177,7 @@ export function CombatEntryTile({
         </button>
       ) : (
         <div className={`combat-roster-portrait-shell ${isCombatEntryBloodied(entry) ? "combat-bloodied-shell" : ""}`}>
-          <img alt={linkedEntity?.art?.alt ?? entry.title} className="combat-roster-portrait" loading="lazy" src={portraitSource} />
+          {linkedEntity && hasVisibleArt(linkedEntity.art) ? <img alt={linkedEntity.art?.alt ?? entry.title} className="combat-roster-portrait" loading="lazy" src={portraitSource} /> : <span className="combat-avatar-initial" aria-hidden="true">{entry.title.trim().slice(0, 1)}</span>}
           {isCombatEntryBloodied(entry) ? (
             <img alt="" aria-hidden="true" className="combat-blood-overlay" loading="lazy" src={victoryBloodOverlayUrl} />
           ) : null}
@@ -1193,7 +1195,7 @@ export function CombatEntryTile({
         </div>
         <small className="combat-roster-secondary">
           <span>{combatEntryDisplayMeta(entry, revealEnemyMeta)}</span>
-          <span>КД {entry.armorClass}</span>
+          <span>КБ {entry.armorClass}</span>
         </small>
         <small>{entry.maxHitPoints > 0 ? `${entry.currentHitPoints}/${entry.maxHitPoints} HP` : "HP не отслеживается"}</small>
         {entry.maxHitPoints > 0 ? (

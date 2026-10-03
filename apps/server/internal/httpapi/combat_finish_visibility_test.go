@@ -162,22 +162,29 @@ func TestBuildPublicInitiativeSnapshotHidesEnemyMetaUntilVictory(t *testing.T) {
 	campaign.ActiveCombat.Entries[1].Defeated = true
 
 	victorySnapshot := buildPublicInitiativeSnapshot(campaign)
-	if victorySnapshot.Result == nil {
-		t.Fatal("expected victory snapshot once every enemy is out")
+	if victorySnapshot.Result != nil || victorySnapshot.Combat == nil {
+		t.Fatal("expected initiative to remain visible until combat is finished")
 	}
-	victoryEnemy := findPublicInitiativeEntryByID(victorySnapshot.Result.Entries, "enemy-1")
+	victoryEnemy := findPublicInitiativeEntryByID(victorySnapshot.Combat.Entries, "enemy-1")
 	if victoryEnemy == nil {
 		t.Fatal("expected victory snapshot to contain the enemy entry")
 	}
 	if victoryEnemy.Challenge != "" {
 		t.Fatalf("expected victory snapshot to keep challenge hidden, got %q", victoryEnemy.Challenge)
 	}
-	if victoryEnemy.Experience != 700 {
-		t.Fatalf("expected victory snapshot to reveal experience, got %d", victoryEnemy.Experience)
+	if victoryEnemy.Experience != 0 {
+		t.Fatalf("expected initiative to hide experience, got %d", victoryEnemy.Experience)
 	}
 	if !victoryEnemy.Bloodied {
 		t.Fatalf("expected defeated enemy to be marked bloodied for overlay")
 	}
+	campaign.ActiveCombat = nil
+	campaign.LastCombatSummary = &lastCombatSummary{CombatID: "finished-combat", TotalExperience: 700}
+	waiting := buildPublicInitiativeSnapshot(campaign)
+	if waiting.Mode != publicScreenModeWaiting || waiting.Result != nil {
+		t.Fatal("finished combat must return to waiting without a result screen")
+	}
+
 }
 
 func findPublicInitiativeEntryByID(entries []publicInitiativeEntry, entryID string) *publicInitiativeEntry {

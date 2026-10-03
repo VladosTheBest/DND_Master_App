@@ -1,6 +1,8 @@
 import type { CombatThresholds } from "@shadow-edge/shared-types";
 
 export type CombatDangerBarProps = {
+  partyLevelText: string;
+  onPartyLevelChange: (value: string) => void;
   combatDifficultyToneClass: string;
   combatLevelDisplayText: string;
   preparedCombatLevelMetricHint: string;
@@ -16,6 +18,8 @@ export type CombatDangerBarProps = {
 };
 
 export function CombatDangerBar({
+  partyLevelText,
+  onPartyLevelChange,
   combatDifficultyToneClass,
   combatLevelDisplayText,
   preparedCombatLevelMetricHint,
@@ -29,69 +33,10 @@ export function CombatDangerBar({
   draftEncounterDifficulty,
   combatMasterRecommendation
 }: CombatDangerBarProps) {
-  return (
-    <section className={`combat-prep-danger-board ${combatDifficultyToneClass}`}>
-      <article className="combat-prep-danger-metric combat-prep-level-metric">
-        <span className="combat-prep-metric-icon" aria-hidden="true">
-          ☄
-        </span>
-        <div>
-          <small>Уровень группы</small>
-          <strong className="combat-prep-level-value">{combatLevelDisplayText}</strong>
-          <span>{preparedCombatLevelMetricHint}</span>
-        </div>
-      </article>
-
-      <article className="combat-prep-danger-metric">
-        <div>
-          <small>Общий XP противников</small>
-          <strong>{`${draftEncounterBaseXp} XP`}</strong>
-          <span>{combatEnemyMetricHint}</span>
-        </div>
-      </article>
-
-      <article className="combat-prep-danger-metric adjusted">
-        <div>
-          <small>Расчётный XP</small>
-          <strong>{`${draftEncounterAdjustedXp} XP`}</strong>
-          <span>{combatDangerThresholdText === "—" ? "Порог сложности появится после расчёта" : `Порог: ${combatDangerThresholdText}`}</span>
-        </div>
-      </article>
-
-      <article className={`combat-prep-danger-core ${combatDifficultyToneClass}`}>
-        <div className={`combat-prep-skull-orb ${combatDifficultyToneClass}`} aria-hidden="true">
-          ☠
-        </div>
-        <div>
-          <small>Текущая опасность</small>
-          <strong>{combatDangerText}</strong>
-          <span>{combatDangerDetailText}</span>
-        </div>
-      </article>
-
-      <div className="combat-prep-threshold-grid-ref">
-        <article className={draftEncounterDifficulty === "easy" ? "active" : ""}>
-          <small>Легко</small>
-          <strong>{effectiveCombatThresholds.easy}</strong>
-        </article>
-        <article className={draftEncounterDifficulty === "medium" ? "active" : ""}>
-          <small>Средне</small>
-          <strong>{effectiveCombatThresholds.medium}</strong>
-        </article>
-        <article className={draftEncounterDifficulty === "hard" ? "active" : ""}>
-          <small>Сложно</small>
-          <strong>{effectiveCombatThresholds.hard}</strong>
-        </article>
-        <article className={draftEncounterDifficulty === "deadly" ? "active deadly" : ""}>
-          <small>Смертельно</small>
-          <strong>{effectiveCombatThresholds.deadly}</strong>
-        </article>
-      </div>
-
-      <article className="combat-prep-master-tip">
-        <small>Рекомендация мастеру</small>
-        <p>{combatMasterRecommendation}</p>
-      </article>
-    </section>
-  );
+  return <details className={`combat-prep-danger-board combat-danger-compact ${combatDifficultyToneClass}`}>
+    <summary>Сложность: {combatDangerText} <span className="muted">· группа {combatLevelDisplayText}</span></summary>
+    <label className="field"><span>Общий уровень группы</span><input className="input" inputMode="numeric" placeholder="Например: 3" value={partyLevelText} onChange={event => onPartyLevelChange(event.target.value)} /><small>Для расчёта сложности, если уровни игроков ещё не заполнены.</small></label>
+    <p>{combatDangerDetailText}</p><p>{combatMasterRecommendation}</p>
+    <p className="muted">Опыт противников: {draftEncounterBaseXp} XP · для оценки сложности: {draftEncounterAdjustedXp} XP</p>
+  </details>;
 }

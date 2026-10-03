@@ -1,0 +1,111 @@
+/* Focused visual layer for the combat workspace. */
+.shell.combat-layout { background: #101319; padding: 20px 28px; gap: 20px; }
+.shell.combat-layout .combat-topbar { border: 0; border-radius: 0; background: transparent; padding: 0 0 18px; border-bottom: 1px solid #ffffff0d; grid-template-columns: auto minmax(0,1fr) auto; gap: 24px; }
+.shell.combat-layout .combat-screen-title { text-align: left; }
+.shell.combat-layout .combat-screen-title strong { font: 600 15px/1.4 "Segoe UI", sans-serif; }
+.shell.combat-layout .combat-screen-title .eyebrow { display: none; }
+.shell.combat-layout .combat-screen-title small { font-size: 12px; color: #818b9c; }
+.shell.combat-layout .combat-topbar .ghost { border-color: transparent; background: transparent; color: #aeb8c8; }
+.shell.combat-layout .combat-topbar .ghost:hover { background: #ffffff08; color: #fff; }
+.shell.combat-layout .combat-content { border: 0; border-radius: 0; background: transparent; padding: 0; }
+.shell.combat-layout .combat-simple { max-width: 1280px; padding-top: 10px; }
+.shell.combat-layout .combat-turn-bar { padding: 0 0 28px; gap: 20px; }
+.combat-turn-identity { display: flex; align-items: center; gap: 18px; }
+.combat-round-label { padding: 10px 14px; border-radius: 10px; background: #222631; color: #d0d6e3; font-size: 13px; white-space: nowrap; }
+.combat-turn-caption { display: flex; gap: 7px; align-items: center; font-size: 11px; color: #929daf; }
+.combat-turn-caption i { width: 6px; height: 6px; border-radius: 50%; background: #78d8b4; }
+.shell.combat-layout .combat-turn-bar h2 { font: 600 24px/1.3 "Segoe UI", sans-serif; margin: 4px 0 0; letter-spacing: -.6px; }
+.shell.combat-layout .combat-turn-bar > button { border-radius: 10px; min-height: 44px; padding: 10px 20px; background: #c3b5fd; border-color: #c3b5fd; color: #211835; }
+.shell.combat-layout .combat-simple .combat-studio-grid { grid-template-columns: 260px minmax(0,1fr); align-items: start; gap: 28px; }
+.shell.combat-layout .combat-simple .combat-roster-panel { border: 0; border-radius: 0; background: transparent; padding: 4px 0; }
+.shell.combat-layout .combat-simple .combat-roster-panel > .row { padding: 0 4px; font-size: 13px; }
+.shell.combat-layout .combat-simple .combat-roster-filter { border: 0; background: #ffffff04; padding: 3px; border-radius: 8px; margin: 14px 0; }
+.shell.combat-layout .combat-simple .combat-roster-filter-btn { border: 0; border-radius: 6px; font-size: 12px; background: transparent; box-shadow: none; }
+.shell.combat-layout .combat-simple .combat-roster-filter-btn.active { background: #353443; color: #eee9ff; }
+.shell.combat-layout .combat-simple .combat-roster-list { gap: 8px; }
+.shell.combat-layout .combat-simple .combat-roster-tile { grid-template-columns: 26px 36px minmax(0,1fr); border: 1px solid transparent; padding: 12px 10px; gap: 10px; border-radius: 10px; background: #ffffff03; box-shadow: none; }
+.shell.combat-layout .combat-simple .combat-roster-tile.current { border-left: 3px solid #89d7b8; background: #78c7a509; }
+.shell.combat-layout .combat-simple .combat-roster-tile.selected { background: #b9a8f313; border-color: #b9a8f32b; box-shadow: none; }
+.shell.combat-layout .combat-simple .combat-roster-initiative { width: auto; height: auto; border: 0; background: transparent; color: #aeb9cd; font-size: 14px; font-weight: 600; }
+.shell.combat-layout .combat-simple .combat-roster-portrait-shell { width: 36px; height: 40px; min-width: 0; border: 0; border-radius: 8px; background: #30423e; padding: 0; }
+.shell.combat-layout .combat-simple .combat-roster-tile.enemy .combat-roster-portrait-shell { background: #47363b; }
+.combat-avatar-initial { display: grid; place-items: center; width: 100%; height: 100%; color: #b7d9cc; font: 500 22px/1 "Segoe UI", sans-serif; }
+.enemy .combat-avatar-initial { color: #e1b8bd; }
+.shell.combat-layout .combat-simple .combat-roster-copy strong { font: 600 14px/1.3 "Segoe UI", sans-serif; }
+.shell.combat-layout .combat-simple .combat-roster-copy small { font-size: 11px; }
+.shell.combat-layout .combat-simple .combat-roster-turn-badge { background: transparent; border: 0; padding: 0; color: #8bd5b7; font-size: 10px; }
+.shell.combat-layout .combat-simple .combat-roster-health-bar { height: 3px; margin-top: 6px; background: #ffffff0b; }
+.shell.combat-layout .combat-simple .combat-extra { font-size: 12px; margin-top: 12px; }
+.shell.combat-layout .combat-simple .combat-focus-card { padding: 0; background: #1c2029; border: 1px solid #ffffff09; border-radius: 16px; overflow: hidden; }
+.shell.combat-layout .combat-simple .combat-focus-hero { padding: 26px; background: transparent; gap: 18px; }
+.shell.combat-layout .combat-simple .combat-focus-portrait-shell { width: 72px; height: 88px; border-radius: 12px; background: #30423e; border: 0; }
+.shell.combat-layout .combat-simple .combat-focus-card.enemy .combat-focus-portrait-shell { background: #47363b; }
+.shell.combat-layout .combat-simple .combat-focus-portrait-shell .combat-avatar-initial { font-size: 32px; }
+.shell.combat-layout .combat-simple .combat-focus-topline .badge { border: 0; background: transparent; padding: 0; font-size: 11px; }
+.shell.combat-layout .combat-simple .combat-focus-topline .actions { gap: 12px; }
+.shell.combat-layout .combat-simple .combat-focus-hero-copy { gap: 10px; }
+.shell.combat-layout .combat-simple .combat-focus-hero-copy h3 { font: 600 26px/1.2 "Segoe UI", sans-serif; letter-spacing: -.7px; }
+.shell.combat-layout .combat-simple .combat-focus-subtitle { display: none; }
+.shell.combat-layout .combat-simple .combat-focus-hero-copy .copy { color: #8f9aac; font-size: 12px; max-width: 60ch; }
+.shell.combat-layout .combat-simple .combat-focus-hero-metrics { gap: 24px; margin-top: 8px; }
+.shell.combat-layout .combat-simple .combat-focus-hero-pill { display: grid; gap: 4px; border: 0; border-radius: 0; background: transparent; padding: 0; }
+.shell.combat-layout .combat-simple .combat-focus-hero-pill small { color: #858fa0; font-size: 10px; }
+.shell.combat-layout .combat-simple .combat-focus-hero-pill strong { color: #dbe1ee; font-size: 16px; font-weight: 600; }
+.shell.combat-layout .combat-simple .combat-focus-hero-actions button { min-width: 0; width: auto; font-size: 11px; background: #ffffff05; border-color: #ffffff0b; }
+.shell.combat-layout .combat-simple .combat-focus-tabs { padding: 0 26px; margin: 0; border-color: #ffffff0b; gap: 22px; }
+.shell.combat-layout .combat-simple .combat-focus-tab { padding: 12px 0; font-size: 12px; font-weight: 500; }
+.shell.combat-layout .combat-simple .combat-focus-tab.active { color: #d5cafd; border-color: #c2b2fc; }
+.shell.combat-layout .combat-simple .combat-focus-body { padding: 24px 26px; }
+.shell.combat-layout .combat-simple .combat-overview-layout { display: grid; grid-template-columns: minmax(260px,.9fr) minmax(0,1.1fr); gap: 24px; align-items: start; }
+.shell.combat-layout .combat-simple .combat-overview-layout .combat-focus-overview-grid { display: contents; }
+.shell.combat-layout .combat-simple .combat-focus-health-card { grid-column: 1; grid-row: 1; padding: 0; background: transparent; border: 0; border-radius: 0; gap: 12px; }
+.shell.combat-layout .combat-simple .combat-focus-health-card > small { font-size: 11px; color: #a0adbd; }
+.shell.combat-layout .combat-simple .combat-focus-health-card > strong { font-size: 30px; letter-spacing: -1px; }
+.shell.combat-layout .combat-simple .combat-focus-health-bar { height: 5px; background: #ffffff0a; }
+.shell.combat-layout .combat-simple .combat-focus-health-adjust { display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 5px; }
+.shell.combat-layout .combat-simple .combat-focus-health-adjust button { padding: 6px; min-height: 32px; font-size: 11px; border-radius: 7px; background: #ffffff04; border-color: #ffffff08; }
+.shell.combat-layout .combat-simple .combat-focus-damage-form { grid-template-columns: 72px minmax(0,1fr) minmax(0,1fr); padding: 12px 0 0; border: 0; border-top: 1px solid #ffffff0b; border-radius: 0; background: transparent; gap: 7px; }
+.shell.combat-layout .combat-simple .combat-damage-field { gap: 6px; }
+.shell.combat-layout .combat-simple .combat-damage-field > span { white-space: nowrap; font-size: 10px; }
+.shell.combat-layout .combat-simple .combatant-damage-input { padding: 7px; text-align: center; min-height: 36px; border-color: #ffffff14; }
+.shell.combat-layout .combat-simple .combat-damage-button, .shell.combat-layout .combat-simple .combat-heal-button { min-height: 36px; padding: 7px 6px; font-size: 11px; border-radius: 8px; background: #c66a7716; border-color: #c66a7725; color: #f3a5b0; }
+.shell.combat-layout .combat-simple .combat-heal-button { background: #65caa515; border-color: #65caa521; color: #8edcbd; }
+.shell.combat-layout .combat-simple .combat-focus-kpi-card { grid-column: 1; grid-row: 2; background: transparent; border: 0; border-top: 1px solid #ffffff0b; border-radius: 0; padding: 12px 0 0; font-size: 12px; }
+.shell.combat-layout .combat-simple .combat-focus-kpi-card summary { cursor: pointer; color: #97a3b5; }
+.shell.combat-layout .combat-simple .combat-focus-actions-section { grid-column: 2; grid-row: 1 / span 2; }
+.shell.combat-layout .combat-simple .combat-focus-traits-section { grid-column: 2; }
+.shell.combat-layout .combat-simple .combat-focus-section { border: 0; border-radius: 0; padding: 0; background: transparent; }
+.shell.combat-layout .combat-simple .combat-focus-section > .row { font-size: 12px; margin-bottom: 12px; }
+.shell.combat-layout .combat-simple .combat-focus-section > .row > span:last-child { display: none; }
+.shell.combat-layout .combat-simple .combat-focus-entry-card { padding: 14px; border-radius: 10px; border-color: #ffffff09; background: #ffffff03; }
+.shell.combat-layout .combat-simple .combat-focus-entry-card h3 { font-size: 14px; font-weight: 600; }
+.shell.combat-layout .combat-simple .combat-focus-entry-card .copy { color: #aeb9ca; font-size: 12px; line-height: 1.65; }
+.shell.combat-layout .combat-simple .combat-overview-empty { grid-template-columns: minmax(0,420px); }
+@media (max-width: 1050px) {
+  .shell.combat-layout { padding: 16px; }
+  .shell.combat-layout .combat-simple .combat-studio-grid { grid-template-columns: 230px minmax(0,1fr); gap: 18px; }
+  .shell.combat-layout .combat-simple .combat-overview-layout { grid-template-columns: minmax(0,1fr); }
+  .shell.combat-layout .combat-simple .combat-focus-actions-section, .shell.combat-layout .combat-simple .combat-focus-traits-section { grid-column: 1; grid-row: auto; }
+}
+@media (max-width: 760px) {
+  .shell.combat-layout { padding: 12px; }
+  .shell.combat-layout .combat-topbar { grid-template-columns: auto minmax(0,1fr); gap: 12px; }
+  .shell.combat-layout .combat-topbar .chips { grid-column: 1 / -1; justify-content: start; }
+  .shell.combat-layout .combat-turn-bar { padding-bottom: 20px; }
+  .shell.combat-layout .combat-simple .combat-studio-grid { grid-template-columns: minmax(0,1fr); }
+  .shell.combat-layout .combat-simple .combat-roster-list { max-height: 210px; }
+  .shell.combat-layout .combat-simple .combat-focus-hero { grid-template-columns: 56px minmax(0,1fr); padding: 18px; gap: 14px; }
+  .shell.combat-layout .combat-simple .combat-focus-portrait-shell { width: 56px; height: 72px; }
+  .shell.combat-layout .combat-simple .combat-focus-hero-copy h3 { font-size: 22px; }
+  .shell.combat-layout .combat-simple .combat-focus-hero-actions { grid-column: 1 / -1; }
+  .shell.combat-layout .combat-simple .combat-focus-hero-actions button { width: 100%; }
+  .shell.combat-layout .combat-simple .combat-focus-hero-metrics { gap: 16px; }
+  .shell.combat-layout .combat-simple .combat-focus-tabs { padding: 0 18px; gap: 16px; }
+  .shell.combat-layout .combat-simple .combat-focus-body { padding: 20px 18px; }
+}
+
+.shell.combat-layout .combat-simple .combat-focus-hero-actions { width: auto; min-width: 0; }
+@media (max-width: 760px) {
+  .shell.combat-layout .combat-simple .combat-focus-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; }
+  .shell.combat-layout .combat-simple .combat-focus-tab { flex: 0 0 auto; white-space: nowrap; }
+}

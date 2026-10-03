@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { KnowledgeEntity } from "@shadow-edge/shared-types";
 import { EntityVisual, createBestiaryPortraitSource, createPortraitSource } from "../../../app-shared";
 import type { CombatCatalogOption, CombatSearchItem } from "../combat.types";
@@ -28,6 +29,8 @@ export function CombatBestiaryPanel({
   onAddEnemy,
   onOpenEntityImage
 }: CombatBestiaryPanelProps) {
+  const [visibleCount, setVisibleCount] = useState(48);
+  useEffect(() => setVisibleCount(48), [combatSearchQuery, combatEnemyTypeFilter]);
   return (
     <section className="combat-prep-reference-panel bestiary-panel">
       <div className="combat-prep-panel-head">
@@ -42,31 +45,18 @@ export function CombatBestiaryPanel({
           <span>⌕</span>
           <input
             onChange={(event) => onCombatSearchQueryChange(event.target.value)}
-            placeholder="Поиск монстров..."
+            aria-label="Поиск противников" placeholder="Найти противника…"
             value={combatSearchQuery}
           />
         </label>
-        <button className="combat-prep-filter-button" type="button" aria-label="Фильтр">
-          ⌯
-        </button>
+
       </div>
 
-      <div className="combat-prep-filter-grid-ref">
-        {combatEnemyTypeOptions.map((option) => (
-          <button
-            key={`combat-type-${option.value}`}
-            className={`combat-prep-filter-chip-ref ${combatEnemyTypeFilter === option.value ? "active" : ""}`}
-            onClick={() => onCombatEnemyTypeFilterChange(option.value)}
-            type="button"
-          >
-            {option.label}
-          </button>
-        ))}
-      </div>
+      <label className="field"><span>Тип противника</span><select className="input" value={combatEnemyTypeFilter} onChange={event => onCombatEnemyTypeFilterChange(event.target.value)}>{combatEnemyTypeOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
 
       <div className="combat-prep-bestiary-list">
         {filteredCombatCatalogItems.length ? (
-          filteredCombatCatalogItems.map((item) => {
+          filteredCombatCatalogItems.slice(0, visibleCount).map((item) => {
             const itemXp = parseChallengeXp(item.challenge ?? "");
             return (
               <article key={`combat-prep-enemy-${item.key}`} className="combat-prep-bestiary-row">
@@ -99,7 +89,7 @@ export function CombatBestiaryPanel({
                     onAddEnemy(item);
                   }}
                   type="button"
-                  aria-label="Добавить противника"
+                  aria-label={`Добавить противника: ${item.title}`}
                 >
                   +
                 </button>
@@ -110,6 +100,7 @@ export function CombatBestiaryPanel({
           <p className="copy">По текущему фильтру противники не найдены.</p>
         )}
       </div>
+      {visibleCount < filteredCombatCatalogItems.length ? <button className="ghost" onClick={() => setVisibleCount(count => count + 48)} type="button">Показать ещё</button> : null}
     </section>
   );
 }

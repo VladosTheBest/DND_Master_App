@@ -44,8 +44,8 @@ export function CombatBattlefieldPanel({
     <section className="combat-prep-reference-panel field-panel">
       <div className="combat-prep-panel-head field-head">
         <div>
-          <h2>Бой на поле</h2>
-          <span>Готов к инициативе</span>
+          <h2>Участники боя</h2>
+          <span>Укажите инициативу перед стартом</span>
         </div>
         <div className="combat-prep-count-tabs">
           <span>{`Персонажи ${draftPreparedCombatPlayers.length + draftPreparedCombatAllyCount}`}</span>
@@ -57,8 +57,8 @@ export function CombatBattlefieldPanel({
       <div className="combat-prep-field-section players">
         <div className="combat-prep-field-title">
           <strong>♟ Игроки</strong>
-          <span>Инициатива</span>
-          <span>Заметки</span>
+          <span title="Инициатива">Иниц.</span>
+          <span aria-hidden="true">×</span>
         </div>
         <div className="combat-prep-field-list">
           {draftPreparedCombatPlayers.length ? (
@@ -82,11 +82,12 @@ export function CombatBattlefieldPanel({
         </div>
       </div>
 
+      {draftPreparedCombatAllies.length ? <>
       <div className="combat-prep-field-section allies">
         <div className="combat-prep-field-title">
           <strong>♧ Союзники</strong>
-          <span>Инициатива</span>
-          <span>Заметки</span>
+          <span title="Инициатива">Иниц.</span>
+          <span aria-hidden="true">×</span>
         </div>
         <div className="combat-prep-field-list">
           {draftPreparedCombatAllies.length ? (
@@ -110,11 +111,12 @@ export function CombatBattlefieldPanel({
         </div>
       </div>
 
+      </> : null}
       <div className="combat-prep-field-section enemies">
         <div className="combat-prep-field-title">
           <strong>☠ Противники</strong>
           <span>Кол-во</span>
-          <span>Инициатива</span>
+          <span title="Инициатива">Иниц.</span>
           <span>XP</span>
         </div>
         <div className="combat-prep-field-list enemy-list">
@@ -136,9 +138,7 @@ export function CombatBattlefieldPanel({
             <p className="copy">Добавь противников справа.</p>
           )}
         </div>
-        <button className="combat-prep-drop-zone" type="button">
-          ↙ Перетащи монстров сюда или добавь из списка справа
-        </button>
+
       </div>
     </section>
   );

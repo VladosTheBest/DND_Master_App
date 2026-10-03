@@ -27,7 +27,6 @@ export function CombatEnemyRow({
 }: CombatEnemyRowProps) {
   return (
     <article className="combat-prep-field-row enemy-row">
-      <span className="combat-prep-drag-handle">⋮⋮</span>
       <EntityVisual entity={entity} onOpenEntityImage={onOpenEntityImage} />
       <div className="combat-prep-field-copy">
         <strong>{entity.title}</strong>
@@ -36,22 +35,22 @@ export function CombatEnemyRow({
         </span>
       </div>
       <div className="combat-prep-quantity-control">
-        <button onClick={() => onQuantityChange(Math.max(1, quantity - 1))} type="button">
+        <button aria-label={`Уменьшить количество: ${entity.title}`} onClick={() => onQuantityChange(Math.max(1, quantity - 1))} type="button">
           −
         </button>
         <input
-          inputMode="numeric"
+          aria-label={`Количество: ${entity.title}`} min={1} inputMode="numeric"
           onChange={(event) => onQuantityChange(Math.max(1, Number.parseInt(event.target.value, 10) || 1))}
           type="number"
           value={quantity}
         />
-        <button onClick={() => onQuantityChange(quantity + 1)} type="button">
+        <button aria-label={`Увеличить количество: ${entity.title}`} onClick={() => onQuantityChange(quantity + 1)} type="button">
           +
         </button>
       </div>
-      <CombatInitiativeInput value={initiative} onChange={onInitiativeChange} />
+      <CombatInitiativeInput label={`Инициатива: ${entity.title}`} value={initiative} onChange={onInitiativeChange} />
       <strong className="combat-prep-enemy-xp">{xp} XP</strong>
-      <button className="combat-prep-remove-ref" onClick={onRemove} type="button" aria-label="Убрать">
+      <button className="combat-prep-remove-ref" onClick={onRemove} type="button" aria-label={`Убрать: ${entity.title}`}>
         ×
       </button>
     </article>

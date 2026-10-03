@@ -52,26 +52,7 @@ export function CombatPrepPage({
           <span>{hasHostEntity ? "К карточкам боя" : "Назад к кампании"}</span>
         </button>
 
-        <div className="combat-prep-context-row">
-          <div className="combat-prep-context-mark" aria-hidden="true">
-            ✦
-          </div>
-          <div className="combat-prep-context-block">
-            <span>Кампания</span>
-            <strong>{campaignTitle}</strong>
-          </div>
-          <span className="combat-prep-context-separator">›</span>
-          <div className="combat-prep-context-block">
-            <span>Сцена</span>
-            <strong>{sceneTitle}</strong>
-          </div>
-        </div>
-
-        <div className="combat-prep-title-block">
-          <span className="combat-prep-title-line" />
-          <h1>Подготовка боя</h1>
-          <span className="combat-prep-title-line" />
-        </div>
+        <div className="combat-prep-title-block"><h1>Подготовка боя</h1><p className="muted">Выберите группу и противников, затем задайте инициативу.</p></div>
 
         <div className="combat-prep-reference-actions">
           <button className="ghost combat-prep-action" onClick={onClear} type="button">
@@ -114,20 +95,7 @@ export function CombatPrepPage({
         <CombatBestiaryPanel {...bestiaryPanelProps} />
       </div>
 
-      <footer className="combat-prep-reference-footer">
-        <div>
-          <span>Правила:</span>
-          <strong>D&D 5e</strong>
-        </div>
-        <div>
-          <span>Партия:</span>
-          <strong>{hasExplicitPartyLevels && enteredPartyLevel ? `ур. ${enteredPartyLevel} • ${partyCompositionText}` : partyCompositionText}</strong>
-        </div>
-        <div>
-          <span>Статус:</span>
-          <strong>Черновик</strong>
-        </div>
-      </footer>
+
     </div>
   );
 }

@@ -1,4 +1,5 @@
 import "./shops.css";
+import { createPortal } from "react-dom";
 import builtInItemsRaw from "../../../../../dnd_items_150_ru_official_basic_rules_2014.json";
 import { api } from "../../app/api";
 import { ItemDetailModal } from "../items/ItemsPage";
@@ -317,6 +318,33 @@ function ShopIcon({ name }: { name: ShopIconName }) {
   }
 }
 
+function CoinPrice({ value }: { value?: number | null }) {
+  if (value == null) return <span className="shops-price-unknown">Цена не указана</span>;
+  const unit = value > 0 && value < 0.1 ? "copper" : value > 0 && value < 1 ? "silver" : "gold";
+  const amount = value * (unit === "copper" ? 100 : unit === "silver" ? 10 : 1);
+  const label = `${formatNumber(amount)} (${unit === "gold" ? "золотые" : unit === "silver" ? "серебряные" : "медные"} монеты)`;
+  return <span className="shops-money" aria-label={label} title={label}>
+    <span aria-hidden="true">{formatNumber(amount)}</span><span className={`shops-coin ${unit}`} aria-hidden="true">{unit === "gold" ? "G" : unit === "silver" ? "S" : "C"}</span>
+  </span>;
+}
+
+function ShopImageViewer({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const previousFocus = document.activeElement;
+    const node = dialog.current;
+    node?.showModal();
+    return () => {
+      node?.close();
+      if (previousFocus instanceof HTMLElement) previousFocus.focus();
+    };
+  }, []);
+  return createPortal(<dialog ref={dialog} className="shops-image-viewer" aria-label="Изображение магазина" onKeyDown={event => { if (event.key === "Tab") { event.preventDefault(); dialog.current?.querySelector<HTMLButtonElement>("button")?.focus(); } }} onCancel={onClose} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+    <button type="button" autoFocus className="shops-secondary-action" onClick={onClose}>Закрыть изображение</button>
+    <img src={src} alt={alt} />
+  </dialog>, document.body);
+}
+
 function ShopThumb({ seed, active }: { seed: string; active?: boolean }) {
   return (
     <span className={`shops-thumb ${active ? "active" : ""}`} data-seed={seed.length % 6}>
@@ -354,6 +382,10 @@ export function ShopsPage({
   const [priceFilter, setPriceFilter] = useState("all");
   const [catalogSort, setCatalogSort] = useState("name");
   const [visibleCount, setVisibleCount] = useState(48);
+  const [stockQuery, setStockQuery] = useState("");
+  const [stockCategory, setStockCategory] = useState("all");
+  const [imageViewer, setImageViewer] = useState<{src: string; alt: string} | null>(null);
+  useEffect(() => { setStockQuery(""); setStockCategory("all"); }, [selectedShopId]);
   const [sortMode, setSortMode] = useState<SortMode>("default");
   const [draggingItemId, setDraggingItemId] = useState("");
   const [stockDropActive, setStockDropActive] = useState(false);
@@ -470,7 +502,7 @@ export function ShopsPage({
   }, 0);
 
   const sortedInventory = useMemo(() => {
-    const inventory = [...draft.inventory];
+    const inventory = draft.inventory.filter(entry => (stockCategory === "all" || entry.category === stockCategory) && normalizeSearch(`${itemById.get(entry.itemId)?.name ?? entry.itemName} ${entry.note || ""}`).includes(normalizeSearch(stockQuery)));
     if (sortMode === "name") {
       inventory.sort((left, right) => {
         const leftItem = itemById.get(left.itemId);
@@ -488,7 +520,7 @@ export function ShopsPage({
       });
     }
     return inventory;
-  }, [draft.inventory, itemById, sortMode]);
+  }, [draft.inventory, itemById, sortMode, stockCategory, stockQuery]);
 
   const updateDraft = <Key extends keyof ShopDraft>(key: Key, value: ShopDraft[Key]) => {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -505,6 +537,7 @@ export function ShopsPage({
     setError("");
   };
 
+  const shopImageUrl = draft.art?.url;
   const imagePreview = imageProposal?.mediaIntents.find(intent => intent.field === "art.url" && intent.status === "staged" && intent.selected !== false)?.previewUrl;
   const handleGenerateImage = async () => {
     if (!selectedShop || dirty || imageBusy) return;
@@ -707,7 +740,7 @@ export function ShopsPage({
         <div className="shops-search-row">
           <label className="shops-search-box">
             <ShopIcon name="search" />
-            <input onChange={(event) => setShopQuery(event.target.value)} placeholder="Поиск магазинов..." value={shopQuery} />
+            <input aria-label="Поиск магазинов" onChange={(event) => setShopQuery(event.target.value)} placeholder="Поиск магазинов..." value={shopQuery} />
           </label>
 
         </div>
@@ -718,18 +751,17 @@ export function ShopsPage({
               <button
                 key={shop.id}
                 className={`shops-list-card ${shop.id === selectedShopId ? "active" : ""}`}
+                aria-pressed={shop.id === selectedShopId}
                 onClick={() => handleSelectShop(shop.id)}
                 type="button"
               >
-                <ShopThumb active={shop.id === selectedShopId} seed={shop.name} />
+                {shop.art?.url ? <img className="shops-list-image" src={shop.art.url} alt="" loading="lazy" /> : <ShopThumb active={shop.id === selectedShopId} seed={shop.name} />}
                 <span className="shops-list-copy">
                   <strong>{shop.name}</strong>
                   <small>{shop.locationLabel || "Без локации"}</small>
                   <small>Позиций: {shop.inventory.length}</small>
                 </span>
-                <span className="shops-more-icon">
-                  <ShopIcon name="more" />
-                </span>
+
               </button>
             ))
           ) : (
@@ -758,7 +790,7 @@ export function ShopsPage({
             <div className="shops-editor-meta">
               <label className="shops-select-pill">
                 <ShopIcon name="location" />
-                <select onChange={(event) => updateDraft("locationId", event.target.value)} value={draft.locationId}>
+                <select aria-label="Локация магазина" onChange={(event) => updateDraft("locationId", event.target.value)} value={draft.locationId}>
                   <option value="">Без локации</option>
                   {campaign.locations.map((location) => (
                     <option key={location.id} value={location.id}>
@@ -783,14 +815,14 @@ export function ShopsPage({
 
         {notice || error || catalogError ? (
           <div className="shops-status-stack">
-            {notice ? <div className="notes-status notes-status-success">{notice}</div> : null}
-            {error ? <div className="notes-status notes-status-error">{error}</div> : null}
+            {notice ? <div role="status" className="notes-status notes-status-success">{notice}</div> : null}
+            {error ? <div role="alert" className="notes-status notes-status-error">{error}</div> : null}
             {catalogError ? <div className="notes-status notes-status-error">Каталог предметов недоступен: {catalogError}</div> : null}
           </div>
         ) : null}
 
-        <div className="shops-overview-grid">
-          <label className="shops-description-card">
+        <div className={`shops-overview-grid ${draft.art?.url ? "has-image" : ""}`}>
+          <label className="shops-description-card"><span className="shops-field-caption">Описание для посетителей</span>
             <textarea
               onChange={(event) => updateDraft("description", event.target.value)}
               aria-label="Описание магазина"
@@ -799,21 +831,14 @@ export function ShopsPage({
             />
             <span className="shops-edit-mark">✎</span>
           </label>
-          <div className="shops-stat-card">
-            <ShopIcon name="box" />
-            <strong>{draft.inventory.length}</strong>
-            <span>позиций</span>
-          </div>
-          <div className="shops-stat-card">
-            <ShopIcon name="coin" />
-            <strong>{formatGold(totalPrice)}</strong>
-            <span>примерная стоимость</span>
-          </div>
+          {shopImageUrl ? <button type="button" aria-haspopup="dialog" className="shops-cover" aria-label={`Открыть изображение магазина «${draft.name}»`} onClick={() => setImageViewer({src: shopImageUrl, alt: draft.art?.alt || draft.name})}>
+            <img src={shopImageUrl} alt={draft.art?.alt || draft.name} /><span>Открыть изображение ↗</span>
+          </button> : null}
         </div>
 
         <details className="shops-image-details" open={Boolean(imagePreview)}><summary>Изображение магазина{draft.art?.url ? " · добавлено" : " · создать по описанию"}</summary>
         <section className="shops-art" aria-label="Изображение магазина">
-          {imagePreview || draft.art?.url ? <img src={imagePreview || draft.art?.url} alt={imagePreview ? "Предпросмотр изображения магазина" : draft.art?.alt || draft.name} /> : null}
+          {imagePreview ? <button type="button" className="shops-cover" aria-label="Открыть предпросмотр изображения" onClick={() => setImageViewer({src: imagePreview, alt: "Предпросмотр изображения магазина"})}><img src={imagePreview} alt="Предпросмотр изображения магазина" /><span>Открыть предпросмотр ↗</span></button> : null}
           <div className="shops-art-controls">
             <strong>{imagePreview ? "Новое изображение · предпросмотр" : "Изображение магазина"}</strong>
             <p>Интерьер по описанию и товарам на витрине. Секреты мастера не включаются.</p>
@@ -846,7 +871,7 @@ export function ShopsPage({
           onDrop={handleStockDrop}
         >
           <div className="shops-stock-head">
-            <h2>Ассортимент</h2>
+            <h2>Ассортимент <small>{draft.inventory.length}</small></h2>
             <button type="button" className="shops-secondary-action" onClick={() => document.getElementById("shop-catalog-search")?.focus()}>Добавить товары</button>
             <span className="shops-head-line" />
             <label className="shops-sort-select">
@@ -859,15 +884,14 @@ export function ShopsPage({
             </label>
           </div>
 
-          <div className="shops-drop-hint">{stockDropActive ? "Отпусти, чтобы добавить товар" : "Перетащи товар в любую часть ассортимента или нажми «Добавить» в каталоге ниже"}</div>
+          <div className="shops-stock-toolbar">
+            <label className="shops-search-box"><ShopIcon name="search" /><input aria-label="Поиск в ассортименте" placeholder="Найти на витрине…" value={stockQuery} onChange={e => setStockQuery(e.target.value)} /></label>
+            <select aria-label="Категория ассортимента" value={stockCategory} onChange={e => setStockCategory(e.target.value)}><option value="all">Все категории</option>{Object.entries(itemCategoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
+            <span className="shops-stock-total" title="Сумма известных цен с учётом количества; товары без цены не включены">Оценка <CoinPrice value={totalPrice} /></span>
+          </div>
+          {stockDropActive ? <p role="status">Отпустите, чтобы добавить товар</p> : null}
           <div className="shops-stock-table">
-            <div className="shops-stock-header">
-              <span>Товар</span>
-              <span>Категория</span>
-              <span>Заметки</span>
-              <span>Цена</span>
-              <span>Кол-во</span>
-            </div>
+
 
             {sortedInventory.length ? (
               sortedInventory.map((entry) => {
@@ -875,7 +899,7 @@ export function ShopsPage({
                 const effectivePrice = entry.priceMode === "manual" ? entry.manualPriceGp : liveItem ? itemPrice(liveItem) : entry.itemPriceGp;
                 return (
                   <article className="shops-stock-row" key={entry.id}>
-                    <span className="shops-drag-handle">::</span>
+
                     <button
                       className="shops-stock-product shops-stock-product-button"
                       disabled={!liveItem}
@@ -884,34 +908,16 @@ export function ShopsPage({
                       type="button"
                     >
                       <ItemThumb category={entry.category} item={liveItem} />
-                      <strong>{liveItem?.name ?? entry.itemName}</strong>
+                      <span><strong>{liveItem?.name ?? entry.itemName}</strong><small>{itemSubtypeLabel(liveItem, entry.category)}</small></span>
                     </button>
-                    <span className="shops-stock-category">{itemSubtypeLabel(liveItem, entry.category)}</span>
-                    <input
-                      className="shops-note-input"
-                      aria-label={`Заметка: ${entry.itemName}`}
-                      onChange={(event) => updateInventoryItem(entry.id, { note: event.target.value })}
-                      placeholder="Заметка..."
-                      value={entry.note ?? ""}
-                    />
-                    <div className="shops-price-cell">
-                      <select aria-label={`Цена: ${entry.itemName}`} onChange={(event) => updateInventoryItem(entry.id, { priceMode: event.target.value as "item" | "manual" })} value={entry.priceMode}>
-                        <option value="item">Продажа</option>
-                        <option value="manual">Своя цена</option>
-                      </select>
-                      <input
-                        aria-label={`Своя цена в зм: ${entry.itemName}`}
-                        disabled={entry.priceMode !== "manual"}
-                        min={0}
-                        onChange={(event) => updateInventoryItem(entry.id, { manualPriceGp: normalizeOptionalNumber(event.target.value) })}
-                        placeholder={effectivePrice == null ? "—" : String(effectivePrice)}
-                        type="number"
-                        value={entry.priceMode === "manual" && entry.manualPriceGp != null ? String(entry.manualPriceGp) : ""}
-                      />
-                      <span>зм</span>
-                    </div>
+                    <div className="shops-stock-price"><CoinPrice value={effectivePrice} /><small>за штуку</small></div>
+                    <details className="shops-stock-options"><summary>Цена и заметка{entry.priceMode === "manual" || entry.note ? " •" : ""}</summary>
+                      <label>Цена<select aria-label={`Цена: ${entry.itemName}`} onChange={event => updateInventoryItem(entry.id, {priceMode: event.target.value as "item" | "manual"})} value={entry.priceMode}><option value="item">Из каталога</option><option value="manual">Своя цена</option></select></label>
+                      {entry.priceMode === "manual" ? <label>В золотых монетах<input aria-label={`Своя цена в зм: ${entry.itemName}`} type="number" min={0} step="0.01" value={entry.manualPriceGp ?? ""} placeholder="Цена" onChange={event => updateInventoryItem(entry.id, {manualPriceGp: normalizeOptionalNumber(event.target.value)})} /></label> : null}
+                      <label>Заметка мастера<input aria-label={`Заметка: ${entry.itemName}`} onChange={event => updateInventoryItem(entry.id, {note: event.target.value})} placeholder="Особенности товара…" value={entry.note ?? ""} /></label>
+                    </details>
                     <div className="shops-quantity-cell">
-                      <button onClick={() => updateInventoryItem(entry.id, { quantity: Math.max(0, (entry.quantity ?? 1) - 1) })} type="button">
+                      <button aria-label={`Уменьшить количество: ${entry.itemName}`} disabled={(entry.quantity ?? 1) === 0} onClick={() => updateInventoryItem(entry.id, { quantity: Math.max(0, (entry.quantity ?? 1) - 1) })} type="button">
                         −
                       </button>
                       <input
@@ -921,7 +927,7 @@ export function ShopsPage({
                         aria-label={`Количество: ${entry.itemName}`}
                         value={entry.quantity ?? 1}
                       />
-                      <button onClick={() => updateInventoryItem(entry.id, { quantity: (entry.quantity ?? 1) + 1 })} type="button">
+                      <button aria-label={`Увеличить количество: ${entry.itemName}`} onClick={() => updateInventoryItem(entry.id, { quantity: (entry.quantity ?? 1) + 1 })} type="button">
                         +
                       </button>
                     </div>
@@ -929,6 +935,7 @@ export function ShopsPage({
                       className="shops-delete-stock"
                       onClick={() => updateDraft("inventory", draft.inventory.filter((item) => item.id !== entry.id))}
                       title="Убрать товар"
+                      aria-label={`Убрать товар: ${entry.itemName}`}
                       type="button"
                     >
                       <ShopIcon name="trash" />
@@ -938,8 +945,8 @@ export function ShopsPage({
               })
             ) : (
               <div className={`shops-empty-state ${stockDropActive ? "drop-active" : ""}`}>
-                <strong>Витрина пуста</strong>
-                <span>Выбери товары в каталоге ниже — повторное добавление увеличит количество.</span>
+                <strong>{draft.inventory.length ? "Товары не найдены" : "Витрина пуста"}</strong>
+                {draft.inventory.length ? <button type="button" className="shops-secondary-action" onClick={() => {setStockQuery(""); setStockCategory("all");}}>Сбросить поиск</button> : <span>Добавьте товары из каталога ниже.</span>}
               </div>
             )}
           </div>
@@ -967,7 +974,7 @@ export function ShopsPage({
           <input id="shop-catalog-search" aria-label="Поиск товаров" onChange={(event) => setItemQuery(event.target.value)} placeholder="Поиск в каталоге..." value={itemQuery} />
         </label>
 
-        <div className="shops-catalog-filters">
+        <details className="shops-filter-details"><summary>Фильтры{[categoryFilter,sourceFilter,rarityFilter,armorFilter,priceFilter].some(value => value !== "all") ? ` · ${[categoryFilter,sourceFilter,rarityFilter,armorFilter,priceFilter].filter(value => value !== "all").length}` : ""}</summary><div className="shops-catalog-filters">
           <label>Категория<select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value as CatalogCategoryFilter)}>
             <option value="all">Все категории</option>{Object.entries(itemCategoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </select></label>
@@ -987,6 +994,7 @@ export function ShopsPage({
           <button type="button" className="shops-secondary-action" onClick={() => { setItemQuery(""); setCategoryFilter("all"); setSourceFilter("all"); setRarityFilter("all"); setArmorFilter("all"); setPriceFilter("all"); }}>Сбросить фильтры</button>
         </div>
 
+        </details>
         <div className={`shops-catalog-drop ${stockDropActive ? "drop-active" : ""}`}
           onDragOver={handleStockDragOver} onDrop={handleStockDrop}
           onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setStockDropActive(false); }}>
@@ -1008,7 +1016,7 @@ export function ShopsPage({
                 <span className="shops-picker-copy">
                   <strong>{item.name}</strong>
                   <small>{itemSubtypeLabel(item)} · {item.rarity || "Без редкости"}</small>
-                  <small>{itemPriceLabel(item)}</small>
+                  <small>{item.buyPriceLabel || item.sellPriceLabel ? itemPriceLabel(item) : <CoinPrice value={itemPrice(item)} />}</small>
                 </span>
               </button>
               <button className="shops-picker-add" onClick={() => handleAddItem(item)} title={`Добавить ${item.name} в магазин`} aria-label={`Добавить ${item.name}`} type="button">
@@ -1022,6 +1030,7 @@ export function ShopsPage({
         <div className="shops-catalog-foot" aria-live="polite">{catalogLoading ? "Загружаю внешний каталог…" : `Показано ${Math.min(visibleCount, filteredItems.length)} из ${filteredItems.length} товаров`}</div>
         {visibleCount < filteredItems.length ? <button className="shops-secondary-action" type="button" onClick={() => setVisibleCount(count => count + 48)}>Показать ещё 48</button> : null}
       </aside>
+      {imageViewer ? <ShopImageViewer src={imageViewer.src} alt={imageViewer.alt} onClose={() => setImageViewer(null)} /> : null}
       {selectedInfoItem ? (
         <ItemDetailModal
           item={selectedInfoItem}
