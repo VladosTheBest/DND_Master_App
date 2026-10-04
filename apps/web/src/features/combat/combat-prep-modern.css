@@ -1,0 +1,191 @@
+/* Preparation keeps selection, initiative and launch in one place. */
+.combat-prep-reference.combat-prep-modern {
+  width: 100%; max-width: 1500px; margin: 0 auto; padding: 16px 20px 12px;
+  display: grid; gap: 12px; color: #e9edf5; font-family: "Segoe UI", sans-serif;
+}
+.combat-prep-reference.combat-prep-modern .combat-prep-reference-header {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 20px; padding: 0;
+  border: 0; background: none; box-shadow: none; min-height: 0;
+}
+.combat-prep-modern .combat-prep-title-block { text-align: left; }
+.combat-prep-reference.combat-prep-modern h1 { font: 600 22px/1.3 "Segoe UI", sans-serif; margin: 4px 0; letter-spacing: -.6px; }
+.combat-prep-modern .combat-prep-title-block::before, .combat-prep-modern .combat-prep-title-block::after { display: none; }
+.combat-prep-modern .combat-prep-title-block p { margin: 0; font-size: 13px; }
+.combat-prep-modern .combat-prep-context { color: #a5adbf; font-size: 12px; }
+.combat-prep-reference.combat-prep-modern .combat-prep-back { border: 0; background: none; box-shadow: none; padding: 8px 0; color: #b7bed0; }
+.combat-prep-reference.combat-prep-modern .combat-prep-danger-board {
+  padding: 0; border: 1px solid #2b3342; border-radius: 12px; background: #151b26; box-shadow: none;
+}
+.combat-prep-modern .combat-prep-danger-board summary {
+  display: flex; align-items: center; gap: 12px; padding: 10px 14px; cursor: pointer; list-style: none; font-size: 13px;
+}
+.combat-prep-modern .combat-prep-danger-board summary::-webkit-details-marker { display: none; }
+.combat-prep-modern .combat-prep-danger-board summary strong { font-weight: 600; color: #c4b6f8; }
+.combat-prep-modern .combat-prep-danger-board.difficulty-deadly summary strong { color: #ff949e; }
+.combat-prep-modern .combat-prep-danger-board.difficulty-hard summary strong { color: #f5bd7e; }
+.combat-prep-modern .combat-prep-danger-board.difficulty-easy summary strong { color: #82d5b2; }
+.combat-prep-modern .combat-prep-difficulty-more { margin-left: auto; color: #a5adbf; }
+.combat-prep-modern .combat-prep-danger-board > :not(summary) { margin: 12px 20px; font-size: 13px; }
+.combat-prep-modern .combat-prep-danger-board .field { max-width: 380px; }
+.combat-prep-modern .combat-prep-danger-board[open] summary { border-bottom: 1px solid #2b3342; }
+.combat-prep-reference.combat-prep-modern .combat-prep-reference-grid {
+  grid-template-columns: minmax(280px,.95fr) minmax(390px,1.35fr) minmax(280px,.95fr); gap: 12px; align-items: start;
+}
+.combat-prep-reference.combat-prep-modern .combat-prep-reference-panel {
+  padding: 14px; border: 1px solid #2b3342; border-radius: 10px; background: #151b26; box-shadow: none; gap: 8px;
+  display: grid; grid-template-rows: none; align-content: start; overflow: visible;
+}
+.combat-prep-reference.combat-prep-modern h2 { font: 600 15px/1.4 "Segoe UI", sans-serif; color: #edf0f7; margin: 0 0 4px; }
+.combat-prep-modern .combat-prep-panel-head span { font-size: 12px; color: #a5adbf; }
+.combat-prep-reference.combat-prep-modern .combat-prep-subhead strong { font: 500 13px "Segoe UI", sans-serif; color: #b7bed0; }
+.combat-prep-reference.combat-prep-modern .combat-prep-purple-button { background: #202737; border: 1px solid #343e51; color: #d1c7fa; box-shadow: none; font-size: 12px; }
+.combat-prep-reference.combat-prep-modern .combat-prep-search-field,
+.combat-prep-modern .input { border: 1px solid #30394a; background: #101620; border-radius: 9px; }
+.combat-prep-modern .field > span { color: #a5adbf; font-size: 12px; }
+.combat-prep-reference.combat-prep-modern .combat-prep-party-list,
+.combat-prep-reference.combat-prep-modern .combat-prep-field-list,
+.combat-prep-reference.combat-prep-modern .combat-prep-bestiary-list { max-height: 520px; gap: 4px; display: grid; align-content: start; }
+.combat-prep-reference.combat-prep-modern .combat-prep-party-card,
+.combat-prep-reference.combat-prep-modern .combat-prep-bestiary-row,
+.combat-prep-reference.combat-prep-modern .combat-prep-field-row {
+  padding: 8px; border: 1px solid transparent; border-radius: 7px; background: #1a2230; box-shadow: none; gap: 8px;
+}
+.combat-prep-reference.combat-prep-modern .combat-prep-party-card { grid-template-columns: 32px minmax(0,1fr) 48px 28px; }
+.combat-prep-reference.combat-prep-modern .combat-prep-party-card.selected { background: #20273b; border-color: #575178; }
+.combat-prep-reference.combat-prep-modern .combat-prep-party-card strong,
+.combat-prep-reference.combat-prep-modern .combat-prep-row-copy strong,
+.combat-prep-reference.combat-prep-modern .combat-prep-field-copy strong { font: 600 13px/1.4 "Segoe UI",sans-serif; color: #edf0f7; overflow-wrap: anywhere; }
+.combat-prep-modern .combat-prep-party-card span,
+.combat-prep-modern .combat-prep-row-copy small,
+.combat-prep-modern .combat-prep-field-copy span { font-size: 11px; color: #a5adbf; line-height: 1.45; }
+.combat-prep-reference.combat-prep-modern .combat-prep-party-card img,
+.combat-prep-reference.combat-prep-modern .combat-prep-field-row img,
+.combat-prep-reference.combat-prep-modern .combat-prep-bestiary-row img,
+.combat-prep-reference.combat-prep-modern .entity-thumb-frame,
+.combat-prep-reference.combat-prep-modern .sigil { width: 32px; min-width: 32px; height: 36px; border-radius: 8px; }
+.combat-prep-reference.combat-prep-modern .combat-prep-check,
+.combat-prep-reference.combat-prep-modern .combat-prep-add-enemy { width: 28px; height: 28px; border: 1px solid #4a4666; background: #302a49; box-shadow: none; border-radius: 8px; color: #d4c9ff; }
+.combat-prep-reference.combat-prep-modern .combat-prep-check.active { background: #a99be3; color: #171329; border-color: #a99be3; }
+.combat-prep-modern .combat-prep-party-initiative { grid-column: 3; grid-row: 1; display: block; }
+.combat-prep-reference.combat-prep-modern .combat-prep-initiative-input { width: 48px; min-width: 0; height: 30px; min-height: 30px; background: #101620; border: 1px solid #3a455a; border-radius: 7px; }
+.combat-prep-modern .combat-prep-allies { border-top: 1px solid #2b3342; padding-top: 10px; }
+.combat-prep-modern .combat-prep-allies summary { cursor: pointer; color: #bdc5d6; font-size: 13px; margin-bottom: 12px; }
+.combat-prep-modern .combat-prep-allies[open] { display: grid; gap: 12px; }
+.combat-prep-reference.combat-prep-modern .combat-prep-field-section { padding: 0; border: 0; background: none; box-shadow: none; }
+.combat-prep-reference.combat-prep-modern .combat-prep-field-title { display: flex; justify-content: space-between; }
+.combat-prep-reference.combat-prep-modern .combat-prep-field-title strong { font: 500 13px "Segoe UI",sans-serif; }
+.combat-prep-reference.combat-prep-modern .enemy-row { grid-template-columns: 32px minmax(0,1fr) 94px 48px 24px; row-gap: 0; }
+.combat-prep-modern .combat-prep-enemy-quantity { grid-column: 3; grid-row: 1; display: block; }
+.combat-prep-modern .combat-prep-enemy-quantity > span,
+.combat-prep-modern .combat-prep-enemy-initiative > span { font-size: 11px; color: #a5adbf; }
+.combat-prep-modern .combat-prep-enemy-initiative { grid-column: 4; grid-row: 1; display: block; }
+.combat-prep-reference.combat-prep-modern .combat-prep-quantity-control { grid-column: auto; grid-template-columns: 28px 36px 28px; gap: 3px; }
+.combat-prep-reference.combat-prep-modern .combat-prep-quantity-control button,
+.combat-prep-reference.combat-prep-modern .combat-prep-quantity-control input { width: 100%; min-width: 0; min-height: 30px; height: 30px; border: 1px solid #3a455a; background: #101620; border-radius: 7px; }
+.combat-prep-reference.combat-prep-modern .combat-prep-enemy-xp { display: none; }
+.combat-prep-reference.combat-prep-modern .combat-prep-remove-ref { grid-column: 5; grid-row: 1; width: 28px; height: 28px; min-height: 28px; background: none; border: 0; color: #a5adbf; }
+.combat-prep-reference.combat-prep-modern .combat-prep-bestiary-row { grid-template-columns: 32px minmax(0,1fr) 28px; }
+.combat-prep-modern .combat-prep-row-main { text-align: left; }
+.combat-prep-modern .combat-prep-catalog-xp { display: none; }
+.combat-prep-modern .combat-prep-footer { position: sticky; bottom: 12px; z-index: 5; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; background: #1b2230; border: 1px solid #394256; border-radius: 12px; box-shadow: 0 8px 30px #0005; }
+.combat-prep-modern .combat-prep-footer > div:first-child { display: grid; gap: 4px; }
+.combat-prep-modern .combat-prep-footer strong { font-size: 13px; font-weight: 600; }
+.combat-prep-modern .combat-prep-footer span { font-size: 12px; color: #a5adbf; }
+.combat-prep-reference.combat-prep-modern .combat-prep-reference-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.combat-prep-reference.combat-prep-modern .combat-prep-start-button { background: #ad9eea; border: 0; color: #171329; box-shadow: none; }
+.combat-prep-modern .combat-prep-start-button span { color: inherit; font-size: 13px; }
+.combat-prep-modern button, .combat-prep-modern input, .combat-prep-modern select, .combat-prep-modern summary { transition: border-color .15s, background-color .15s; }
+.combat-prep-modern button:hover:not(:disabled) { filter: brightness(1.12); }
+.combat-prep-modern :is(button,input,select,summary):focus-visible { outline: 2px solid #b8a7fa; outline-offset: 3px; }
+.combat-prep-modern .combat-prep-search-field:focus-within { border-color: #b8a7fa; }
+@media (max-width: 1150px) {
+  .combat-prep-reference.combat-prep-modern .combat-prep-reference-grid { grid-template-columns: minmax(260px,.85fr) minmax(350px,1.2fr); }
+  .combat-prep-reference.combat-prep-modern .bestiary-panel { grid-column: 1 / -1; }
+  .combat-prep-reference.combat-prep-modern .combat-prep-bestiary-list { grid-template-columns: repeat(2,minmax(0,1fr)); max-height: 400px; }
+}
+@media (max-width: 700px) {
+  .combat-prep-reference.combat-prep-modern { padding: 12px; gap: 10px; }
+  .combat-prep-reference.combat-prep-modern .combat-prep-reference-header { gap: 10px; display: grid; }
+  .combat-prep-reference.combat-prep-modern h1 { font-size: 22px; }
+  .combat-prep-reference.combat-prep-modern .combat-prep-reference-grid { grid-template-columns: minmax(0,1fr); gap: 10px; }
+  .combat-prep-reference.combat-prep-modern .combat-prep-reference-panel { padding: 12px; }
+  .combat-prep-reference.combat-prep-modern .combat-prep-bestiary-list { grid-template-columns: minmax(0,1fr); }
+  .combat-prep-modern .combat-prep-danger-board summary { flex-wrap: wrap; gap: 8px 12px; padding: 14px; }
+  .combat-prep-modern .combat-prep-difficulty-label { width: 100%; }
+  .combat-prep-modern .combat-prep-danger-board summary .muted { font-size: 11px; }
+  .combat-prep-modern .combat-prep-difficulty-more { width: 100%; margin: 0; font-size: 11px; }
+  .combat-prep-modern .combat-prep-footer { flex-wrap: wrap; padding: 12px; gap: 12px; bottom: 6px; }
+  .combat-prep-modern .combat-prep-footer > div:first-child span { display: none; }
+  .combat-prep-reference.combat-prep-modern .combat-prep-reference-actions { width: 100%; }
+  .combat-prep-modern .combat-prep-reference-actions button { flex: 1; padding: 10px 8px; }
+}
+@media (prefers-reduced-motion: reduce) { .combat-prep-modern * { transition: none !important; } }
+.combat-prep-reference.combat-prep-modern h1 { text-align: left; text-shadow: none; color: #edf0f7; }
+.combat-prep-reference.combat-prep-modern .combat-prep-danger-board::before { display: none; }
+.combat-prep-reference.combat-prep-modern .combat-prep-back { order: 0; }
+.combat-prep-reference.combat-prep-modern .combat-prep-title-block { order: 1; }
+body:has(.combat-prep-modern) .ai-jobs-launcher { bottom: 104px; }
+@media (max-width: 700px) {
+  .combat-prep-reference.combat-prep-modern { padding-bottom: 110px; }
+  .combat-prep-modern .combat-prep-footer { position: fixed; bottom: 0; left: 0; right: 0; border-radius: 12px 12px 0 0; padding-bottom: max(12px,env(safe-area-inset-bottom)); }
+  body:has(.combat-prep-modern) .ai-jobs-launcher { bottom: 120px; }
+}
+.combat-prep-reference.combat-prep-modern .ally-row { grid-template-columns: 32px minmax(0,1fr) 48px 28px; }
+.combat-prep-reference.combat-prep-modern .ally-row .combat-prep-remove-ref { grid-column: 4; }
+/* Backdrop filters create a containing block for the mobile fixed footer. */
+.shell.combat-prep-shell .combat-content { backdrop-filter: none; }
+
+.combat-prep-reference.combat-prep-modern { height: auto; max-height: none; overflow: visible; grid-template-rows: none; grid-auto-rows: auto; align-content: start; }
+
+.combat-prep-modern .combat-prep-title-block p { display: none; }
+.combat-prep-modern .combat-prep-party-initiative > span,
+.combat-prep-modern .combat-prep-enemy-quantity > span,
+.combat-prep-modern .combat-prep-enemy-initiative > span { display: none; }
+.combat-prep-reference.combat-prep-modern .combat-prep-check { grid-column: 4; grid-row: 1; }
+.combat-prep-reference.combat-prep-modern .ally-card { grid-template-columns: 32px minmax(0,1fr) 28px; }
+.combat-prep-reference.combat-prep-modern .ally-card .combat-prep-check { grid-column: 3; }
+.combat-prep-modern .combat-prep-party-card.selected { border-color: transparent; }
+.combat-prep-reference.combat-prep-modern .combat-prep-search-field { min-height: 34px; border-radius: 7px; }
+.combat-prep-modern .combat-prep-enemy-columns { display: grid; grid-template-columns: minmax(0,1fr) 94px 48px 24px; gap: 8px; padding: 0 8px 6px; color: #a5adbf; font-size: 11px; }
+.combat-prep-modern .combat-prep-enemy-columns span:nth-child(2), .combat-prep-modern .combat-prep-enemy-columns span:nth-child(3) { text-align: center; }
+.combat-prep-reference.combat-prep-modern .combat-prep-action,
+.combat-prep-reference.combat-prep-modern .combat-prep-start-button { min-height: 34px; border-radius: 8px; padding: 8px 12px; }
+.combat-prep-reference.combat-prep-modern .bestiary-panel { grid-template-columns: minmax(0,1fr) 112px; }
+.combat-prep-modern .bestiary-panel .combat-prep-panel-head,
+.combat-prep-modern .bestiary-panel .combat-prep-bestiary-list { grid-column: 1 / -1; }
+.combat-prep-modern .bestiary-panel > .field { margin: 0; gap: 0; }
+.combat-prep-modern .bestiary-panel > .field > span { display: none; }
+.combat-prep-modern .bestiary-panel select { min-height: 34px; height: 34px; padding: 4px 8px; font-size: 12px; }
+.combat-prep-reference.combat-prep-modern .combat-prep-party-card,
+.combat-prep-reference.combat-prep-modern .combat-prep-bestiary-row,
+.combat-prep-reference.combat-prep-modern .combat-prep-field-row { min-height: 52px; }
+@media (max-width: 700px) {
+  .combat-prep-reference.combat-prep-modern .enemy-row { grid-template-columns: 32px minmax(0,1fr) 24px; row-gap: 8px; }
+  .combat-prep-modern .combat-prep-enemy-quantity { grid-column: 2; grid-row: 2; justify-self: start; }
+  .combat-prep-modern .combat-prep-enemy-initiative { grid-column: 2; grid-row: 2; justify-self: end; }
+  .combat-prep-reference.combat-prep-modern .enemy-row .combat-prep-remove-ref { grid-column: 3; }
+  .combat-prep-modern .combat-prep-enemy-columns { display: none; }
+  .combat-prep-modern .combat-prep-enemy-quantity > span,
+  .combat-prep-modern .combat-prep-enemy-initiative > span { display: block; margin-bottom: 4px; }
+  .combat-prep-reference.combat-prep-modern .combat-prep-check,
+  .combat-prep-reference.combat-prep-modern .combat-prep-add-enemy { min-height: 36px; height: 36px; }
+  .combat-prep-modern .combat-prep-footer { gap: 8px; }
+  .combat-prep-modern .combat-prep-footer strong { font-size: 12px; }
+}
+.combat-prep-reference.combat-prep-modern .combat-prep-bestiary-search-row { display: block; }
+.combat-prep-reference.combat-prep-modern .bestiary-panel { grid-template-columns: minmax(0,1fr); }
+.combat-prep-modern .combat-prep-catalog-filters { border-bottom: 1px solid #2b3342; padding-bottom: 8px; }
+.combat-prep-modern .combat-prep-catalog-filters summary { cursor: pointer; color: #bdc5d6; font-size: 12px; padding: 5px 0; }
+.combat-prep-modern .combat-prep-catalog-filter-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; margin-top: 8px; }
+.combat-prep-modern .combat-prep-catalog-filter-grid .field { min-width: 0; margin: 0; padding: 0; background: none; border: 0; }
+.combat-prep-modern .combat-prep-catalog-filter-grid .input { width: 100%; height: 34px; padding: 4px 8px; font-size: 12px; }
+.combat-prep-modern .combat-prep-active-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.combat-prep-modern .combat-prep-active-filters button { border: 1px solid #4a4666; background: #302a49; border-radius: 6px; font-size: 11px; padding: 5px 8px; color: #d4c9ff; }
+.combat-prep-modern .combat-prep-catalog-empty { display: grid; gap: 8px; }
+.combat-prep-modern .combat-prep-catalog-filters > button { margin-top: 8px; font-size: 12px; }
+.combat-prep-modern .combat-threat-badge { display: inline-block; width: fit-content; margin-top: 3px; padding: 1px 5px; border-radius: 4px; font: 500 10px/1.4 "Segoe UI",sans-serif; }
+.combat-prep-modern .combat-threat-badge.easy { color: #8adbbb; background: #254237; }
+.combat-prep-modern .combat-threat-badge.medium { color: #f1d28e; background: #433923; }
+.combat-prep-modern .combat-threat-badge.hard { color: #ffc28e; background: #493124; }
+.combat-prep-modern .combat-threat-badge.deadly { color: #ffabb2; background: #482b35; }
+.combat-prep-modern .combat-threat-badge.unknown { color: #a5adbf; background: #293140; }

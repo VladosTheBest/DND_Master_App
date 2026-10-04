@@ -4,8 +4,11 @@ import type { CombatProfileEntity } from "../combat.types";
 import { getEntityChallenge } from "../combat.utils";
 import { CombatInitiativeInput } from "./CombatInitiativeInput";
 
+import { CombatThreatBadge, type CombatThreatContext } from "./CombatThreatBadge";
+
 type CombatEnemyRowProps = {
   entity: CombatProfileEntity;
+  threatContext?: CombatThreatContext;
   quantity: number;
   initiative: number;
   xp: number;
@@ -17,6 +20,7 @@ type CombatEnemyRowProps = {
 
 export function CombatEnemyRow({
   entity,
+  threatContext,
   quantity,
   initiative,
   xp,
@@ -33,8 +37,9 @@ export function CombatEnemyRow({
         <span>
           {entity.statBlock?.creatureType || kindTitle[entity.kind]} • {getEntityChallenge(entity) || "CR не указан"}
         </span>
+        <CombatThreatBadge challenge={entity.statBlock?.challenge ?? ""} quantity={quantity} context={threatContext} />
       </div>
-      <div className="combat-prep-quantity-control">
+      <div className="combat-prep-enemy-quantity"><span>Количество</span><div className="combat-prep-quantity-control">
         <button aria-label={`Уменьшить количество: ${entity.title}`} onClick={() => onQuantityChange(Math.max(1, quantity - 1))} type="button">
           −
         </button>
@@ -48,7 +53,8 @@ export function CombatEnemyRow({
           +
         </button>
       </div>
-      <CombatInitiativeInput label={`Инициатива: ${entity.title}`} value={initiative} onChange={onInitiativeChange} />
+      </div>
+      <label className="combat-prep-enemy-initiative"><span>Инициатива</span><CombatInitiativeInput label={`Инициатива: ${entity.title}`} value={initiative} onChange={onInitiativeChange} /></label>
       <strong className="combat-prep-enemy-xp">{xp} XP</strong>
       <button className="combat-prep-remove-ref" onClick={onRemove} type="button" aria-label={`Убрать: ${entity.title}`}>
         ×

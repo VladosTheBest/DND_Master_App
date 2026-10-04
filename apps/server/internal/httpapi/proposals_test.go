@@ -1678,6 +1678,7 @@ func TestImageOnlyProposalReplacesExistingArtAfterApplyAndUndoRestoresIt(t *test
 	wantApplied := entity
 	wantApplied.Revision = entity.Revision + 1
 	wantApplied.Art = &heroArt{URL: applied.Entity.Art.URL, Alt: "New safe alt", Caption: "New art caption"}
+	wantApplied.Gallery = append(append([]galleryImage(nil), entity.Gallery...), galleryImage{Title: "New safe alt", URL: applied.Entity.Art.URL, Caption: "New art caption"})
 	if !reflect.DeepEqual(*applied.Entity, wantApplied) {
 		t.Fatalf("image approval changed non-art entity fields:\n got: %#v\nwant: %#v", *applied.Entity, wantApplied)
 	}

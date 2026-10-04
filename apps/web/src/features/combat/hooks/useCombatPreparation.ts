@@ -10,16 +10,20 @@ type UseCombatPreparationParams = {
   combatSearchItems: CombatSearchItem[];
   combatEnemyTypeFilter: string;
   combatSelectionId: string;
+  catalogTypes?: CombatCatalogOption[];
 };
 
 export const useCombatPreparation = ({
   combatSearchItems,
   combatEnemyTypeFilter,
-  combatSelectionId
+  combatSelectionId,
+  catalogTypes
 }: UseCombatPreparationParams) => {
   const combatEnemyTypeOptions = useMemo<CombatCatalogOption[]>(() => {
     const entries = new Map<string, string>();
     entries.set("all", combatSetupTypeLabelMap.all);
+    catalogTypes?.forEach(option => entries.set(option.value.trim().toLowerCase(), option.label));
+    if (combatEnemyTypeFilter !== "all") entries.set(combatEnemyTypeFilter, entries.get(combatEnemyTypeFilter) ?? combatEnemyTypeFilter);
     combatSearchItems.forEach((item) => {
       const key = resolveCombatSearchItemType(item);
       if (!entries.has(key)) {
@@ -27,7 +31,7 @@ export const useCombatPreparation = ({
       }
     });
     return Array.from(entries, ([value, label]) => ({ value, label }));
-  }, [combatSearchItems]);
+  }, [catalogTypes, combatEnemyTypeFilter, combatSearchItems]);
 
   const filteredCombatCatalogItems = useMemo(
     () =>

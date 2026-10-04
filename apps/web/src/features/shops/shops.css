@@ -1069,3 +1069,24 @@
 .shell .shops-description-card { display: flex; flex-direction: column; gap: 8px; grid-column: auto; }
 .shops-field-caption { font-size: .8rem; color: var(--text-muted); }
 .shell .shops-description-card textarea { flex: 1; }
+.shops-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 12px;
+  padding: 12px 0;
+}
+.shops-gallery-grid button {
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 1px solid var(--border-color, #343647);
+  border-radius: 12px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.shops-gallery-grid img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; }
+.shops-gallery-grid span { display: block; padding: 8px; font-size: 12px; }
+.shops-gallery-grid button:hover { border-color: #a995e8; }
+.shops-gallery-grid button:focus-visible { outline: 2px solid #a995e8; outline-offset: 3px; }

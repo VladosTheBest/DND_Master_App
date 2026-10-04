@@ -1,8 +1,11 @@
 import type { KnowledgeEntity, MonsterEntity, NpcEntity, PlayerEntity } from "@shadow-edge/shared-types";
 import { EntityVisual, kindTitle } from "../../../app-shared";
+import { CombatInitiativeInput } from "./CombatInitiativeInput";
 import { formatParticipantCountLabel } from "../combat.utils";
 
 export type CombatPartyPanelProps = {
+  playerInitiatives?: Record<string, number>;
+  onPlayerInitiativeChange?: (id: string, value: number) => void;
   draftPreparedCombatPartyCount: number;
   draftPreparedCombatPlayers: PlayerEntity[];
   draftPreparedCombatAllyCount: number;
@@ -21,6 +24,8 @@ export type CombatPartyPanelProps = {
 };
 
 export function CombatPartyPanel({
+  playerInitiatives,
+  onPlayerInitiativeChange,
   draftPreparedCombatPartyCount,
   draftPreparedCombatPlayers,
   draftPreparedCombatAllyCount,
@@ -41,8 +46,8 @@ export function CombatPartyPanel({
     <section className="combat-prep-reference-panel party-panel">
       <div className="combat-prep-panel-head">
         <div>
-          <h2>Состав группы</h2>
-          <span>{`${draftPreparedCombatPartyCount} ${formatParticipantCountLabel(draftPreparedCombatPartyCount)} на стороне партии`}</span>
+          <h2>Группа</h2>
+          <span>{`${draftPreparedCombatPartyCount} ${formatParticipantCountLabel(draftPreparedCombatPartyCount)} · инициатива справа`}</span>
         </div>
       </div>
 
@@ -81,6 +86,7 @@ export function CombatPartyPanel({
                 >
                   {selected ? "✓" : "+"}
                 </button>
+                {selected && onPlayerInitiativeChange ? <label className="combat-prep-party-initiative"><span>Инициатива</span><CombatInitiativeInput label={`Инициатива: ${player.title}`} value={playerInitiatives?.[player.id] ?? 0} onChange={value => onPlayerInitiativeChange(player.id, value)} /></label> : null}
               </article>
             );
           })

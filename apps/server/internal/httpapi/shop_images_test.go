@@ -12,8 +12,9 @@ import (
 func TestShopIllustrationPersistenceAndApproval(t *testing.T) {
 	store, service, user, campaign := newProposalTestService(t)
 	zero := 0
+	two := 2
 	shop := campaignShop{ID: "shop-test", Name: "Лавка", Description: "Свечи и стеклянные витрины", GMNotes: "SECRET hidden drawer DC15",
-		Inventory: []shopInventoryItem{{ID: "stock", ItemID: "ring", ItemName: "Кольцо", Note: "SECRET cursed"}, {ID: "empty", ItemID: "hidden", ItemName: "UNAVAILABLE", Quantity: &zero}},
+		Inventory: []shopInventoryItem{{ID: "stock", ItemID: "sword", ItemName: "Меч", Category: "weapon", Quantity: &two, Note: "SECRET cursed"}, {ID: "empty", ItemID: "hidden", ItemName: "UNAVAILABLE", Quantity: &zero}},
 		Art:       &heroArt{URL: "https://example.com/old.png", Alt: "Old"}}
 	saved, err := store.updateCampaign(campaign.ID, updateCampaignInput{Shops: []campaignShop{shop}})
 	if err != nil {
@@ -34,6 +35,9 @@ func TestShopIllustrationPersistenceAndApproval(t *testing.T) {
 	}
 	if strings.Contains(string(proposal.Before), "SECRET") || strings.Contains(string(proposal.Before), "UNAVAILABLE") {
 		t.Fatal("private/unavailable stock leaked into image context")
+	}
+	if !strings.Contains(string(proposal.Before), "Меч [weapon] × 2") {
+		t.Fatal("inventory quantities/categories missing from image snapshot")
 	}
 	if _, err := service.apply(user.ID, proposal.ID, proposalApplyInput{}); proposalErrorCode(t, err) != "proposal_no_changes" {
 		t.Fatalf("empty image applied: %v", err)
@@ -63,6 +67,9 @@ func TestShopIllustrationPersistenceAndApproval(t *testing.T) {
 	if !strings.Contains(prompt, "get_entity exactly once") || !strings.Contains(prompt, "Never read or depict GM notes") || strings.Contains(prompt, "call search_entities") {
 		t.Fatal("shop image prompt scope incorrect")
 	}
+	if !strings.Contains(prompt, "Respect exact finite quantities") || !strings.Contains(prompt, "depict every available item type") {
+		t.Fatal("stock visualization requirements missing")
+	}
 	staged, _ := service.get(user.ID, proposal.ID)
 	if !codexImageProposalHasOnlyArtChanges(staged) || !codexImageProposalHasSelectedStagedArt(staged) {
 		t.Fatal("bridge cannot verify shop image result")
@@ -79,7 +86,11 @@ func TestShopIllustrationPersistenceAndApproval(t *testing.T) {
 	if got.Art == nil || !strings.HasPrefix(got.Art.URL, "/uploads/") {
 		t.Fatal("image not promoted")
 	}
+	if len(got.Gallery) != 1 || got.Gallery[0].URL != got.Art.URL || got.Gallery[0].Title != "Shop" {
+		t.Fatal("approved shop art missing from gallery")
+	}
 	got.Art = shop.Art
+	got.Gallery = shop.Gallery
 	if !reflect.DeepEqual(got, shop) {
 		t.Fatal("approval changed stock or GM notes")
 	}

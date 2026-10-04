@@ -3,6 +3,7 @@ package httpapi
 import (
 	"encoding/json"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -18,10 +19,19 @@ func shopImageEntity(campaign campaignData, id string) knowledgeEntity {
 			if item.Quantity != nil && *item.Quantity == 0 {
 				continue
 			}
-			stock = append(stock, item.ItemName)
+			label := item.ItemName
+			if item.Category != "" {
+				label += " [" + item.Category + "]"
+			}
+			if item.Quantity != nil {
+				label += " × " + strconv.Itoa(*item.Quantity)
+			} else {
+				label += " (количество не ограничено)"
+			}
+			stock = append(stock, label)
 		}
 		return knowledgeEntity{ID: shop.ID, Kind: "shop", Title: shop.Name, Summary: shop.Description,
-			Content: "Ассортимент: " + strings.Join(stock, ", "), Revision: campaign.Revision, Art: shop.Art}
+			Content: "Ассортимент: " + strings.Join(stock, ", "), Revision: campaign.Revision, Art: shop.Art, Gallery: shop.Gallery}
 	}
 	return knowledgeEntity{}
 }
@@ -78,7 +88,7 @@ func applyShopImageProposalLocked(proposal *aiProposal, campaign *campaignData, 
 		if err := json.Unmarshal(proposal.AppliedResult, &applied); err != nil {
 			return proposalActionResult{}, err
 		}
-		if !reflect.DeepEqual(current.Art, applied.Art) {
+		if !reflect.DeepEqual(current.Art, applied.Art) || !reflect.DeepEqual(current.Gallery, applied.Gallery) {
 			return proposalActionResult{}, staleRevisionFailure("shop image")
 		}
 	}
@@ -90,6 +100,7 @@ func applyShopImageProposalLocked(proposal *aiProposal, campaign *campaignData, 
 	for index := range campaign.Shops {
 		if campaign.Shops[index].ID == current.ID {
 			campaign.Shops[index].Art = candidate.Art
+			campaign.Shops[index].Gallery = candidate.Gallery
 			break
 		}
 	}

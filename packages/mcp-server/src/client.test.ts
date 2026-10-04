@@ -533,10 +533,10 @@ test("external MCP staging retains the caller-owned source image", async () => {
 test("shop image context excludes private notes and unavailable stock", async () => {
  const client = new DndMasterClient(config(), (async () => jsonResponse({id:"campaign", shops:[{
   id:"shop",name:"Store",description:"Visible shelves",gmNotes:"SECRET",
-  inventory:[{itemName:"Ring",quantity:2,note:"CURSED"},{itemName:"Hidden",quantity:0}],
+  inventory:[{itemName:"Sword",category:"weapon",quantity:2,note:"CURSED"},{itemName:"Potion",category:"potion",quantity:null},{itemName:"Hidden",quantity:0}],
  }]})) as typeof fetch);
  const result = await client.getEntity("campaign","shop","shop");
- assert.deepEqual(result.entity.inventory,[{itemName:"Ring",quantity:2}]);
+ assert.deepEqual(result.entity.inventory,[{itemName:"Sword",quantity:2,category:"weapon"},{itemName:"Potion",quantity:null,category:"potion"}]);
  assert.equal(JSON.stringify(result).includes("SECRET"),false);
  assert.equal(JSON.stringify(result).includes("CURSED"),false);
 });

@@ -43,6 +43,7 @@ type ShopDraft = {
   description: string;
   gmNotes: string;
   art?: CampaignShop["art"];
+  gallery: NonNullable<CampaignShop["gallery"]>;
   inventory: ShopInventoryItem[];
 };
 
@@ -200,6 +201,7 @@ const shopToDraft = (shop?: CampaignShop | null): ShopDraft => ({
   description: shop?.description ?? "",
   gmNotes: shop?.gmNotes ?? "",
   art: shop?.art,
+  gallery: shop?.gallery?.map(image => ({ ...image })) ?? [],
   inventory: shop?.inventory?.map((entry) => ({ ...entry })) ?? []
 });
 
@@ -213,6 +215,7 @@ const draftToShop = (draft: ShopDraft, locations: LocationEntity[]): CampaignSho
     description: draft.description.trim() || undefined,
     gmNotes: draft.gmNotes.trim() || undefined,
     art: draft.art,
+    gallery: draft.gallery,
     inventory: draft.inventory
   };
 };
@@ -549,7 +552,14 @@ export function ShopsPage({
       const proposals = await Promise.all(result.proposalIds.map(id => api.getAIProposal(id)));
       const proposal = proposals.find(p => p.status === "pending" && p.target.entityKind === "shop" && p.target.entityId === selectedShop.id);
       if (!proposal) throw new Error(result.warning || "Генератор не вернул изображение магазина. Проверь подключение Codex в AI-помощнике.");
+      if (!proposal.mediaIntents.some(intent => intent.field === "art.url" && intent.status === "staged" && intent.selected !== false && intent.previewUrl)) {
+        throw new Error(result.warning || "Генератор не подготовил изображение. Прежний вариант сохранён, можно повторить попытку.");
+      }
       setImageProposal(proposal);
+      if (imageProposal && imageProposal.id !== proposal.id) {
+        try { await api.rejectAIProposal(imageProposal.id); }
+        catch { setError("Новое изображение готово. Предыдущий вариант можно отклонить в черновиках AI."); }
+      }
       setNotice(result.warning || "Изображение подготовлено. Просмотри его перед сохранением.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Не удалось создать изображение."); }
     finally { setImageBusy(false); }
@@ -560,7 +570,7 @@ export function ShopsPage({
     try {
       const result = await api.applyAIProposal(imageProposal.id);
       if (result.campaign) hydrateCampaign(result.campaign);
-      setImageProposal(null); setNotice("Изображение магазина сохранено.");
+      setImageProposal(null); setNotice("Изображение сохранено и добавлено в галерею магазина.");
     } catch (reason) { setError(reason instanceof Error ? reason.message : "Не удалось сохранить изображение."); }
     finally { setImageBusy(false); }
   };
@@ -841,17 +851,24 @@ export function ShopsPage({
           {imagePreview ? <button type="button" className="shops-cover" aria-label="Открыть предпросмотр изображения" onClick={() => setImageViewer({src: imagePreview, alt: "Предпросмотр изображения магазина"})}><img src={imagePreview} alt="Предпросмотр изображения магазина" /><span>Открыть предпросмотр ↗</span></button> : null}
           <div className="shops-art-controls">
             <strong>{imagePreview ? "Новое изображение · предпросмотр" : "Изображение магазина"}</strong>
-            <p>Интерьер по описанию и товарам на витрине. Секреты мастера не включаются.</p>
+            <p>По описанию и ассортименту, с учётом количества товаров. Утверждённые варианты сохраняются в галерее.</p>
             <details><summary>Пожелания к изображению</summary><label>Атмосфера и стиль<textarea value={imageDirection} disabled={imageBusy} onChange={e => setImageDirection(e.target.value)} placeholder="Например: тёплый свет свечей, тесная лавка алхимика…" /></label></details>
             {dirty || !selectedShop ? <small>Сначала сохрани магазин и ассортимент.</small> : null}
             {imageProposal ? <div className="shops-hero-actions">
               <button className="shops-primary-action" disabled={!imagePreview || imageBusy || dirty} onClick={() => void handleApplyImage()} type="button">Использовать изображение</button>
+              <button className="shops-secondary-action" disabled={imageBusy || saving || dirty || !selectedShop} onClick={() => void handleGenerateImage()} type="button">Сгенерировать заново</button>
               <button className="shops-secondary-action" disabled={imageBusy} onClick={() => void handleRejectImage()} type="button">Отклонить</button>
-            </div> : <button className="shops-secondary-action" disabled={imageBusy || saving || dirty || !selectedShop} onClick={() => void handleGenerateImage()} type="button">{imageBusy ? "Создаю изображение…" : "Сгенерировать изображение"}</button>}
+            </div> : <button className="shops-secondary-action" disabled={imageBusy || saving || dirty || !selectedShop} onClick={() => void handleGenerateImage()} type="button">{imageBusy ? "Создаю изображение…" : shopImageUrl ? "Сгенерировать заново" : "Сгенерировать изображение"}</button>}
             {imageBusy ? <small role="status">Это может занять несколько минут. Дождись результата.</small> : null}
           </div>
         </section>
         </details>
+
+        {draft.gallery.length > 0 ? <details className="shops-image-details shops-gallery"><summary>Галерея · {draft.gallery.length}</summary>
+          <div className="shops-gallery-grid">{draft.gallery.map(image => <button key={image.url} type="button" aria-haspopup="dialog" aria-label={`Открыть: ${image.title || draft.name}`} onClick={() => setImageViewer({ src: image.url, alt: image.title || draft.name })}>
+            <img src={image.url} alt={image.title || draft.name} loading="lazy" /><span>{image.title || "Изображение магазина"}</span>
+          </button>)}</div>
+        </details> : null}
 
         <details className="shops-gm-notes">
           <summary>Только мастеру · скрытые находки и проверки{draft.gmNotes.trim() ? " •" : ""}</summary>

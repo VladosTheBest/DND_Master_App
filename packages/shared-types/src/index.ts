@@ -484,6 +484,7 @@ export interface ShopInventoryItem {
 }
 
 export interface CampaignShop {
+  gallery?: GalleryImage[];
   gmNotes?: string;
   art?: HeroArt;
   id: string;

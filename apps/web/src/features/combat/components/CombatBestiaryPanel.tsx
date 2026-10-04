@@ -2,11 +2,17 @@ import { useEffect, useState } from "react";
 import type { KnowledgeEntity } from "@shadow-edge/shared-types";
 import { EntityVisual, createBestiaryPortraitSource, createPortraitSource } from "../../../app-shared";
 import type { CombatCatalogOption, CombatSearchItem } from "../combat.types";
-import { extractChallengeToken, parseChallengeXp, resolveCombatSearchItemTypeLabel } from "../combat.utils";
+import { challengeFilterOptions, extractChallengeToken, parseChallengeXp, resolveCombatSearchItemTypeLabel } from "../combat.utils";
+
+import { CombatThreatBadge, type CombatThreatContext } from "./CombatThreatBadge";
 
 export type CombatBestiaryPanelProps = {
   filteredCombatCatalogItems: CombatSearchItem[];
   combatSearchQuery: string;
+  combatSearchChallenge: string;
+  loading: boolean;
+  threatContext?: CombatThreatContext;
+  onCombatSearchChallengeChange: (value: string) => void;
   combatEnemyTypeOptions: CombatCatalogOption[];
   combatEnemyTypeFilter: string;
   combatSelectionId: string;
@@ -20,6 +26,10 @@ export type CombatBestiaryPanelProps = {
 export function CombatBestiaryPanel({
   filteredCombatCatalogItems,
   combatSearchQuery,
+  combatSearchChallenge,
+  loading,
+  threatContext,
+  onCombatSearchChallengeChange,
   combatEnemyTypeOptions,
   combatEnemyTypeFilter,
   combatSelectionId,
@@ -30,13 +40,15 @@ export function CombatBestiaryPanel({
   onOpenEntityImage
 }: CombatBestiaryPanelProps) {
   const [visibleCount, setVisibleCount] = useState(48);
-  useEffect(() => setVisibleCount(48), [combatSearchQuery, combatEnemyTypeFilter]);
+  useEffect(() => setVisibleCount(48), [combatSearchQuery, combatEnemyTypeFilter, combatSearchChallenge]);
+  const activeFilters = Number(Boolean(combatSearchChallenge)) + Number(combatEnemyTypeFilter !== "all");
+  const resetFilters = () => { onCombatSearchChallengeChange(""); onCombatEnemyTypeFilterChange("all"); };
   return (
     <section className="combat-prep-reference-panel bestiary-panel">
       <div className="combat-prep-panel-head">
         <div>
-          <h2>Бестиарий</h2>
-          <span>{`${filteredCombatCatalogItems.length} найдено`}</span>
+          <h2>Добавить противника</h2>
+          <span>{loading ? "Загружаю каталог…" : `${filteredCombatCatalogItems.length} найдено`}</span>
         </div>
       </div>
 
@@ -52,7 +64,27 @@ export function CombatBestiaryPanel({
 
       </div>
 
-      <label className="field"><span>Тип противника</span><select className="input" value={combatEnemyTypeFilter} onChange={event => onCombatEnemyTypeFilterChange(event.target.value)}>{combatEnemyTypeOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+      <details className="combat-prep-catalog-filters">
+        <summary>Фильтры{activeFilters ? ` · ${activeFilters}` : ""}</summary>
+        <div className="combat-prep-catalog-filter-grid">
+          <label className="field"><span>Опасность / CR</span>
+            <select aria-label="Опасность / CR" className="input" value={combatSearchChallenge} onChange={event => onCombatSearchChallengeChange(event.target.value)}>
+              <option value="">Все значения</option>
+              {challengeFilterOptions.map(value => <option key={value} value={value}>CR {value}</option>)}
+            </select>
+          </label>
+          <label className="field"><span>Тип существа</span>
+            <select aria-label="Тип существа" className="input" value={combatEnemyTypeFilter} onChange={event => onCombatEnemyTypeFilterChange(event.target.value)}>
+              {combatEnemyTypeOptions.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </label>
+        </div>
+        {activeFilters ? <button className="ghost" onClick={resetFilters} type="button">Сбросить фильтры</button> : null}
+      </details>
+      {activeFilters ? <div className="combat-prep-active-filters">
+        {combatSearchChallenge ? <button type="button" onClick={() => onCombatSearchChallengeChange("")} aria-label="Убрать фильтр опасности">CR {combatSearchChallenge} ×</button> : null}
+        {combatEnemyTypeFilter !== "all" ? <button type="button" onClick={() => onCombatEnemyTypeFilterChange("all")} aria-label="Убрать фильтр типа">{combatEnemyTypeOptions.find(option => option.value === combatEnemyTypeFilter)?.label ?? combatEnemyTypeFilter} ×</button> : null}
+      </div> : null}
 
       <div className="combat-prep-bestiary-list">
         {filteredCombatCatalogItems.length ? (
@@ -79,6 +111,7 @@ export function CombatBestiaryPanel({
                     <small>
                       {resolveCombatSearchItemTypeLabel(item)} • {item.challenge ? `CR ${extractChallengeToken(item.challenge)}` : "CR не указан"}
                     </small>
+                    <CombatThreatBadge challenge={item.challenge} context={threatContext} />
                   </div>
                 </button>
                 <span className="combat-prep-catalog-xp">{itemXp ? `${itemXp} XP` : "XP —"}</span>
@@ -97,7 +130,7 @@ export function CombatBestiaryPanel({
             );
           })
         ) : (
-          <p className="copy">По текущему фильтру противники не найдены.</p>
+          <div className="combat-prep-catalog-empty"><p className="copy">{loading ? "Ищу противников…" : "Противники не найдены. Измените поиск или фильтры."}</p>{!loading && (activeFilters || combatSearchQuery) ? <button className="ghost" onClick={() => { resetFilters(); onCombatSearchQueryChange(""); }} type="button">Показать всех</button> : null}</div>
         )}
       </div>
       {visibleCount < filteredCombatCatalogItems.length ? <button className="ghost" onClick={() => setVisibleCount(count => count + 48)} type="button">Показать ещё</button> : null}

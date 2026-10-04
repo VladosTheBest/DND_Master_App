@@ -8,6 +8,7 @@ export type CombatPrepPageProps = {
   sceneTitle: string;
   hasHostEntity: boolean;
   saving: boolean;
+  difficultyPartySize: number;
   canStartPreparedCombatDraft: boolean;
   bootError: string;
   campaignPreparedCombatNotice: string;
@@ -29,6 +30,7 @@ export function CombatPrepPage({
   sceneTitle,
   hasHostEntity,
   saving,
+  difficultyPartySize,
   canStartPreparedCombatDraft,
   bootError,
   campaignPreparedCombatNotice,
@@ -36,41 +38,28 @@ export function CombatPrepPage({
   partyPanelProps,
   battlefieldPanelProps,
   bestiaryPanelProps,
-  enteredPartyLevel,
   hasExplicitPartyLevels,
-  partyCompositionText,
   onBack,
   onClear,
   onSave,
   onStart
 }: CombatPrepPageProps) {
+  const threatContext = {
+    partySize: difficultyPartySize,
+    thresholds: dangerProps.effectiveCombatThresholds,
+    ready: partyPanelProps.draftPreparedCombatPlayers.length > 0 && dangerProps.effectiveCombatThresholds.deadly > 0,
+    approximate: !hasExplicitPartyLevels
+  };
   return (
-    <div className="combat-prep-page combat-prep-reference">
+    <div className="combat-prep-page combat-prep-reference combat-prep-modern">
       <section className="combat-prep-reference-header">
         <button className="combat-prep-back" onClick={onBack} type="button">
           <span aria-hidden="true">←</span>
           <span>{hasHostEntity ? "К карточкам боя" : "Назад к кампании"}</span>
         </button>
 
-        <div className="combat-prep-title-block"><h1>Подготовка боя</h1><p className="muted">Выберите группу и противников, затем задайте инициативу.</p></div>
+        <div className="combat-prep-title-block"><span className="combat-prep-context">{campaignTitle} · {sceneTitle}</span><h1>Подготовка боя</h1><p className="muted">Выберите группу и противников, затем задайте инициативу.</p></div>
 
-        <div className="combat-prep-reference-actions">
-          <button className="ghost combat-prep-action" onClick={onClear} type="button">
-            Очистить
-          </button>
-          <button className="ghost combat-prep-action" disabled={saving} onClick={onSave} type="button">
-            {saving ? "Сохраняю..." : "Сохранить"}
-          </button>
-          <button
-            className="primary combat-prep-start-button"
-            disabled={!canStartPreparedCombatDraft || saving}
-            onClick={onStart}
-            type="button"
-          >
-            <span aria-hidden="true">⚔</span>
-            <span>{saving ? "Запускаю..." : "Начать бой"}</span>
-          </button>
-        </div>
       </section>
 
       {bootError ? (
@@ -90,12 +79,29 @@ export function CombatPrepPage({
       <CombatDangerBar {...dangerProps} />
 
       <div className="combat-prep-reference-grid">
-        <CombatPartyPanel {...partyPanelProps} />
-        <CombatBattlefieldPanel {...battlefieldPanelProps} />
-        <CombatBestiaryPanel {...bestiaryPanelProps} />
+        <CombatPartyPanel {...partyPanelProps} playerInitiatives={battlefieldPanelProps.preparedCombatPlayerInitiatives} onPlayerInitiativeChange={battlefieldPanelProps.onPlayerInitiativeChange} />
+        <CombatBattlefieldPanel {...battlefieldPanelProps} threatContext={threatContext} />
+        <CombatBestiaryPanel {...bestiaryPanelProps} threatContext={threatContext} />
       </div>
-
-
+      <footer className="combat-prep-footer"><div><strong>{partyPanelProps.draftPreparedCombatPartyCount} в группе · {battlefieldPanelProps.campaignPreparedCombatDraftEnemyCount} противников</strong><span>{canStartPreparedCombatDraft ? "" : "Выберите хотя бы одного игрока и одного противника."}</span></div>
+        <div className="combat-prep-reference-actions">
+          <button className="ghost combat-prep-action" onClick={onClear} type="button">
+            Сбросить
+          </button>
+          <button className="ghost combat-prep-action" disabled={saving} onClick={onSave} type="button">
+            {saving ? "Сохраняю..." : "Сохранить"}
+          </button>
+          <button
+            className="primary combat-prep-start-button"
+            disabled={!canStartPreparedCombatDraft || saving}
+            onClick={onStart}
+            type="button"
+          >
+            <span aria-hidden="true">⚔</span>
+            <span>{saving ? "Подождите…" : "Начать бой"}</span>
+          </button>
+        </div>
+      </footer>
     </div>
   );
 }

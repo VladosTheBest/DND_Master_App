@@ -3,7 +3,10 @@ import { parseChallengeXp } from "../combat.utils";
 import { CombatEnemyRow } from "./CombatEnemyRow";
 import { CombatParticipantRow } from "./CombatParticipantRow";
 
+import type { CombatThreatContext } from "./CombatThreatBadge";
+
 export type CombatBattlefieldPanelProps = {
+  threatContext?: CombatThreatContext;
   draftPreparedCombatPlayers: PlayerEntity[];
   draftPreparedCombatAllyCount: number;
   draftPreparedCombatAllies: Array<{ entity: NpcEntity | MonsterEntity; quantity: number }>;
@@ -23,18 +26,13 @@ export type CombatBattlefieldPanelProps = {
 };
 
 export function CombatBattlefieldPanel({
-  draftPreparedCombatPlayers,
-  draftPreparedCombatAllyCount,
+  threatContext,
   draftPreparedCombatAllies,
   draftPreparedCombatEnemies,
-  campaignPreparedCombatDraftEnemyCount,
-  preparedCombatPlayerInitiatives,
   preparedCombatAllyInitiatives,
   preparedCombatEnemyInitiatives,
-  onPlayerInitiativeChange,
   onAllyInitiativeChange,
   onEnemyInitiativeChange,
-  onTogglePlayer,
   onRemoveAlly,
   onEnemyQuantityChange,
   onRemoveEnemy,
@@ -44,41 +42,8 @@ export function CombatBattlefieldPanel({
     <section className="combat-prep-reference-panel field-panel">
       <div className="combat-prep-panel-head field-head">
         <div>
-          <h2>Участники боя</h2>
-          <span>Укажите инициативу перед стартом</span>
-        </div>
-        <div className="combat-prep-count-tabs">
-          <span>{`Персонажи ${draftPreparedCombatPlayers.length + draftPreparedCombatAllyCount}`}</span>
-          <span>{`Противники ${campaignPreparedCombatDraftEnemyCount}`}</span>
-          <span>{`Всего ${draftPreparedCombatPlayers.length + draftPreparedCombatAllyCount + campaignPreparedCombatDraftEnemyCount}`}</span>
-        </div>
-      </div>
-
-      <div className="combat-prep-field-section players">
-        <div className="combat-prep-field-title">
-          <strong>♟ Игроки</strong>
-          <span title="Инициатива">Иниц.</span>
-          <span aria-hidden="true">×</span>
-        </div>
-        <div className="combat-prep-field-list">
-          {draftPreparedCombatPlayers.length ? (
-            draftPreparedCombatPlayers.map((player) => (
-              <CombatParticipantRow
-                key={`combat-prep-selected-player-${player.id}`}
-                className="combat-prep-field-row player-row"
-                entity={player}
-                initiative={preparedCombatPlayerInitiatives[player.id] ?? 0}
-                onInitiativeChange={(value) => onPlayerInitiativeChange(player.id, value)}
-                onOpenEntityImage={onOpenEntityImage}
-                onRemove={() => onTogglePlayer(player.id)}
-                removeLabel="Убрать"
-                subtitle={player.role || player.subtitle || "Игрок"}
-                title={player.title}
-              />
-            ))
-          ) : (
-            <p className="copy">Добавь игроков слева.</p>
-          )}
+          <h2>Противники</h2>
+          <span>Добавьте врагов и настройте их количество</span>
         </div>
       </div>
 
@@ -113,18 +78,14 @@ export function CombatBattlefieldPanel({
 
       </> : null}
       <div className="combat-prep-field-section enemies">
-        <div className="combat-prep-field-title">
-          <strong>☠ Противники</strong>
-          <span>Кол-во</span>
-          <span title="Инициатива">Иниц.</span>
-          <span>XP</span>
-        </div>
+        <div className="combat-prep-enemy-columns"><span>Участник</span><span>Кол-во</span><span>Иниц.</span><span /></div>
         <div className="combat-prep-field-list enemy-list">
           {draftPreparedCombatEnemies.length ? (
             draftPreparedCombatEnemies.map(({ entity, quantity }) => (
               <CombatEnemyRow
                 key={`combat-prep-selected-enemy-${entity.id}`}
                 entity={entity}
+                threatContext={threatContext}
                 initiative={preparedCombatEnemyInitiatives[entity.id] ?? 0}
                 onInitiativeChange={(value) => onEnemyInitiativeChange(entity.id, value)}
                 onOpenEntityImage={onOpenEntityImage}
@@ -135,7 +96,7 @@ export function CombatBattlefieldPanel({
               />
             ))
           ) : (
-            <p className="copy">Добавь противников справа.</p>
+            <p className="copy">Найдите противника в каталоге и нажмите «+».</p>
           )}
         </div>
 

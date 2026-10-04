@@ -512,7 +512,7 @@ export class DndMasterClient {
       return { campaignId: campaign.id, kind, entity: {
         id: entity.id, name: entity.name, title: entity.name, description: entity.description,
         locationLabel: entity.locationLabel,
-        inventory: stock.filter(item => item.quantity !== 0).map(item => ({ itemName: item.itemName, quantity: item.quantity })),
+        inventory: stock.filter(item => item.quantity !== 0).map(item => ({ itemName: item.itemName, quantity: item.quantity, ...(item.category ? { category: item.category } : {}) })),
       } };
     }
     return { campaignId: campaign.id, kind, entity };

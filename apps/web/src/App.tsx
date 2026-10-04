@@ -96,6 +96,7 @@ import { CombatPage } from "./features/combat/CombatPage";
 import { CombatPrepPage } from "./features/combat/CombatPrepPage";
 import "./features/combat/combat.css";
 import "./features/combat/combat-modern.css";
+import "./features/combat/combat-prep-modern.css";
 import { BestiaryPageContainer } from "./features/bestiary/BestiaryPageContainer";
 import { BestiaryPreviewPanel } from "./features/bestiary/BestiaryPreviewPanel";
 import { useBestiaryController } from "./features/bestiary/useBestiaryController";
@@ -4154,6 +4155,9 @@ export default function App() {
           preparedCombatPlayerInitiatives
         }}
         bestiaryPanelProps={{
+          combatSearchChallenge,
+          loading: combatBestiaryLoading,
+          onCombatSearchChallengeChange: setCombatSearchChallenge,
           combatEnemyTypeFilter,
           combatEnemyTypeOptions,
           combatSearchQuery,
@@ -4168,6 +4172,7 @@ export default function App() {
           onSelectCatalogItem: setCombatSelectionId
         }}
         bootError={bootError}
+        difficultyPartySize={effectivePartySize}
         canStartPreparedCombatDraft={canStartPreparedCombatDraft}
         campaignPreparedCombatNotice={campaignPreparedCombatNotice}
         campaignTitle={campaign.title}

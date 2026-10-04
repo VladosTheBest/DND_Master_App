@@ -55,20 +55,13 @@ export function useCombatEnemySearch({
       };
     }
 
-    if (!deferredCombatSearchQuery.trim() && !combatSearchChallenge) {
-      setCombatBestiary(null);
-      setCombatBestiaryLoading(false);
-      return () => {
-        cancelled = true;
-      };
-    }
-
     const loadCombatBestiary = async () => {
       try {
         setCombatBestiaryLoading(true);
         const result = await api.browseBestiary({
           q: deferredCombatSearchQuery.trim(),
-          challenge: combatSearchChallenge
+          challenge: combatSearchChallenge,
+          type: combatEnemyTypeFilter === "all" ? "" : combatEnemyTypeFilter
         });
         if (cancelled) {
           return;
@@ -91,7 +84,7 @@ export function useCombatEnemySearch({
     return () => {
       cancelled = true;
     };
-  }, [combatSearchChallenge, combatSetupOpen, deferredCombatSearchQuery, setBootError]);
+  }, [combatEnemyTypeFilter, combatSearchChallenge, combatSetupOpen, deferredCombatSearchQuery, setBootError]);
 
   useEffect(() => {
     let cancelled = false;
@@ -200,7 +193,7 @@ export function useCombatEnemySearch({
   );
 
   const combatSearchItems = useMemo(
-    () => [...combatEntitySearchItems.slice(0, 18), ...combatBestiarySearchItems.slice(0, 24)],
+    () => [...combatEntitySearchItems, ...combatBestiarySearchItems],
     [combatBestiarySearchItems, combatEntitySearchItems]
   );
 
@@ -211,7 +204,8 @@ export function useCombatEnemySearch({
   } = useCombatPreparation({
     combatSearchItems,
     combatEnemyTypeFilter,
-    combatSelectionId
+    combatSelectionId,
+    catalogTypes: combatBestiary?.filters.types
   });
 
   const selectedCombatSearchProfile =

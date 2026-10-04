@@ -1126,6 +1126,9 @@ func (service *proposalService) apply(ownerID, proposalID string, input proposal
 			moves, err = service.promoteMediaLocked(proposal, campaignID, selectedOperations)
 		}
 		if err == nil {
+			err = appendApprovedImagesToGallery(proposal)
+		}
+		if err == nil {
 			var campaign campaignData
 			campaign, err = instantiateCampaignBlueprint(*proposal, ownerID, campaignID, selectedOperations)
 			if err == nil {
@@ -1382,6 +1385,9 @@ func staleRevisionFailure(target string) error {
 }
 
 func applyEntityProposalLocked(proposal *aiProposal, campaign *campaignData) (proposalActionResult, error) {
+	if err := appendApprovedImagesToGallery(proposal); err != nil {
+		return proposalActionResult{}, err
+	}
 	if proposal.Target.EntityKind == "shop" {
 		return applyShopImageProposalLocked(proposal, campaign, false)
 	}
@@ -1430,6 +1436,9 @@ func applyEntityProposalLocked(proposal *aiProposal, campaign *campaignData) (pr
 }
 
 func applyEventProposalLocked(proposal *aiProposal, campaign *campaignData) (proposalActionResult, error) {
+	if err := appendApprovedImagesToGallery(proposal); err != nil {
+		return proposalActionResult{}, err
+	}
 	var candidate worldEvent
 	if err := json.Unmarshal(proposal.After, &candidate); err != nil {
 		return proposalActionResult{}, proposalFailure(400, "invalid_candidate", err.Error())
@@ -2129,6 +2138,50 @@ func (service *proposalService) promoteMediaLocked(proposal *aiProposal, campaig
 	}
 	proposal.Diff = diffJSON(proposal.Before, proposal.After)
 	return moves, nil
+}
+
+// Append after merging the current snapshot, so independently added gallery images survive.
+// Only promoted, selected art belongs here; gallery intents already carry their own entry.
+func appendApprovedImagesToGallery(proposal *aiProposal) error {
+	var root any
+	if err := json.Unmarshal(proposal.After, &root); err != nil {
+		return err
+	}
+	changed := false
+	for _, media := range proposal.MediaIntents {
+		if media.Status != "promoted" || media.FinalURL == "" || (media.Field != "art.url" && media.Field != "") || (media.Selected != nil && !*media.Selected) {
+			continue
+		}
+		target, err := proposalMediaTarget(root, proposal, media)
+		if err != nil {
+			return err
+		}
+		art, _ := target["art"].(map[string]any)
+		if art["url"] != media.FinalURL {
+			continue
+		}
+		gallery, _ := target["gallery"].([]any)
+		found := false
+		for _, entry := range gallery {
+			if image, ok := entry.(map[string]any); ok && image["url"] == media.FinalURL {
+				found = true
+				break
+			}
+		}
+		if !found {
+			target["gallery"] = append(gallery, map[string]any{"title": firstNonEmpty(media.Alt, "AI image"), "url": media.FinalURL, "caption": media.Caption})
+			changed = true
+		}
+	}
+	if changed {
+		updated, err := json.Marshal(root)
+		if err != nil {
+			return err
+		}
+		proposal.After = updated
+		proposal.Diff = diffJSON(proposal.Before, proposal.After)
+	}
+	return nil
 }
 
 func rollbackPromotedMedia(moves []promotedMediaMove) {
