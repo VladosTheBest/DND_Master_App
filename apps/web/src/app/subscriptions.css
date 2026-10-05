@@ -1,0 +1,40 @@
+.subscription-trigger { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 8px 13px; background: #28463e; color: #dbf6e9; border: 1px solid #659583; border-radius: 6px; white-space: nowrap; font: inherit; font-size: 13px; cursor: pointer; }
+.subscription-trigger:hover { background: #345a4e; }
+.subscription-dialog { box-sizing: border-box; width: min(940px, calc(100% - 24px)); max-height: calc(100dvh - 32px); margin: auto; padding: 28px; border: 1px solid #50545b; border-radius: 8px; background: #202226; color: #f3f3f0; overflow-y: auto; box-shadow: 0 24px 80px #0008; font-family: inherit; letter-spacing: 0; }
+.subscription-dialog::backdrop { background: #080a0dcc; }
+.subscription-dialog * { box-sizing: border-box; letter-spacing: 0; }
+.subscription-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.subscription-kicker { margin: 0 0 10px; color: #9ad6bc; font-size: 11px; font-weight: 700; }
+.subscription-heading h2 { font-family: inherit; font-size: 24px; line-height: 1.25; margin: 0; max-width: 560px; }
+.subscription-close { display: grid; place-items: center; flex: 0 0 36px; width: 36px; height: 36px; padding: 0; border: 1px solid #53565e; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
+.subscription-dialog button:focus-visible, .subscription-trigger:focus-visible { outline: 2px solid #b8e5cf; outline-offset: 3px; }
+.subscription-intro { margin: 16px 0 24px; color: #bfc3c7; font-size: 14px; line-height: 1.6; max-width: 730px; }
+.subscription-notice { display: flex; align-items: center; gap: 10px; color: #d4ebde; padding: 12px 0; border-top: 1px solid #4d685c; font-size: 14px; }
+.subscription-notice svg, .subscription-plan li svg { flex-shrink: 0; }
+.subscription-plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.subscription-plan { border: 1px solid #4b4f54; border-top: 3px solid #a7b6c1; border-radius: 6px; padding: 20px 16px 14px; background: #282b2e; min-width: 0; }
+.subscription-plan-1 { border-color: #72ad94; background: #26332e; }
+.subscription-plan-2 { border-top-color: #d8b778; }
+.subscription-plan-label { min-height: 48px; }
+.subscription-plan h3 { margin: 0 0 5px; font-size: 18px; font-family: inherit; color: #fff; }
+.subscription-plan-label > span { font-size: 11px; color: #b9deca; }
+.subscription-price { margin: 18px 0 24px; font-size: 36px; line-height: 1.1; font-weight: 650; }
+.subscription-price > span { font-size: 13px; color: #b8bfc0; margin-left: 7px; font-weight: 400; }
+.subscription-plan ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 18px; }
+.subscription-plan li { display: flex; align-items: flex-start; gap: 9px; font-size: 13px; line-height: 1.45; }
+.subscription-plan li svg { color: #b7c9c1; margin-top: 1px; }
+.subscription-plan small { display: block; margin-top: 4px; font-size: 11px; color: #aeb8b4; }
+.subscription-coming { display: flex; gap: 8px; align-items: center; margin: 25px 0 0; padding-top: 14px; border-top: 1px solid #4b5550; font-size: 12px; color: #c5cdca; }
+.subscription-footer { margin-top: 24px; border-top: 1px solid #464b4d; padding-top: 18px; font-size: 12px; color: #b6bfba; line-height: 1.6; }
+.subscription-footer strong { color: #e4e9e5; font-size: 13px; }
+.subscription-footer p { margin: 6px 0 0; }
+.subscription-storage { margin: 0 0 24px; padding: 16px 0; border-top: 1px solid #464b4d; border-bottom: 1px solid #464b4d; }
+.subscription-storage-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.subscription-storage h3 { display: flex; align-items: center; gap: 8px; margin: 0; font: inherit; font-weight: 600; }
+.subscription-storage strong { font-size: 16px; color: #b9deca; }
+.subscription-storage dl { display: flex; flex-wrap: wrap; gap: 12px 28px; margin: 16px 0 12px; font-size: 12px; }
+.subscription-storage dt { color: #bfc3c7; }
+.subscription-storage dd { margin: 4px 0 0; }
+.subscription-storage p { font-size: 11px; color: #bfc3c7; line-height: 1.5; margin: 0; }
+.subscription-storage progress { display: block; width: 100%; height: 8px; margin-top: 16px; accent-color: #72ad94; }
+@media (max-width: 650px) { .subscription-dialog { padding: 20px 16px; } .subscription-heading h2 { font-size: 21px; } .subscription-plans { grid-template-columns: 1fr; } .subscription-plan-label { min-height: 0; } .subscription-price { margin: 14px 0 20px; } }

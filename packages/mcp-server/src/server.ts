@@ -555,7 +555,7 @@ export function createDndMcpServer(client: DndMasterClient): McpServer {
     {
       title: "Stage proposal image",
       description:
-        "Read a PNG, JPEG, or WebP from a configured local media root and stage it for an existing proposal. The file is temporary and is not promoted into campaign uploads unless the user applies the proposal in the website. Remote URLs are not accepted.",
+        "Read a PNG, JPEG, or WebP from a configured local media root and stage it for an existing proposal. Use purpose selected-entity-art for primary art; purpose is a short role label limited to 100 characters, not an image description. If metadata validation fails, correct it and retry the SAME file and proposal without regenerating the image. Exactly once means one successfully registered image, not one failed validation attempt. After an ambiguous network failure, inspect get_proposal before retrying to avoid duplicates. The file is temporary and is not promoted into campaign uploads unless the user applies the proposal in the website. Remote URLs are not accepted.",
       inputSchema: StageProposalMediaInputSchema,
       outputSchema: MediaOutputSchema,
       annotations: proposalWriteAnnotations,

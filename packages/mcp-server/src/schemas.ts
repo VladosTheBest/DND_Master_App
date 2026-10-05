@@ -463,7 +463,7 @@ export const GetProposalInputSchema = z
   .strict();
 
 const MediaAttachmentMetadataShape = {
-  purpose: z.string().trim().max(100).optional(),
+  purpose: z.string().trim().max(100).describe("Short role label, at most 100 characters; use selected-entity-art for a primary image. Put visual description in prompt, not purpose.").optional(),
   operationKey: proposalOperationKey.optional(),
   field: z.string().trim().max(100).optional(),
   alt: z.string().trim().max(1_000).optional(),

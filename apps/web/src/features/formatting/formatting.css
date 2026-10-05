@@ -1,0 +1,30 @@
+.formatted-text { min-width: 0; line-height: 1.7; overflow-wrap: anywhere; white-space: normal; }
+.formatted-text > :first-child { margin-top: 0; }
+.formatted-text > :last-child { margin-bottom: 0; }
+.formatted-text h1, .formatted-text h2 { font-size: 1.25rem; margin: 1.5rem 0 .65rem; }
+.formatted-text h3, .formatted-text h4 { font-size: 1rem; margin: 1.2rem 0 .5rem; }
+.formatted-text p { margin: .6rem 0; }
+.formatted-text ul, .formatted-text ol { padding-left: 1.5rem; }
+.formatted-text li + li { margin-top: .3rem; }
+.formatted-text strong { color: var(--text); }
+.formatted-text blockquote { margin: 1rem 0; padding: .2rem 1rem; border-left: 3px solid var(--accent); color: var(--text-soft); }
+.formatted-table-scroll { max-width: 100%; overflow-x: auto; margin: 1rem 0; border: 1px solid var(--line); border-radius: 6px; }
+.formatted-text table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+.formatted-text th, .formatted-text td { padding: .65rem .8rem; min-width: 9rem; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.formatted-text th { background: rgba(120,150,160,.12); color: var(--text); font-weight: 600; }
+.formatted-text tr:last-child td { border-bottom: 0; }
+.formatted-text pre { white-space: pre-wrap; }
+.ai-format-button { display: inline-flex; align-items: center; gap: .4rem; }
+.format-error { color: var(--danger, #ee9898); font-size: .85rem; flex-basis: 100%; }
+.format-dialog { width: min(54rem, calc(100vw - 2rem)); max-height: calc(100dvh - 2rem); padding: 0; color: var(--text); background: var(--panel, #161c25); border: 1px solid var(--line); border-radius: 8px; }
+.format-dialog::backdrop { background: rgba(0,0,0,.7); }
+.format-dialog header, .format-dialog footer { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: .75rem; padding: 1rem 1.25rem; }
+.format-dialog header { border-bottom: 1px solid var(--line); }
+.format-dialog h2 { font-size: 1.15rem; margin: 0; }
+.format-dialog p { color: var(--text-soft); }
+.format-preview { padding: 1.25rem; overflow: auto; max-height: 60dvh; }
+.format-dialog footer { border-top: 1px solid var(--line); }
+.notes-view-tabs { display: flex; gap: .3rem; }
+.notes-view-tabs button[aria-pressed=true] { background: rgba(120,150,160,.15); color: var(--text); }
+.notes-formatted-preview { min-width: 0; min-height: 16rem; padding: 1rem 0; }
+.event-read-aloud, .event-outcomes { min-width: 0; }

@@ -5,10 +5,15 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path"
 	"strings"
+	"time"
 )
 
 type Options struct {
+	DatabaseURL          string
+	ImportLegacyJSON     bool
+	RequireSubscription  bool
 	DataFile             string
 	BestiaryCacheFile    string
 	ItemCatalogCacheFile string
@@ -21,6 +26,8 @@ type Options struct {
 }
 
 type server struct {
+	cloud      *cloudDatabase
+	assets     *cloudAssets
 	store      *campaignStore
 	bestiary   *bestiaryCatalog
 	items      *itemCatalog
@@ -49,7 +56,29 @@ type errorBody struct {
 }
 
 func NewServer(options Options) (http.Handler, error) {
-	store, err := newCampaignStore(options.DataFile)
+	var store *campaignStore
+	var cloud *cloudDatabase
+	var assets *cloudAssets
+	var err error
+	initialized := false
+	defer func() {
+		if !initialized && cloud != nil {
+			cloud.close()
+		}
+	}()
+	if options.DatabaseURL != "" {
+		cloud, err = openCloudDatabase(options.DatabaseURL)
+		if err != nil {
+			return nil, err
+		}
+		assets, err = newCloudAssets(cloud, options.UploadDir)
+		if err != nil {
+			return nil, err
+		}
+		store, err = loadCloudCampaignStore(cloud, assets, options)
+	} else {
+		store, err = newCampaignStore(options.DataFile)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -73,6 +102,12 @@ func NewServer(options Options) (http.Handler, error) {
 	if err != nil {
 		return nil, err
 	}
+	var tiles *tileCache
+	if assets != nil {
+		uploadHandler = assets.handler()
+		tiles = newTileCache(options.UploadDir, assets)
+		uploadHandler = tiles.handler(uploadHandler)
+	}
 
 	auth, err := newAuthManager(options.Auth, store)
 	if err != nil {
@@ -80,6 +115,8 @@ func NewServer(options Options) (http.Handler, error) {
 	}
 
 	srv := &server{
+		cloud:     cloud,
+		assets:    assets,
 		store:     store,
 		bestiary:  bestiary,
 		items:     items,
@@ -92,9 +129,10 @@ func NewServer(options Options) (http.Handler, error) {
 		proposals: newProposalService(store, options.UploadDir),
 		codex:     newCodexBridgeManager(options.Codex, auth),
 	}
+	srv.proposals.assets = assets
 	srv.surveys = newSurveyManager(store, options.PublicBaseURL)
 	srv.characters = newCharacterManager(store, options.PublicBaseURL)
-	srv.aiJobs, err = newAIJobManager(store.path + ".ai-jobs.json")
+	srv.aiJobs, err = newAIJobManagerWithCloud(store.path+".ai-jobs.json", cloud, options.ImportLegacyJSON)
 	if err != nil {
 		return nil, err
 	}
@@ -113,6 +151,10 @@ func NewServer(options Options) (http.Handler, error) {
 	mux.HandleFunc("/api/character-invites/", srv.characters.handlePublicInvite)
 	mux.HandleFunc("/api/character-sheets/", srv.characters.handlePublicSheet)
 	mux.HandleFunc("/api/auth/session", srv.auth.handleSession)
+	mux.HandleFunc("/api/auth/subscription", srv.handleSubscription)
+	mux.HandleFunc("/api/admin/subscriptions", srv.handleAdminSubscriptions)
+	mux.HandleFunc("/api/feedback", srv.handleFeedback)
+	mux.HandleFunc("/api/admin/feedback", srv.handleAdminFeedback)
 	mux.HandleFunc("/api/auth/login", srv.auth.handleLogin)
 	mux.HandleFunc("/api/auth/register", srv.auth.handleRegister)
 	mux.HandleFunc("/api/auth/logout", srv.auth.handleLogout)
@@ -135,7 +177,17 @@ func NewServer(options Options) (http.Handler, error) {
 		mux.Handle("/uploads/", uploadHandler)
 	}
 
+	initialized = true
+	if tiles != nil {
+		go tiles.run()
+	}
 	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if cloud != nil {
+			if err := cloud.check(); err != nil {
+				writeError(writer, 503, "storage_unavailable", "Хранилище временно недоступно.")
+				return
+			}
+		}
 		applyCORSHeaders(writer, request)
 		if request.Method == http.MethodOptions {
 			writer.WriteHeader(http.StatusNoContent)
@@ -149,6 +201,19 @@ func NewServer(options Options) (http.Handler, error) {
 			if _, ok := srv.auth.currentUser(request); !ok {
 				writeError(writer, http.StatusUnauthorized, "auth_required", "Нужен вход в кабинет мастера.")
 				return
+			}
+		}
+		if options.RequireSubscription && request.Method == http.MethodPost {
+			if requiresGenerationSubscription(path.Clean(request.URL.Path)) {
+				user, ok := srv.requireAuthUser(writer, request)
+				if !ok {
+					return
+				}
+				account, found := srv.store.getUserByID(user.ID)
+				if !found || !subscriptionActive(account.Subscription, time.Now()) {
+					writeError(writer, http.StatusPaymentRequired, "subscription_required", "Генерации доступны только с активной подпиской Shadow Edge GM.")
+					return
+				}
 			}
 		}
 		switch {
@@ -300,6 +365,8 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 	switch {
 	case len(segments) == 4 && segments[1] == "sessions" && segments[3] == "analysis":
 		srv.handleSessionAnalysis(writer, request, user.ID, campaignID, segments[2])
+	case len(segments) == 3 && segments[1] == "ai" && segments[2] == "chat":
+		srv.handleCampaignChat(writer, request, user, campaign)
 	case (len(segments) == 2 || len(segments) == 3) && segments[1] == "sessions":
 		id := ""
 		if len(segments) == 3 {
@@ -543,6 +610,14 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 		var input formatPlayerFacingCardInput
 		if err := readJSON(request, &input); err != nil {
 			writeError(writer, http.StatusBadRequest, "bad_request", err.Error())
+			return
+		}
+		if input.Mode != "" && input.Mode != "format" && input.Mode != "generate" && input.Mode != "format_markdown" {
+			writeError(writer, http.StatusBadRequest, "invalid_mode", "Unknown formatting mode")
+			return
+		}
+		if input.Mode == "format_markdown" && (strings.TrimSpace(input.Content) == "" || len([]rune(input.Content)) > 60000) {
+			writeError(writer, http.StatusBadRequest, "invalid_content", "Formatting requires 1-60000 characters")
 			return
 		}
 

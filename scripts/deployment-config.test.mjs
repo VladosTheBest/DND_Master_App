@@ -11,6 +11,8 @@ test("deployment image never embeds the development account store", async () => 
 
   assert.doesNotMatch(dockerfile, /COPY\s+data\/store\.json\b/i);
   assert.doesNotMatch(dockerfile, /seed-data\/store\.json/i);
+  assert.match(dockerfile, /ENV SHADOW_EDGE_IMAGE_OPTIMIZER=\/app\/scripts\/optimize-image\.mjs/);
+  assert.match(dockerfile, /COPY scripts\/optimize-image\.mjs \/app\/scripts\/optimize-image\.mjs/);
 });
 
 test("Docker build context excludes all runtime data and obsolete build output", async () => {

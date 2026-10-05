@@ -4,8 +4,10 @@ import type { AIJob } from "@shadow-edge/shared-types";
 import { api } from "../../app/api";
 import { isActiveJob, useAIJobs } from "./useAIJobs";
 import { AIJobProgress } from "./AIJobProgress";
+import { AIChat } from "./AIChat";
+import { Maximize2, Minimize2, X, MessageSquare } from "lucide-react";
 
-const labels: Record<string,string> = { title:"Название", name:"Имя", summary:"Кратко", content:"Описание", sceneText:"Сцена", notes:"Примечания", entity:"Запись", linkedDrafts:"Связанные записи", card:"Карточка", event:"Событие", message:"Ответ", warning:"Обрати внимание", createdEntities:"Участники боя", role:"Роль", note:"Заметка", subtitle:"Подзаголовок", tags:"Теги" };
+const labels: Record<string,string> = { answer:"Ответ", suggestions:"Предложения", title:"Название", name:"Имя", summary:"Кратко", content:"Описание", sceneText:"Сцена", notes:"Примечания", entity:"Запись", linkedDrafts:"Связанные записи", card:"Карточка", event:"Событие", message:"Ответ", warning:"Обрати внимание", createdEntities:"Участники боя", role:"Роль", note:"Заметка", subtitle:"Подзаголовок", tags:"Теги" };
 function resultText(value: unknown, depth = 0): string {
   if (depth > 8 || value == null) return "";
   if (typeof value === "string") return value;
@@ -14,8 +16,10 @@ function resultText(value: unknown, depth = 0): string {
   return "";
 }
 
-export function AIJobsPanel({ onOpenSession, onOpenProposal }: { onOpenSession: (job: AIJob) => void; onOpenProposal: (id: string) => void }) {
-  const { jobs, error, loading } = useAIJobs();
+export function AIJobsPanel({ campaignId, onOpenSession, onOpenProposal }: { campaignId?: string; onOpenSession: (job: AIJob) => void; onOpenProposal: (id: string) => void }) {
+  const { jobs, error, loading, refresh } = useAIJobs();
+  const [tab,setTab] = useState<"chat"|"jobs">("chat");
+  const [expanded,setExpanded] = useState(false);
   const [open,setOpen] = useState(false);
   const [detail,setDetail] = useState<AIJob|null>(null);
   const [detailError,setDetailError] = useState("");
@@ -42,10 +46,13 @@ export function AIJobsPanel({ onOpenSession, onOpenProposal }: { onOpenSession: 
   };
   return <>
     <button className={`ai-jobs-launcher ${active.length ? "working" : ""}`} onClick={() => setOpen(true)} type="button">
-      <span aria-hidden="true">✦</span>{active.length ? `AI работает · ${active.length}` : "Задачи AI"}{error ? " · !" : ""}
+      <MessageSquare size={17} aria-hidden="true"/>{active.length ? `AI работает · ${active.length}` : "AI-помощник"}{error ? " · !" : ""}
     </button>
-    {createPortal(<dialog className="panel ai-jobs-dialog" ref={dialog} onCancel={() => setOpen(false)} aria-label="Фоновые задачи AI">
-      {open && <><header><div><h2>Задачи AI</h2><p>Работают на сервере, даже когда страница закрыта.</p></div><button className="ghost" onClick={() => setOpen(false)}>Закрыть</button></header>
+    {createPortal(<dialog className={`panel ai-jobs-dialog ai-assistant ${expanded ? "expanded" : ""}`} ref={dialog} onCancel={() => setOpen(false)} aria-label="AI-помощник">
+      <><header><h2>AI-помощник</h2><div className="ai-assistant-tools"><button type="button" className="ghost" title={expanded ? "Свернуть" : "На весь экран"} aria-label={expanded ? "Свернуть" : "На весь экран"} onClick={()=>setExpanded(!expanded)}>{expanded ? <Minimize2 size={18}/> : <Maximize2 size={18}/>}</button><button type="button" className="ghost" title="Закрыть" aria-label="Закрыть AI-помощник" onClick={() => setOpen(false)}><X size={18}/></button></div></header>
+        <nav className="ai-assistant-tabs" aria-label="Разделы AI"><button type="button" aria-pressed={tab==="chat"} onClick={()=>setTab("chat")}>Чат</button><button type="button" aria-pressed={tab==="jobs"} onClick={()=>setTab("jobs")}>Задачи{active.length ? ` · ${active.length}` : ""}</button></nav>
+        <div className="ai-assistant-chat" hidden={tab!=="chat"}>{campaignId ? <AIChat key={campaignId} campaignId={campaignId} jobs={jobs} refreshJobs={()=>void refresh()}/> : <p>Открой кампанию, чтобы начать диалог.</p>}</div>
+        <div className="ai-assistant-job-list" hidden={tab!=="jobs"}>
         {error && <p role="alert">{error}</p>}{loading && <p role="status">Проверяю задачи…</p>}
         {!loading && !jobs.length && <p>Здесь появятся анализы сессий, изображения и другие генерации.</p>}
         {jobs.map(job => <article className="ai-job-card" key={job.id}>
@@ -62,7 +69,8 @@ export function AIJobsPanel({ onOpenSession, onOpenProposal }: { onOpenSession: 
         </article>)}
         {detailError && <p role="alert">{detailError}</p>}
         <small>История хранит до 50 недавних завершённых задач на аккаунт. Перезапуск сервера прерывает незавершённые задачи и отмечает их ошибкой.</small>
-      </>}
+        </div>
+      </>
     </dialog>, document.body)}
   </>;
 }

@@ -293,12 +293,13 @@ type combatRewardShare struct {
 }
 
 type userAccount struct {
-	OAuthIdentities []oauthIdentity `json:"oauthIdentities,omitempty"`
-	ID              string          `json:"id"`
-	Username        string          `json:"username"`
-	UsernameKey     string          `json:"usernameKey"`
-	PasswordHash    string          `json:"passwordHash"`
-	CreatedAt       string          `json:"createdAt"`
+	Subscription    *accountSubscription `json:"subscription,omitempty"`
+	OAuthIdentities []oauthIdentity      `json:"oauthIdentities,omitempty"`
+	ID              string               `json:"id"`
+	Username        string               `json:"username"`
+	UsernameKey     string               `json:"usernameKey"`
+	PasswordHash    string               `json:"passwordHash"`
+	CreatedAt       string               `json:"createdAt"`
 }
 
 type campaignData struct {
@@ -351,17 +352,20 @@ type searchResult struct {
 }
 
 type storageState struct {
-	ImportedSessions []importedSession      `json:"importedSessions,omitempty"`
-	AuthSecret       string                 `json:"authSecret,omitempty"`
-	Users            []userAccount          `json:"users,omitempty"`
-	Campaigns        []campaignData         `json:"campaigns"`
-	AIProposals      []aiProposal           `json:"aiProposals,omitempty"`
-	ProposalAudits   []proposalAudit        `json:"proposalAudits,omitempty"`
-	UpdatedAt        string                 `json:"updatedAt"`
-	SurveyInvites    []surveyInvite         `json:"surveyInvites,omitempty"`
-	SurveyResponses  []surveyResponse       `json:"surveyResponses,omitempty"`
-	CharacterInvites []characterInvite      `json:"characterInvites,omitempty"`
-	CharacterSheets  []storedCharacterSheet `json:"characterSheets,omitempty"`
+	AIChatTurns        []aiChatTurn           `json:"aiChatTurns,omitempty"`
+	Feedback           []feedbackEntry        `json:"feedback,omitempty"`
+	SubscriptionAudits []subscriptionAudit    `json:"subscriptionAudits,omitempty"`
+	ImportedSessions   []importedSession      `json:"importedSessions,omitempty"`
+	AuthSecret         string                 `json:"authSecret,omitempty"`
+	Users              []userAccount          `json:"users,omitempty"`
+	Campaigns          []campaignData         `json:"campaigns"`
+	AIProposals        []aiProposal           `json:"aiProposals,omitempty"`
+	ProposalAudits     []proposalAudit        `json:"proposalAudits,omitempty"`
+	UpdatedAt          string                 `json:"updatedAt"`
+	SurveyInvites      []surveyInvite         `json:"surveyInvites,omitempty"`
+	SurveyResponses    []surveyResponse       `json:"surveyResponses,omitempty"`
+	CharacterInvites   []characterInvite      `json:"characterInvites,omitempty"`
+	CharacterSheets    []storedCharacterSheet `json:"characterSheets,omitempty"`
 }
 
 type proposalSource struct {

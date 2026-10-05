@@ -595,6 +595,15 @@ func TestBuildCodexProposalPromptUsesTrustedMediaOnlyTarget(t *testing.T) {
 	}
 }
 
+func TestCodexImagePromptAllowsMetadataRepairWithoutRegeneration(t *testing.T) {
+	prompt := buildCodexImageProposalPrompt(codexPromptInput{CampaignID: "test", ImageTarget: &codexImageTarget{EntityID: "npc", EntityKind: "npc"}})
+	for _, required := range []string{`purpose="selected-entity-art"`, "maximum 100 characters", "SAME generated file", "SAME proposal", "get_proposal first"} {
+		if !strings.Contains(prompt, required) {
+			t.Fatalf("image prompt missing recovery constraint %q", required)
+		}
+	}
+}
+
 func TestCodexPromptHTTPValidatesImageTarget(t *testing.T) {
 	root := t.TempDir()
 	handler, err := NewServer(Options{DataFile: filepath.Join(root, "store.json"), UploadDir: filepath.Join(root, "uploads")})
@@ -740,6 +749,19 @@ func TestVerifiedCodexImagePromptFiltersTargetAndReportsMissingPreview(t *testin
 	result, ok = manager.verifiedCodexPromptResult(account.ID, campaign.ID, before, observation, target, "thread-missing", "turn-missing", "completed", "")
 	if !ok || len(result.ProposalIDs) != 1 || result.ProposalIDs[0] != missingPreview.ID || !strings.Contains(result.Warning, "не смог подготовить проверяемый предпросмотр") {
 		t.Fatalf("missing-preview result=%+v ok=%v", result, ok)
+	}
+	manager.auth.store.mu.RLock()
+	var savedWarning bool
+	for _, stored := range manager.auth.store.data.AIProposals {
+		if stored.ID == missingPreview.ID {
+			for _, warning := range stored.Warnings {
+				savedWarning = savedWarning || strings.Contains(warning, "не смог подготовить проверяемый предпросмотр")
+			}
+		}
+	}
+	manager.auth.store.mu.RUnlock()
+	if !savedWarning {
+		t.Fatal("missing image warning must remain on the stored proposal")
 	}
 
 	before = manager.codexProposalIDs(account.ID, campaign.ID)

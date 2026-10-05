@@ -15,6 +15,8 @@ primary_region = 'ams'
   SHADOW_EDGE_BESTIARY_CACHE_FILE = '/data/dndsu-bestiary.json'
   SHADOW_EDGE_DATA_FILE = '/data/store.json'
   SHADOW_EDGE_WEB_DIR = '/app/apps/web/dist'
+  SHADOW_EDGE_STORAGE_MODE = 'postgres'
+  SHADOW_EDGE_IMPORT_LEGACY_JSON = 'false'
 
 [[mounts]]
   source = 'shadow_edge_data'
@@ -32,7 +34,7 @@ primary_region = 'ams'
   [[http_service.checks]]
     interval = '30s'
     timeout = '5s'
-    grace_period = '20s'
+    grace_period = '60s'
     method = 'GET'
     path = '/healthz'
 

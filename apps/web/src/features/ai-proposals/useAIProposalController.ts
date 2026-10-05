@@ -93,6 +93,7 @@ export function useAIProposalController({
       if (!silent) setLoading(true);
       const next = await api.listAIProposals({ status: "pending" });
       setProposals(next);
+      setSelectedProposal((current) => current?.status === "pending" ? next.find((item) => item.id === current.id) ?? current : current);
       if (!silent) setError("");
       return next;
     } catch (nextError) {

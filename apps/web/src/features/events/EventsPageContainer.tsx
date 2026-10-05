@@ -254,6 +254,7 @@ export function EventsPageContainer({
           )
         }))
       }
+      campaignId={activeCampaignId}
       onCreateEvent={startNewWorldEvent}
       onDelete={() => void removeWorldEvent()}
       onDraftChange={updateWorldEventDraft}

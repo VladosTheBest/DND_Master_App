@@ -165,6 +165,9 @@ func (srv *server) handleCampaignUpload(writer http.ResponseWriter, request *htt
 		return
 	}
 
+	if request.MultipartForm != nil {
+		defer request.MultipartForm.RemoveAll()
+	}
 	file, header, err := request.FormFile("file")
 	if err != nil {
 		writeError(writer, http.StatusBadRequest, "missing_file", "Выбери изображение или видео перед загрузкой.")
@@ -233,6 +236,8 @@ func (srv *server) handleCampaignUpload(writer http.ResponseWriter, request *htt
 		}
 	}
 
+	filePath, contentType, size = optimizeUploadedImage(request.Context(), filePath, contentType, size)
+	fileName = filepath.Base(filePath)
 	publicPath := path.Join("/uploads", userSegment, campaignSegment, fileName)
 	baseURL := strings.TrimRight(publicBaseURLFromRequest(request), "/")
 	if baseURL != "" {
@@ -243,9 +248,15 @@ func (srv *server) handleCampaignUpload(writer http.ResponseWriter, request *htt
 		}
 	}
 
+	if srv.assets != nil {
+		if err := srv.assets.publishUpload(request.Context(), filePath); err != nil {
+			writeError(writer, http.StatusServiceUnavailable, "cloud_upload_failed", "Could not persist upload")
+			return
+		}
+	}
 	writeJSON(writer, http.StatusCreated, uploadImageResult{
 		URL:         publicPath,
-		FileName:    fallbackUploadFileName(header, fileName),
+		FileName:    optimizedUploadFileName(fallbackUploadFileName(header, fileName), contentType),
 		ContentType: contentType,
 		Size:        size,
 		DeepZoom:    deepZoom,
@@ -321,6 +332,8 @@ func (srv *server) handleUniversalVTTUpload(writer http.ResponseWriter, request 
 		start, end := normalize(portal.Bounds[0]), normalize(portal.Bounds[len(portal.Bounds)-1])
 		walls = append(walls, vttWall{ID: fmt.Sprintf("vtt-door-%d", index+1), Kind: "door", Start: start, End: end, Points: []vttPoint{start, end}, Disabled: !portal.Closed})
 	}
+	filePath, contentType, size := optimizeUploadedImage(request.Context(), filePath, "image/jpeg", int64(len(imageBytes)))
+	fileName = filepath.Base(filePath)
 	publicPath := path.Join("/uploads", userSegment, campaignSegment, fileName)
 	baseURL := strings.TrimRight(publicBaseURLFromRequest(request), "/")
 	if baseURL != "" {
@@ -330,7 +343,13 @@ func (srv *server) handleUniversalVTTUpload(writer http.ResponseWriter, request 
 			deepZoom.TileBaseURL = baseURL + deepZoom.TileBaseURL
 		}
 	}
-	writeJSON(writer, http.StatusCreated, uploadImageResult{URL: publicPath, FileName: fallbackUploadFileName(header, fileName), ContentType: "image/jpeg", Size: int64(len(imageBytes)), DeepZoom: deepZoom, VTT: &vttImportResult{Walls: walls, GridSize: 1 / source.Resolution.MapSize.X, MapWidth: int(source.Resolution.MapSize.X), MapHeight: int(source.Resolution.MapSize.Y), PortalCount: len(source.Portals), LightCount: len(source.Lights), BakedLighting: source.Environment.BakedLighting}})
+	if srv.assets != nil {
+		if err := srv.assets.publishUpload(request.Context(), filePath); err != nil {
+			writeError(writer, http.StatusServiceUnavailable, "cloud_upload_failed", "Could not persist upload")
+			return
+		}
+	}
+	writeJSON(writer, http.StatusCreated, uploadImageResult{URL: publicPath, FileName: optimizedUploadFileName(fallbackUploadFileName(header, fileName), contentType), ContentType: contentType, Size: size, DeepZoom: deepZoom, VTT: &vttImportResult{Walls: walls, GridSize: 1 / source.Resolution.MapSize.X, MapWidth: int(source.Resolution.MapSize.X), MapHeight: int(source.Resolution.MapSize.Y), PortalCount: len(source.Portals), LightCount: len(source.Lights), BakedLighting: source.Environment.BakedLighting}})
 }
 
 type deepZoomWorkerResult struct {
@@ -341,9 +360,21 @@ type deepZoomWorkerResult struct {
 	MaxLevel int    `json:"maxLevel"`
 }
 
+var deepZoomWorkerSlot = make(chan struct{}, 1)
+
 func generateDeepZoom(parent context.Context, input, output string) (*deepZoomWorkerResult, error) {
+	return generateDeepZoomOptions(parent, input, output, "webp", 512, 0)
+}
+
+func generateDeepZoomOptions(parent context.Context, input, output, format string, size, overlap int) (*deepZoomWorkerResult, error) {
 	ctx, cancel := context.WithTimeout(parent, 10*time.Minute)
 	defer cancel()
+	select {
+	case deepZoomWorkerSlot <- struct{}{}:
+		defer func() { <-deepZoomWorkerSlot }()
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 	worker := strings.TrimSpace(os.Getenv("SHADOW_EDGE_DEEP_ZOOM_WORKER"))
 	if worker == "" {
 		worker = filepath.Join("scripts", "generate-deep-zoom.mjs")
@@ -352,7 +383,7 @@ func generateDeepZoom(parent context.Context, input, output string) (*deepZoomWo
 	if node == "" {
 		node = "node"
 	}
-	cmd := exec.CommandContext(ctx, node, worker, input, output)
+	cmd := exec.CommandContext(ctx, node, worker, input, output, format, fmt.Sprint(size), fmt.Sprint(overlap))
 	stdout, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("generate deep zoom: %w", err)

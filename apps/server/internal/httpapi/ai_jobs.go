@@ -37,6 +37,7 @@ type storedAIJob struct {
 }
 
 type aiJobManager struct {
+	cloud *cloudDatabase
 	mu    sync.Mutex
 	path  string
 	jobs  map[string]*storedAIJob
@@ -46,8 +47,36 @@ type aiJobManager struct {
 func activeAIJob(job aiJob) bool { return job.State == "queued" || job.State == "running" }
 
 func newAIJobManager(path string) (*aiJobManager, error) {
-	m := &aiJobManager{path: path, jobs: make(map[string]*storedAIJob), slots: make(chan struct{}, 4)}
-	data, err := os.ReadFile(path)
+	return newAIJobManagerWithCloud(path, nil, false)
+}
+
+func newAIJobManagerWithCloud(path string, cloud *cloudDatabase, allowImport bool) (*aiJobManager, error) {
+	m := &aiJobManager{cloud: cloud, path: path, jobs: make(map[string]*storedAIJob), slots: make(chan struct{}, 4)}
+	var data []byte
+	var err error
+	if cloud != nil {
+		_, records, exists, readErr := cloud.readGroup("jobs", []string{"ai_jobs"})
+		if readErr != nil {
+			return nil, readErr
+		}
+		if exists {
+			items := []json.RawMessage{}
+			for _, record := range records {
+				items = append(items, record.Body)
+			}
+			data, err = json.Marshal(items)
+		} else if allowImport {
+			data, err = os.ReadFile(path)
+			if os.IsNotExist(err) {
+				data = []byte(`[]`)
+				err = nil
+			}
+		} else {
+			return nil, fmt.Errorf("AI job migration has not been completed")
+		}
+	} else {
+		data, err = os.ReadFile(path)
+	}
 	if os.IsNotExist(err) {
 		return m, nil
 	}
@@ -55,12 +84,20 @@ func newAIJobManager(path string) (*aiJobManager, error) {
 		return nil, err
 	}
 	var jobs []*storedAIJob
-	if err := json.Unmarshal(data, &jobs); err != nil {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&jobs); err != nil {
 		return nil, fmt.Errorf("read AI task storage: %w", err)
+	}
+	if err := decoder.Decode(new(any)); err != io.EOF {
+		return nil, fmt.Errorf("trailing data in AI task storage")
 	}
 	for _, job := range jobs {
 		if job == nil {
-			continue
+			return nil, fmt.Errorf("null AI task in storage")
+		}
+		if job.ID == "" || m.jobs[job.ID] != nil {
+			return nil, fmt.Errorf("missing or duplicate AI task ID")
 		}
 		if activeAIJob(job.aiJob) {
 			now := time.Now().UTC()
@@ -70,7 +107,25 @@ func newAIJobManager(path string) (*aiJobManager, error) {
 		}
 		m.jobs[job.ID] = job
 	}
-	return m, m.saveLocked()
+	if err := m.saveLocked(); err != nil {
+		return nil, err
+	}
+	if cloud != nil {
+		_, records, _, err := cloud.readGroup("jobs", []string{"ai_jobs"})
+		if err != nil {
+			return nil, err
+		}
+		if len(records) != len(m.jobs) {
+			return nil, fmt.Errorf("AI task count verification failed")
+		}
+		for _, record := range records {
+			body, _ := json.Marshal(m.jobs[record.ID])
+			if cloudJSONDigest(body) != cloudJSONDigest(record.Body) {
+				return nil, fmt.Errorf("AI task content verification failed")
+			}
+		}
+	}
+	return m, nil
 }
 
 func jobFailure(code, message string) json.RawMessage {
@@ -82,6 +137,18 @@ func (m *aiJobManager) saveLocked() error {
 	jobs := make([]*storedAIJob, 0, len(m.jobs))
 	for _, job := range m.jobs {
 		jobs = append(jobs, job)
+	}
+	if m.cloud != nil {
+		sort.Slice(jobs, func(i, j int) bool { return jobs[i].ID < jobs[j].ID })
+		records := make([]cloudRecord, 0, len(jobs))
+		for index, job := range jobs {
+			body, err := json.Marshal(job)
+			if err != nil {
+				return err
+			}
+			records = append(records, cloudRecord{"ai_jobs", job.ID, job.ID, "", job.Kind, index, body})
+		}
+		return m.cloud.writeGroup("jobs", json.RawMessage(`{"version":1}`), records, []string{"ai_jobs"})
 	}
 	data, err := json.Marshal(jobs)
 	if err != nil {
@@ -247,6 +314,8 @@ func backgroundGenerationRoute(path string) (kind, campaign string) {
 		kind = "event"
 	case "ai/player-facing/format":
 		kind = "card"
+	case "ai/chat":
+		kind = "chat"
 	case "combat/generate":
 		kind = "combat"
 	}
@@ -293,6 +362,9 @@ func (srv *server) queueAIGeneration(w http.ResponseWriter, r *http.Request, nex
 	title := map[string]string{"codex": "AI-черновики", "campaign": "Новая кампания", "entity": "Генерация записи", "event": "Генерация события", "card": "Карточка для игроков", "combat": "Генерация боя"}[kind]
 	if kind == "codex" && input.IncludeImages {
 		kind, title = "image", "Генерация изображений"
+	}
+	if kind == "chat" {
+		title = "Ответ AI в чате"
 	}
 	if r.URL.Path == "/api/ai/codex/prompts" && input.SessionID != "" {
 		session, exists := srv.store.sessionForOwner(user.ID, campaign, input.SessionID)

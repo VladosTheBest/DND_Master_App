@@ -1,5 +1,6 @@
 import type { AIProposal, CampaignData, KnowledgeEntity, WorldEvent, WorldEventInput } from "@shadow-edge/shared-types";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ImageIcon, AlertTriangle, FileText } from "lucide-react";
 import { EventSceneCard } from "../../notes-events";
 import { CampaignDashboard } from "../campaigns/CampaignDashboard";
 import type { AIProposalController } from "./useAIProposalController";
@@ -22,6 +23,7 @@ import {
   proposalStatusLabels,
   proposalTitle
 } from "./aiProposal.utils";
+import { proposalChangeCount } from "./aiProposal.utils";
 import { CodexConnectionPanel } from "./CodexConnectionPanel";
 import "./ai-proposals.css";
 
@@ -129,7 +131,7 @@ function AIProposalInbox({ controller, campaignId }: { controller: AIProposalCon
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState("all");
-  const [allCampaigns, setAllCampaigns] = useState(false);
+  const [allCampaigns, setAllCampaigns] = useState(true);
   const scoped = controller.proposals.filter((proposal) => allCampaigns || !campaignId || (proposal.campaignId || proposal.target.campaignId) === campaignId || proposal.kind === "campaign_create");
   const visible = scoped.filter((proposal) => (kind === "all" || proposal.kind.startsWith(kind)) && `${proposalTitle(proposal)} ${proposal.prompt}`.toLowerCase().includes(query.trim().toLowerCase()));
   useEffect(() => {
@@ -139,7 +141,11 @@ function AIProposalInbox({ controller, campaignId }: { controller: AIProposalCon
   }, [controller.codexPromptOutcome, controller.inboxOpen, controller.setCodexPromptOutcome]);
 
   useEffect(() => {
-    if (controller.inboxOpen) window.requestAnimationFrame(() => closeButtonRef.current?.focus());
+    if (controller.inboxOpen) {
+      setQuery("");
+      setKind("all");
+      window.requestAnimationFrame(() => closeButtonRef.current?.focus());
+    }
   }, [controller.inboxOpen]);
 
   return (
@@ -178,6 +184,8 @@ function AIProposalInbox({ controller, campaignId }: { controller: AIProposalCon
 
         {controller.error ? <div className="ai-proposal-alert danger">{controller.error}</div> : null}
 
+        <details className="ai-proposal-compose">
+        <summary>Новый запрос к AI</summary>
         <CodexConnectionPanel
           campaignId={campaignId}
           onPromptOutcome={controller.setCodexPromptOutcome}
@@ -190,13 +198,14 @@ function AIProposalInbox({ controller, campaignId }: { controller: AIProposalCon
             if (!hasWarning && proposalIds[0]) void controller.openProposal(proposalIds[0]);
           }}
         />
+        </details>
 
         <div className="ai-proposal-inbox-toolbar">
           <label className="field"><span>Поиск черновика</span><input className="input" placeholder="Название или запрос…" value={query} onChange={(event) => setQuery(event.target.value)} /></label>
           <label className="field"><span>Содержимое</span><select className="input" value={kind} onChange={(event) => setKind(event.target.value)}><option value="all">Все типы</option><option value="entity">Карточки и изображения</option><option value="event">События</option><option value="campaign">Кампании</option></select></label>
           <label className="ai-proposal-scope"><input type="checkbox" checked={allCampaigns} onChange={(event) => setAllCampaigns(event.target.checked)} />Все кампании</label>
         </div>
-        <div className="ai-proposal-list-count">На проверке: {scoped.length}{visible.length !== scoped.length ? ` · найдено ${visible.length}` : ""}</div>
+        <div className="ai-proposal-list-count">Готовы: {scoped.filter((item) => proposalChangeCount(item) > 0).length} · Без готовых изменений: {scoped.filter((item) => proposalChangeCount(item) === 0).length}{visible.length !== scoped.length ? ` · найдено ${visible.length}` : ""}</div>
         <div className="ai-proposal-inbox-list">
           {visible.length ? visible.map((proposal) => (
             <button
@@ -205,15 +214,19 @@ function AIProposalInbox({ controller, campaignId }: { controller: AIProposalCon
               onClick={() => void controller.openProposal(proposal)}
               type="button"
             >
-              <span className="ai-proposal-inbox-mark">✦</span>
+              <span className="ai-proposal-inbox-mark">
+                {proposal.mediaIntents.find((item) => item.status === "staged" && item.previewUrl)?.previewUrl
+                  ? <img alt="" src={proposal.mediaIntents.find((item) => item.status === "staged" && item.previewUrl)!.previewUrl} />
+                  : proposalChangeCount(proposal) === 0 ? <AlertTriangle size={20} /> : proposal.mediaIntents.length ? <ImageIcon size={20} /> : <FileText size={20} />}
+              </span>
               <span className="ai-proposal-inbox-copy">
                 <small>{proposalKindLabels[proposal.kind]} · {proposalSourceLabel(proposal.source)}</small>
                 <strong>{proposalTitle(proposal)}</strong>
                 <span>{proposal.prompt}</span>
               </span>
               <span className="ai-proposal-inbox-meta">
-                <b>{proposal.diff.length || proposal.operations.length}</b>
-                <small>изменений</small>
+                <b>{proposalChangeCount(proposal) || "Нет результата"}</b>
+                <small>{proposalChangeCount(proposal) ? "изменений" : "Требует внимания"}</small>
                 <time>{formatProposalDate(proposal.createdAt)}</time>
               </span>
             </button>
@@ -226,8 +239,9 @@ function AIProposalInbox({ controller, campaignId }: { controller: AIProposalCon
           ) : (
             <div className="ai-proposal-empty">
               <span>✓</span>
-              <strong>{scoped.length ? "Ничего не найдено" : "Все черновики разобраны"}</strong>
-              <p>{scoped.length ? "Попробуй другой запрос или тип." : "Здесь появятся подготовленные AI изменения. Можно создать их через панель Codex выше."}</p>
+              <strong>{scoped.length ? "Ничего не найдено" : controller.proposals.length ? "В этой кампании нет черновиков" : "Нет черновиков на проверке"}</strong>
+              <p>{scoped.length ? "Попробуй другой запрос или тип." : controller.proposals.length ? `В других кампаниях: ${controller.proposals.length}.` : "Новые результаты появятся здесь после сохранения."}</p>
+              {query || kind !== "all" || !allCampaigns ? <button className="ghost" type="button" onClick={() => { setQuery(""); setKind("all"); setAllCampaigns(true); }}>Показать все черновики</button> : null}
             </div>
           )}
         </div>
@@ -539,6 +553,7 @@ function AIProposalReviewModal({ controller, renderEntity }: AIProposalCenterPro
             <details className="ai-proposal-original-request"><summary>Исходный запрос</summary><p>{proposal.prompt}</p></details>
           </div>
           <button autoFocus className="ghost" disabled={Boolean(controller.action)} onClick={controller.closeProposal} type="button">К списку черновиков</button>
+          <button className="ghost" disabled={controller.loading || Boolean(controller.action)} onClick={() => void controller.openProposal(proposal.id)} type="button">{controller.loading ? "Обновляю…" : "Обновить"}</button>
         </header>
 
         <div className="ai-proposal-review-tabs" role="tablist">
@@ -549,7 +564,7 @@ function AIProposalReviewModal({ controller, renderEntity }: AIProposalCenterPro
 
         <div className="ai-proposal-review-scroll">
           {proposal.warnings.length ? (
-            <details className="ai-proposal-warning-list">
+            <details className="ai-proposal-warning-list" open={emptyEntityUpdate || undefined}>
               <summary>Замечания к черновику · {proposal.warnings.length}</summary>
               {proposal.warnings.map((warning, index) => <div key={`${warning}-${index}`}>{warning}</div>)}
             </details>
@@ -559,7 +574,7 @@ function AIProposalReviewModal({ controller, renderEntity }: AIProposalCenterPro
           {emptyEntityUpdate ? (
             <div className="ai-proposal-alert danger">
               <strong>В этом черновике нечего применять</strong>
-              <span>AI не подготовил изменений для этой карточки. Можно отклонить черновик и уточнить запрос.</span>
+              <span>Изображение или изменения ещё не прикреплены. Если задача завершилась, проверь её результат в «Задачах AI»: там сохранена причина сбоя. Текущая карточка не изменена.</span>
             </div>
           ) : null}
           {isApplied ? <div className="ai-proposal-alert success"><strong>Изменения сохранены</strong><span>Карточка обновлена. При необходимости можно отменить применение.</span></div> : null}

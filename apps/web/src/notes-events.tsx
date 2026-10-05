@@ -27,6 +27,8 @@ import {
   worldEventTypeTones
 } from "./app-shared";
 import "./features/events/events.css";
+import { FormattedText } from "./features/formatting/FormattedText";
+import { AIFormatButton } from "./features/formatting/AIFormatButton";
 
 type LoreNoteEntity = Extract<KnowledgeEntity, { kind: "lore" }>;
 
@@ -34,16 +36,17 @@ export function EventSceneCard({ event, onOpenLocation }: { event: WorldEventInp
   const loot = (event.loot ?? []).filter((value) => value.trim());
   const branches = (event.dialogueBranches ?? []).filter((branch) => branch.lines?.some((line) => line.trim()) || branch.outcome?.trim());
   return <article className="event-scene-card">
-    <div className="event-scene-meta"><span className={badge(worldEventTypeTones[event.type])}>{worldEventTypeLabels[event.type]}</span>{event.date ? <span>{event.date}</span> : null}{event.locationLabel ? <button className="ghost" disabled={!onOpenLocation || !event.locationId} onClick={() => event.locationId && onOpenLocation?.(event.locationId)} type="button">{event.locationLabel}</button> : null}</div>
+    <div className="event-scene-meta"><span className={badge(worldEventTypeTones[event.type])}>{worldEventTypeLabels[event.type]}</span>{event.date ? <span>{event.date}</span> : null}{event.locationLabel ? onOpenLocation && event.locationId ? <button className="ghost" onClick={() => onOpenLocation(event.locationId!)} type="button">{event.locationLabel}</button> : <span>{event.locationLabel}</span> : null}</div>
     <h2>{event.title.trim() || "Новая сцена"}</h2>
     {event.summary ? <p className="event-scene-summary">{event.summary}</p> : null}
-    <section className="event-read-aloud"><p className="eyebrow">{event.tags?.includes("gm-event") ? "Только для мастера · Краткий экскурс" : "Сцена за столом"}</p><div>{event.sceneText || "Текст сцены пока не добавлен."}</div></section>
-    {branches.length ? <section className="event-outcomes"><h3>Варианты развития</h3>{branches.map((branch, index) => <details key={index} open={index === 0}><summary>{branch.title || `Вариант ${index + 1}`}</summary>{branch.lines?.length ? <ul>{branch.lines.filter(Boolean).map((line, lineIndex) => <li key={lineIndex}>{line}</li>)}</ul> : null}{branch.outcome ? <p><strong>Результат: </strong>{branch.outcome}</p> : null}</details>)}</section> : null}
-    {loot.length ? <section className="event-rewards"><h3>{event.tags?.includes("gm-event") ? "Что могут получить игроки" : "Награды и находки"}</h3><ul>{loot.map((item, index) => <li key={index}>{item}</li>)}</ul></section> : null}
+    <section className="event-read-aloud"><p className="eyebrow">{event.tags?.includes("gm-event") ? "Только для мастера · Краткий экскурс" : "Сцена за столом"}</p><FormattedText content={event.sceneText || "Текст сцены пока не добавлен."} /></section>
+    {branches.length ? <section className="event-outcomes formatted-text"><h3>Варианты развития</h3><div className="formatted-table-scroll" tabIndex={0} role="region" aria-label="Варианты развития"><table><thead><tr><th>Действие игроков</th><th>Проверки и реакции</th><th>Последствия</th></tr></thead><tbody>{branches.map((branch, index) => <tr key={index}><th scope="row">{branch.title || `Вариант ${index + 1}`}</th><td><FormattedText content={branch.lines?.filter(Boolean).join("\n\n") || "—"} /></td><td><FormattedText content={branch.outcome || "—"} /></td></tr>)}</tbody></table></div></section> : null}
+    {loot.length ? <section className="event-rewards"><h3>{event.tags?.includes("gm-event") ? "Что могут получить игроки" : "Награды и находки"}</h3><ul>{loot.map((item, index) => <li key={index}><FormattedText content={item} /></li>)}</ul></section> : null}
   </article>;
 }
 
 export function EventsWorkspace({
+  campaignId,
   events,
   locations,
   searchQuery,
@@ -71,6 +74,7 @@ export function EventsWorkspace({
   readOnly = false,
   dirty = false
 }: {
+  campaignId?: string;
   events: WorldEvent[];
   locations: LocationEntity[];
   searchQuery: string;
@@ -223,8 +227,9 @@ export function EventsWorkspace({
               {editing ? <small className="copy">{selectedLocation ? `Место действия: ${selectedLocation.title}.` : "Место действия можно указать ниже."}</small> : null}
             </div>
             {!readOnly ? <div className="actions event-editor-actions">
+              {campaignId ? <AIFormatButton campaignId={campaignId} sourceId={draftId} title={draft.title} content={draft.sceneText} disabled={saving || generating} onApply={(sceneText) => { onDraftChange((current) => ({ ...current, sceneText })); setEditing(false); }} /> : null}
               <small className={dirty ? "event-unsaved" : "copy"}>{dirty ? "Есть несохранённые изменения" : isDraft ? "Новая сцена" : "Сохранено"}</small>
-              {!isDraft ? <button className="ghost" onClick={() => setEditing((current) => !current)} type="button">{editing ? "Просмотреть" : "Редактировать"}</button> : null}
+              <button className="ghost" onClick={() => setEditing((current) => !current)} type="button">{editing ? "Просмотреть" : "Редактировать"}</button>
               {(editing || dirty) ? <button className="primary" disabled={saving || generating || (!dirty && !isDraft)} onClick={onSave} type="button">{saving ? "Сохраняю…" : "Сохранить событие"}</button> : null}
             </div> : null}
           </div>
@@ -431,6 +436,9 @@ export function EventsWorkspace({
 }
 
 export function NotesWorkspace({
+  entityByTitle,
+  campaignId,
+  dirty = false,
   notes,
   searchQuery,
   selectedNoteId,
@@ -452,6 +460,9 @@ export function NotesWorkspace({
   onContentContextMenu,
   editorRef
 }: {
+  entityByTitle?: Map<string, KnowledgeEntity>;
+  campaignId?: string;
+  dirty?: boolean;
   notes: LoreNoteEntity[];
   searchQuery: string;
   selectedNoteId: string;
@@ -481,6 +492,8 @@ export function NotesWorkspace({
   const selectedNote = notes.find((note) => note.id === selectedNoteId) ?? null;
   const editorTitle = resolveLoreNoteTitle(draftTitle, draftContent);
   const canSave = Boolean(draftTitle.trim() || draftContent.trim());
+  const [editing, setEditing] = useState(editingNewNote);
+  useEffect(() => { setEditing(draftId === NEW_LORE_NOTE_ID); }, [draftId]);
 
   return (
     <div className="notes-workspace">
@@ -497,11 +510,12 @@ export function NotesWorkspace({
             Новая заметка
           </button>
           {onEditWithAI && selectedNote ? (
-            <button className="ghost ai-edit-button" disabled={saving} onClick={() => onEditWithAI(selectedNote)} type="button">
+            <button className="ghost ai-edit-button" disabled={saving || dirty} title={dirty ? "Сначала сохрани изменения" : undefined} onClick={() => onEditWithAI(selectedNote)} type="button">
               Изменить с AI
             </button>
           ) : null}
-          <button className="primary" disabled={saving || !canSave} onClick={onSave} type="button">
+          {campaignId ? <AIFormatButton campaignId={campaignId} sourceId={draftId} title={draftTitle} content={draftContent} disabled={saving} onApply={(text) => { onContentChange(text); setEditing(false); }} /> : null}
+          <button className="primary" disabled={saving || !canSave || (!dirty && !editingNewNote)} onClick={onSave} type="button">
             {saving ? "Сохраняю..." : "Сохранить"}
           </button>
         </div>
@@ -526,13 +540,13 @@ export function NotesWorkspace({
 
           <div className="notes-list">
             {editingNewNote ? (
-              <button aria-pressed className="notes-list-item selected unsaved" onClick={onCreateNote} type="button">
+              <div className="notes-list-item selected unsaved">
                 <span className="notes-list-item-copy">
                   <strong>{editorTitle}</strong>
                   <small>Черновик</small>
                   <p>{draftContent.trim() ? truncateInlineText(draftContent.replace(/\s+/g, " ").trim(), 90) : "Новая пустая заметка."}</p>
                 </span>
-              </button>
+              </div>
             ) : null}
 
             {filteredNotes.length ? (
@@ -568,11 +582,10 @@ export function NotesWorkspace({
             <div className="stack compact">
               <strong>{editorTitle}</strong>
             </div>
-            {selectedNote && !editingNewNote ? (
-              <button className="ghost" onClick={() => onOpenPreview(selectedNote.id)} type="button">
-                Быстрый просмотр
-              </button>
-            ) : null}
+            <div className="notes-view-tabs" aria-label="Режим заметки">
+              <button className="ghost" aria-pressed={!editing} onClick={() => setEditing(false)} type="button">Просмотр</button>
+              <button className="ghost" aria-pressed={editing} onClick={() => setEditing(true)} type="button">Редактор</button>
+            </div>
           </div>
 
           {notice ? (
@@ -586,6 +599,7 @@ export function NotesWorkspace({
             </div>
           ) : null}
 
+          {!editing ? <div className="notes-formatted-preview"><FormattedText content={draftContent || "Заметка пока пуста."} entityByTitle={entityByTitle} onMentionClick={onOpenPreview} /></div> : <>
           <label className="field field-full">
             <span>Название</span>
             <input
@@ -600,6 +614,7 @@ export function NotesWorkspace({
             <span>Текст заметки</span>
             <textarea
               className="input textarea notes-editor-textarea"
+              aria-label="Текст заметки"
               onContextMenu={onContentContextMenu}
               onChange={(event) => onContentChange(event.target.value)}
               placeholder="Что нужно помнить мастеру?"
@@ -607,6 +622,7 @@ export function NotesWorkspace({
               value={draftContent}
             />
           </label>
+          </>}
         </section>
       </div>
     </div>

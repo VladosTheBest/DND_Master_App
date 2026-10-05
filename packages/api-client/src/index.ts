@@ -116,6 +116,9 @@ const ensureJson = async <T>(response: Response): Promise<T> => {
   }
 
   if (!response.ok) {
+    if (payload?.error?.code === "subscription_required" && typeof window !== "undefined") {
+      window.dispatchEvent(new Event("shadow-edge:subscription-required"));
+    }
     throw new ApiError(payload?.error?.message ?? `Request failed with status ${response.status}`, response.status, payload?.error?.code);
   }
 

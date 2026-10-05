@@ -13,6 +13,13 @@ import type {
 } from "@shadow-edge/shared-types";
 
 const entityKinds = new Set<EntityKind>(["location", "player", "npc", "monster", "quest", "lore"]);
+
+export const proposalChangeCount = (proposal: AIProposal): number => {
+  const media = proposal.mediaIntents.filter((item) => item.status === "staged" && item.previewUrl);
+  const changes = proposal.diff.filter((item) => item.path !== "/revision" && item.path !== "revision"
+    && !media.some((image) => item.path.replace(/^\//, "").replaceAll("/", ".") === image.field));
+  return changes.length + media.length || (proposal.kind.endsWith("create") ? proposal.operations.length : 0);
+};
 const worldEventTypes = new Set<WorldEventType>(["funny", "combat", "heist", "social", "oddity", "danger"]);
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>

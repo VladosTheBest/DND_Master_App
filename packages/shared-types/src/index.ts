@@ -899,7 +899,7 @@ export interface FormatPlayerFacingCardInput {
   contentHtml?: string;
   entityId?: string;
   entityKind?: EntityKind;
-  mode?: "format" | "generate";
+  mode?: "format" | "generate" | "format_markdown";
   prompt?: string;
   targetLength?: number;
 }

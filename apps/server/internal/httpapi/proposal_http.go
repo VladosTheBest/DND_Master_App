@@ -357,6 +357,8 @@ func (srv *server) handleProposalMediaUpload(writer http.ResponseWriter, request
 		writeError(writer, http.StatusBadRequest, "upload_write_failed", "Could not store proposal media")
 		return
 	}
+	filePath, contentType, size = optimizeUploadedImage(request.Context(), filePath, contentType, size)
+	fileName = filepath.Base(filePath)
 	alt := strings.TrimSpace(request.FormValue("alt"))
 	if alt == "" && header != nil {
 		alt = strings.TrimSpace(header.Filename)
@@ -366,6 +368,12 @@ func (srv *server) handleProposalMediaUpload(writer http.ResponseWriter, request
 		Field: request.FormValue("field"), Prompt: request.FormValue("prompt"), Alt: alt, Caption: request.FormValue("caption"),
 		PreviewURL:  proposalPreviewPath(proposalID, fileName),
 		ContentType: contentType, Size: size, Status: "staged",
+	}
+	if srv.assets != nil {
+		if err := srv.assets.putFile(request.Context(), filePath, proposalObjectKey(ownerID, proposalID, fileName), false); err != nil {
+			writeError(writer, http.StatusServiceUnavailable, "cloud_upload_failed", "Could not persist proposal media")
+			return
+		}
 	}
 	result, err := srv.proposals.registerStagedMedia(ownerID, proposalID, intent)
 	if err != nil {
@@ -402,6 +410,10 @@ func (srv *server) handleProposalMediaPreview(writer http.ResponseWriter, reques
 	}
 	if media == nil {
 		writeError(writer, http.StatusNotFound, "not_found", "Proposal media not found")
+		return
+	}
+	if srv.assets != nil {
+		srv.assets.serve(writer, request, proposalObjectKey(ownerID, proposalID, fileName), true)
 		return
 	}
 	file, err := os.Open(filepath.Join(srv.proposals.proposalStagingDir(ownerID, proposalID), fileName))

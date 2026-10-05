@@ -1,4 +1,6 @@
 import { ActionMenu } from "./ActionMenu";
+import { SubscriptionButton } from "./SubscriptionDialog";
+import { FeedbackButton } from "./FeedbackDialog";
 import type { KnowledgeEntity } from "@shadow-edge/shared-types";
 
 type DefaultHeaderProps = {
@@ -69,6 +71,8 @@ export function AppHeader(props: AppHeaderProps) {
         </div>
 
         <div className="chips">
+          <SubscriptionButton />
+          <FeedbackButton />
 
           <button className="ghost" disabled={!props.hasActiveCombat} onClick={props.onOpenInitiativeTracker} type="button">Трекер</button>
           <button className="ghost" onClick={props.onOpenCombatSetupModal} type="button">{props.hasActiveCombat ? "Участники" : "Настроить бой"}</button>
@@ -95,6 +99,8 @@ export function AppHeader(props: AppHeaderProps) {
       </button>
 
       <div className="chips">
+        <SubscriptionButton />
+        <FeedbackButton />
         {props.canOpenDirectory ? <button className="ghost" onClick={props.onOpenDirectory} type="button">← К списку</button> : null}
         <button className={props.hasActiveCombat ? "primary active-combat-indicator" : "ghost"} onClick={props.onOpenCombat} type="button">
           {props.hasActiveCombat ? "Продолжить бой" : "Подготовить бой"}
@@ -103,7 +109,7 @@ export function AppHeader(props: AppHeaderProps) {
           {props.pinnedEntities.map(entity => <button key={entity.id} className="ghost" onClick={() => props.onOpenPinnedEntity(entity.id)} type="button">{entity.title}</button>)}
         </ActionMenu> : null}
         <ActionMenu label="Инструменты">
-        <button
+        {!(props.codexPromptRunning || props.codexPromptOutcome || props.pendingProposalCount) ? <button
           className={`ghost ai-proposal-inbox-button ${props.codexPromptRunning ? "working" : props.codexPromptOutcome ? "needs-attention" : ""}`.trim()}
           onClick={props.onOpenAIProposals}
           type="button"
@@ -121,11 +127,11 @@ export function AppHeader(props: AppHeaderProps) {
             <span aria-hidden="true" className={`ai-proposal-running-dot ${props.codexPromptOutcome || ""}`.trim()} />
           ) : null}
           {props.pendingProposalCount ? <span className="ai-proposal-count">{props.pendingProposalCount}</span> : null}
-        </button>
+        </button> : null}
         <button className="ghost" onClick={props.onOpenPlayerSurveys} type="button">Анкеты игроков</button>
         <button className="ghost" onClick={props.onOpenSessionMap} type="button">Карта и экран игроков</button>
         {props.activeModule === "quests" ? <button className="ghost" onClick={props.onOpenRandomEvent} type="button">Сцена для зачитки</button> : null}
-        {!props.isItemsRail ? <button className="ghost" onClick={props.onCreateEntity} type="button">Создать запись</button> : null}
+        {!props.isItemsRail && !["events", "notes", "lore", "sessions", "rules", "bestiary"].includes(props.activeModule) ? <button className="ghost" onClick={props.onCreateEntity} type="button">Создать запись</button> : null}
         </ActionMenu>
         {props.codexPromptRunning || props.codexPromptOutcome || props.pendingProposalCount ? <button className="ghost" onClick={props.onOpenAIProposals} type="button" aria-live="polite">
           {props.codexPromptRunning ? "AI работает…" : props.codexPromptOutcome ? "AI: проверьте результат" : `AI: ${props.pendingProposalCount} на проверке`}

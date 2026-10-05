@@ -1,6 +1,6 @@
 .events-workspace { gap: 1rem; }
 .events-workspace .notes-workspace-head { background: transparent; border: 0; padding: .4rem 0 .8rem; }
-.events-workspace .notes-workspace-head h1 { font-size: clamp(1.5rem, 3vw, 2rem); }
+.events-workspace .notes-workspace-head h1 { font-size: 1.6rem; }
 .events-workspace .notes-directory-panel { position: sticky; top: 1rem; border-radius: 16px; background: var(--surface); }
 .events-workspace .notes-list-item { grid-template-columns: minmax(0, 1fr); box-shadow: none; border-radius: 12px; background: transparent; }
 .events-workspace .notes-list-item.selected { background: rgba(181, 135, 255, .09); }
@@ -15,13 +15,16 @@
 .event-unsaved { color: var(--warning); }
 .event-scene-card { display: grid; gap: 1.2rem; min-width: 0; max-width: 58rem; margin-inline: auto; width: 100%; }
 .event-scene-card h2, .event-scene-card h3, .event-scene-card p { margin: 0; }
-.event-scene-card h2 { font-size: clamp(1.5rem, 3vw, 2rem); }
+.event-scene-card > h2 { font-size: 1.5rem; }
 .event-scene-card h3 { font-size: 1rem; }
 .event-scene-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .6rem; color: var(--text-muted); font-size: .8rem; }
 .event-scene-summary { color: var(--text-soft); line-height: 1.65; white-space: pre-wrap; }
 .event-read-aloud { border-left: 3px solid var(--accent); background: rgba(181, 135, 255, .04); padding: 1.2rem; border-radius: 0 14px 14px 0; }
 .event-read-aloud .eyebrow { margin-bottom: .7rem; }
-.event-read-aloud > div { white-space: pre-wrap; line-height: 1.85; font-size: 1rem; overflow-wrap: anywhere; }
+.event-read-aloud > .formatted-text { white-space: normal; line-height: 1.75; font-size: 1rem; overflow-wrap: anywhere; }
+.event-scene-card .formatted-text h2 { font-size: 1.15rem; margin: 1.3rem 0 .6rem; }
+.event-scene-card .formatted-text h3 { margin: 1rem 0 .5rem; }
+.event-scene-card .formatted-text p { margin: .5rem 0; }
 .event-outcomes { display: grid; gap: .65rem; }
 .event-outcomes details, .event-optional { border: 1px solid var(--line); border-radius: 12px; padding: .9rem 1rem; }
 .event-outcomes summary, .event-optional summary { cursor: pointer; font-weight: 600; color: var(--text-soft); }

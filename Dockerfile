@@ -31,6 +31,7 @@ ENV GOARCH=${TARGETARCH}
 
 COPY go.work ./
 COPY apps/server/go.mod apps/server/go.mod
+COPY apps/server/go.sum apps/server/go.sum
 
 RUN cd apps/server && go mod download
 
@@ -51,6 +52,7 @@ ENV SHADOW_EDGE_DATA_FILE=/data/store.json
 ENV SHADOW_EDGE_BESTIARY_CACHE_FILE=/data/dndsu-bestiary.json
 ENV SHADOW_EDGE_UPLOAD_DIR=/data/uploads
 ENV SHADOW_EDGE_DEEP_ZOOM_WORKER=/app/scripts/generate-deep-zoom.mjs
+ENV SHADOW_EDGE_IMAGE_OPTIMIZER=/app/scripts/optimize-image.mjs
 ENV SHADOW_EDGE_CODEX_BRIDGE_ENABLED=true
 ENV SHADOW_EDGE_CODEX_COMMAND=/app/node_modules/.bin/codex
 ENV SHADOW_EDGE_CODEX_HOME_ROOT=/data/codex-users
@@ -65,6 +67,7 @@ COPY packages/mcp-server/package.json packages/mcp-server/package.json
 COPY packages/shared-types/package.json packages/shared-types/package.json
 RUN npm ci --omit=dev
 COPY scripts/generate-deep-zoom.mjs /app/scripts/generate-deep-zoom.mjs
+COPY scripts/optimize-image.mjs /app/scripts/optimize-image.mjs
 
 COPY --from=server-build /out/shadow-edge-server /app/shadow-edge-server
 COPY --from=web-build /app/apps/web/dist /app/apps/web/dist

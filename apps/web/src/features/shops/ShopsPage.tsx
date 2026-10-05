@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import builtInItemsRaw from "../../../../../dnd_items_150_ru_official_basic_rules_2014.json";
 import { api } from "../../app/api";
 import { ItemDetailModal } from "../items/ItemsPage";
+import { ItemCategoryIcon } from "../items/ItemCategoryIcon";
 import { buildBuiltInItemLookup, enrichRemoteItemWithBuiltInMetrics } from "../items/items.utils";
 import type { Item } from "../items/items.types";
 import { useItemsCatalogController } from "../items/useItemsCatalogController";
@@ -220,7 +221,6 @@ const draftToShop = (draft: ShopDraft, locations: LocationEntity[]): CampaignSho
   };
 };
 
-const itemVisualName = (category?: string): ShopIconName => (category === "armor" ? "shield" : category === "weapon" ? "sword" : "box");
 
 const itemSubtypeLabel = (item?: Item | null, fallbackCategory?: string) => {
   const category = item?.category ?? fallbackCategory ?? "other";
@@ -358,9 +358,7 @@ function ShopThumb({ seed, active }: { seed: string; active?: boolean }) {
 
 function ItemThumb({ item, category }: { item?: Item | null; category?: string }) {
   return (
-    <span className="shops-item-thumb" data-category={item?.category ?? category ?? "other"}>
-      <ShopIcon name={itemVisualName(item?.category ?? category)} />
-    </span>
+    <ItemCategoryIcon category={item?.category ?? category} />
   );
 }
 

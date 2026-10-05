@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { KnowledgeEntity } from "@shadow-edge/shared-types";
 import { clamp } from "./app-shared";
+import { FormattedText } from "./features/formatting/FormattedText";
 
 const parseWikiLinkToken = (token: string) => {
   const match = token.match(/^\[\[([^[\]|]+)(?:\|([^[\]]+))?\]\]$/);
@@ -175,6 +176,10 @@ export function RichParagraphs({
   onMentionClick: (id: string) => void;
 }) {
   const paragraphs = useMemo(() => parseRichParagraphs(content), [content]);
+
+  if (/(^|\n)\s*(#{1,4} |[-*] |\d+\. |\|)|\*\*|__|<u>|```/.test(content)) {
+    return <FormattedText content={content} entityByTitle={entityByTitle} onMentionClick={onMentionClick} />;
+  }
 
   return (
     <div className="rich">

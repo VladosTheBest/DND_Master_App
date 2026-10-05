@@ -1,4 +1,5 @@
 import "./items.css";
+import { ItemCategoryIcon } from "./ItemCategoryIcon";
 import builtInItemsRaw from "../../../../../dnd_items_150_ru_official_basic_rules_2014.json";
 import { usePageSearchHotkey } from "../../app/hooks/usePageSearchHotkey";
 import {
@@ -767,106 +768,6 @@ function CloseIcon() {
   );
 }
 
-function ItemCategoryGlyph({ category }: { category: ItemCategory }) {
-  switch (category) {
-    case "armor":
-      return (
-        <svg aria-hidden="true" className="items-modal-glyph-icon" viewBox="0 0 64 64">
-          <path
-            d="M32 8c5.6 5 12.6 7.5 21 7.5v15.4c0 10.8-7.1 20.8-21 25.8C18.1 51.7 11 41.7 11 30.9V15.5C19.4 15.5 26.4 13 32 8Z"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="3"
-          />
-          <path d="M32 18v28M22 25h20" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="3" />
-        </svg>
-      );
-    case "weapon":
-      return (
-        <svg aria-hidden="true" className="items-modal-glyph-icon" viewBox="0 0 64 64">
-          <path
-            d="m18 46 6-6m0 0 18-18 8-2-2 8-18 18m-6-6 6 6m-14 0 4 4"
-            fill="none"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="3"
-          />
-        </svg>
-      );
-    case "potion":
-      return (
-        <svg aria-hidden="true" className="items-modal-glyph-icon" viewBox="0 0 64 64">
-          <path
-            d="M25 10h14m-3 0v10l12 15.5A11.5 11.5 0 0 1 39 54H25a11.5 11.5 0 0 1-9-18.5L28 20V10"
-            fill="none"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="3"
-          />
-          <path d="M22 36c4 2.7 16 2.7 20 0" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="3" />
-        </svg>
-      );
-    case "poison":
-      return (
-        <svg aria-hidden="true" className="items-modal-glyph-icon" viewBox="0 0 64 64">
-          <path
-            d="M32 11c-5 7.2-10 13.6-10 22.1A10 10 0 0 0 32 43a10 10 0 0 0 10-9.9C42 24.6 37 18.2 32 11Z"
-            fill="none"
-            stroke="currentColor"
-            strokeLinejoin="round"
-            strokeWidth="3"
-          />
-          <path
-            d="M24 49c2.1-2.8 4.9-4.2 8-4.2s5.9 1.4 8 4.2M27.5 54c1.1-1.8 2.7-2.7 4.5-2.7s3.4.9 4.5 2.7"
-            fill="none"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeWidth="3"
-          />
-        </svg>
-      );
-    case "tool":
-      return (
-        <svg aria-hidden="true" className="items-modal-glyph-icon" viewBox="0 0 64 64">
-          <path
-            d="m20 44 24-24m-7-4 11 11m-26 9-8 8m0 0 6 6 8-8m-14 2 4 4"
-            fill="none"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="3"
-          />
-        </svg>
-      );
-    case "gear":
-      return (
-        <svg aria-hidden="true" className="items-modal-glyph-icon" viewBox="0 0 64 64">
-          <path
-            d="M22 20h20a6 6 0 0 1 6 6v20a8 8 0 0 1-8 8H24a8 8 0 0 1-8-8V26a6 6 0 0 1 6-6Z"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="3"
-          />
-          <path d="M24 20a8 8 0 0 1 16 0m-12 14h8" fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="3" />
-        </svg>
-      );
-    default:
-      return (
-        <svg aria-hidden="true" className="items-modal-glyph-icon" viewBox="0 0 64 64">
-          <path
-            d="m32 12 4.2 12.8L49 29l-12.8 4.2L32 46l-4.2-12.8L15 29l12.8-4.2L32 12Z"
-            fill="none"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="3"
-          />
-        </svg>
-      );
-  }
-}
 
 function ItemStatCard({
   label,
@@ -940,7 +841,7 @@ function ItemListCard({
               <span>{itemCategoryLabels[item.category]}</span>
               {item.subcategory && item.subcategory !== itemCategoryLabels[item.category] ? <span>{item.subcategory}</span> : null}
             </div>
-            <strong>{item.name}</strong>
+            <div className="items-list-card-title"><ItemCategoryIcon category={item.category} /><strong>{item.name}</strong></div>
             <p>{truncateInlineText(item.description, 132)}</p>
           </div>
 
@@ -1049,7 +950,7 @@ export function ItemDetailModal({
             <div aria-hidden="true" className="items-modal-hero-art">
               <div className="items-modal-hero-glow" />
               <div className="items-modal-hero-glyph">
-                <ItemCategoryGlyph category={item.category} />
+                <ItemCategoryIcon category={item.category} />
               </div>
             </div>
           </section>

@@ -44,6 +44,8 @@ type authUser struct {
 }
 
 type authSession struct {
+	AdminEmail      string
+	AdminUntil      time.Time
 	AuthenticatedAt time.Time
 	UserID          string
 	Username        string
@@ -165,6 +167,8 @@ func (manager *authManager) handleSession(writer http.ResponseWriter, request *h
 			if previous, exists := manager.sessions[cookie.Value]; exists && previous.UserID == user.ID {
 				delete(manager.sessions, cookie.Value)
 				manager.sessions[token] = authSession{
+					AdminEmail:      previous.AdminEmail,
+					AdminUntil:      previous.AdminUntil,
 					AuthenticatedAt: previous.AuthenticatedAt,
 					UserID:          user.ID,
 					Username:        user.Username,

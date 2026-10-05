@@ -1,10 +1,11 @@
 # Google и Discord: аккаунты и эксплуатация
 
-Текущая реализация сохраняет пользователей и внешние идентичности в существующем
-JSON account store на Fly volume: `/data/store.json` и резервная `.bak`.
-Docker не хранит аккаунты в эфемерном слое образа. Нужен один writable процесс;
-отдельная платная база не требуется. Парольный вход, bcrypt hashes, внутренние
-user IDs и `campaign.ownerId` остаются прежними.
+Production сохраняет пользователей и внешние идентичности в Managed PostgreSQL
+на Fly (`accounts`, `oauth_identities`); локальный backend по умолчанию остаётся JSON.
+Миграция завершена 4 октября 2026 года с сохранением парольного входа, bcrypt hashes,
+внутренних user IDs и `campaign.ownerId`. Нужен один writable процесс: SQL session
+lock защищает совместимый кеш в памяти. Исходный `/data/store.json` и `.bak` сохранены
+только как резервные копии. Подробности: [хранение](storage-subscriptions-design.md).
 
 ## Конфигурация
 
@@ -27,8 +28,18 @@ Client credentials задавать через Fly secrets/окружение, �
 готовое развёртывание: изменение Fly secrets может перезапустить действующие Machines.
 Без полной конфигурации кнопка провайдера видна, но недоступна.
 Google consent screen должен разрешать нужных пользователей; для общего доступа
-проверить режим публикации. Запрашиваются только Google `openid profile` и Discord
+проверить режим публикации. Запрашиваются только Google `openid profile email` и Discord
 `identify`, без доступа к Discord-серверам, сообщениям и без offline refresh tokens.
+
+## Кабинет администратора
+
+`/admin` использует отдельный вход Google (`POST /api/auth/oauth/google/start?admin=1`).
+Сервер сравнивает подтверждённый Google email с `SHADOW_EDGE_ADMIN_EMAIL`; пустое значение
+отключает доступ. Email не является ключом объединения аккаунтов. Права действуют один час
+и не продлеваются ротацией cookie; парольный вход и Discord не дают этих прав.
+`GET /api/admin/subscriptions` возвращает безопасный список пользователей и последние изменения,
+`POST` выдаёт/заменяет подписку на 1–366 дней или отзывает её. Причина обязательна,
+изменения сохраняются атомарно с аудитом; это ручная выдача, не обработка платежей.
 
 Для локальной проверки задать отдельный localhost origin и соответствующие redirect
 URIs, например `http://localhost:18081/api/auth/oauth/google/callback`. HTTP разрешён
@@ -60,7 +71,7 @@ origin приложения; произвольный return URL не прини
 - Browser sessions и OAuth attempts остаются в памяти: перезапуск потребует нового
   входа/начала OAuth; сохранённые аккаунты и привязки переживают перезапуск.
 
-## HTTP и будущая SQL миграция
+## HTTP и SQL-хранение
 
 - `GET /api/auth/oauth/providers`: доступность; для текущей сессии ещё статус и имя привязки.
 - `POST /api/auth/oauth/{google|discord}/start`: URL авторизации; `link=1` требует сессию,
@@ -69,26 +80,38 @@ origin приложения; произвольный return URL не прини
   атомарная регистрация/привязка/замена, cookie session, redirect в приложение.
 
 `authAccountRepository` отделяет операции аккаунтов от OAuth/HTTP.
-`oauth_accounts.go` — текущий JSON адаптер, использующий mutex и rollback
-`saveMutationLocked`. Bridge пока отдельно использует campaignStore; SQL замена
-account repository не означает миграцию всего игрового хранилища.
+`oauth_accounts.go` использует mutex и rollback `saveMutationLocked` общего
+campaignStore. PostgreSQL-адаптер транзакционно сохраняет аккаунты и игровые данные.
+`accounts` имеет уникальные id/username_key, `oauth_identities` — account FK и
+уникальность provider/subject, допускающую перестановку привязок в транзакции.
+Одна привязка провайдера на пользователя дополнительно обеспечивается кодом.
+OAuth-only password hash пустой и не допускает парольного входа. Label является
+только подписью. Сессии и временные OAuth attempts пока в памяти.
 
-Будущая схема: `users(id PRIMARY KEY, username, username_key UNIQUE,
-password_hash NULL, created_at)` и `external_identities(provider, subject, user_id
-REFERENCES users(id), label, PRIMARY KEY(provider, subject), UNIQUE(user_id, provider))`.
-OAuth-only password hash пустой и не допускает парольного входа. Поле label лишь
-подпись интерфейса, не ключ авторизации. Старый JSON без oauthIdentities совместим;
-новое поле опционально, отдельная версия формата для этого расширения не требуется.
-
-Перед переносом остановить запись, сделать защищённую копию всего /data (включая
-медиа), проверить уникальность IDs, username keys и provider/subject. В транзакции
-импортировать users и развернуть oauthIdentities в external_identities, сохранив
-ID, hashes и timestamps буквально; сопоставление ownerId кампаний не изменять.
-Проверить counts, внешние ключи и вход тестового пользователя обоими способами.
-Переключить адаптер только после проверки; оригинал оставить для отката без
-параллельной записи в обе базы. Реальный export содержит персональные данные и
-password hashes: не класть его в Git, публичные uploads или документацию.
+Импорт проверен чтением SQL и сравнением канонического digest; исходный volume и
+приватные S3-снимки сохранены. Повторный импорт выключен, параллельной записи в JSON
+нет. После SQL-записей нельзя просто вернуть старый JSON. Экспорт содержит личные
+данные, hashes и bearer tokens: не класть его в Git, публичные uploads или документы.
 
 Live OAuth требует настоящих credentials и настройки обеих консолей провайдеров.
 Mock provider tests проверяют реальные HTTP method/body/content type и identity
 responses, но не подтверждают готовность внешних consent screens.
+
+## Production-конфигурация
+
+На 4 октября 2026 года четыре OAuth-переменные добавлены в Fly Secrets и применены
+к `dnd-master-app`; публичный providers API возвращает enabled=true для обоих
+провайдеров. Google настроен в отдельном проекте `shadow-edge-gm`, Audience —
+External / In production. Discord использует отдельное приложение Shadow Edge GM.
+В обеих консолях зарегистрированы production redirect URIs из раздела выше.
+
+Google consent screen ссылается на `/privacy.html` и `/terms.html` на том же origin.
+Исходники находятся в `apps/web/public`, вместе с `legal.css`; Vite копирует их
+в dist, существующий web handler выдаёт файлы публично по GET/HEAD. OAuthControls
+показывает ссылки на эти страницы при входе и в настройках аккаунта.
+
+Проверены применение секретов, Fly healthcheck, HTTP 200 для публичных страниц,
+OAuth Go-тесты и production web-сборка. Реальная привязка каждого провайдера вернула
+`oauth=success` и отметку «Привязан» в существующем аккаунте для обоих провайдеров.
+После выхода обычный вход через каждую из кнопок Google и Discord также вернул
+успешную сессию существующего аккаунта с прежними кампаниями.

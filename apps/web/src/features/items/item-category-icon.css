@@ -1,0 +1,23 @@
+.item-category-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 44px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  color: #b8c5d5;
+  background: #242c36;
+}
+.item-category-icon svg { width: 26px; height: 26px; flex: none; }
+.item-category-icon[data-category="weapon"] { color: #edaf9b; }
+.item-category-icon[data-category="armor"] { color: #9ccbee; }
+.item-category-icon[data-category="potion"] { color: #89d8bc; }
+.item-category-icon[data-category="poison"] { color: #b9ca7b; }
+.item-category-icon:is([data-category="ring"], [data-category="focus"], [data-category="scroll"]) { color: #e4cf8f; }
+.items-list-card-title { display: flex; align-items: center; gap: .75rem; min-width: 0; }
+.items-list-card-title > strong { min-width: 0; overflow-wrap: anywhere; }
+.items-list-card-trigger:focus-visible { outline: 2px solid #9ccbee; outline-offset: -3px; border-radius: 8px; }
+.items-modal-hero-glyph .item-category-icon { width: 72px; height: 72px; }
+.items-modal-hero-glyph .item-category-icon svg { width: 44px; height: 44px; }

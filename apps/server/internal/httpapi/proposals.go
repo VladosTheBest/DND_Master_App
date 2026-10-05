@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,6 +28,7 @@ var supportedProposalEntityKinds = map[string]struct{}{
 }
 
 type proposalService struct {
+	assets    *cloudAssets
 	store     *campaignStore
 	uploadDir string
 }
@@ -1023,6 +1025,10 @@ func (service *proposalService) proposalStagingRoot() string {
 
 func (service *proposalService) proposalStagingDir(ownerID, proposalID string) string {
 	return filepath.Join(service.proposalStagingRoot(), sanitizeUploadPathSegment(ownerID), sanitizeUploadPathSegment(proposalID))
+}
+
+func proposalObjectKey(ownerID, proposalID, fileName string) string {
+	return path.Join("staging", sanitizeUploadPathSegment(ownerID), sanitizeUploadPathSegment(proposalID), filepath.Base(fileName))
 }
 
 func proposalPreviewPath(proposalID, fileName string) string {
@@ -2120,6 +2126,15 @@ func (service *proposalService) promoteMediaLocked(proposal *aiProposal, campaig
 			return nil, proposalFailure(400, "invalid_media_path", "Invalid staged media path")
 		}
 		from := filepath.Join(service.proposalStagingDir(proposal.OwnerID, proposal.ID), fileName)
+		if service.assets != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			err := service.assets.ensureLocal(ctx, from, proposalObjectKey(proposal.OwnerID, proposal.ID, fileName))
+			cancel()
+			if err != nil {
+				rollbackPromotedMedia(moves)
+				return nil, err
+			}
+		}
 		toDir := filepath.Join(service.uploadDir, sanitizeUploadPathSegment(proposal.OwnerID), sanitizeUploadPathSegment(campaignID), "proposal-"+sanitizeUploadPathSegment(proposal.ID))
 		if err := os.MkdirAll(toDir, 0o755); err != nil {
 			rollbackPromotedMedia(moves)
@@ -2131,6 +2146,15 @@ func (service *proposalService) promoteMediaLocked(proposal *aiProposal, campaig
 			return nil, fmt.Errorf("promote proposal media: %w", err)
 		}
 		moves = append(moves, promotedMediaMove{from: from, to: to})
+		if service.assets != nil {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			err := service.assets.publishUpload(ctx, to)
+			cancel()
+			if err != nil {
+				rollbackPromotedMedia(moves)
+				return nil, err
+			}
+		}
 		finalURL := proposalPublicPath(sanitizeUploadPathSegment(proposal.OwnerID), sanitizeUploadPathSegment(campaignID), "proposal-"+sanitizeUploadPathSegment(proposal.ID), fileName)
 		proposal.After = bytes.ReplaceAll(proposal.After, []byte(media.PreviewURL), []byte(finalURL))
 		media.FinalURL = finalURL

@@ -4379,7 +4379,7 @@ export default function App() {
             <p>Загружаем вашу кампанию.</p>
           </div>
         </div>
-        <AIJobsPanel onOpenSession={(job) => {
+        <AIJobsPanel campaignId={activeCampaignId} onOpenSession={(job) => {
         if (!job.campaignId || !job.sessionId) return;
         localStorage.setItem(`session-selected:${job.campaignId}`, job.sessionId);
         void (async () => {
@@ -4448,7 +4448,7 @@ export default function App() {
           open={campaignModalOpen}
           saving={saving}
         />
-        <AIJobsPanel onOpenSession={(job) => {
+        <AIJobsPanel campaignId={activeCampaignId} onOpenSession={(job) => {
         if (!job.campaignId || !job.sessionId) return;
         localStorage.setItem(`session-selected:${job.campaignId}`, job.sessionId);
         void (async () => {
@@ -4473,7 +4473,7 @@ export default function App() {
         onNextTurn={() => void nextCombatTurn()}
         onSelectTurn={(entryId) => void setCombatTurn(entryId)}
         />
-        <AIJobsPanel onOpenSession={(job) => {
+        <AIJobsPanel campaignId={activeCampaignId} onOpenSession={(job) => {
         if (!job.campaignId || !job.sessionId) return;
         localStorage.setItem(`session-selected:${job.campaignId}`, job.sessionId);
         void (async () => {
@@ -4627,13 +4627,14 @@ export default function App() {
             {activeModule === "dashboard" ? (
               <CampaignDashboard
                 campaign={campaign}
+                pinnedEntities={pinnedEntities}
                 onOpenEntity={openEntity}
                 onOpenEntityImage={openEntityImage}
                 onOpenEvent={openWorldEvent}
                 onCreateEvent={() => openRandomEventModal({ newEvent: true, generationMode: "gm_event" })}
                 onOpenPreview={openPreview}
                 onNavigate={section => {
-                  if (section === "sessions" || section === "events") openRailAlias(section);
+                  if (section === "sessions" || section === "events" || section === "notes") openRailAlias(section);
                   else switchModule(section);
                 }}
               />
@@ -5432,7 +5433,7 @@ export default function App() {
         onOpenEntityImage={openEntityImage}
       />
 
-      <AIJobsPanel onOpenSession={(job) => {
+      <AIJobsPanel campaignId={activeCampaignId} onOpenSession={(job) => {
         if (!job.campaignId || !job.sessionId) return;
         localStorage.setItem(`session-selected:${job.campaignId}`, job.sessionId);
         void (async () => {

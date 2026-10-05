@@ -7,6 +7,7 @@ import { api } from "./api";
 import { CodexConnectionPanel } from "../features/ai-proposals/CodexConnectionPanel";
 import "../features/ai-proposals/ai-proposals.css";
 import "./oauth.css";
+import { SubscriptionButton } from "./SubscriptionDialog";
 
 const messages: Record<string, string> = {
   success: "Способ входа подтверждён. Аккаунт готов.",
@@ -43,6 +44,7 @@ export function OAuthControls({ account = false }: { account?: boolean }) {
   };
   return (
     <div className="oauth-controls">
+      {!account ? <SubscriptionButton /> : null}
       {status && messages[status] ? <p role="status" className={status === "success" ? "oauth-success" : "oauth-error"}>{messages[status]}</p> : null}
       {account ? <p className="oauth-hint">Привязанные способы входа открывают этот же аккаунт со всеми кампаниями. Для замены нужен вход за последние 10 минут.</p> : <p className="oauth-hint">Войти или зарегистрироваться</p>}
       {providers.map(provider => {
@@ -56,6 +58,7 @@ export function OAuthControls({ account = false }: { account?: boolean }) {
         </div>;
       })}
       {!account ? <p className="oauth-hint">Первый вход создаёт аккаунт. Уже есть логин и пароль? Войди с ними и привяжи провайдера в настройках аккаунта.</p> : null}
+      <p className="oauth-hint"><a href="/privacy.html">Данные и конфиденциальность</a> · <a href="/terms.html">Использование сервиса</a></p>
       {error ? <p role="alert" className="oauth-error">{error}</p> : null}
     </div>
   );

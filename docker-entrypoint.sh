@@ -13,7 +13,9 @@ restore_backup_if_missing() {
   fi
 }
 
-restore_backup_if_missing "${SHADOW_EDGE_DATA_FILE:-/data/store.json}" "${SHADOW_EDGE_DATA_FILE:-/data/store.json}.bak"
+if [ "${SHADOW_EDGE_STORAGE_MODE:-json}" != "postgres" ]; then
+  restore_backup_if_missing "${SHADOW_EDGE_DATA_FILE:-/data/store.json}" "${SHADOW_EDGE_DATA_FILE:-/data/store.json}.bak"
+fi
 mkdir -p "${SHADOW_EDGE_UPLOAD_DIR:-/data/uploads}"
 
 exec /app/shadow-edge-server "$@"

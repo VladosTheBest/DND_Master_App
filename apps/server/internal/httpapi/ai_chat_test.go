@@ -1,0 +1,147 @@
+package httpapi
+
+import (
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestChatRetrievesLateUnicodeAndChunks(t *testing.T) {
+	text := strings.Repeat("Обычная беседа\n", 5000) + "Ключ от обсерватории хранит Аделина.\n"
+	docs := chatChunks("transcript", "session", "Игра", text)
+	found := searchChatSources(docs, "У кого ключ от обсерватории?", 1)
+	if len(found) != 1 || !strings.Contains(found[0].Text, "Аделина") || found[0].LastLine < 5001 {
+		t.Fatal("late evidence lost")
+	}
+	long := chatChunks("transcript", "long", "Long", strings.Repeat("ж", 8000))
+	joined := ""
+	for _, s := range long {
+		joined += strings.TrimSuffix(s.Text, "\n")
+		if len([]rune(s.Text)) > 2401 {
+			t.Fatal("unbounded chunk")
+		}
+	}
+	if joined != strings.Repeat("ж", 8000) {
+		t.Fatal("Unicode chunk loss")
+	}
+}
+
+func TestChatEntityPreviewsAreOwnedCurrentAndPresentationOnly(t *testing.T) {
+	campaign := campaignData{NPCs: []knowledgeEntity{{ID: "n1", Title: "Current name", Summary: "Current summary", Art: &heroArt{URL: "/uploads/u/c/portrait.webp"}}, {ID: "external", Title: "External", Art: &heroArt{URL: "https://tracker.invalid/image"}}}}
+	history := []aiChatTurn{{Sources: []chatSource{{Kind: "npcs", TargetID: "n1"}, {Kind: "npcs", TargetID: "foreign"}, {Kind: "npcs", TargetID: "external"}}}}
+	decorated := decorateChatHistory(history, campaign)
+	if decorated[0].Sources[0].Entity.ImageURL != "/uploads/u/c/portrait.webp" || decorated[0].Sources[0].Entity.Title != "Current name" {
+		t.Fatal("missing owned preview")
+	}
+	if decorated[0].Sources[1].Entity != nil || decorated[0].Sources[2].Entity.ImageURL != "" {
+		t.Fatal("foreign record or external image leaked")
+	}
+	if history[0].Sources[0].Entity != nil {
+		t.Fatal("mutated stored evidence")
+	}
+	for _, source := range chatDocuments(campaign, nil) {
+		if source.Entity != nil || strings.Contains(source.Text, "portrait.webp") {
+			t.Fatal("presentation sent to model")
+		}
+	}
+}
+
+func TestCampaignChatHTTPAndStorage(t *testing.T) {
+	calls := 0
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		var req openAIChatCompletionRequest
+		if r.Method != "POST" || r.Header.Get("Content-Type") != "application/json" {
+			t.Error("transport contract")
+		}
+		if json.NewDecoder(r.Body).Decode(&req) != nil {
+			t.Error("invalid request")
+		}
+		if !strings.Contains(req.Messages[0].Content, "read-only") || strings.Contains(req.Messages[1].Content, "FOREIGN_SECRET") {
+			t.Error("unsafe context")
+		}
+		if !strings.Contains(req.Messages[1].Content, "Аделина") {
+			t.Error("missing relevant source")
+		}
+		var context struct {
+			Sources []chatSource `json:"sources"`
+		}
+		_ = json.Unmarshal([]byte(req.Messages[1].Content), &context)
+		answerBytes, _ := json.Marshal(map[string]any{"answer": "Ключ у Аделины.", "queries": []string{}, "sources": []string{context.Sources[0].ID}, "suggestions": []string{"Уточнить, почему она его хранит."}})
+		answer := string(answerBytes)
+		if calls == 1 {
+			answer = `{"answer":"","queries":["Аделина обсерватория"],"sources":[],"suggestions":[]}`
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]any{"content": answer}}}})
+	}))
+	defer upstream.Close()
+	path := filepath.Join(t.TempDir(), "store.json")
+	handler, err := NewServer(Options{DataFile: path, UploadDir: t.TempDir(), AI: AIOptions{Provider: "openai", BaseURL: upstream.URL, Model: "test", APIToken: "test"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	call := func(method, route, body string, cookie *http.Cookie) *httptest.ResponseRecorder {
+		r := httptest.NewRequest(method, "http://localhost"+route, strings.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("Origin", "http://localhost")
+		if cookie != nil {
+			r.AddCookie(cookie)
+		}
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		return w
+	}
+	login := call("POST", "/api/auth/register", `{"username":"chat-user","password":"password123"}`, nil)
+	cookie := login.Result().Cookies()[0]
+	created := call("POST", "/api/campaigns", `{"title":"Chat campaign"}`, cookie)
+	var result struct {
+		Data campaignData `json:"data"`
+	}
+	_ = json.Unmarshal(created.Body.Bytes(), &result)
+	base := "/api/campaigns/" + result.Data.ID
+	session := call("POST", base+"/sessions", `{"title":"Игра","text":"Ключ от обсерватории хранит Аделина."}`, cookie)
+	if session.Code >= 300 {
+		t.Fatal(session.Body.String())
+	}
+	other := call("POST", "/api/auth/register", `{"username":"chat-other","password":"password123"}`, nil).Result().Cookies()[0]
+	if w := call("POST", "/api/campaigns", `{"title":"FOREIGN_SECRET"}`, other); w.Code >= 300 {
+		t.Fatal(w.Body.String())
+	}
+	if w := call("GET", base+"/ai/chat", "", other); w.Code != 404 {
+		t.Fatal("foreign history allowed", w.Code)
+	}
+	if w := call("GET", base+"/ai/chat", "", nil); w.Code != 401 {
+		t.Fatal("anonymous history allowed")
+	}
+	if w := call("POST", base+"/ai/chat", `{"id":"synthetic-chat-001","question":"Кто хранит ключ?","sessionId":"foreign"}`, cookie); w.Code != 404 {
+		t.Fatal("foreign session allowed")
+	}
+	body := `{"id":"synthetic-chat-001","question":"Кто хранит ключ?","sessionId":""}`
+	if w := call("POST", base+"/ai/chat", body, cookie); w.Code != 200 {
+		t.Fatal(w.Body.String())
+	}
+	if w := call("POST", base+"/ai/chat", body, cookie); w.Code != 200 || calls != 2 {
+		t.Fatal("repeat generated twice")
+	}
+	if w := call("GET", base+"/ai/chat", "", cookie); !strings.Contains(w.Body.String(), "Аделины") {
+		t.Fatal(w.Body.String())
+	}
+	restored, err := newCampaignStore(path)
+	if err != nil || len(restored.data.AIChatTurns) != 1 {
+		t.Fatal("history lost", err)
+	}
+	meta, records, err := splitCloudState(restored.data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	joined, err := joinCloudState(meta, records)
+	if err != nil || len(joined.AIChatTurns) != 1 {
+		t.Fatal("SQL codec lost history", err)
+	}
+	if kind, id := backgroundGenerationRoute(base + "/ai/chat"); kind != "chat" || id != result.Data.ID {
+		t.Fatal("chat not in background/subscription gate")
+	}
+}

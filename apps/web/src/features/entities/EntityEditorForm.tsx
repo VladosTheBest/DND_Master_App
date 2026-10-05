@@ -18,14 +18,17 @@ import {
 } from "./entity.utils";
 import type { EntityTextField } from "./entity.types";
 import type { EntityEditorController } from "./useEntityEditorController";
+import { AIFormatButton } from "../formatting/AIFormatButton";
 
 type EntityEditorFormProps = {
+  busy?: boolean;
   campaign: CampaignData | null;
   controller: EntityEditorController;
   onContentContextMenu: (field: EntityTextField, event: React.MouseEvent<HTMLTextAreaElement>) => void;
 };
 
 export function EntityEditorForm({
+  busy,
   campaign,
   controller,
   onContentContextMenu
@@ -477,6 +480,7 @@ export function EntityEditorForm({
       </details>
       <details className="editor-disclosure field-full">
         <summary>Заметки и секреты мастера</summary>
+      {campaign ? <AIFormatButton campaignId={campaign.id} sourceId={controller.editingEntityId || entityForm.kind} title={entityForm.title} content={entityForm.content} disabled={busy} onApply={(content) => updateEntityForm((current) => ({ ...current, content }))} /> : null}
       <label className="field field-full">
         <span>Информация для мастера</span>
         <small className="field-hint">

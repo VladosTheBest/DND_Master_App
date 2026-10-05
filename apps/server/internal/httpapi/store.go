@@ -19,6 +19,7 @@ var idSequence uint64
 var errUsernameTaken = errors.New("username already exists")
 
 type campaignStore struct {
+	cloud             *cloudDatabase
 	mu                sync.RWMutex
 	path              string
 	data              storageState
@@ -162,6 +163,9 @@ func (store *campaignStore) ensureAuthStorageLocked() (bool, error) {
 
 func (store *campaignStore) saveLocked() error {
 	store.data.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
+	if store.cloud != nil {
+		return store.cloud.saveState(store.data)
+	}
 
 	if err := os.MkdirAll(filepath.Dir(store.path), 0o700); err != nil {
 		return err

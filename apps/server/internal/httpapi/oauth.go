@@ -14,16 +14,20 @@ import (
 )
 
 type OAuthOptions struct {
+	AdminEmail                           string
 	BaseURL                              string
 	GoogleClientID, GoogleClientSecret   string
 	DiscordClientID, DiscordClientSecret string
 }
 type oauthIdentity struct {
-	Provider string `json:"provider"`
-	Subject  string `json:"subject"`
-	Label    string `json:"label,omitempty"`
+	Email         string `json:"-"`
+	EmailVerified bool   `json:"-"`
+	Provider      string `json:"provider"`
+	Subject       string `json:"subject"`
+	Label         string `json:"label,omitempty"`
 }
 type oauthAttempt struct {
+	Admin                               bool
 	Provider, Binding, Verifier, UserID string
 	ExpiresAt                           time.Time
 	Replace                             bool
@@ -36,7 +40,7 @@ func (m *authManager) provider(name string) (oauthProvider, bool) {
 	var p oauthProvider
 	switch name {
 	case "google":
-		p = oauthProvider{m.oauth.GoogleClientID, m.oauth.GoogleClientSecret, "https://accounts.google.com/o/oauth2/v2/auth", "https://oauth2.googleapis.com/token", "https://openidconnect.googleapis.com/v1/userinfo", "openid profile"}
+		p = oauthProvider{m.oauth.GoogleClientID, m.oauth.GoogleClientSecret, "https://accounts.google.com/o/oauth2/v2/auth", "https://oauth2.googleapis.com/token", "https://openidconnect.googleapis.com/v1/userinfo", "openid profile email"}
 	case "discord":
 		p = oauthProvider{m.oauth.DiscordClientID, m.oauth.DiscordClientSecret, "https://discord.com/oauth2/authorize", "https://discord.com/api/oauth2/token", "https://discord.com/api/v10/users/@me", "identify"}
 	default:
@@ -102,6 +106,11 @@ func (m *authManager) handleOAuth(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		userID := ""
+		admin := r.URL.Query().Get("admin") == "1"
+		if admin && (name != "google" || strings.TrimSpace(m.oauth.AdminEmail) == "") {
+			writeError(w, 403, "admin_forbidden", "Кабинет администратора недоступен.")
+			return
+		}
 		if user, logged := m.currentUser(r); logged {
 			userID = user.ID
 		} else if r.URL.Query().Get("link") == "1" || r.URL.Query().Get("replace") == "1" {
@@ -109,6 +118,10 @@ func (m *authManager) handleOAuth(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		replace := r.URL.Query().Get("replace") == "1"
+		if admin {
+			userID = ""
+			replace = false
+		}
 		if replace && !m.recentOAuthSession(r) {
 			writeError(w, 403, "reauth_required", "Для замены сначала выйди и войди снова с паролем или привязанным провайдером.")
 			return
@@ -139,7 +152,7 @@ func (m *authManager) handleOAuth(w http.ResponseWriter, r *http.Request) {
 			writeError(w, 429, "oauth_busy", "Повтори попытку позже.")
 			return
 		}
-		m.oauthPending[state] = oauthAttempt{name, binding, verifier, userID, time.Now().Add(10 * time.Minute), replace}
+		m.oauthPending[state] = oauthAttempt{Provider: name, Binding: binding, Verifier: verifier, UserID: userID, ExpiresAt: time.Now().Add(10 * time.Minute), Replace: replace, Admin: admin}
 		m.mu.Unlock()
 		http.SetCookie(w, &http.Cookie{Name: "shadow_edge_oauth_" + name, Value: binding, Path: "/api/auth/oauth/" + name + "/callback", HttpOnly: true, Secure: requestIsSecure(r), SameSite: http.SameSiteLaxMode, MaxAge: 600})
 		q := url.Values{"client_id": {p.ID}, "redirect_uri": {m.oauthRedirect(name)}, "response_type": {"code"}, "scope": {p.Scope}, "state": {state}}
@@ -194,6 +207,10 @@ func (m *authManager) handleOAuth(w http.ResponseWriter, r *http.Request) {
 		m.oauthFinish(w, r, "session_changed")
 		return
 	}
+	if attempt.Admin && !m.allowedAdminIdentity(subject) {
+		http.Redirect(w, r, strings.TrimRight(m.oauth.BaseURL, "/")+"/admin?oauth=forbidden", http.StatusSeeOther)
+		return
+	}
 	user, e := m.accounts.resolveOAuthUser(name, subject.Subject, attempt.UserID, attempt.Replace, subject.Label)
 	if e != nil {
 		if errors.Is(e, errIdentityConflict) {
@@ -213,8 +230,18 @@ func (m *authManager) handleOAuth(w http.ResponseWriter, r *http.Request) {
 		m.mu.Lock()
 		m.cleanupExpiredLocked(time.Now())
 		m.sessions[token] = authSession{UserID: user.ID, Username: user.Username, ExpiresAt: expiry, AuthenticatedAt: time.Now()}
+		if attempt.Admin {
+			session := m.sessions[token]
+			session.AdminEmail = strings.ToLower(strings.TrimSpace(subject.Email))
+			session.AdminUntil = time.Now().Add(time.Hour)
+			m.sessions[token] = session
+		}
 		m.mu.Unlock()
 		m.writeSessionCookie(w, token, expiry, requestIsSecure(r))
+	}
+	if attempt.Admin {
+		http.Redirect(w, r, strings.TrimRight(m.oauth.BaseURL, "/")+"/admin", http.StatusSeeOther)
+		return
 	}
 	m.oauthFinish(w, r, "success")
 }
@@ -265,10 +292,12 @@ func (m *authManager) oauthSubject(r *http.Request, p oauthProvider, name, verif
 	}
 	defer info.Body.Close()
 	var identity struct {
-		Sub      string `json:"sub"`
-		Name     string `json:"name"`
-		Username string `json:"username"`
-		ID       string `json:"id"`
+		Email         string `json:"email"`
+		EmailVerified bool   `json:"email_verified"`
+		Sub           string `json:"sub"`
+		Name          string `json:"name"`
+		Username      string `json:"username"`
+		ID            string `json:"id"`
 	}
 	if info.StatusCode != 200 || json.NewDecoder(io.LimitReader(info.Body, 65536)).Decode(&identity) != nil {
 		return oauthIdentity{}, errors.New("identity verification failed")
@@ -289,7 +318,7 @@ func (m *authManager) oauthSubject(r *http.Request, p oauthProvider, name, verif
 	if len(chars) > 80 {
 		label = string(chars[:80])
 	}
-	return oauthIdentity{Provider: name, Subject: subject, Label: label}, nil
+	return oauthIdentity{Provider: name, Subject: subject, Label: label, Email: identity.Email, EmailVerified: identity.EmailVerified}, nil
 }
 
 func (m *authManager) recentOAuthSession(r *http.Request) bool {

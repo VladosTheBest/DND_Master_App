@@ -53,7 +53,7 @@ func (store *campaignStore) resolveOAuthUser(provider, subject, linkUserID strin
 			if !replace {
 				return userAccount{}, errIdentityConflict
 			}
-			store.data.Users[target].OAuthIdentities[i] = oauthIdentity{provider, subject, label}
+			store.data.Users[target].OAuthIdentities[i] = oauthIdentity{Provider: provider, Subject: subject, Label: label}
 			user := store.data.Users[target]
 			if e := store.saveMutationLocked(original); e != nil {
 				return userAccount{}, e
@@ -61,7 +61,7 @@ func (store *campaignStore) resolveOAuthUser(provider, subject, linkUserID strin
 			return user, nil
 		}
 	}
-	store.data.Users[target].OAuthIdentities = append(store.data.Users[target].OAuthIdentities, oauthIdentity{provider, subject, label})
+	store.data.Users[target].OAuthIdentities = append(store.data.Users[target].OAuthIdentities, oauthIdentity{Provider: provider, Subject: subject, Label: label})
 	user := store.data.Users[target]
 	if e := store.saveMutationLocked(original); e != nil {
 		return userAccount{}, fmt.Errorf("persist oauth account: %w", e)

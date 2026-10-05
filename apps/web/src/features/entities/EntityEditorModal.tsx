@@ -95,6 +95,7 @@ export function EntityEditorModal({
         {draftNotes.length ? <p className="copy draft-notes">{draftNotes.join(" ")}</p> : null}
 
         <EntityEditorForm
+          busy={saving || generating}
           campaign={campaign}
           controller={controller}
           onContentContextMenu={onContentContextMenu}

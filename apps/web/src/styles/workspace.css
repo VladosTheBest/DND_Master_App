@@ -159,6 +159,17 @@ body::before { display: none; }
 .shell .shops-thumb { background: #363d50; box-shadow: none; }
 .shell .notes-workspace:not(.events-workspace) .notes-editor-textarea { min-height: 20rem; height: auto; }
 .shell .notes-workspace:not(.events-workspace) .notes-workspace-grid { min-height: 0; }
+.notes-workspace > .notes-workspace-head { display: flex; flex-wrap: wrap; align-items: center; background: transparent; border: 0; box-shadow: none; padding: .4rem 0 1rem; }
+.notes-workspace-head > .notes-workspace-copy { flex: 1 1 16rem; min-width: 0; }
+.notes-workspace-head > .actions { flex: 0 1 auto; flex-wrap: wrap; }
+.notes-workspace-head h1 { font-size: 1.6rem; }
+.notes-workspace .notes-editor-panel { min-width: 0; }
+.notes-workspace .notes-editor-head { flex-wrap: wrap; }
+@media (max-width: 600px) {
+  .notes-workspace-head > .actions { width: 100%; }
+  .notes-workspace:not(.events-workspace) .notes-directory-panel { max-height: 16rem; }
+  .notes-workspace .notes-workspace-grid { grid-template-columns: minmax(0, 1fr); }
+}
 .shell .session-journal-item { padding: 1rem; }
 .shell .rules-header { background: transparent; border: 0; padding-inline: 0; }
 .shell .rules-page { --rules-panel: #202631; --rules-panel-soft: #252b36; --rules-line: #333b49; --rules-result-card-height: auto; }

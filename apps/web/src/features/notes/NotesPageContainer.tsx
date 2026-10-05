@@ -113,7 +113,6 @@ export function NotesPageContainer({
     setNoteEditorTitle(nextNote.title);
     setNoteEditorContent(nextNote.content);
     setNoteEditorDirty(false);
-    onOpenPreview(nextNote.id);
   };
 
   const startNewLoreNote = () => {
@@ -168,7 +167,6 @@ export function NotesPageContainer({
       setNoteEditorContent(result.entity.content);
       setNoteEditorDirty(false);
       setNoteEditorNotice(currentNote?.kind === "lore" ? "Заметка сохранена." : "Заметка создана.");
-      onOpenPreview(result.entity.id);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Не удалось сохранить заметку.");
     } finally {
@@ -178,6 +176,9 @@ export function NotesPageContainer({
 
   return (
     <NotesWorkspace
+      entityByTitle={new Map([...entityMap.values()].map((entity) => [entity.title, entity]))}
+      campaignId={activeCampaignId}
+      dirty={noteEditorDirty}
       draftContent={noteEditorContent}
       draftId={noteEditorEntityId}
       draftTitle={noteEditorTitle}

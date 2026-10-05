@@ -26,6 +26,9 @@ func main() {
 		dataFile = filepath.Join("data", "store.json")
 	}
 	if len(os.Args) > 1 && os.Args[1] == "reset-password" {
+		if os.Getenv("SHADOW_EDGE_STORAGE_MODE") == "postgres" {
+			log.Fatal("JSON password reset is disabled in PostgreSQL mode")
+		}
 		if err := runPasswordReset(dataFile); err != nil {
 			log.Fatal(err)
 		}
@@ -46,6 +49,30 @@ func main() {
 	uploadDir := os.Getenv("SHADOW_EDGE_UPLOAD_DIR")
 	if uploadDir == "" {
 		uploadDir = filepath.Join("data", "uploads")
+	}
+	if len(os.Args) > 1 && os.Args[1] == "cloud-copy" {
+		if err := httpapi.PrepareCloudStorage(os.Getenv("DATABASE_URL"), uploadDir, dataFile); err != nil {
+			log.Fatal(err)
+		}
+		log.Print("Cloud media pre-copy verified")
+		return
+	}
+	if len(os.Args) > 1 && os.Args[1] == "cloud-status" {
+		if err := httpapi.CloudStorageStatus(os.Getenv("DATABASE_URL"), dataFile); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
+	databaseURL := ""
+	switch os.Getenv("SHADOW_EDGE_STORAGE_MODE") {
+	case "postgres":
+		databaseURL = os.Getenv("DATABASE_URL")
+		if databaseURL == "" {
+			log.Fatal("DATABASE_URL is required in PostgreSQL mode")
+		}
+	case "", "json":
+	default:
+		log.Fatal("unknown SHADOW_EDGE_STORAGE_MODE")
 	}
 
 	aiProvider := firstEnv("SHADOW_EDGE_AI_PROVIDER")
@@ -69,6 +96,9 @@ func main() {
 	}
 
 	server, err := httpapi.NewServer(httpapi.Options{
+		DatabaseURL:          databaseURL,
+		ImportLegacyJSON:     envBool("SHADOW_EDGE_IMPORT_LEGACY_JSON", false),
+		RequireSubscription:  true,
 		DataFile:             dataFile,
 		BestiaryCacheFile:    bestiaryCacheFile,
 		ItemCatalogCacheFile: itemCatalogCacheFile,
@@ -96,6 +126,7 @@ func main() {
 		},
 		Auth: httpapi.AuthOptions{
 			OAuth: httpapi.OAuthOptions{
+				AdminEmail:          firstEnv("SHADOW_EDGE_ADMIN_EMAIL"),
 				BaseURL:             firstEnv("SHADOW_EDGE_PUBLIC_BASE_URL"),
 				GoogleClientID:      firstEnv("SHADOW_EDGE_GOOGLE_CLIENT_ID"),
 				GoogleClientSecret:  firstEnv("SHADOW_EDGE_GOOGLE_CLIENT_SECRET"),
