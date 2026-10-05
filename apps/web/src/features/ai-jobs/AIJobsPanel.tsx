@@ -66,6 +66,7 @@ export function AIJobsPanel({ campaignId, onOpenSession, onOpenProposal, pageMod
           </div>
           {detail?.id === job.id && <div className="ai-job-result">{detail.result?.error ? <p role="alert">{detail.result.error.message}</p> : <>
             <p className="ai-job-result-text">{resultText(detail.result?.data) || (job.sessionId ? "Отчёт сохранён в сессии." : "Результат сохранён. Изменения кампании доступны в соответствующем разделе.")}</p>
+            {job.kind==="world-map"&&data?.id&&job.campaignId&&<a href={`/maps?campaign=${encodeURIComponent(job.campaignId)}&map=${encodeURIComponent(data.id)}`}>Открыть карту</a>}
             {proposals.map(id => <button key={id} className="ghost" onClick={() => {onOpenProposal(id); setOpen(false);}}>Открыть AI-черновик</button>)}
             <button className="ghost" onClick={downloadResult}>Скачать полные данные результата</button>
           </>}</div>}

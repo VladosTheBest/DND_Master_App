@@ -1,3 +1,6 @@
+import type { WorldMapDocument } from "./world-maps";
+export type { WorldMapDocument, WorldMapLabel } from "./world-maps";
+
 export type ModuleId =
   | "dashboard"
   | "locations"
@@ -496,6 +499,7 @@ export interface CampaignShop {
 }
 
 export interface CampaignData {
+  worldMaps?: WorldMapDocument[];
   id: string;
   /** Optimistic-concurrency revision. Older persisted records may omit it. */
   revision?: number;

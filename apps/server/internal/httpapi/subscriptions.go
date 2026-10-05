@@ -32,6 +32,10 @@ var subscriptionPlans = []subscriptionPlan{
 
 func requiresGenerationSubscription(route string) bool {
 	kind, _ := backgroundGenerationRoute(route)
+	// Maps choose Codex first; their handler enforces the API subscription gate.
+	if kind == "world-map" {
+		return false
+	}
 	return kind != "" || route == "/api/ai/proposals/entity" || route == "/api/ai/proposals/event"
 }
 

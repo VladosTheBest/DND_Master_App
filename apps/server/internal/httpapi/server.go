@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"path"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -26,22 +27,23 @@ type Options struct {
 }
 
 type server struct {
-	cloud      *cloudDatabase
-	assets     *cloudAssets
-	store      *campaignStore
-	bestiary   *bestiaryCatalog
-	items      *itemCatalog
-	generator  entityGenerator
-	shares     *initiativeShareManager
-	auth       *authManager
-	web        http.Handler
-	uploads    http.Handler
-	uploadDir  string
-	surveys    *surveyManager
-	proposals  *proposalService
-	codex      *codexBridgeManager
-	characters *characterManager
-	aiJobs     *aiJobManager
+	mapGenerationOwners sync.Map
+	cloud               *cloudDatabase
+	assets              *cloudAssets
+	store               *campaignStore
+	bestiary            *bestiaryCatalog
+	items               *itemCatalog
+	generator           entityGenerator
+	shares              *initiativeShareManager
+	auth                *authManager
+	web                 http.Handler
+	uploads             http.Handler
+	uploadDir           string
+	surveys             *surveyManager
+	proposals           *proposalService
+	codex               *codexBridgeManager
+	characters          *characterManager
+	aiJobs              *aiJobManager
 }
 
 type envelope struct {
@@ -363,6 +365,12 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 	}
 
 	switch {
+	case (len(segments) == 2 || len(segments) == 3) && segments[1] == "world-maps":
+		action := ""
+		if len(segments) == 3 {
+			action = segments[2]
+		}
+		srv.handleWorldMaps(writer, request, user, campaign, action)
 	case len(segments) == 4 && segments[1] == "sessions" && segments[3] == "analysis":
 		srv.handleSessionAnalysis(writer, request, user.ID, campaignID, segments[2])
 	case len(segments) == 3 && segments[1] == "ai" && segments[2] == "chat":

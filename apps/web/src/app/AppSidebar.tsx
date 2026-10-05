@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MessageSquare } from "lucide-react";
+import { Map, MessageSquare } from "lucide-react";
 import { AccountSettings } from "./OAuthControls";
 import type { CampaignSummary } from "@shadow-edge/shared-types";
 import { RailIcon, type RailIconName } from "../rail-icon";
@@ -86,6 +86,9 @@ export function AppSidebar({
         <nav className="rail-group-nav" aria-label="Разделы кампании">
           <a className="rail-nav-item" href={`/chat?campaign=${encodeURIComponent(activeCampaignId)}`} style={{textDecoration:"none"}}>
             <span className="rail-nav-icon"><MessageSquare size={19}/></span><span className="rail-nav-label">AI-чат</span>
+          </a>
+          <a className="rail-nav-item" href={`/maps?campaign=${encodeURIComponent(activeCampaignId)}`} style={{textDecoration:"none"}}>
+            <span className="rail-nav-icon"><Map size={19}/></span><span className="rail-nav-label">Карты мира</span>
           </a>
           {groups.map(group => <section className="rail-group" key={group.label}>
             <p className="eyebrow">{group.label}</p>

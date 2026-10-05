@@ -308,6 +308,8 @@ func backgroundGenerationRoute(path string) (kind, campaign string) {
 		return "", ""
 	}
 	switch strings.Join(parts[3:], "/") {
+	case "world-maps/generate":
+		kind = "world-map"
 	case "ai/drafts", "ai/proposals/entities":
 		kind = "entity"
 	case "ai/proposals/events", "events/generate":
@@ -365,6 +367,9 @@ func (srv *server) queueAIGeneration(w http.ResponseWriter, r *http.Request, nex
 	}
 	if kind == "chat" {
 		title = "Ответ AI в чате"
+	}
+	if kind == "world-map" {
+		title = "Генерация карты мира"
 	}
 	if r.URL.Path == "/api/ai/codex/prompts" && input.SessionID != "" {
 		session, exists := srv.store.sessionForOwner(user.ID, campaign, input.SessionID)

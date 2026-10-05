@@ -105,10 +105,11 @@ func main() {
 		WebDir:               webDir,
 		UploadDir:            uploadDir,
 		AI: httpapi.AIOptions{
-			Provider: aiProvider,
-			Model:    aiModel,
-			BaseURL:  aiBaseURL,
-			APIToken: aiToken,
+			ImageModel: os.Getenv("SHADOW_EDGE_MAP_IMAGE_MODEL"),
+			Provider:   aiProvider,
+			Model:      aiModel,
+			BaseURL:    aiBaseURL,
+			APIToken:   aiToken,
 		},
 		Codex: httpapi.CodexBridgeOptions{
 			Enabled:          envBool("SHADOW_EDGE_CODEX_BRIDGE_ENABLED", true),

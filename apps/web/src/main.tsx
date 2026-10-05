@@ -5,12 +5,13 @@ import { SubscriptionDialog } from "./app/SubscriptionDialog";
 import { AdminSubscriptions } from "./app/AdminSubscriptions";
 import { FeedbackDialog } from "./app/FeedbackDialog";
 import { AIChatPage } from "./features/ai-jobs/AIChatPage";
+import { WorldMapsPage } from "./features/world-maps/WorldMapsPage";
 import "./app.css";
 import "./styles/fantasy-theme.css";
 import "./styles/workspace.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    {window.location.pathname.replace(/\/$/, "") === "/admin" ? <AdminSubscriptions /> : <>{window.location.pathname.replace(/\/$/, "") === "/chat" ? <AIChatPage/> : <CharacterRoutes />}<SubscriptionDialog /><FeedbackDialog /></>}
+    {window.location.pathname.replace(/\/$/, "") === "/admin" ? <AdminSubscriptions /> : <>{window.location.pathname.replace(/\/$/, "") === "/maps" ? <WorldMapsPage/> : window.location.pathname.replace(/\/$/, "") === "/chat" ? <AIChatPage/> : <CharacterRoutes />}<SubscriptionDialog /><FeedbackDialog /></>}
   </React.StrictMode>
 );

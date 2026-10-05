@@ -7,10 +7,11 @@ import (
 )
 
 type AIOptions struct {
-	Provider string
-	Model    string
-	BaseURL  string
-	APIToken string
+	ImageModel string
+	Provider   string
+	Model      string
+	BaseURL    string
+	APIToken   string
 }
 
 type entityGenerator interface {
@@ -60,6 +61,7 @@ type encounterDraftItem struct {
 }
 
 type generatorConfig struct {
+	imageModel        string
 	requestedProvider string
 	activeProvider    string
 	model             string
@@ -87,6 +89,7 @@ func newEntityGenerator(options AIOptions) entityGenerator {
 	}
 
 	config := generatorConfig{
+		imageModel:        strings.TrimSpace(options.ImageModel),
 		requestedProvider: requestedProvider,
 		model:             strings.TrimSpace(options.Model),
 		baseURL:           baseURL,

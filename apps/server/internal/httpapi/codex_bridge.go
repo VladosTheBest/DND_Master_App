@@ -96,28 +96,30 @@ type codexImageTarget struct {
 }
 
 type codexPromptInput struct {
-	SessionID              string            `json:"sessionId,omitempty"`
-	SessionRunID           string            `json:"-"`
-	SessionExtract         string            `json:"-"`
-	SessionExtractFeedback string            `json:"-"`
-	SessionExtractLimit    int               `json:"-"`
-	SessionNotes           string            `json:"-"`
-	CampaignID             string            `json:"campaignId,omitempty"`
-	Prompt                 string            `json:"prompt"`
-	ThreadID               string            `json:"threadId,omitempty"`
-	IncludeImages          bool              `json:"includeImages,omitempty"`
-	Model                  string            `json:"model,omitempty"`
-	ImageTarget            *codexImageTarget `json:"imageTarget,omitempty"`
+	WorldMap               *codexWorldMapRequest `json:"-"`
+	SessionID              string                `json:"sessionId,omitempty"`
+	SessionRunID           string                `json:"-"`
+	SessionExtract         string                `json:"-"`
+	SessionExtractFeedback string                `json:"-"`
+	SessionExtractLimit    int                   `json:"-"`
+	SessionNotes           string                `json:"-"`
+	CampaignID             string                `json:"campaignId,omitempty"`
+	Prompt                 string                `json:"prompt"`
+	ThreadID               string                `json:"threadId,omitempty"`
+	IncludeImages          bool                  `json:"includeImages,omitempty"`
+	Model                  string                `json:"model,omitempty"`
+	ImageTarget            *codexImageTarget     `json:"imageTarget,omitempty"`
 }
 
 type codexPromptResult struct {
-	SessionID   string   `json:"sessionId,omitempty"`
-	ThreadID    string   `json:"threadId"`
-	TurnID      string   `json:"turnId"`
-	Status      string   `json:"status"`
-	Message     string   `json:"message,omitempty"`
-	ProposalIDs []string `json:"proposalIds"`
-	Warning     string   `json:"warning,omitempty"`
+	WorldMap    *mapGenerationResult `json:"-"`
+	SessionID   string               `json:"sessionId,omitempty"`
+	ThreadID    string               `json:"threadId"`
+	TurnID      string               `json:"turnId"`
+	Status      string               `json:"status"`
+	Message     string               `json:"message,omitempty"`
+	ProposalIDs []string             `json:"proposalIds"`
+	Warning     string               `json:"warning,omitempty"`
 }
 
 type codexBridgeManager struct {
@@ -713,8 +715,18 @@ func (manager *codexBridgeManager) runPromptOnce(ctx context.Context, user authU
 	}()
 
 	threadID := strings.TrimSpace(input.ThreadID)
+	if input.WorldMap != nil {
+		threadID = ""
+	}
 	threadConfig := codexThreadConfig(input.IncludeImages)
+	if input.WorldMap != nil {
+		threadConfig["mcp_servers.dnd_master.enabled"] = false
+		threadConfig["mcp_servers.dnd_master.required"] = false
+	}
 	instructions := codexBridgeInstructions
+	if input.WorldMap != nil {
+		instructions = mapPlanInstructions + "\nThe user explicitly opted in to image generation. Use the built-in $imagegen skill exactly once to generate the map background. Do not use MCP tools or modify campaign data. Return only the requested JSON, with imagePath pointing to the actual generated file under CODEX_HOME/generated_images. Inspect the generated map to place labels on the correct features. Never render lettering in the bitmap. Use the provided reference image when present."
+	}
 	if input.SessionID != "" {
 		instructions = sessionAnalysisInstructions
 	}
@@ -774,6 +786,9 @@ func (manager *codexBridgeManager) runPromptOnce(ctx context.Context, user authU
 	defer unsubscribe()
 
 	requestText := buildCodexProposalPrompt(input)
+	if input.WorldMap != nil {
+		requestText = input.Prompt
+	}
 	var turnStarted struct {
 		Turn struct {
 			ID string `json:"id"`
@@ -796,6 +811,29 @@ func (manager *codexBridgeManager) runPromptOnce(ctx context.Context, user authU
 	if input.SessionExtract != "" {
 		turnParams["outputSchema"] = sessionPartOutputSchema(input.SessionExtractLimit)
 	}
+	if input.WorldMap != nil {
+		turnParams["outputSchema"] = mapPlanSchema()
+		if len(input.WorldMap.Reference) > 0 {
+			_, format, imageErr := mapImageConfig(input.WorldMap.Reference)
+			if imageErr != nil {
+				return codexPromptResult{}, imageErr
+			}
+			file, fileErr := os.CreateTemp(bridge.workspaceDir, "map-reference-*."+format)
+			if fileErr != nil {
+				return codexPromptResult{}, fileErr
+			}
+			defer os.Remove(file.Name())
+			_, fileErr = file.Write(input.WorldMap.Reference)
+			closeErr := file.Close()
+			if fileErr != nil {
+				return codexPromptResult{}, fileErr
+			}
+			if closeErr != nil {
+				return codexPromptResult{}, closeErr
+			}
+			turnParams["input"] = []map[string]any{{"type": "text", "text": requestText}, {"type": "localImage", "path": file.Name()}}
+		}
+	}
 	err = bridge.client.call(callCtx, "turn/start", turnParams, &turnStarted)
 	cancel()
 	if err != nil {
@@ -808,6 +846,9 @@ func (manager *codexBridgeManager) runPromptOnce(ctx context.Context, user authU
 	}
 
 	waitTimeout := manager.options.RequestTimeout
+	if input.WorldMap != nil && waitTimeout < 10*time.Minute {
+		waitTimeout = 10 * time.Minute
+	}
 	if input.SessionID != "" {
 		waitTimeout *= 3
 	}
@@ -872,6 +913,10 @@ func (manager *codexBridgeManager) runPromptOnce(ctx context.Context, user authU
 				}
 				return codexPromptResult{}, errors.New(completion.detail)
 			}
+			if input.WorldMap != nil {
+				result, mapErr := readCodexWorldMap(bridge.homeDir, observation.message)
+				return codexPromptResult{WorldMap: result, Status: "completed"}, mapErr
+			}
 			if input.SessionExtract != "" {
 				if strings.TrimSpace(observation.message) == "" {
 					return codexPromptResult{}, fmt.Errorf("AI не вернул разбор части сессии.")
@@ -888,6 +933,9 @@ func (manager *codexBridgeManager) runPromptOnce(ctx context.Context, user authU
 }
 
 func (manager *codexBridgeManager) verifiedCodexPromptResult(ownerID, campaignID string, before map[string]struct{}, observation codexTurnObservation, imageTarget *codexImageTarget, threadID, turnID, status, additionalWarning string, sessionInput ...codexPromptInput) (codexPromptResult, bool) {
+	if len(sessionInput) > 0 && sessionInput[0].WorldMap != nil {
+		return codexPromptResult{}, false
+	}
 	if len(sessionInput) > 0 && sessionInput[0].SessionID != "" {
 		return manager.verifiedSessionAnalysis(ownerID, sessionInput[0], threadID, turnID, status, additionalWarning)
 	}

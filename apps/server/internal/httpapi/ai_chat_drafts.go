@@ -96,7 +96,7 @@ func (srv *server) handleChatDraftEdit(w http.ResponseWriter, r *http.Request, u
 
 func validChatDraftKind(kind string) bool {
 	switch kind {
-	case "npc", "location", "player", "monster", "quest", "lore", "event", "shop", "sessionPrep":
+	case "npc", "location", "player", "monster", "quest", "lore", "event", "shop", "sessionPrep", "worldMap":
 		return true
 	}
 	return false
@@ -105,7 +105,7 @@ func validChatDraftKind(kind string) bool {
 func chatDraftSchema() map[string]any {
 	str := map[string]any{"type": "string"}
 	return map[string]any{"type": "array", "items": map[string]any{"type": "object", "additionalProperties": false, "properties": map[string]any{
-		"kind": map[string]any{"type": "string", "enum": []string{"npc", "location", "player", "monster", "quest", "lore", "event", "shop", "sessionPrep"}}, "title": str, "summary": str, "content": str, "subtitle": str,
+		"kind": map[string]any{"type": "string", "enum": []string{"npc", "location", "player", "monster", "quest", "lore", "event", "shop", "sessionPrep", "worldMap"}}, "title": str, "summary": str, "content": str, "subtitle": str,
 	}, "required": []string{"kind", "title", "summary", "content", "subtitle"}}}
 }
 
@@ -182,6 +182,9 @@ func (srv *server) handleChatDraftApply(w http.ResponseWriter, r *http.Request, 
 				return
 			}
 			switch draft.Kind {
+			case "worldMap":
+				writeError(w, 400, "map_generation_required", "Используй кнопку создания карты в предложении.")
+				return
 			case "event":
 				event := materializeWorldEvent(createWorldEventInput{Title: draft.Title, Summary: draft.Summary, SceneText: draft.Content, Type: "other", Origin: "manual"}, *campaign, nil)
 				campaign.Events = append(campaign.Events, event)

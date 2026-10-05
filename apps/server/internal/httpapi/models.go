@@ -303,7 +303,8 @@ type userAccount struct {
 }
 
 type campaignData struct {
-	ID string `json:"id"`
+	WorldMaps []worldMapDocument `json:"worldMaps,omitempty"`
+	ID        string             `json:"id"`
 	// Revision tracks authoring changes used by proposal conflict detection.
 	// Ephemeral live-combat state is persisted but deliberately does not make
 	// an otherwise independent content proposal stale.

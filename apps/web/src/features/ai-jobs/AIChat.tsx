@@ -4,6 +4,7 @@ import type { AIJob } from "@shadow-edge/shared-types";
 import { FormattedText } from "../formatting/FormattedText";
 import { isActiveJob } from "./useAIJobs";
 import "./ai-chat.css";
+import { MapCreateForm } from "../world-maps/MapCreateForm";
 
 type Source = { id: string; targetId: string; title: string; kind: string; text: string; firstLine: number; lastLine: number; entity?: {title: string; summary: string; imageUrl?: string} };
 type Draft = {id:string;kind:string;title:string;subtitle:string;summary:string;content:string;createdId?:string;revision?:number};
@@ -86,18 +87,20 @@ function DraftCard({draft,turnId,campaignId,onSaved,onRefine,busy}:{draft:Draft;
       <div className="ai-chat-draft-actions"><button type="submit" disabled={saving||!fields.title.trim()||!fields.content.trim()}><Save size={16}/>{saving?"Сохраняю…":"Сохранить в чате"}</button><button type="button" disabled={saving} onClick={()=>{setEditing(false);setError("");}}>Отмена</button></div>
     </form> : <><h3>{current.title}</h3>{current.subtitle&&<small>{current.subtitle}</small>}<FormattedText content={current.summary}/><details><summary>Посмотреть полное описание</summary><FormattedText content={current.content}/></details>
       <div className="ai-chat-draft-actions">
-        <button type="button" className="ai-chat-add" disabled={saving||added||busy} onClick={()=>void persist(true)}>{added?<Check size={17}/>:<Plus size={17}/>} {added?"Добавлено в кампанию":saving?"Сохраняю…":`Добавить ${labels[current.kind]||"запись"} в кампанию`}</button>
+        {current.kind!=="worldMap"&&<button type="button" className="ai-chat-add" disabled={saving||added||busy} onClick={()=>void persist(true)}>{added?<Check size={17}/>:<Plus size={17}/>} {added?"Добавлено в кампанию":saving?"Сохраняю…":`Добавить ${labels[current.kind]||"запись"} в кампанию`}</button>}
         {!added&&<><button type="button" disabled={saving||busy} onClick={()=>onRefine(current,"Расширь эту сущность: глубже проработай характерные особенности, мотивации, связи, секреты, варианты использования и детали, полезные мастеру. Сохрани существующие факты и ручные правки. Верни полную улучшенную версию.")}><Sparkles size={16}/>Расширить</button>
         <button type="button" disabled={saving||busy} onClick={()=>setChanging(!changing)}><MessageSquare size={16}/>Изменить с AI</button>
         <button type="button" disabled={saving||busy} onClick={()=>{setFields(current);setEditing(true);setChanging(false);setError("");}}><Pencil size={16}/>Редактировать</button></>}
       </div>
       {changing&&<form className="ai-chat-draft-editor" onSubmit={event=>{event.preventDefault();if(instruction.trim()){onRefine(current,instruction.trim());setChanging(false);setInstruction("");}}}><label>Что изменить?<textarea required maxLength={3000} rows={3} value={instruction} onChange={event=>setInstruction(event.target.value)}/></label><button type="submit" disabled={busy||!instruction.trim()}><Send size={16}/>Доработать</button></form>}
     </>}
+    {current.kind==="worldMap"&&!editing&&<MapCreateForm key={current.id} campaignId={campaignId} initialPrompt={`${current.title}\n${current.content}`} storageKey={current.id}/>}
     {error&&<p role="alert">{error}</p>}
   </article>;
 }
 
 export function AIChat({campaignId, jobs, refreshJobs, initialContext, onContextChange}: {campaignId: string; jobs: AIJob[]; refreshJobs: () => void;initialContext?:ChatContext;onContextChange?:(context:ChatContext)=>void}) {
+  const [mapComposer,setMapComposer]=useState(false);
   const [includeCampaign,setIncludeCampaign] = useState(initialContext?.includeCampaign ?? true);
   const [sessionIds,setSessionIds] = useState<string[]>(initialContext?.sessionIds ?? []);
   const scope = JSON.stringify({includeCampaign,sessionIds:[...sessionIds].sort()});
@@ -170,7 +173,8 @@ export function AIChat({campaignId, jobs, refreshJobs, initialContext, onContext
   return <section className="ai-chat" aria-label="Чат по кампании">
     <div className="ai-chat-scope"><BookOpen size={18}/><details className="ai-chat-context"><summary>Контекст: {includeCampaign ? "кампания" : "без кампании"}{sessionIds.length ? ` · сессии: ${sessionIds.length}` : ""}</summary><fieldset disabled={busy}><label><input type="checkbox" checked={includeCampaign} onChange={e=>changeContext(e.target.checked,sessionIds)}/>Материалы кампании</label><div className="ai-chat-context-actions"><button type="button" onClick={()=>changeContext(true,[])}>Только кампания</button><button type="button" disabled={!data?.sessions.length} onClick={()=>changeContext(includeCampaign,data?.sessions.map(s=>s.id)||[])}>Все сессии</button><button type="button" disabled={!sessionIds.length} onClick={()=>changeContext(includeCampaign,[])}>Снять сессии</button></div><div className="ai-chat-session-options">{data?.sessions.map(session=><label key={session.id}><input type="checkbox" checked={sessionIds.includes(session.id)} onChange={e=>changeContext(includeCampaign,e.target.checked?[...sessionIds,session.id]:sessionIds.filter(id=>id!==session.id))}/>{session.title}</label>)}{data && !data.sessions.length && <small>Загруженных сессий пока нет</small>}</div></fieldset></details><button type="button" title="Обновить диалог" aria-label="Обновить диалог" onClick={()=>{setReload(v=>v+1);refreshJobs();}} disabled={loading}><RefreshCw size={17}/></button></div>
     <div className="ai-chat-scope-shortcuts" aria-label="Выбор материалов"><button type="button" disabled={busy} aria-pressed={includeCampaign&&!sessionIds.length} onClick={()=>changeContext(true,[])}>Только кампания</button><button type="button" disabled={busy||!data?.sessions.length} aria-pressed={Boolean(data?.sessions.length)&&sessionIds.length===data?.sessions.length} onClick={()=>changeContext(includeCampaign,data?.sessions.map(session=>session.id)||[])}>Все сессии</button>{data?.sessions.filter(session=>sessionIds.includes(session.id)).map(session=><button type="button" disabled={busy} key={session.id} title={`Убрать из контекста: ${session.title}`} onClick={()=>changeContext(includeCampaign,sessionIds.filter(id=>id!==session.id))}>{session.title}<span aria-hidden="true">×</span></button>)}</div>
-    <div className="ai-chat-quick-create" aria-label="Быстрое создание">{quickCreate.map(({label,icon:Icon,prompt})=><button type="button" key={label} disabled={busy} onClick={()=>choosePrompt(prompt)}><Icon size={17}/>{label}<Plus size={12}/></button>)}</div>
+    <div className="ai-chat-quick-create" aria-label="Быстрое создание">{quickCreate.map(({label,icon:Icon,prompt})=><button type="button" key={label} disabled={busy} onClick={()=>choosePrompt(prompt)}><Icon size={17}/>{label}<Plus size={12}/></button>)}<button type="button" aria-pressed={mapComposer} onClick={()=>setMapComposer(!mapComposer)}><Compass size={17}/>Карта мира<Plus size={12}/></button></div>
+    {mapComposer&&<MapCreateForm key={campaignId} campaignId={campaignId} initialPrompt={question} onCreated={refreshJobs}/>}
     <div className="ai-chat-workspace"><div className="ai-chat-conversation">
     <div className="ai-chat-messages" aria-label="История диалога">
       {loading && !data && <p role="status">Загружаю диалог…</p>}

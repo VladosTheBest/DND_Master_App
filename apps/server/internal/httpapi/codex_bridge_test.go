@@ -1610,6 +1610,35 @@ func TestCodexBridgeHelperProcess(t *testing.T) {
 			if len(turnParams.Input) > 0 {
 				inputText = turnParams.Input[0].Text
 			}
+			if strings.HasPrefix(inputText, "world-map-fixture") {
+				var params struct {
+					Input []struct {
+						Type string `json:"type"`
+						Path string `json:"path"`
+					} `json:"input"`
+					OutputSchema map[string]any `json:"outputSchema"`
+				}
+				_ = json.Unmarshal(request.Params, &params)
+				status := "completed"
+				if params.OutputSchema == nil {
+					status = "failed"
+				}
+				if strings.HasSuffix(inputText, "reference") {
+					if len(params.Input) != 2 || params.Input[1].Type != "localImage" {
+						status = "failed"
+					} else if b, e := os.ReadFile(params.Input[1].Path); e != nil || len(b) == 0 {
+						status = "failed"
+					}
+				}
+				file := filepath.Join(homeDir, "generated_images", "map.png")
+				_ = os.WriteFile(file, mapFixturePNG(), 0600)
+				plan := mapFixturePlan()
+				plan.ImagePath = file
+				message, _ := json.Marshal(plan)
+				writeCodexHelperNotification("item/completed", map[string]any{"threadId": "thread-test", "turnId": "turn-test", "item": map[string]any{"type": "agentMessage", "text": string(message)}})
+				writeCodexHelperNotification("turn/completed", map[string]any{"threadId": "thread-test", "turn": map[string]any{"id": "turn-test", "status": status}})
+				continue
+			}
 
 			if strings.Contains(inputText, "This is a read-only extraction phase") {
 				var params map[string]any
