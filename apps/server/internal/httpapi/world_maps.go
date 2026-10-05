@@ -21,6 +21,9 @@ import (
 const worldMapMaxBytes = 20 << 20
 
 type worldMapLabel struct {
+	Role     string  `json:"role,omitempty"`
+	Curve    float64 `json:"curve,omitempty"`
+	Span     float64 `json:"span,omitempty"`
 	ID       string  `json:"id"`
 	Text     string  `json:"text"`
 	X        float64 `json:"x"`
@@ -34,6 +37,7 @@ type worldMapLabel struct {
 	Italic   bool    `json:"italic"`
 }
 type worldMapDocument struct {
+	Scale        string           `json:"scale,omitempty"`
 	Context      *worldMapContext `json:"context,omitempty"`
 	ID           string           `json:"id"`
 	Title        string           `json:"title"`
@@ -48,6 +52,7 @@ type worldMapDocument struct {
 	CreatedAt    time.Time        `json:"createdAt"`
 }
 type worldMapGenerateInput struct {
+	Scale        string           `json:"scale,omitempty"`
 	Context      *worldMapContext `json:"context,omitempty"`
 	RequestID    string           `json:"requestId"`
 	Prompt       string           `json:"prompt"`
@@ -69,6 +74,27 @@ func normalizedMapContext(c *worldMapContext) worldMapContext {
 var mapColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 var mapRequestID = regexp.MustCompile(`^[a-zA-Z0-9_-]{16,64}$`)
 
+func normalizedMapScale(s string) string {
+	if s == "" {
+		return "auto"
+	}
+	return s
+}
+func validMapScale(s string) bool {
+	switch normalizedMapScale(s) {
+	case "auto", "world", "region", "island", "city", "site":
+		return true
+	}
+	return false
+}
+func validMapLabelRole(s string) bool {
+	switch s {
+	case "", "major", "region", "settlement", "site":
+		return true
+	}
+	return false
+}
+
 func validateMapLabels(labels []worldMapLabel) error {
 	if len(labels) > 100 {
 		return fmt.Errorf("Не более 100 подписей на карту.")
@@ -79,10 +105,13 @@ func validateMapLabels(labels []worldMapLabel) error {
 			return fmt.Errorf("Проверь текст подписей.")
 		}
 		seen[l.ID] = true
-		for _, v := range []float64{l.X, l.Y, l.Size, l.Rotation} {
+		for _, v := range []float64{l.X, l.Y, l.Size, l.Rotation, l.Curve, l.Span} {
 			if math.IsNaN(v) || math.IsInf(v, 0) {
 				return fmt.Errorf("Некорректные координаты.")
 			}
+		}
+		if !validMapLabelRole(l.Role) || l.Curve < -100 || l.Curve > 100 || (l.Span != 0 && (l.Span < 60 || l.Span > 900)) {
+			return fmt.Errorf("Некорректный изгиб или уровень подписи.")
 		}
 		if l.X < 0 || l.X > 1 || l.Y < 0 || l.Y > 1 || l.Size < 8 || l.Size > 100 || l.Rotation < -180 || l.Rotation > 180 || !mapColor.MatchString(l.Color) || !mapColor.MatchString(l.Outline) {
 			return fmt.Errorf("Некорректное оформление подписи.")
@@ -228,6 +257,11 @@ func (srv *server) generateWorldMap(w http.ResponseWriter, r *http.Request, user
 		return
 	}
 	input.Prompt = strings.TrimSpace(input.Prompt)
+	input.Scale = normalizedMapScale(input.Scale)
+	if !validMapScale(input.Scale) {
+		writeError(w, 400, "invalid_map_scale", "Выбери масштаб карты.")
+		return
+	}
 	scope := normalizedMapContext(input.Context)
 	if !mapRequestID.MatchString(input.RequestID) || len([]rune(input.Prompt)) > 6000 || len(scope.LocationID) > 200 || (input.Prompt == "" && input.ReferenceURL == "" && !scope.IncludeCampaign && scope.LocationID == "") {
 		writeError(w, 400, "invalid_map", "Добавь описание или картинку-референс.")
@@ -246,7 +280,7 @@ func (srv *server) generateWorldMap(w http.ResponseWriter, r *http.Request, user
 		return
 	}
 	campaign = current
-	generationPrompt, contextErr := scopedWorldMapPrompt(campaign, input.Prompt, scope)
+	generationPrompt, contextErr := scopedWorldMapPrompt(campaign, input.Prompt, scope, input.Scale)
 	if contextErr != nil {
 		writeError(w, 400, "invalid_map_context", contextErr.Error())
 		return
@@ -254,7 +288,7 @@ func (srv *server) generateWorldMap(w http.ResponseWriter, r *http.Request, user
 	// Completed retries return their original result without another paid call.
 	for _, m := range campaign.WorldMaps {
 		if m.ID == id {
-			if m.Prompt != input.Prompt || m.ReferenceURL != input.ReferenceURL || normalizedMapContext(m.Context) != scope {
+			if m.Prompt != input.Prompt || m.ReferenceURL != input.ReferenceURL || normalizedMapContext(m.Context) != scope || normalizedMapScale(m.Scale) != input.Scale {
 				writeError(w, 409, "map_request_changed", "Создай новый запрос для другой карты.")
 				return
 			}
@@ -318,7 +352,7 @@ func (srv *server) generateWorldMap(w http.ResponseWriter, r *http.Request, user
 	}
 	labels := make([]worldMapLabel, 0, len(result.Plan.Labels))
 	for _, l := range result.Plan.Labels {
-		labels = append(labels, worldMapLabel{ID: newID("label"), Text: l.Text, X: l.X, Y: l.Y, Size: 22, Font: "serif", Color: "#eee8ff", Outline: "#211b30", Bold: true})
+		labels = append(labels, plannedWorldMapLabel(l, newID("label")))
 	}
 	if err := validateMapLabels(labels); err != nil {
 		writeError(w, 502, "invalid_map", err.Error())
@@ -347,6 +381,7 @@ func (srv *server) generateWorldMap(w http.ResponseWriter, r *http.Request, user
 	}
 	doc := worldMapDocument{ID: id, Title: result.Plan.Title, Prompt: input.Prompt, ImageURL: "/uploads/" + sanitizeUploadPathSegment(user.ID) + "/" + sanitizeUploadPathSegment(campaign.ID) + "/" + filepath.Base(file), ReferenceURL: input.ReferenceURL, Labels: labels, Width: cfg.Width, Height: cfg.Height, Provider: result.Provider, CreatedAt: time.Now().UTC()}
 	doc.Context = &scope
+	doc.Scale = input.Scale
 	srv.store.mu.Lock()
 	defer srv.store.mu.Unlock()
 	for ci := range srv.store.data.Campaigns {

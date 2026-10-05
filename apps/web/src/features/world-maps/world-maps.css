@@ -1,3 +1,5 @@
+.world-map-create>label+label{margin-top:16px}
+.world-map-create>label>select{width:100%;min-width:0;border:1px solid #484051;border-radius:5px;background:#1c1725;color:#eae4f4;padding:9px 10px;font:400 14px/1.5 system-ui}
 .world-maps-page{min-height:100dvh;display:grid;grid-template-columns:218px minmax(0,1fr);background:#131019;color:#eae7f2;font-family:Inter,system-ui,sans-serif;letter-spacing:0}
 .world-maps-page *,.world-map-create *{box-sizing:border-box;letter-spacing:0}
 .world-maps-nav{padding:26px 18px;border-right:1px solid #352d43;background:#19141f;display:flex;flex-direction:column;gap:24px}

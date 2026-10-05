@@ -8,6 +8,7 @@ import "./world-maps.css";
 export function MapCreateForm({campaignId, initialPrompt="", onCreated, storageKey="composer"}:{campaignId:string;initialPrompt?:string;onCreated?:(map:WorldMapDocument)=>void;storageKey?:string}){
   const key=`shadow-edge:map-job:${campaignId}:${storageKey}`;
   const [prompt,setPrompt]=useState(initialPrompt),[reference,setReference]=useState("");
+  const [scale,setScale]=useState<NonNullable<WorldMapDocument["scale"]>>("auto");
 	const [includeCampaign,setIncludeCampaign]=useState(true),[useLocation,setUseLocation]=useState(false),[locationId,setLocationId]=useState("");
 	const [locations,setLocations]=useState<{id:string;title:string}[]>([]),[locationsError,setLocationsError]=useState("");
 	useEffect(()=>{let alive=true;setLocations([]);setLocationId("");setUseLocation(false);setLocationsError("");void api.getCampaign(campaignId).then(c=>{if(alive)setLocations(c.locations);}).catch(()=>{if(alive)setLocationsError("Не удалось загрузить локации. Открой форму заново, чтобы повторить.");});return()=>{alive=false;};},[campaignId]);
@@ -48,14 +49,15 @@ export function MapCreateForm({campaignId, initialPrompt="", onCreated, storageK
     if(lock.current||jobId)return;lock.current=true;setBusy(true);setError("");setCreated(null);setStage("Запускаю генерацию…");
     try{
 		const context={includeCampaign,locationId:useLocation?locationId:""};
-      const signature=JSON.stringify([prompt.trim(),reference,context]);if(request.current?.signature!==signature)request.current={signature,id:crypto.randomUUID()};
-      const result=await worldMapsAPI.generate(campaignId,{requestId:request.current.id,prompt:prompt.trim(),referenceUrl:reference,context});
+      const signature=JSON.stringify([prompt.trim(),reference,context,scale]);if(request.current?.signature!==signature)request.current={signature,id:crypto.randomUUID()};
+      const result=await worldMapsAPI.generate(campaignId,{requestId:request.current.id,prompt:prompt.trim(),referenceUrl:reference,context,scale});
       if("imageUrl" in result){setCreated(result);sessionStorage.setItem(`${key}:result`,result.id);callback.current?.(result);setStage("");request.current=null;}
       else{sessionStorage.setItem(key,result.id);setJobId(result.id);}
     }catch(e){setError((e as Error).message);setStage("");}finally{lock.current=false;setBusy(false);}
   }
   const disabled=busy||Boolean(jobId);
   return <section className="world-map-create" aria-label="Создание карты мира">
+    <label>Уровень детализации<select aria-label="Уровень детализации" value={scale} disabled={disabled} onChange={e=>setScale(e.target.value as typeof scale)}><option value="auto">По описанию</option><option value="world">Мир · страны и крупная география</option><option value="region">Регион · поселения и дороги</option><option value="island">Остров · места и побережья</option><option value="city">Город · районы и достопримечательности</option><option value="site">Место · помещения и проходы</option></select></label>
     <label>Описание карты<textarea aria-label="Описание карты" rows={4} maxLength={6000} value={prompt} disabled={disabled} onChange={e=>setPrompt(e.target.value)}/></label>
 		<fieldset className="world-map-context" disabled={disabled}><legend>Контекст карты</legend>
 			<label><input type="checkbox" checked={includeCampaign} onChange={e=>setIncludeCampaign(e.target.checked)}/>Учитывать контекст кампании</label>

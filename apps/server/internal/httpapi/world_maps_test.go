@@ -153,6 +153,17 @@ func TestWorldMapAPIStorageAccessAndReference(t *testing.T) {
 	}
 	var changed map[string]any
 	_ = json.Unmarshal([]byte(body), &changed)
+	changed["scale"] = "world"
+	scaleBody, _ := json.Marshal(changed)
+	if w = call("POST", base+"/generate", string(scaleBody), "http://localhost", cookie); w.Code != 409 {
+		t.Fatal("scale change reused map", w.Code)
+	}
+	changed["scale"] = "invalid"
+	scaleBody, _ = json.Marshal(changed)
+	if w = call("POST", base+"/generate", string(scaleBody), "http://localhost", cookie); w.Code != 400 || calls != 3 {
+		t.Fatal("invalid scale reached provider", w.Code)
+	}
+	delete(changed, "scale")
 	changed["context"] = worldMapContext{}
 	changedBody, _ := json.Marshal(changed)
 	if w = call("POST", base+"/generate", string(changedBody), "http://localhost", cookie); w.Code != 409 {
@@ -169,6 +180,9 @@ func TestWorldMapAPIStorageAccessAndReference(t *testing.T) {
 	label := result.Data.Labels[0]
 	label.Text = "Новая гавань"
 	label.Rotation = 25
+	label.Role = "major"
+	label.Curve = -35
+	label.Span = 450
 	label.Color = "#aabbcc"
 	edit, _ := json.Marshal(map[string]any{"title": "Обновлённый край", "revision": 0, "labels": []worldMapLabel{label}})
 	w = call("PUT", base+"/"+result.Data.ID, string(edit), "http://localhost", cookie)
@@ -204,7 +218,7 @@ func TestWorldMapAPIStorageAccessAndReference(t *testing.T) {
 	found := false
 	for _, c := range joined.Campaigns {
 		if c.ID == campaign.ID {
-			found = len(c.WorldMaps) == 2 && c.WorldMaps[0].Labels[0].Rotation == 25
+			found = len(c.WorldMaps) == 2 && c.WorldMaps[0].Labels[0] == label
 		}
 	}
 	if !found {
@@ -350,6 +364,48 @@ func TestWorldMapGeographyContext(t *testing.T) {
 	}
 	if len(worldMapPrompt(c, "Draw")) > 35000 {
 		t.Fatal("unbounded campaign context")
+	}
+}
+
+func TestWorldMapLabelHierarchyAndScale(t *testing.T) {
+	for role, size := range map[string]float64{"major": 42, "region": 28, "settlement": 18, "site": 14} {
+		l := plannedWorldMapLabel(mapPlanLabel{Text: "Coast", X: .5, Y: .5, Role: role, Curve: 30, Span: 300, Rotation: -12}, "label")
+		if l.Size != size || l.Curve != 30 || l.Span != 300 || l.Rotation != -12 {
+			t.Fatalf("lost label style: %+v", l)
+		}
+		if err := validateMapLabels([]worldMapLabel{l}); err != nil {
+			t.Fatal(err)
+		}
+		b, _ := json.Marshal(l)
+		var restored worldMapLabel
+		if json.Unmarshal(b, &restored) != nil || restored != l {
+			t.Fatal("label roundtrip")
+		}
+		l.Curve = 101
+		if validateMapLabels([]worldMapLabel{l}) == nil {
+			t.Fatal("invalid curve accepted")
+		}
+		l.Curve = 0
+		l.Span = 901
+		if validateMapLabels([]worldMapLabel{l}) == nil {
+			t.Fatal("invalid span accepted")
+		}
+	}
+	c := campaignData{Locations: []knowledgeEntity{{ID: "one", Title: "Island", Content: "LOCAL_DETAIL"}}}
+	for _, scale := range []string{"world", "city"} {
+		p, err := scopedWorldMapPrompt(c, "DRAW", worldMapContext{IncludeCampaign: true, LocationID: "one"}, scale)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if strings.Contains(p, "LOCAL_DETAIL") != (scale == "city") {
+			t.Fatal("incorrect scale detail")
+		}
+		if scale == "world" && strings.Contains(p, "Map ONLY") {
+			t.Fatal("conflicting world focus")
+		}
+	}
+	if validMapScale("unknown") || !validMapScale("") || !validMapScale("island") {
+		t.Fatal("scale validation")
 	}
 }
 

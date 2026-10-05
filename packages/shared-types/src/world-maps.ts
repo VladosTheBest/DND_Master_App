@@ -1,4 +1,7 @@
 export interface WorldMapLabel {
+  role?: "major" | "region" | "settlement" | "site";
+  curve?: number;
+  span?: number;
   id: string;
   text: string;
   x: number;
@@ -12,6 +15,7 @@ export interface WorldMapLabel {
   italic: boolean;
 }
 export interface WorldMapDocument {
+  scale?: "auto" | "world" | "region" | "island" | "city" | "site";
 	context?: {includeCampaign: boolean; locationId?: string};
   id: string;
   title: string;
