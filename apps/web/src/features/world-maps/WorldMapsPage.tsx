@@ -6,6 +6,7 @@ import { api } from "../../app/api";
 import { MapCreateForm } from "./MapCreateForm";
 import { mapFont, mapMediaURL, renderMapPNG, worldMapsAPI } from "./world-maps.api";
 import { labelGeometry, labelTextSize, labelRoleSizes } from "./map-label-geometry";
+import { arrangeMapLabels } from "./map-label-layout";
 import { AISoundToggle } from "../ai-jobs/AISoundToggle";
 import { useAIJobs } from "../ai-jobs/useAIJobs";
 import "./world-maps.css";
@@ -48,6 +49,7 @@ export function MapEditor({campaignId,original,onSaved,onDirty,onVariant}:{campa
   useEffect(()=>{onDirty(dirty);},[dirty,onDirty]);
   function change(next:WorldMapDocument){setPast(values=>[...values.slice(-49),latest.current]);setFuture([]);setDoc(next);setNotice("");}
   function patchLabel(patch:Partial<WorldMapLabel>){change({...doc,labels:doc.labels.map(l=>l.id===selection?{...l,...patch}:l)});}
+  function arrange(){const result=arrangeMapLabels(doc);change(result.map);setNotice(result.unresolved?`Тесных участков: ${result.unresolved}. Проверь подписи вручную.`:"Подписи упорядочены. Сохрани изменения.");}
   function point(event:React.PointerEvent){const rect=svg.current!.getBoundingClientRect();return{x:(event.clientX-rect.left)/rect.width,y:(event.clientY-rect.top)/rect.height};}
   async function save(){
     if(lock.current)return;lock.current=true;setBusy(true);setError("");
@@ -64,6 +66,7 @@ export function MapEditor({campaignId,original,onSaved,onDirty,onVariant}:{campa
       <button type="button" aria-label="Отменить правку" title="Отменить правку" disabled={!past.length||busy} onClick={()=>{setFuture(v=>[doc,...v]);setDoc({...past[past.length-1],revision:doc.revision});setPast(v=>v.slice(0,-1));}}><Undo2 size={18}/></button>
       <button type="button" aria-label="Повторить правку" title="Повторить правку" disabled={!future.length||busy} onClick={()=>{setPast(v=>[...v,doc]);setDoc({...future[0],revision:doc.revision});setFuture(v=>v.slice(1));}}><Redo2 size={18}/></button>
       <button type="button" disabled={busy||doc.labels.length>=100} onClick={()=>{const l:WorldMapLabel={id:crypto.randomUUID(),text:"Новое название",x:.5,y:.5,size:22,rotation:0,font:"serif",color:"#eee8ff",outline:"#211b30",bold:true,italic:false};change({...doc,labels:[...doc.labels,l]});setSelection(l.id);}}><Type size={18}/>Подпись</button>
+      <button type="button" disabled={busy||!doc.labels.length} onClick={arrange}><Scan size={18}/>Упорядочить подписи</button>
       <button type="button" className="map-primary" disabled={busy||!dirty||!doc.title.trim()||doc.labels.some(l=>!l.text.trim())} onClick={()=>void save()}><Save size={18}/>Сохранить</button>
       <button type="button" title={dirty?"Сначала сохрани правки карты":"Изменить фон карты с AI"} disabled={busy||dirty||imageError} onClick={()=>setEditingAI(v=>!v)} aria-expanded={editingAI}><Sparkles size={18}/>Изменить с AI</button>
       <button type="button" disabled={busy||imageError} onClick={()=>void download()}><Download size={18}/>PNG</button>
@@ -93,6 +96,6 @@ export function MapEditor({campaignId,original,onSaved,onDirty,onVariant}:{campa
       <button type="button" className="map-delete" onClick={()=>{change({...doc,labels:doc.labels.filter(l=>l.id!==selection)});setSelection("");}}><Trash2 size={17}/>Удалить подпись</button></fieldset>:<p>Нет выбранной подписи</p>}
       <details><summary>Описание карты</summary><p>{doc.prompt||"По референсу"}</p><small>{doc.provider==="codex"?"Codex":"API"}</small></details>
     </aside></div>
-    <footer className="world-map-save-state" aria-live="polite">{busy?"Обрабатываю…":dirty?"Есть несохранённые изменения":notice||"Все изменения сохранены"}</footer>{error&&<p role="alert">{error}</p>}
+    <footer className="world-map-save-state" aria-live="polite">{busy?"Обрабатываю…":notice||(dirty?"Есть несохранённые изменения":"Все изменения сохранены")}</footer>{error&&<p role="alert">{error}</p>}
   </section>;
 }

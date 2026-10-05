@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ExternalLink, ImagePlus, LoaderCircle, Sparkles, X } from "lucide-react";
 import type { AIJob, WorldMapDocument } from "@shadow-edge/shared-types";
 import { api } from "../../app/api";
-import { mapMediaURL, mapRequest, worldMapsAPI } from "./world-maps.api";
+import { finishGeneratedMap, mapMediaURL, mapRequest, worldMapsAPI } from "./world-maps.api";
 import "./world-maps.css";
 import { notifyAICompletion, prepareAISound } from "../ai-jobs/ai-completion-sound";
 
@@ -34,7 +34,8 @@ export function MapCreateForm({campaignId, initialPrompt="", onCreated, storageK
         if(job.state==="succeeded"){
           notifyAICompletion(job.id);
           const result=job.result as {data?:WorldMapDocument};if(!result?.data?.imageUrl)throw new Error("Карта не найдена в результате задачи. Обнови список карт.");
-          setCreated(result.data);sessionStorage.setItem(`${key}:result`,result.data.id);callback.current?.(result.data);sessionStorage.removeItem(key);setJobId("");setStage("");request.current=null;
+          const finished=await finishGeneratedMap(campaignId,result.data);if(abort.signal.aborted)return;
+          setCreated(finished);sessionStorage.setItem(`${key}:result`,finished.id);callback.current?.(finished);sessionStorage.removeItem(key);setJobId("");setStage("");request.current=null;
         }else if(job.state==="failed"){
           notifyAICompletion(job.id,true);
           const result=job.result as {error?:{message?:string;code?:string}};
@@ -55,7 +56,7 @@ export function MapCreateForm({campaignId, initialPrompt="", onCreated, storageK
 		const context={includeCampaign,locationId:useLocation?locationId:""};
       const signature=JSON.stringify([prompt.trim(),reference,context,scale,sourceMap?.id,sourceMap?.revision]);if(request.current?.signature!==signature)request.current={signature,id:crypto.randomUUID()};
       const result=await worldMapsAPI.generate(campaignId,{requestId:request.current.id,prompt:prompt.trim(),referenceUrl:reference,context,scale,...(sourceMap?{sourceMapId:sourceMap.id,sourceRevision:sourceMap.revision}:{})});
-      if("imageUrl" in result){notifyAICompletion(result.id);setCreated(result);sessionStorage.setItem(`${key}:result`,result.id);callback.current?.(result);setStage("");request.current=null;}
+      if("imageUrl" in result){const finished=await finishGeneratedMap(campaignId,result);notifyAICompletion(finished.id);setCreated(finished);sessionStorage.setItem(`${key}:result`,finished.id);callback.current?.(finished);setStage("");request.current=null;}
       else{sessionStorage.setItem(key,result.id);setJobId(result.id);}
     }catch(e){setError((e as Error).message);setStage("");}finally{lock.current=false;setBusy(false);}
   }

@@ -407,7 +407,7 @@ func TestWorldMapGeographyContext(t *testing.T) {
 }
 
 func TestWorldMapLabelHierarchyAndScale(t *testing.T) {
-	for role, size := range map[string]float64{"major": 42, "region": 28, "settlement": 18, "site": 14} {
+	for role, size := range map[string]float64{"major": 28, "region": 20, "settlement": 15, "site": 12} {
 		l := plannedWorldMapLabel(mapPlanLabel{Text: "Coast", X: .5, Y: .5, Role: role, Curve: 30, Span: 300, Rotation: -12}, "label")
 		if l.Size != size || l.Curve != 30 || l.Span != 300 || l.Rotation != -12 {
 			t.Fatalf("lost label style: %+v", l)

@@ -1,6 +1,6 @@
 import type { WorldMapLabel } from "@shadow-edge/shared-types";
 
-export const labelRoleSizes = {major:42, region:28, settlement:18, site:14};
+export const labelRoleSizes = {major:28, region:20, settlement:15, site:12};
 export function labelGeometry(label:WorldMapLabel) {
   const span=label.span||240, bend=(label.curve||0)/100*span;
   const path=`M ${-span/2} ${bend/2} Q 0 ${-bend/2} ${span/2} ${bend/2}`;

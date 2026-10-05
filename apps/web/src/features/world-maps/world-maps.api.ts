@@ -1,5 +1,6 @@
 import type { AIJob, WorldMapDocument, WorldMapLabel } from "@shadow-edge/shared-types";
 import { labelGeometry, labelTextSize } from "./map-label-geometry";
+import { arrangeMapLabels } from "./map-label-layout";
 
 export const mapMediaURL = (url: string) => `${import.meta.env.VITE_API_BASE_URL || ""}${url}`;
 export const mapRoute = (campaign: string) => `/api/campaigns/${encodeURIComponent(campaign)}/world-maps`;
@@ -21,6 +22,16 @@ export const worldMapsAPI = {
 };
 
 export const mapFont = (font:WorldMapLabel["font"]) => font === "serif" ? "Georgia" : font === "monospace" ? "Courier New" : "Arial";
+export async function finishGeneratedMap(campaign:string,map:WorldMapDocument){
+  if(map.revision!==0||map.sourceMapId||!map.labels.length)return map;
+  const arranged=arrangeMapLabels(map).map;
+  if(JSON.stringify(arranged.labels)===JSON.stringify(map.labels))return map;
+  try{return await worldMapsAPI.save(campaign,arranged);}catch(error){
+    const current=(await worldMapsAPI.list(campaign)).find(item=>item.id===map.id);
+    if(current&&current.revision>map.revision)return current;
+    throw error;
+  }
+}
 export async function renderMapPNG(map:WorldMapDocument):Promise<Blob> {
   const image = new Image();image.crossOrigin="use-credentials";
   await new Promise<void>((resolve,reject)=>{image.onload=()=>resolve();image.onerror=()=>reject(new Error("Не удалось загрузить фон для экспорта."));image.src=mapMediaURL(map.imageUrl);});
