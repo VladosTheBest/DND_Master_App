@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Bold, Download, Italic, Map, MessageSquare, Plus, Redo2, Save, Trash2, Type, Undo2 } from "lucide-react";
+import { ArrowLeft, Bold, Download, Italic, Map, MessageSquare, Plus, Redo2, Save, Trash2, Type, Undo2, Scan, ZoomIn, ZoomOut } from "lucide-react";
+import { TransformWrapper, TransformComponent, type ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
 import type { WorldMapDocument, WorldMapLabel } from "@shadow-edge/shared-types";
 import { api } from "../../app/api";
 import { MapCreateForm } from "./MapCreateForm";
@@ -33,6 +34,7 @@ export function MapEditor({campaignId,original,onSaved,onDirty}:{campaignId:stri
   const [past,setPast]=useState<WorldMapDocument[]>([]),[future,setFuture]=useState<WorldMapDocument[]>([]);
   const [zoom,setZoom]=useState(100),[busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
   const [imageError,setImageError]=useState(false);
+	const transform=useRef<ReactZoomPanPinchRef>(null);
   const svg=useRef<SVGSVGElement>(null),drag=useRef<{id:string;dx:number;dy:number}|null>(null),latest=useRef(doc),lock=useRef(false);
   latest.current=doc;
   const dirty=JSON.stringify(doc)!==JSON.stringify(saved),label=doc.labels.find(l=>l.id===selection);
@@ -57,12 +59,19 @@ export function MapEditor({campaignId,original,onSaved,onDirty}:{campaignId:stri
       <button type="button" className="map-primary" disabled={busy||!dirty||!doc.title.trim()||doc.labels.some(l=>!l.text.trim())} onClick={()=>void save()}><Save size={18}/>Сохранить</button>
       <button type="button" disabled={busy||imageError} onClick={()=>void download()}><Download size={18}/>PNG</button>
     </div></div>
-    <div className="world-map-edit-layout"><div className="world-map-canvas-area"><div className="world-map-viewport"><div className="world-map-surface" style={{width:`${zoom}%`,aspectRatio:`${doc.width}/${doc.height}`}}>
+    <div className="world-map-edit-layout"><div className="world-map-canvas-area"><div className="world-map-viewport">
+		<TransformWrapper ref={transform} minScale={.01} maxScale={32} limitToBounds={false} fitOnInit="contain" centerOnInit panning={{excluded:["text"],velocityDisabled:true,allowMiddleClickPan:true}} doubleClick={{disabled:true}} zoomAnimation={{disabled:true}} autoAlignment={{disabled:true}} onTransform={(_,state)=>setZoom(Math.round(state.scale*100))}>
+		<TransformComponent wrapperStyle={{width:"100%",height:"100%"}} contentStyle={{width:doc.width,height:doc.height}}><div className="world-map-surface" style={{width:doc.width,height:doc.height}}>
       <img src={mapMediaURL(doc.imageUrl)} alt={doc.title} draggable={false} onError={()=>setImageError(true)} onLoad={()=>setImageError(false)}/>
       <svg ref={svg} viewBox={`0 0 1000 ${h}`} aria-label="Подписи на карте" onPointerMove={event=>{if(!drag.current||busy)return;const p=point(event),active=drag.current;setDoc(d=>({...d,labels:d.labels.map(l=>l.id===active.id?{...l,x:Math.max(0,Math.min(1,p.x-active.dx)),y:Math.max(0,Math.min(1,p.y-active.dy))}:l)}));}} onPointerUp={()=>{drag.current=null;}} onPointerCancel={()=>{drag.current=null;}}>
         {doc.labels.map(l=><text key={l.id} role="button" aria-label={`Подпись: ${l.text}`} tabIndex={0} className={selection===l.id?"selected":""} x={l.x*1000} y={l.y*h} transform={`rotate(${l.rotation} ${l.x*1000} ${l.y*h})`} textAnchor="middle" dominantBaseline="central" fontFamily={mapFont(l.font)} fontSize={l.size} fontWeight={l.bold?700:400} fontStyle={l.italic?"italic":"normal"} fill={l.color} stroke={l.outline} strokeWidth={3} paintOrder="stroke" strokeLinejoin="round" onFocus={()=>setSelection(l.id)} onKeyDown={event=>{if(busy)return;if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"].includes(event.key)){event.preventDefault();const step=event.shiftKey?.02:.002;change({...doc,labels:doc.labels.map(item=>item.id===l.id?{...item,x:Math.max(0,Math.min(1,item.x+(event.key==="ArrowRight"?step:event.key==="ArrowLeft"?-step:0))),y:Math.max(0,Math.min(1,item.y+(event.key==="ArrowDown"?step:event.key==="ArrowUp"?-step:0)))}:item)});}}} onPointerDown={event=>{if(busy)return;event.preventDefault();setSelection(l.id);const p=point(event);drag.current={id:l.id,dx:p.x-l.x,dy:p.y-l.y};setPast(v=>[...v.slice(-49),doc]);setFuture([]);svg.current?.setPointerCapture(event.pointerId);}}>{l.text}</text>)}
       </svg>
-    </div></div><div className="world-map-canvas-footer"><span>{doc.width} × {doc.height} · {doc.labels.length} подписей</span><label>Масштаб<input type="range" aria-label="Масштаб карты" min={100} max={250} step={10} value={zoom} onChange={e=>setZoom(+e.target.value)}/><output>{zoom}%</output></label></div>{imageError&&<p role="alert">Не удалось загрузить изображение карты. Обнови страницу.</p>}</div>
+    </div></TransformComponent></TransformWrapper></div><div className="world-map-canvas-footer"><span>{doc.width} × {doc.height} · {doc.labels.length} подписей</span><div className="world-map-zoom-controls">
+		<button type="button" title="Отдалить" aria-label="Отдалить карту" onClick={()=>void transform.current?.zoomOut(.3,0)}><ZoomOut size={17}/></button>
+		<select aria-label="Масштаб карты" value={zoom} onChange={e=>void transform.current?.centerView(Number(e.target.value)/100,0)}>{[...new Set([1,5,10,25,50,100,200,400,800,1600,3200,zoom])].sort((a,b)=>a-b).map(z=><option key={z} value={z}>{z}%</option>)}</select>
+		<button type="button" title="Приблизить" aria-label="Приблизить карту" onClick={()=>void transform.current?.zoomIn(.3,0)}><ZoomIn size={17}/></button>
+		<button type="button" title="Вписать карту" aria-label="Вписать карту" onClick={()=>void transform.current?.fitToView({mode:"contain",animationTime:0})}><Scan size={17}/></button>
+		</div></div>{imageError&&<p role="alert">Не удалось загрузить изображение карты. Обнови страницу.</p>}</div>
     <aside className="world-map-properties"><h3>Подписи</h3><select aria-label="Выбранная подпись" value={selection} onChange={e=>setSelection(e.target.value)}><option value="">Не выбрана</option>{doc.labels.map(l=><option key={l.id} value={l.id}>{l.text||"Без названия"}</option>)}</select>
       {label?<fieldset disabled={busy}><label>Текст<input aria-label="Текст подписи" maxLength={160} value={label.text} onChange={e=>patchLabel({text:e.target.value})}/></label><label>Шрифт<select value={label.font} onChange={e=>patchLabel({font:e.target.value as WorldMapLabel["font"]})}><option value="serif">Georgia</option><option value="sans-serif">Arial</option><option value="monospace">Courier New</option></select></label>
       <div className="world-map-style-row"><button type="button" title="Полужирный" aria-label="Полужирный" aria-pressed={label.bold} onClick={()=>patchLabel({bold:!label.bold})}><Bold size={18}/></button><button type="button" title="Курсив" aria-label="Курсив" aria-pressed={label.italic} onClick={()=>patchLabel({italic:!label.italic})}><Italic size={18}/></button><label>Текст<input type="color" aria-label="Цвет текста" value={label.color} onChange={e=>patchLabel({color:e.target.value})}/></label><label>Обводка<input type="color" aria-label="Цвет обводки" value={label.outline} onChange={e=>patchLabel({outline:e.target.value})}/></label></div>

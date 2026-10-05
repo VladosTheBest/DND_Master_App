@@ -18,6 +18,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/User/.cache/co
       const request=route.request(),u=new URL(request.url());
       if(u.pathname.startsWith('/uploads/'))return route.fulfill({contentType:'image/png',body:bitmap});
       if(u.pathname==='/api/campaigns')return route.fulfill({json:{data:[{id:'campaign',title:'Северная кампания'}]}});
+      if(u.pathname==='/api/campaigns/campaign')return route.fulfill({json:{data:{locations:[{id:'harbor',title:'Северная гавань'}]}}});
       if(u.pathname.endsWith('/uploads'))return route.fulfill({json:{data:{url:'/uploads/reference.png',fileName:'ref.png',contentType:'image/png',size:bitmap.length}}});
       if(u.pathname.endsWith('/world-maps/generate')){posted=request.postDataJSON();assert.equal(request.headers().prefer,'respond-async');job={id:'map-job',kind:'world-map',campaignId:'campaign',state:'running',stage:'Рисую фон карты без надписей'};return route.fulfill({status:202,json:{data:job}});}
       if(u.pathname==='/api/ai/jobs/map-job')return route.fulfill({json:{data:job}});
@@ -28,6 +29,17 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/User/.cache/co
       return route.fulfill({contentType:u.pathname.endsWith('.css')?'text/css':'application/javascript',body:bundle.outputFiles.find(f=>f.path.endsWith(u.pathname.endsWith('.css')?'.css':'.js')).text});
     });
     await page.goto('https://maps.local/maps?campaign=campaign');await page.getByLabel('Текст подписи').waitFor();
+    await page.getByLabel('Масштаб карты').selectOption('1');assert.equal(await page.getByLabel('Масштаб карты').inputValue(),'1');
+    await page.getByLabel('Масштаб карты').selectOption('3200');assert.equal(await page.getByLabel('Масштаб карты').inputValue(),'3200');
+    await page.getByRole('button',{name:'Вписать карту',exact:true}).click();
+    const viewport=await page.locator('.world-map-viewport').boundingBox();
+    const initialSurface=await page.locator('.world-map-surface').boundingBox();
+    await page.mouse.move(viewport.x+30,viewport.y+30);await page.mouse.down();await page.mouse.move(viewport.x+80,viewport.y+70);await page.mouse.up();
+    const pannedSurface=await page.locator('.world-map-surface').boundingBox();assert.ok(pannedSurface.x>initialSurface.x+40,'pan did not move map');
+    await page.getByRole('button',{name:'Вписать карту',exact:true}).click();
+    const scaleBefore=Number(await page.getByLabel('Масштаб карты').inputValue());await page.mouse.move(viewport.x+viewport.width/3,viewport.y+viewport.height/3);await page.mouse.wheel(0,-100);
+    await page.waitForFunction(value=>Number(document.querySelector('[aria-label="Масштаб карты"]').value)>value,scaleBefore);
+    await page.getByRole('button',{name:'Вписать карту',exact:true}).click();
     const before=await page.getByRole('button',{name:'Подпись: Северная гавань',exact:true}).boundingBox();
     await page.mouse.move(before.x+before.width/2,before.y+before.height/2);await page.mouse.down();await page.mouse.move(before.x+before.width/2+60,before.y+before.height/2+40);await page.mouse.up();
     await page.getByLabel('Текст подписи').fill('Новая гавань');
@@ -41,10 +53,13 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/User/.cache/co
     const downloadPromise=page.waitForEvent('download');await page.getByRole('button',{name:'PNG',exact:true}).click();const download=await downloadPromise;const exported=await fs.readFile(await download.path());const meta=await sharp(exported).metadata();assert.equal(meta.width,900);assert.equal(meta.height,600);
     const exportedPixels=await sharp(exported).removeAlpha().raw().toBuffer();assert.ok(!exportedPixels.equals(pixels),'PNG omitted labels');assert.deepEqual([...exportedPixels.subarray(0,3)],[...pixels.subarray(0,3)],'PNG lost map background');
     await page.screenshot({path:'tmp/world-maps-desktop.png',fullPage:true});
-    await page.setViewportSize({width:390,height:844});await page.screenshot({path:'tmp/world-maps-mobile.png',fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'mobile overflow');
+    await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Вписать карту',exact:true}).click();await page.screenshot({path:'tmp/world-maps-mobile.png',fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'mobile overflow');
     await page.getByRole('button',{name:'Новая карта',exact:true}).click();await page.getByLabel('Описание карты').fill('Остров на основе референса');
+    await page.getByLabel('Учитывать контекст кампании').uncheck();await page.getByLabel('Карта конкретной локации').check();await page.getByLabel('Локация карты').selectOption('harbor');
+    await page.screenshot({path:'tmp/world-maps-context-mobile.png',fullPage:true});
     await page.locator('input[type=file]').setInputFiles({name:'ref.png',mimeType:'image/png',buffer:bitmap});await page.getByAltText('Референс карты').waitFor();
     await page.getByRole('button',{name:'Создать карту',exact:true}).click();await page.getByText('Рисую фон карты без надписей',{exact:true}).waitFor();assert.equal(posted.referenceUrl,'/uploads/reference.png');assert.ok(posted.requestId.length>=16);
+    assert.deepEqual(posted.context,{includeCampaign:false,locationId:'harbor'});
     // Return to the composer after reload; the asynchronous job remains recoverable.
     await page.reload();await page.getByRole('button',{name:'Новая карта',exact:true}).click();await page.getByText('Рисую фон карты без надписей',{exact:true}).waitFor();
     const second={...original,id:'map-two',title:'Новый остров'};maps.push(second);job={...job,state:'succeeded',result:{data:second}};

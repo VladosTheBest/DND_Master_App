@@ -34,6 +34,10 @@ func ensureCampaignShape(campaign campaignData) campaignData {
 	// Map documents are edited independently; callers must not retain mutable slices from the store.
 	campaign.WorldMaps = append([]worldMapDocument(nil), campaign.WorldMaps...)
 	for i := range campaign.WorldMaps {
+		if campaign.WorldMaps[i].Context != nil {
+			scope := *campaign.WorldMaps[i].Context
+			campaign.WorldMaps[i].Context = &scope
+		}
 		campaign.WorldMaps[i].Labels = append([]worldMapLabel{}, campaign.WorldMaps[i].Labels...)
 	}
 	if campaign.Revision < 1 {

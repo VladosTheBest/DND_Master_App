@@ -8,6 +8,9 @@ import "./world-maps.css";
 export function MapCreateForm({campaignId, initialPrompt="", onCreated, storageKey="composer"}:{campaignId:string;initialPrompt?:string;onCreated?:(map:WorldMapDocument)=>void;storageKey?:string}){
   const key=`shadow-edge:map-job:${campaignId}:${storageKey}`;
   const [prompt,setPrompt]=useState(initialPrompt),[reference,setReference]=useState("");
+	const [includeCampaign,setIncludeCampaign]=useState(true),[useLocation,setUseLocation]=useState(false),[locationId,setLocationId]=useState("");
+	const [locations,setLocations]=useState<{id:string;title:string}[]>([]),[locationsError,setLocationsError]=useState("");
+	useEffect(()=>{let alive=true;setLocations([]);setLocationId("");setUseLocation(false);setLocationsError("");void api.getCampaign(campaignId).then(c=>{if(alive)setLocations(c.locations);}).catch(()=>{if(alive)setLocationsError("Не удалось загрузить локации. Открой форму заново, чтобы повторить.");});return()=>{alive=false;};},[campaignId]);
   const [jobId,setJobId]=useState(()=>sessionStorage.getItem(key)||"");
   const [busy,setBusy]=useState(false),[stage,setStage]=useState(""),[error,setError]=useState("");
   const [created,setCreated]=useState<WorldMapDocument|null>(null);
@@ -44,8 +47,9 @@ export function MapCreateForm({campaignId, initialPrompt="", onCreated, storageK
   async function generate(){
     if(lock.current||jobId)return;lock.current=true;setBusy(true);setError("");setCreated(null);setStage("Запускаю генерацию…");
     try{
-      const signature=JSON.stringify([prompt.trim(),reference]);if(request.current?.signature!==signature)request.current={signature,id:crypto.randomUUID()};
-      const result=await worldMapsAPI.generate(campaignId,{requestId:request.current.id,prompt:prompt.trim(),referenceUrl:reference});
+		const context={includeCampaign,locationId:useLocation?locationId:""};
+      const signature=JSON.stringify([prompt.trim(),reference,context]);if(request.current?.signature!==signature)request.current={signature,id:crypto.randomUUID()};
+      const result=await worldMapsAPI.generate(campaignId,{requestId:request.current.id,prompt:prompt.trim(),referenceUrl:reference,context});
       if("imageUrl" in result){setCreated(result);sessionStorage.setItem(`${key}:result`,result.id);callback.current?.(result);setStage("");request.current=null;}
       else{sessionStorage.setItem(key,result.id);setJobId(result.id);}
     }catch(e){setError((e as Error).message);setStage("");}finally{lock.current=false;setBusy(false);}
@@ -53,10 +57,17 @@ export function MapCreateForm({campaignId, initialPrompt="", onCreated, storageK
   const disabled=busy||Boolean(jobId);
   return <section className="world-map-create" aria-label="Создание карты мира">
     <label>Описание карты<textarea aria-label="Описание карты" rows={4} maxLength={6000} value={prompt} disabled={disabled} onChange={e=>setPrompt(e.target.value)}/></label>
+		<fieldset className="world-map-context" disabled={disabled}><legend>Контекст карты</legend>
+			<label><input type="checkbox" checked={includeCampaign} onChange={e=>setIncludeCampaign(e.target.checked)}/>Учитывать контекст кампании</label>
+			<label><input type="checkbox" checked={useLocation} onChange={e=>setUseLocation(e.target.checked)}/>Карта конкретной локации</label>
+			{useLocation&&<label>Локация<select aria-label="Локация карты" value={locationId} onChange={e=>setLocationId(e.target.value)}><option value="">Выбери локацию</option>{locations.map(l=><option key={l.id} value={l.id}>{l.title}</option>)}</select></label>}
+			{useLocation&&locationsError&&<p role="alert">{locationsError}</p>}
+			{useLocation&&!locationsError&&!locations.length&&<p>Нет доступных локаций</p>}
+		</fieldset>
     <div className="world-map-create-actions">
       <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={e=>{if(e.target.files?.[0])void upload(e.target.files[0]);}}/>
       <button type="button" disabled={disabled} onClick={()=>input.current?.click()}><ImagePlus size={17}/>{reference?"Заменить референс":"Референс"}</button>
-      <button type="button" className="map-primary" disabled={disabled||prompt.length>6000||(!prompt.trim()&&!reference)} onClick={()=>void generate()}><Sparkles size={17}/>Создать карту</button>
+      <button type="button" className="map-primary" disabled={disabled||prompt.length>6000||(useLocation&&!locationId)||(!prompt.trim()&&!reference&&!includeCampaign&&!useLocation)} onClick={()=>void generate()}><Sparkles size={17}/>Создать карту</button>
     </div>
     {prompt.length>6000&&<p role="alert">Описание слишком длинное: {prompt.length} из 6000 символов.</p>}
     {reference&&<div className="world-map-reference"><img src={mapMediaURL(reference)} alt="Референс карты"/><button type="button" title="Убрать референс" aria-label="Убрать референс" disabled={disabled} onClick={()=>setReference("")}><X size={16}/></button></div>}

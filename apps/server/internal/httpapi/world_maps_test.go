@@ -151,6 +151,21 @@ func TestWorldMapAPIStorageAccessAndReference(t *testing.T) {
 	if w.Code != 200 || calls != 3 {
 		t.Fatal("retry billed twice", w.Code, calls)
 	}
+	var changed map[string]any
+	_ = json.Unmarshal([]byte(body), &changed)
+	changed["context"] = worldMapContext{}
+	changedBody, _ := json.Marshal(changed)
+	if w = call("POST", base+"/generate", string(changedBody), "http://localhost", cookie); w.Code != 409 {
+		t.Fatal("context change reused map", w.Code)
+	}
+	changed["context"] = worldMapContext{LocationID: "foreign-location"}
+	changedBody, _ = json.Marshal(changed)
+	if w = call("POST", base+"/generate", string(changedBody), "http://localhost", cookie); w.Code != 400 || calls != 3 {
+		t.Fatal("invalid location reached provider", w.Code, calls)
+	}
+	if result.Data.Context == nil || !result.Data.Context.IncludeCampaign {
+		t.Fatal("context not persisted")
+	}
 	label := result.Data.Labels[0]
 	label.Text = "Новая гавань"
 	label.Rotation = 25
@@ -339,6 +354,40 @@ func TestWorldMapVisualCheckFailsClosed(t *testing.T) {
 	}
 	if err := acceptMapVisualCheck(`{"isMap":true}`); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestWorldMapContextSelection(t *testing.T) {
+	c := campaignData{Title: "CAMPAIGN_ONLY", Summary: "WORLD_ONLY", Locations: []knowledgeEntity{{ID: "one", Title: "FOCAL_PLACE", Content: "FOCAL_DETAILS"}, {ID: "two", Title: "OTHER_PLACE"}}}
+	for _, tc := range []struct {
+		scope        worldMapContext
+		want, absent []string
+	}{
+		{worldMapContext{}, []string{"REQUEST"}, []string{"CAMPAIGN_ONLY", "FOCAL_PLACE", "OTHER_PLACE"}},
+		{worldMapContext{LocationID: "one"}, []string{"REQUEST", "FOCAL_DETAILS"}, []string{"CAMPAIGN_ONLY", "WORLD_ONLY", "OTHER_PLACE"}},
+		{worldMapContext{IncludeCampaign: true}, []string{"CAMPAIGN_ONLY", "OTHER_PLACE"}, nil},
+		{worldMapContext{IncludeCampaign: true, LocationID: "one"}, []string{"CAMPAIGN_ONLY", "Map ONLY", "FOCAL_DETAILS"}, nil},
+	} {
+		p, err := scopedWorldMapPrompt(c, "REQUEST", tc.scope)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, s := range tc.want {
+			if !strings.Contains(p, s) {
+				t.Fatalf("missing %s", s)
+			}
+		}
+		for _, s := range tc.absent {
+			if strings.Contains(p, s) {
+				t.Fatalf("scope leaked %s", s)
+			}
+		}
+	}
+	if _, err := scopedWorldMapPrompt(c, "REQUEST", worldMapContext{LocationID: "foreign"}); err == nil {
+		t.Fatal("foreign location accepted")
+	}
+	if !normalizedMapContext(nil).IncludeCampaign {
+		t.Fatal("legacy default changed")
 	}
 }
 

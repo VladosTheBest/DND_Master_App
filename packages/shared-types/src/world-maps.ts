@@ -12,6 +12,7 @@ export interface WorldMapLabel {
   italic: boolean;
 }
 export interface WorldMapDocument {
+	context?: {includeCampaign: boolean; locationId?: string};
   id: string;
   title: string;
   prompt: string;

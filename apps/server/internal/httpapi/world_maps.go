@@ -34,22 +34,36 @@ type worldMapLabel struct {
 	Italic   bool    `json:"italic"`
 }
 type worldMapDocument struct {
-	ID           string          `json:"id"`
-	Title        string          `json:"title"`
-	Prompt       string          `json:"prompt"`
-	ImageURL     string          `json:"imageUrl"`
-	ReferenceURL string          `json:"referenceUrl,omitempty"`
-	Labels       []worldMapLabel `json:"labels"`
-	Width        int             `json:"width"`
-	Height       int             `json:"height"`
-	Revision     int             `json:"revision"`
-	Provider     string          `json:"provider"`
-	CreatedAt    time.Time       `json:"createdAt"`
+	Context      *worldMapContext `json:"context,omitempty"`
+	ID           string           `json:"id"`
+	Title        string           `json:"title"`
+	Prompt       string           `json:"prompt"`
+	ImageURL     string           `json:"imageUrl"`
+	ReferenceURL string           `json:"referenceUrl,omitempty"`
+	Labels       []worldMapLabel  `json:"labels"`
+	Width        int              `json:"width"`
+	Height       int              `json:"height"`
+	Revision     int              `json:"revision"`
+	Provider     string           `json:"provider"`
+	CreatedAt    time.Time        `json:"createdAt"`
 }
 type worldMapGenerateInput struct {
-	RequestID    string `json:"requestId"`
-	Prompt       string `json:"prompt"`
-	ReferenceURL string `json:"referenceUrl"`
+	Context      *worldMapContext `json:"context,omitempty"`
+	RequestID    string           `json:"requestId"`
+	Prompt       string           `json:"prompt"`
+	ReferenceURL string           `json:"referenceUrl"`
+}
+
+type worldMapContext struct {
+	IncludeCampaign bool   `json:"includeCampaign"`
+	LocationID      string `json:"locationId,omitempty"`
+}
+
+func normalizedMapContext(c *worldMapContext) worldMapContext {
+	if c == nil {
+		return worldMapContext{IncludeCampaign: true}
+	}
+	return *c
 }
 
 var mapColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
@@ -214,7 +228,8 @@ func (srv *server) generateWorldMap(w http.ResponseWriter, r *http.Request, user
 		return
 	}
 	input.Prompt = strings.TrimSpace(input.Prompt)
-	if !mapRequestID.MatchString(input.RequestID) || len([]rune(input.Prompt)) > 6000 || (input.Prompt == "" && input.ReferenceURL == "") {
+	scope := normalizedMapContext(input.Context)
+	if !mapRequestID.MatchString(input.RequestID) || len([]rune(input.Prompt)) > 6000 || len(scope.LocationID) > 200 || (input.Prompt == "" && input.ReferenceURL == "" && !scope.IncludeCampaign && scope.LocationID == "") {
 		writeError(w, 400, "invalid_map", "Добавь описание или картинку-референс.")
 		return
 	}
@@ -231,10 +246,15 @@ func (srv *server) generateWorldMap(w http.ResponseWriter, r *http.Request, user
 		return
 	}
 	campaign = current
+	generationPrompt, contextErr := scopedWorldMapPrompt(campaign, input.Prompt, scope)
+	if contextErr != nil {
+		writeError(w, 400, "invalid_map_context", contextErr.Error())
+		return
+	}
 	// Completed retries return their original result without another paid call.
 	for _, m := range campaign.WorldMaps {
 		if m.ID == id {
-			if m.Prompt != input.Prompt || m.ReferenceURL != input.ReferenceURL {
+			if m.Prompt != input.Prompt || m.ReferenceURL != input.ReferenceURL || normalizedMapContext(m.Context) != scope {
 				writeError(w, 409, "map_request_changed", "Создай новый запрос для другой карты.")
 				return
 			}
@@ -269,7 +289,7 @@ func (srv *server) generateWorldMap(w http.ResponseWriter, r *http.Request, user
 	var result mapGenerationResult
 	var err error
 	if connected {
-		result, err = srv.generateCodexWorldMap(r.Context(), user, campaign.ID, worldMapPrompt(campaign, input.Prompt), reference)
+		result, err = srv.generateCodexWorldMap(r.Context(), user, campaign.ID, generationPrompt, reference)
 	} else {
 		account, found := srv.store.getUserByID(user.ID)
 		if !found || !subscriptionActive(account.Subscription, time.Now()) {
@@ -281,7 +301,7 @@ func (srv *server) generateWorldMap(w http.ResponseWriter, r *http.Request, user
 			writeError(w, 503, "image_api_unavailable", "Серверный API изображений не настроен.")
 			return
 		}
-		result, err = g.generateWorldMap(r.Context(), worldMapPrompt(campaign, input.Prompt), reference)
+		result, err = g.generateWorldMap(r.Context(), generationPrompt, reference)
 	}
 	if err != nil {
 		writeError(w, 502, "map_generation_failed", "Не удалось создать карту. "+err.Error())
@@ -326,6 +346,7 @@ func (srv *server) generateWorldMap(w http.ResponseWriter, r *http.Request, user
 		}
 	}
 	doc := worldMapDocument{ID: id, Title: result.Plan.Title, Prompt: input.Prompt, ImageURL: "/uploads/" + sanitizeUploadPathSegment(user.ID) + "/" + sanitizeUploadPathSegment(campaign.ID) + "/" + filepath.Base(file), ReferenceURL: input.ReferenceURL, Labels: labels, Width: cfg.Width, Height: cfg.Height, Provider: result.Provider, CreatedAt: time.Now().UTC()}
+	doc.Context = &scope
 	srv.store.mu.Lock()
 	defer srv.store.mu.Unlock()
 	for ci := range srv.store.data.Campaigns {
