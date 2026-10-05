@@ -79,6 +79,13 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/User/.cache/co
     await page.getByLabel('Уровень детализации').selectOption('island');
     await page.getByLabel('Учитывать контекст кампании').uncheck();await page.getByLabel('Карта конкретной локации').check();await page.getByLabel('Локация карты').selectOption('harbor');
     await page.screenshot({path:'tmp/world-maps-context-mobile.png',fullPage:true});
+    await page.context().grantPermissions(['clipboard-read','clipboard-write']);
+    const pasteImage=async()=>{await page.evaluate(async bytes=>{await navigator.clipboard.write([new ClipboardItem({'image/png':new Blob([Uint8Array.from(bytes)],{type:'image/png'})})]);},[...bitmap]);await page.getByLabel('Описание карты').focus();await page.keyboard.press('Control+V');};
+    await pasteImage();await page.getByAltText('Референс карты').waitFor();
+    assert.equal(await page.getByLabel('Описание карты').inputValue(),'Остров на основе референса');
+    await page.getByRole('button',{name:'Убрать референс',exact:true}).click();
+    await page.evaluate(()=>navigator.clipboard.writeText('Текст из буфера'));await page.getByLabel('Описание карты').fill('');await page.keyboard.press('Control+V');assert.equal(await page.getByLabel('Описание карты').inputValue(),'Текст из буфера');
+    await page.getByLabel('Описание карты').fill('Остров на основе референса');
     await page.locator('input[type=file]').setInputFiles({name:'ref.png',mimeType:'image/png',buffer:bitmap});await page.getByAltText('Референс карты').waitFor();
     await page.getByRole('button',{name:'Создать карту',exact:true}).click();await page.getByText('Рисую фон карты без надписей',{exact:true}).waitFor();assert.equal(posted.referenceUrl,'/uploads/reference.png');assert.ok(posted.requestId.length>=16);
     assert.deepEqual(posted.context,{includeCampaign:false,locationId:'harbor'});
@@ -87,7 +94,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/User/.cache/co
     await page.reload();await page.getByRole('button',{name:'Новая карта',exact:true}).click();await page.getByText('Рисую фон карты без надписей',{exact:true}).waitFor();
     const second={...original,id:'map-two',title:'Новый остров'};maps.push(second);job={...job,state:'succeeded',result:{data:second}};
     await page.getByLabel('Название карты').waitFor();assert.equal(await page.getByLabel('Название карты').inputValue(),'Новый остров');
-    await page.goto('https://maps.local/chat');await page.getByRole('button',{name:'Карта мира',exact:true}).click();await page.getByLabel('Описание карты').fill('Карта из чата');await page.getByRole('button',{name:'Создать карту',exact:true}).click();await page.getByText('Рисую фон карты без надписей',{exact:true}).waitFor();job={...job,state:'succeeded',result:{data:second}};await page.getByRole('link',{name:/Новый остров/}).waitFor();assert.match(await page.getByRole('link',{name:/Новый остров/}).getAttribute('href'),/\/maps\?campaign=campaign&map=map-two/);
+    await page.goto('https://maps.local/chat');await page.getByRole('button',{name:'Карта мира',exact:true}).click();await page.getByLabel('Описание карты').fill('Карта из чата');await pasteImage();await page.getByAltText('Референс карты').waitFor();await page.getByRole('button',{name:'Создать карту',exact:true}).click();await page.getByText('Рисую фон карты без надписей',{exact:true}).waitFor();assert.equal(posted.referenceUrl,'/uploads/reference.png');job={...job,state:'succeeded',result:{data:second}};await page.getByRole('link',{name:/Новый остров/}).waitFor();assert.match(await page.getByRole('link',{name:/Новый остров/}).getAttribute('href'),/\/maps\?campaign=campaign&map=map-two/);
     assert.deepEqual(errors,[]);console.log('World maps UI passed: drag, edit, undo/redo, save/reopen, PNG pixels, 1440/390px, reference, async recovery, chat generation/link.');
   }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});

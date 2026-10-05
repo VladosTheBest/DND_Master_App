@@ -60,7 +60,13 @@ export function MapCreateForm({campaignId, initialPrompt="", onCreated, storageK
     }catch(e){setError((e as Error).message);setStage("");}finally{lock.current=false;setBusy(false);}
   }
   const disabled=busy||Boolean(jobId);
-  return <section className="world-map-create" aria-label="Создание карты мира">
+  return <section className="world-map-create" aria-label="Создание карты мира" tabIndex={0} onPaste={event=>{
+    if(event.defaultPrevented||disabled||sourceMap)return;
+    const file=Array.from(event.clipboardData.items).find(item=>item.kind==="file"&&item.type.startsWith("image/"))?.getAsFile()
+      ||Array.from(event.clipboardData.files).find(item=>item.type.startsWith("image/"));
+    if(!file)return;
+    event.preventDefault();void upload(file);
+  }}>
     {!sourceMap&&<label>Уровень детализации<select aria-label="Уровень детализации" value={scale} disabled={disabled} onChange={e=>setScale(e.target.value as typeof scale)}><option value="auto">По описанию</option><option value="world">Мир · страны и крупная география</option><option value="region">Регион · поселения и дороги</option><option value="island">Остров · места и побережья</option><option value="city">Город · районы и достопримечательности</option><option value="site">Место · помещения и проходы</option></select></label>}
     <label>{sourceMap?"Что изменить на карте":"Описание карты"}<textarea aria-label={sourceMap?"Что изменить на карте":"Описание карты"} rows={4} maxLength={6000} value={prompt} disabled={disabled} onChange={e=>setPrompt(e.target.value)}/></label>
 		{!sourceMap&&<fieldset className="world-map-context" disabled={disabled}><legend>Контекст карты</legend>
