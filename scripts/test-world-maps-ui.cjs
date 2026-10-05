@@ -39,6 +39,10 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/User/.cache/co
     await page.getByRole('button',{name:'Вписать карту',exact:true}).click();
     const scaleBefore=Number(await page.getByLabel('Масштаб карты').inputValue());await page.mouse.move(viewport.x+viewport.width/3,viewport.y+viewport.height/3);await page.mouse.wheel(0,-100);
     await page.waitForFunction(value=>Number(document.querySelector('[aria-label="Масштаб карты"]').value)>value,scaleBefore);
+    assert.equal(Number(await page.getByLabel('Масштаб карты').inputValue()),scaleBefore+2,'default wheel step must be 2 percentage points');
+    await page.getByLabel('Шаг колеса, %').fill('5');await page.getByLabel('Масштаб карты').selectOption('100');await page.mouse.move(viewport.x+viewport.width/3,viewport.y+viewport.height/3);await page.mouse.wheel(0,100);
+    await page.waitForFunction(()=>document.querySelector('[aria-label="Масштаб карты"]').value==='95');
+    await page.reload();await page.getByLabel('Текст подписи').waitFor();assert.equal(await page.getByLabel('Шаг колеса, %').inputValue(),'5');
     await page.getByRole('button',{name:'Вписать карту',exact:true}).click();
     const before=await page.getByRole('button',{name:'Подпись: Северная гавань',exact:true}).boundingBox();
     await page.mouse.move(before.x+before.width/2,before.y+before.height/2);await page.mouse.down();await page.mouse.move(before.x+before.width/2+60,before.y+before.height/2+40);await page.mouse.up();

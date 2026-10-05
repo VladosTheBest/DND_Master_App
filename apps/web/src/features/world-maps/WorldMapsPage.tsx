@@ -34,6 +34,8 @@ export function MapEditor({campaignId,original,onSaved,onDirty}:{campaignId:stri
   const [past,setPast]=useState<WorldMapDocument[]>([]),[future,setFuture]=useState<WorldMapDocument[]>([]);
   const [zoom,setZoom]=useState(100),[busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
   const [imageError,setImageError]=useState(false);
+	const [wheelStep,setWheelStep]=useState(()=>{try{const n=Number(localStorage.getItem("shadow-edge:map-wheel-step"));return n>=1&&n<=20?n:2;}catch{return 2;}});
+	function changeWheelStep(value:number){const n=Math.min(20,Math.max(1,value||2));setWheelStep(n);try{localStorage.setItem("shadow-edge:map-wheel-step",String(n));}catch{/* Storage may be unavailable in private browsing. */}}
 	const transform=useRef<ReactZoomPanPinchRef>(null);
   const svg=useRef<SVGSVGElement>(null),drag=useRef<{id:string;dx:number;dy:number}|null>(null),latest=useRef(doc),lock=useRef(false);
   latest.current=doc;
@@ -60,7 +62,7 @@ export function MapEditor({campaignId,original,onSaved,onDirty}:{campaignId:stri
       <button type="button" disabled={busy||imageError} onClick={()=>void download()}><Download size={18}/>PNG</button>
     </div></div>
     <div className="world-map-edit-layout"><div className="world-map-canvas-area"><div className="world-map-viewport">
-		<TransformWrapper ref={transform} minScale={.01} maxScale={32} limitToBounds={false} fitOnInit="contain" centerOnInit panning={{excluded:["text"],velocityDisabled:true,allowMiddleClickPan:true}} doubleClick={{disabled:true}} zoomAnimation={{disabled:true}} autoAlignment={{disabled:true}} onTransform={(_,state)=>setZoom(Math.round(state.scale*100))}>
+		<TransformWrapper ref={transform} minScale={.01} maxScale={32} limitToBounds={false} fitOnInit="contain" centerOnInit smooth={false} wheel={{step:wheelStep/100}} panning={{excluded:["text"],velocityDisabled:true,allowMiddleClickPan:true}} doubleClick={{disabled:true}} zoomAnimation={{disabled:true}} autoAlignment={{disabled:true}} onTransform={(_,state)=>setZoom(Math.round(state.scale*100))}>
 		<TransformComponent wrapperStyle={{width:"100%",height:"100%"}} contentStyle={{width:doc.width,height:doc.height}}><div className="world-map-surface" style={{width:doc.width,height:doc.height}}>
       <img src={mapMediaURL(doc.imageUrl)} alt={doc.title} draggable={false} onError={()=>setImageError(true)} onLoad={()=>setImageError(false)}/>
       <svg ref={svg} viewBox={`0 0 1000 ${h}`} aria-label="Подписи на карте" onPointerMove={event=>{if(!drag.current||busy)return;const p=point(event),active=drag.current;setDoc(d=>({...d,labels:d.labels.map(l=>l.id===active.id?{...l,x:Math.max(0,Math.min(1,p.x-active.dx)),y:Math.max(0,Math.min(1,p.y-active.dy))}:l)}));}} onPointerUp={()=>{drag.current=null;}} onPointerCancel={()=>{drag.current=null;}}>
@@ -71,6 +73,7 @@ export function MapEditor({campaignId,original,onSaved,onDirty}:{campaignId:stri
 		<select aria-label="Масштаб карты" value={zoom} onChange={e=>void transform.current?.centerView(Number(e.target.value)/100,0)}>{[...new Set([1,5,10,25,50,100,200,400,800,1600,3200,zoom])].sort((a,b)=>a-b).map(z=><option key={z} value={z}>{z}%</option>)}</select>
 		<button type="button" title="Приблизить" aria-label="Приблизить карту" onClick={()=>void transform.current?.zoomIn(.3,0)}><ZoomIn size={17}/></button>
 		<button type="button" title="Вписать карту" aria-label="Вписать карту" onClick={()=>void transform.current?.fitToView({mode:"contain",animationTime:0})}><Scan size={17}/></button>
+		<label className="world-map-wheel-step" title="Изменение масштаба за шаг колеса">Шаг, %<input type="number" aria-label="Шаг колеса, %" min={1} max={20} step={1} value={wheelStep} onChange={e=>changeWheelStep(Number(e.target.value))}/></label>
 		</div></div>{imageError&&<p role="alert">Не удалось загрузить изображение карты. Обнови страницу.</p>}</div>
     <aside className="world-map-properties"><h3>Подписи</h3><select aria-label="Выбранная подпись" value={selection} onChange={e=>setSelection(e.target.value)}><option value="">Не выбрана</option>{doc.labels.map(l=><option key={l.id} value={l.id}>{l.text||"Без названия"}</option>)}</select>
       {label?<fieldset disabled={busy}><label>Текст<input aria-label="Текст подписи" maxLength={160} value={label.text} onChange={e=>patchLabel({text:e.target.value})}/></label><label>Шрифт<select value={label.font} onChange={e=>patchLabel({font:e.target.value as WorldMapLabel["font"]})}><option value="serif">Georgia</option><option value="sans-serif">Arial</option><option value="monospace">Courier New</option></select></label>

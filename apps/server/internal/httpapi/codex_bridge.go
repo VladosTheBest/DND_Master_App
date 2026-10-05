@@ -659,7 +659,10 @@ func (manager *codexBridgeManager) runPromptOnce(ctx context.Context, user authU
 	if prompt == "" {
 		return codexPromptResult{}, fmt.Errorf("Укажи, что нужно подготовить через AI.")
 	}
-	if len([]rune(prompt)) > 12000 {
+	if input.WorldMap != nil && len([]rune(prompt)) > 96000 {
+		return codexPromptResult{}, &codexPromptPublicError{code: "map_context_too_large", message: "Контекст карты слишком большой. Выбери одну локацию или отключи контекст кампании."}
+	}
+	if input.WorldMap == nil && len([]rune(prompt)) > 12000 {
 		return codexPromptResult{}, fmt.Errorf("AI-запрос слишком длинный.")
 	}
 	bridge, err := manager.ensureBridge(ctx, user)

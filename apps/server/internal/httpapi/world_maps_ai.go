@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -255,6 +256,10 @@ func (srv *server) generateCodexWorldMap(ctx context.Context, user authUser, cam
 	}
 	result, err := srv.codex.runPrompt(ctx, user, codexPromptInput{CampaignID: campaign, Prompt: prompt, IncludeImages: true, WorldMap: &codexWorldMapRequest{Reference: reference}})
 	if err != nil {
+		var publicErr *codexPromptPublicError
+		if errors.As(err, &publicErr) {
+			return mapGenerationResult{}, publicErr
+		}
 		return mapGenerationResult{}, fmt.Errorf("Codex не завершил генерацию. Проверь подключение и повтори запрос; API не использовался.")
 	}
 	if result.WorldMap == nil {

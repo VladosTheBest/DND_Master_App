@@ -300,9 +300,16 @@ func TestWorldMapCodexFirstWithoutSubscription(t *testing.T) {
 		t.Fatal("generated image scope not cleaned")
 	}
 	// Exercise actual localImage transfer and read-before-cleanup inside the turn.
-	generated, err := srv.generateCodexWorldMap(context.Background(), user, campaign.ID, "world-map-fixture-reference", mapFixturePNG())
+	// Real campaign geography exceeded the ordinary 12k prompt guard before any RPC.
+	generated, err := srv.generateCodexWorldMap(context.Background(), user, campaign.ID, "world-map-fixture-"+strings.Repeat("geography ", 2400)+"reference", mapFixturePNG())
 	if err != nil || len(generated.Image) == 0 {
 		t.Fatal("reference turn", err)
+	}
+	if _, err := manager.runPromptOnce(context.Background(), user, codexPromptInput{Prompt: strings.Repeat("x", 12001)}); err == nil {
+		t.Fatal("ordinary prompt limit removed")
+	}
+	if _, err := srv.generateCodexWorldMap(context.Background(), user, campaign.ID, strings.Repeat("x", 96001), nil); err == nil || !strings.Contains(err.Error(), "Контекст карты слишком большой") {
+		t.Fatal("map bound or public error lost", err)
 	}
 	if err := os.WriteFile(filepath.Join(bridge.homeDir, "helper-reject-map"), []byte("reject"), 0600); err != nil {
 		t.Fatal(err)
