@@ -474,6 +474,9 @@ func (srv *server) prepareGeneratedEntityProposal(ownerID, campaignID string, in
 		return proposalFailure(http.StatusNotFound, "not_found", "Campaign not found")
 	}
 	generateInput := generateEntityDraftInput{Kind: strings.TrimSpace(input.Kind), Prompt: strings.TrimSpace(input.Prompt)}
+	if campaign.ReadyCampaign != nil {
+		return proposalFailure(403, "ready_campaign_read_only", errReadyCampaignReadOnly.Error())
+	}
 	isUpdate := strings.EqualFold(strings.TrimSpace(input.Mode), "update")
 	if isUpdate {
 		_, _, existing := findEntityInCampaign(&campaign, strings.TrimSpace(input.EntityID))
@@ -569,6 +572,9 @@ func (srv *server) prepareGeneratedEventProposal(ownerID, campaignID string, inp
 		return proposalFailure(http.StatusNotFound, "not_found", "Campaign not found")
 	}
 	generateInput := generateWorldEventInput{GenerationMode: strings.TrimSpace(input.GenerationMode), Prompt: strings.TrimSpace(input.Prompt), LocationID: strings.TrimSpace(input.LocationID), Type: strings.TrimSpace(input.Type)}
+	if campaign.ReadyCampaign != nil {
+		return proposalFailure(403, "ready_campaign_read_only", errReadyCampaignReadOnly.Error())
+	}
 	if generateInput.GenerationMode != "" && generateInput.GenerationMode != "read_aloud" && generateInput.GenerationMode != "gm_event" {
 		return proposalFailure(http.StatusBadRequest, "invalid_generation_mode", "Неизвестный режим генерации события.")
 	}

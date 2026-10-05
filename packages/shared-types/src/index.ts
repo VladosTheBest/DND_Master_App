@@ -499,6 +499,7 @@ export interface CampaignShop {
 }
 
 export interface CampaignData {
+  readyCampaign?: ReadyCampaignInfo;
   worldMaps?: WorldMapDocument[];
   id: string;
   /** Optimistic-concurrency revision. Older persisted records may omit it. */
@@ -526,6 +527,7 @@ export interface CampaignData {
 }
 
 export interface CampaignSummary {
+  readyCampaign?: ReadyCampaignInfo;
   id: string;
   /** Optimistic-concurrency revision. Older persisted records may omit it. */
   revision?: number;
@@ -537,11 +539,29 @@ export interface CampaignSummary {
 }
 
 export interface CreateCampaignInput {
+  templateId?: string;
   title: string;
   system: string;
   settingName: string;
   inWorldDate: string;
   summary: string;
+}
+
+export interface ReadyCampaignInfo {
+  templateId: string;
+  version: number;
+  label: string;
+}
+
+export interface ReadyCampaignTemplate {
+  id: string;
+  title: string;
+  summary: string;
+  system: string;
+  label: string;
+  version: number;
+  sourcePages: number;
+  counts: Record<string, number>;
 }
 
 export interface UpdateCampaignInput {
@@ -1177,6 +1197,7 @@ export interface ApiClient {
   register(input: RegisterInput): Promise<AuthSessionResult>;
   logout(): Promise<AuthSessionResult>;
   listCampaigns(): Promise<CampaignSummary[]>;
+  listReadyCampaignTemplates(): Promise<ReadyCampaignTemplate[]>;
   getCampaign(campaignId: string): Promise<CampaignData>;
   createCampaign(input: CreateCampaignInput): Promise<CampaignData>;
   updateCampaign(

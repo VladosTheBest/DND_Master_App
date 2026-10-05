@@ -284,6 +284,9 @@ func (service *proposalService) createEntity(ownerID, campaignID string, input e
 		return aiProposal{}, proposalFailure(404, "not_found", "Campaign not found")
 	}
 	campaign := ensureCampaignShape(service.store.data.Campaigns[campaignIndex])
+	if campaign.ReadyCampaign != nil {
+		return aiProposal{}, proposalFailure(403, "ready_campaign_read_only", errReadyCampaignReadOnly.Error())
+	}
 	if input.Kind == "shop" {
 		return service.createShopImageProposalLocked(ownerID, campaign, input)
 	}
@@ -451,6 +454,9 @@ func (service *proposalService) createEvent(ownerID, campaignID string, input ev
 		return aiProposal{}, proposalFailure(404, "not_found", "Campaign not found")
 	}
 	campaign := ensureCampaignShape(service.store.data.Campaigns[campaignIndex])
+	if campaign.ReadyCampaign != nil {
+		return aiProposal{}, proposalFailure(403, "ready_campaign_read_only", errReadyCampaignReadOnly.Error())
+	}
 	mode := strings.ToLower(strings.TrimSpace(input.Mode))
 	if mode != "create" && mode != "update" {
 		return aiProposal{}, proposalFailure(400, "invalid_mode", "mode must be create or update")
@@ -1055,6 +1061,10 @@ func (service *proposalService) apply(ownerID, proposalID string, input proposal
 		return proposalActionResult{}, proposalFailure(404, "not_found", "AI proposal not found")
 	}
 	proposal := &service.store.data.AIProposals[proposalIndex]
+	if index := findOwnedCampaignIndexLocked(&service.store.data, ownerID, proposal.CampaignID); index >= 0 && service.store.data.Campaigns[index].ReadyCampaign != nil {
+		service.store.mu.Unlock()
+		return proposalActionResult{}, proposalFailure(403, "ready_campaign_read_only", errReadyCampaignReadOnly.Error())
+	}
 	if proposal.Status != "pending" {
 		service.store.mu.Unlock()
 		return proposalActionResult{}, proposalFailure(409, "proposal_not_pending", "Only a pending proposal can be applied")
@@ -1224,6 +1234,10 @@ func (service *proposalService) undo(ownerID, proposalID string) (proposalAction
 		return proposalActionResult{}, proposalFailure(404, "not_found", "AI proposal not found")
 	}
 	proposal := &service.store.data.AIProposals[proposalIndex]
+	if index := findOwnedCampaignIndexLocked(&service.store.data, ownerID, proposal.CampaignID); index >= 0 && service.store.data.Campaigns[index].ReadyCampaign != nil {
+		service.store.mu.Unlock()
+		return proposalActionResult{}, proposalFailure(403, "ready_campaign_read_only", errReadyCampaignReadOnly.Error())
+	}
 	if proposal.Status != "applied" {
 		service.store.mu.Unlock()
 		return proposalActionResult{}, proposalFailure(409, "proposal_not_applied", "Only an applied proposal can be undone")

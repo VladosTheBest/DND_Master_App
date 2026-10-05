@@ -1,4 +1,7 @@
-import type { CreateCampaignInput } from "@shadow-edge/shared-types";
+import type { CreateCampaignInput, ReadyCampaignTemplate } from "@shadow-edge/shared-types";
+import { useEffect, useState } from "react";
+import { api } from "./api";
+import "../features/campaigns/ready-campaigns.css";
 
 type CampaignCreateModalProps = {
   form: CreateCampaignInput;
@@ -8,6 +11,9 @@ type CampaignCreateModalProps = {
   onClose: () => void;
   onCreateWithAI: () => void;
   onSubmit: () => void;
+  readyTab: boolean;
+  onTabChange: (ready: boolean) => void;
+  onStartReadyCampaign: (id: string) => void;
 };
 
 export function CampaignCreateModal({
@@ -17,8 +23,20 @@ export function CampaignCreateModal({
   onChange,
   onClose,
   onCreateWithAI,
-  onSubmit
+  onSubmit, readyTab, onTabChange, onStartReadyCampaign
 }: CampaignCreateModalProps) {
+  const [templates, setTemplates] = useState<ReadyCampaignTemplate[]>([]);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    if (!open || !readyTab) return;
+    let alive = true;
+    setLoading(true); setError("");
+    void api.listReadyCampaignTemplates().then(items => { if (alive) setTemplates(items); })
+      .catch(e => { if (alive) setError(e instanceof Error ? e.message : "Не удалось загрузить кампании."); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [open, readyTab]);
   if (!open) {
     return null;
   }
@@ -28,15 +46,27 @@ export function CampaignCreateModal({
       <div className="panel palette form-modal" onClick={(event) => event.stopPropagation()} role="dialog">
         <div className="row">
           <div>
-            <p className="eyebrow">Create Campaign</p>
-            <strong>Новая кампания сохраняется сразу на localhost backend</strong>
+            <p className="eyebrow">Кампании</p>
+            <strong>{readyTab ? "Готовые Кампании" : "Новая кампания"}</strong>
           </div>
           <button className="ghost" onClick={onClose} type="button">
             Esc
           </button>
         </div>
 
-        <div className="form-grid">
+        <div className="ready-campaign-tabs" aria-label="Способ создания кампании">
+          <button type="button" className="ghost" aria-pressed={!readyTab} disabled={saving} onClick={() => onTabChange(false)}>Своя кампания</button>
+          <button type="button" className="ghost" aria-pressed={readyTab} disabled={saving} onClick={() => onTabChange(true)}>Готовые Кампании</button>
+        </div>
+        {readyTab ? <div className="ready-campaign-library">
+          <p>Готовое приключение для проведения игры. Сюжет, локации, НПС и карты защищены от изменений. Игроки, бои и журнал сохраняются в вашем прохождении.</p>
+          {loading ? <p role="status">Загружаю готовые кампании…</p> : error ? <p role="alert">{error}</p> : templates.length ? templates.map(template => <article className="card ready-campaign-card" key={template.id}>
+            <small>{template.label} · {template.system}</small>
+            <h2>{template.title}</h2><p>{template.summary}</p>
+            <p className="muted">{template.sourcePages} страницы · {template.counts.locations} локаций · {template.counts.npcs} НПС · {template.counts.maps} карт · {template.counts.quests} заданий</p>
+            <button type="button" className="primary" disabled={saving} onClick={() => onStartReadyCampaign(template.id)}>{saving ? "Открываю…" : "Начать прохождение"}</button>
+          </article>) : <p>Готовых кампаний пока нет.</p>}
+        </div> : <><div className="form-grid">
           <label className="field">
             <span>Название</span>
             <input
@@ -83,15 +113,16 @@ export function CampaignCreateModal({
             />
           </label>
         </div>
+        </>}
 
-        <div className="actions">
+        {!readyTab && <div className="actions">
           <button className="ghost ai-edit-button" disabled={saving} onClick={onCreateWithAI} type="button">
             Создать с AI
           </button>
           <button className="primary" disabled={saving} onClick={onSubmit} type="button">
             {saving ? "Сохраняю..." : "Создать кампанию"}
           </button>
-        </div>
+        </div>}
       </div>
     </div>
   );

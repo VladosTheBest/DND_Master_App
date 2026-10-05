@@ -28,10 +28,17 @@ export function useCampaignCreationController({
   onCampaignCreated
 }: UseCampaignCreationControllerArgs) {
   const [campaignModalOpen, setCampaignModalOpen] = useState(false);
+  const [readyCampaignTab, setReadyCampaignTab] = useState(false);
   const [campaignForm, setCampaignForm] = useState<CreateCampaignInput>(createEmptyCampaignForm);
 
   const openCampaignModal = () => {
+    setReadyCampaignTab(false);
     setCampaignForm(createEmptyCampaignForm());
+    setCampaignModalOpen(true);
+  };
+
+  const openReadyCampaignModal = () => {
+    setReadyCampaignTab(true);
     setCampaignModalOpen(true);
   };
 
@@ -42,10 +49,10 @@ export function useCampaignCreationController({
     }));
   };
 
-  const submitCampaign = async () => {
+  const submitCampaign = async (templateId?: string) => {
     try {
       setSaving(true);
-      const created = await api.createCampaign(campaignForm);
+      const created = await api.createCampaign(templateId ? { ...createEmptyCampaignForm(), templateId } : campaignForm);
       const list = await api.listCampaigns();
       setCampaigns(list);
       onCampaignCreated(created);
@@ -61,6 +68,9 @@ export function useCampaignCreationController({
     campaignForm,
     campaignModalOpen,
     openCampaignModal,
+    openReadyCampaignModal,
+    readyCampaignTab,
+    setReadyCampaignTab,
     setCampaignModalOpen,
     submitCampaign,
     updateCampaignForm

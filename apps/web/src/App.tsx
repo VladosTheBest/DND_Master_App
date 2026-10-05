@@ -39,6 +39,7 @@ import { api } from "./app/api";
 import { AccountSettings } from "./app/OAuthControls";
 import { AppContentRouter } from "./app/AppContentRouter";
 import { CampaignCreateModal } from "./app/CampaignCreateModal";
+import { ReadyAdventureReader } from "./features/campaigns/ReadyAdventureReader";
 import { CloseConfirmDialog } from "./app/CloseConfirmDialog";
 import { AppHeader } from "./app/AppHeader";
 import { AppPreviewContent } from "./app/AppPreviewContent";
@@ -1629,6 +1630,7 @@ export default function App() {
           : "location";
 
   const entityEditor = useEntityEditorController({
+    readyCampaign: Boolean(campaign?.readyCampaign),
     activeCampaignId,
     applyCreatedEntity: (result) => applyCreatedEntity(result),
     defaultCreateKind,
@@ -4441,6 +4443,9 @@ export default function App() {
           </div>
         </div>
         <CampaignCreateModal
+          readyTab={campaignCreation.readyCampaignTab}
+          onTabChange={campaignCreation.setReadyCampaignTab}
+          onStartReadyCampaign={(id) => { void submitCampaign(id); }}
           form={campaignForm}
           onChange={updateCampaignForm}
           onClose={requestCampaignModalClose}
@@ -4512,6 +4517,7 @@ export default function App() {
               void handleCampaignSelect(campaignId);
             }}
             onCreateCampaign={openCampaignModal}
+            onOpenReadyCampaigns={campaignCreation.openReadyCampaignModal}
             onLogout={() => {
               void logout();
             }}
@@ -4553,6 +4559,7 @@ export default function App() {
           ) : (
             <>
                 <AppHeader
+                  readyCampaign={Boolean(campaign.readyCampaign)}
                   activeModule={activeModule}
                   authBusy={authBusy}
                   campaignTitle={campaign.title}
@@ -4590,7 +4597,7 @@ export default function App() {
                 variant="default"
               />
 
-              {!hasFeatureOwnedDetailsPanel && !activeRailAlias && activeModule !== "dashboard" ? (
+              {(!campaign.readyCampaign || activeModule === "players") && !hasFeatureOwnedDetailsPanel && !activeRailAlias && activeModule !== "dashboard" ? (
                 <div className="panel tabs">
                   {tabs[activeModule].map((tab) => (
                     <button
@@ -4617,6 +4624,7 @@ export default function App() {
           )}
 
           <section className={`panel content ${isCombatScreen ? "combat-content" : ""}`} ref={contentRef}>
+            {campaign.readyCampaign && <p className="ready-campaign-notice">Готовые Кампании · сюжет, локации, НПС и карты защищены от изменений. Игроки, бои и журнал относятся к вашему прохождению.</p>}
             {activeModule === "players" && !activeEntity && (
               <Suspense fallback={<p role="status">Загружаем листы персонажей…</p>}>
                 <CampaignCharacters
@@ -4637,13 +4645,15 @@ export default function App() {
                 onOpenEntity={openEntity}
                 onOpenEntityImage={openEntityImage}
                 onOpenEvent={openWorldEvent}
-                onCreateEvent={() => openRandomEventModal({ newEvent: true, generationMode: "gm_event" })}
+                onCreateEvent={campaign.readyCampaign ? undefined : () => openRandomEventModal({ newEvent: true, generationMode: "gm_event" })}
                 onOpenPreview={openPreview}
                 onNavigate={section => {
                   if (section === "sessions" || section === "events" || section === "notes") openRailAlias(section);
                   else switchModule(section);
                 }}
               />
+            ) : campaign.readyCampaign && !["sessions","items"].includes(activeRailKey) && ["locations","npcs","monsters","quests","lore","notes","events","shops"].includes(activeModule) ? (
+              <ReadyAdventureReader campaign={campaign} module={activeRailKey === "shops" ? "shops" : activeRailKey === "events" ? "events" : activeModule} selected={activeEntity} selectedEventId={selectedWorldEventId} onSelect={openEntity} onGallery={openGalleryViewer}/>
             ) : activeModule === "combat" ? (
               <CombatPage
                 activeCombat={activeCombat}
@@ -4862,7 +4872,7 @@ export default function App() {
           </section>
         </main>
 
-        {!isCombatScreen && !hasFeatureOwnedDetailsPanel && (previewEntity || (bestiaryController.isBrowseMode && bestiaryController.selectedBestiaryMonster)) ? (
+        {!isCombatScreen && !hasFeatureOwnedDetailsPanel && (!campaign.readyCampaign || previewEntity?.kind === "player") && (previewEntity || (bestiaryController.isBrowseMode && bestiaryController.selectedBestiaryMonster)) ? (
           <AppPreviewPanel onClose={bestiaryController.isBrowseMode ? undefined : () => { setPreviewEntityId(""); requestAnimationFrame(scrollContentToTop); }} onPointerDown={(event) => startResize("preview", event)}>
           {bestiaryController.isBrowseMode ? (
             <BestiaryPreviewPanel controller={bestiaryController} />
@@ -4995,6 +5005,9 @@ export default function App() {
       />
 
       <CampaignCreateModal
+        readyTab={campaignCreation.readyCampaignTab}
+        onTabChange={campaignCreation.setReadyCampaignTab}
+        onStartReadyCampaign={(id) => { void submitCampaign(id); }}
         form={campaignForm}
         onChange={updateCampaignForm}
         onClose={requestCampaignModalClose}

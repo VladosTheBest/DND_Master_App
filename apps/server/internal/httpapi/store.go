@@ -162,6 +162,11 @@ func (store *campaignStore) ensureAuthStorageLocked() (bool, error) {
 }
 
 func (store *campaignStore) saveLocked() error {
+	for _, campaign := range store.data.Campaigns {
+		if campaign.ReadyCampaign != nil && readyCampaignDigest(campaign) != campaign.ReadyCampaign.ContentHash {
+			return errReadyCampaignReadOnly
+		}
+	}
 	store.data.UpdatedAt = time.Now().UTC().Format(time.RFC3339)
 	if store.cloud != nil {
 		return store.cloud.saveState(store.data)
@@ -243,6 +248,17 @@ func cloneStorageState(state storageState) (storageState, error) {
 // primary-file commit, so restoring here keeps live memory aligned with the
 // durable primary whenever a write fails.
 func (store *campaignStore) saveMutationLocked(originalState storageState) error {
+	for _, original := range originalState.Campaigns {
+		if original.ReadyCampaign == nil {
+			continue
+		}
+		for _, current := range store.data.Campaigns {
+			if current.ID == original.ID && (current.ReadyCampaign == nil || *current.ReadyCampaign != *original.ReadyCampaign) {
+				store.data = originalState
+				return errReadyCampaignReadOnly
+			}
+		}
+	}
 	if err := store.saveLocked(); err != nil {
 		store.data = originalState
 		return err
@@ -620,6 +636,12 @@ func (store *campaignStore) createCampaignForUser(userID string, input createCam
 		InWorldDate: firstNonEmpty(input.InWorldDate, "1 Чес, 1492 DR"),
 		Summary:     firstNonEmpty(input.Summary, "Кампания создана через backend и готова к наполнению."),
 	})
+	if input.TemplateID != "" {
+		campaign, err = instantiateReadyCampaign(input.TemplateID, campaign.ID, strings.TrimSpace(userID))
+		if err != nil {
+			return campaignData{}, err
+		}
+	}
 
 	store.data.Campaigns = append(store.data.Campaigns, campaign)
 	if err := store.saveMutationLocked(originalState); err != nil {
@@ -793,6 +815,9 @@ func (store *campaignStore) createEntity(campaignID string, input createEntityIn
 
 		entity := materializeEntity(input)
 		campaign := &store.data.Campaigns[index]
+		if campaign.ReadyCampaign != nil && entity.Kind != "player" {
+			return createEntityResult{}, errReadyCampaignReadOnly
+		}
 		if entity.Kind == "monster" {
 			if existing, ok := findMonsterByTitle(*campaign, entity.Title); ok {
 				for monsterIndex := range campaign.Monsters {
@@ -879,6 +904,9 @@ func (store *campaignStore) updateEntity(campaignID string, entityID string, inp
 		if entities == nil {
 			return createEntityResult{}, fmt.Errorf("entity %q not found", entityID)
 		}
+		if campaign.ReadyCampaign != nil && existing.Kind != "player" {
+			return createEntityResult{}, errReadyCampaignReadOnly
+		}
 
 		if strings.TrimSpace(input.Kind) == "" {
 			input.Kind = existing.Kind
@@ -924,6 +952,9 @@ func (store *campaignStore) deleteEntity(campaignID string, entityID string) (de
 		entities, entityIndex, existing := findEntityInCampaign(campaign, entityID)
 		if entities == nil {
 			return deleteEntityResult{}, fmt.Errorf("entity %q not found", entityID)
+		}
+		if campaign.ReadyCampaign != nil && existing.Kind != "player" {
+			return deleteEntityResult{}, errReadyCampaignReadOnly
 		}
 		originalState, err := cloneStorageState(store.data)
 		if err != nil {

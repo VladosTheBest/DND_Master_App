@@ -4,6 +4,7 @@ import { FeedbackButton } from "./FeedbackDialog";
 import type { KnowledgeEntity } from "@shadow-edge/shared-types";
 
 type DefaultHeaderProps = {
+  readyCampaign?: boolean;
   variant: "default";
   campaignTitle: string;
   inWorldDate: string;
@@ -130,8 +131,8 @@ export function AppHeader(props: AppHeaderProps) {
         </button> : null}
         <button className="ghost" onClick={props.onOpenPlayerSurveys} type="button">Анкеты игроков</button>
         <button className="ghost" onClick={props.onOpenSessionMap} type="button">Карта и экран игроков</button>
-        {props.activeModule === "quests" ? <button className="ghost" onClick={props.onOpenRandomEvent} type="button">Сцена для зачитки</button> : null}
-        {!props.isItemsRail && !["events", "notes", "lore", "sessions", "rules", "bestiary"].includes(props.activeModule) ? <button className="ghost" onClick={props.onCreateEntity} type="button">Создать запись</button> : null}
+        {!props.readyCampaign && props.activeModule === "quests" ? <button className="ghost" onClick={props.onOpenRandomEvent} type="button">Сцена для зачитки</button> : null}
+        {(!props.readyCampaign || props.activeModule === "players") && !props.isItemsRail && !["events", "notes", "lore", "sessions", "rules", "bestiary"].includes(props.activeModule) ? <button className="ghost" onClick={props.onCreateEntity} type="button">Создать запись</button> : null}
         </ActionMenu>
         {props.codexPromptRunning || props.codexPromptOutcome || props.pendingProposalCount ? <button className="ghost" onClick={props.onOpenAIProposals} type="button" aria-live="polite">
           {props.codexPromptRunning ? "AI работает…" : props.codexPromptOutcome ? "AI: проверьте результат" : `AI: ${props.pendingProposalCount} на проверке`}

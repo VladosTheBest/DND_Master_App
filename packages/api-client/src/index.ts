@@ -13,6 +13,7 @@ import type {
   BestiaryMonsterDetail,
   CampaignData,
   CampaignSummary,
+  ReadyCampaignTemplate,
   CombatResult,
   CodexConnectionStatus,
   CodexDeviceCodeResult,
@@ -247,6 +248,10 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
   },
   async listCampaigns() {
     return requestJson<CampaignSummary[]>(`${baseUrl}/api/campaigns`);
+  },
+
+  async listReadyCampaignTemplates() {
+    return requestJson<ReadyCampaignTemplate[]>(`${baseUrl}/api/campaign-templates`);
   },
   async getCampaign(campaignId) {
     return requestJson<CampaignData>(`${baseUrl}/api/campaigns/${campaignId}`);

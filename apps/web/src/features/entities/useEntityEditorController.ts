@@ -54,6 +54,7 @@ type PersistEntityPayload = (args: {
 }) => Promise<CreateEntityResult>;
 
 type UseEntityEditorControllerParams = {
+  readyCampaign?: boolean;
   activeCampaignId: string;
   applyCreatedEntity: (result: CreateEntityResult) => void;
   defaultCreateKind: EntityKind;
@@ -72,6 +73,7 @@ type UseEntityEditorControllerParams = {
 export type EntityEditorController = ReturnType<typeof useEntityEditorController>;
 
 export function useEntityEditorController({
+  readyCampaign,
   activeCampaignId,
   applyCreatedEntity,
   defaultCreateKind,
@@ -104,6 +106,7 @@ export function useEntityEditorController({
   const playerCardImportInputRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   const openEntityModal = (kind: EntityKind = defaultCreateKind) => {
+    if (readyCampaign && kind !== "player") { setBootError("Материалы готовой кампании доступны только для чтения."); return; }
     setBootError("");
     setGenerating(false);
     setEntityModalMode("create");
@@ -123,6 +126,7 @@ export function useEntityEditorController({
     if (!entity) {
       return;
     }
+    if (readyCampaign && entity.kind !== "player") { setBootError("Материалы готовой кампании доступны только для чтения."); return; }
 
     setBootError("");
     setGenerating(false);
@@ -139,6 +143,7 @@ export function useEntityEditorController({
   };
 
   const openNpcQuestModal = (npc: NpcEntity) => {
+    if (readyCampaign) { setBootError("Материалы готовой кампании доступны только для чтения."); return; }
     setBootError("");
     setGenerating(false);
     setEntityModalMode("create");

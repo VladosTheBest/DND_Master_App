@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { ArrowLeft, Bold, Download, Italic, Map, MessageSquare, Plus, Redo2, Save, Sparkles, Trash2, Type, Undo2, Scan, ZoomIn, ZoomOut } from "lucide-react";
 import { TransformWrapper, TransformComponent, type ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
-import type { WorldMapDocument, WorldMapLabel } from "@shadow-edge/shared-types";
+import type { CampaignSummary, WorldMapDocument, WorldMapLabel } from "@shadow-edge/shared-types";
 import { api } from "../../app/api";
 import { MapCreateForm } from "./MapCreateForm";
 import { mapFont, mapMediaURL, renderMapPNG, worldMapsAPI } from "./world-maps.api";
@@ -13,14 +13,14 @@ import "./world-maps.css";
 
 export function WorldMapsPage(){
   useAIJobs();
-  const [campaigns,setCampaigns]=useState<{id:string;title:string}[]>([]);
+  const [campaigns,setCampaigns]=useState<CampaignSummary[]>([]);
   const [campaign,setCampaign]=useState(new URLSearchParams(location.search).get("campaign")||"");
   const [error,setError]=useState("");
   useEffect(()=>{let alive=true;void api.listCampaigns().then(items=>{if(alive){setCampaigns(items);setCampaign(current=>items.some(c=>c.id===current)?current:items[0]?.id||"");}}).catch(()=>{if(alive)setError("Войди в аккаунт в кабинете мастера, чтобы открыть карты.");});return()=>{alive=false;};},[]);
-  return <main className="world-maps-page"><aside className="world-maps-nav"><a href="/"><ArrowLeft size={17}/>Кабинет мастера</a><h1><Map size={25}/>Карты мира</h1><label>Кампания<select value={campaign} onChange={e=>{if(confirm("Перейти к другой кампании? Несохранённые правки будут потеряны.")){setCampaign(e.target.value);history.replaceState(null,"",`/maps?campaign=${encodeURIComponent(e.target.value)}`);}}}>{campaigns.map(c=><option key={c.id} value={c.id}>{c.title}</option>)}</select></label><a href={`/chat?campaign=${encodeURIComponent(campaign)}`}><MessageSquare size={17}/>AI-чат</a></aside><section className="world-maps-main">{error?<p role="alert">{error}</p>:campaign?<MapWorkspace key={campaign} campaignId={campaign}/>:<p role="status">{campaigns.length?"Выбери кампанию":"Нет доступных кампаний. Создай кампанию в кабинете мастера."}</p>}</section></main>;
+  return <main className="world-maps-page"><aside className="world-maps-nav"><a href="/"><ArrowLeft size={17}/>Кабинет мастера</a><h1><Map size={25}/>Карты мира</h1><label>Кампания<select value={campaign} onChange={e=>{if(confirm("Перейти к другой кампании? Несохранённые правки будут потеряны.")){setCampaign(e.target.value);history.replaceState(null,"",`/maps?campaign=${encodeURIComponent(e.target.value)}`);}}}>{campaigns.map(c=><option key={c.id} value={c.id}>{c.title}</option>)}</select></label><a href={`/chat?campaign=${encodeURIComponent(campaign)}`}><MessageSquare size={17}/>AI-чат</a></aside><section className="world-maps-main">{error?<p role="alert">{error}</p>:campaign?<MapWorkspace key={campaign} campaignId={campaign} readOnly={Boolean(campaigns.find(c=>c.id===campaign)?.readyCampaign)}/>:<p role="status">{campaigns.length?"Выбери кампанию":"Нет доступных кампаний. Создай кампанию в кабинете мастера."}</p>}</section></main>;
 }
 
-function MapWorkspace({campaignId}:{campaignId:string}){
+function MapWorkspace({campaignId,readOnly=false}:{campaignId:string;readOnly?:boolean}){
   const [maps,setMaps]=useState<WorldMapDocument[]>([]),[selected,setSelected]=useState(new URLSearchParams(location.search).get("map")||"");
   const [error,setError]=useState(""),[loading,setLoading]=useState(true),[creating,setCreating]=useState(false),[dirty,setDirty]=useState(false);
   useEffect(()=>{const abort=new AbortController();void worldMapsAPI.list(campaignId,abort.signal).then(items=>{setMaps(items);setSelected(current=>items.some(m=>m.id===current)?current:items[0]?.id||"");setCreating(!items.length);}).catch(e=>{if(!abort.signal.aborted)setError(e.message);}).finally(()=>{if(!abort.signal.aborted)setLoading(false);});return()=>abort.abort();},[campaignId]);
@@ -28,10 +28,17 @@ function MapWorkspace({campaignId}:{campaignId:string}){
   function navigate(id:string){if(dirty&&!confirm("Есть несохранённые правки. Перейти без сохранения?"))return;setDirty(false);setSelected(id);setCreating(!id);history.replaceState(null,"",`/maps?campaign=${encodeURIComponent(campaignId)}${id?`&map=${encodeURIComponent(id)}`:""}`);}
   function upsert(map:WorldMapDocument){setMaps(items=>[map,...items.filter(item=>item.id!==map.id)]);}
   const current=maps.find(map=>map.id===selected);
-  return <><header className="world-maps-heading"><div><small>АТЛАС КАМПАНИИ</small><h2>{creating?"Новая карта":current?.title||"Карты мира"}</h2></div><div className="world-map-tools"><AISoundToggle/><button type="button" onClick={()=>navigate("")}><Plus size={18}/>Новая карта</button></div></header>
+  return <><header className="world-maps-heading"><div><small>АТЛАС КАМПАНИИ</small><h2>{creating?"Новая карта":current?.title||"Карты мира"}</h2></div><div className="world-map-tools">{!readOnly && <><AISoundToggle/><button type="button" onClick={()=>navigate("")}><Plus size={18}/>Новая карта</button></>}</div></header>
     <nav className="world-map-library" aria-label="Карты кампании">{maps.map(map=><button type="button" key={map.id} aria-current={!creating&&selected===map.id?"page":undefined} onClick={()=>navigate(map.id)}><img src={mapMediaURL(map.imageUrl)} alt=""/><span>{map.title}</span></button>)}</nav>
-    {error&&<p role="alert">{error}</p>}{loading?<p role="status">Загружаю карты…</p>:creating?<div className="world-map-new"><h3>Каким будет этот мир?</h3><MapCreateForm campaignId={campaignId} onCreated={map=>{upsert(map);navigate(map.id);}}/></div>:current?<MapEditor key={current.id} campaignId={campaignId} original={current} onSaved={upsert} onVariant={map=>{upsert(map);navigate(map.id);}} onDirty={setDirty}/>:null}
+    {error&&<p role="alert">{error}</p>}{loading?<p role="status">Загружаю карты…</p>:creating&&!readOnly?<div className="world-map-new"><h3>Каким будет этот мир?</h3><MapCreateForm campaignId={campaignId} onCreated={map=>{upsert(map);navigate(map.id);}}/></div>:current&&readOnly?<ReadyMapViewer key={current.id} map={current}/>:current?<MapEditor key={current.id} campaignId={campaignId} original={current} onSaved={upsert} onVariant={map=>{upsert(map);navigate(map.id);}} onDirty={setDirty}/>:null}
   </>;
+}
+
+function ReadyMapViewer({map}:{map:WorldMapDocument}) {
+  const camera=useRef<ReactZoomPanPinchRef>(null);
+  const [error,setError]=useState("");
+  async function download(){try{const blob=await renderMapPNG(map),url=URL.createObjectURL(blob),a=document.createElement("a");a.href=url;a.download=`${map.title.replace(/[\\/:*?"<>|]/g,"_")}.png`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}catch(e){setError((e as Error).message);}}
+  return <section className="world-map-editor" aria-label="Карта готовой кампании"><p>Готовые Кампании · оригинальная карта из книги, только для чтения.</p><div className="world-map-tools"><button type="button" onClick={()=>void camera.current?.zoomIn(.3,0)}><ZoomIn size={17}/>Приблизить</button><button type="button" onClick={()=>void camera.current?.zoomOut(.3,0)}><ZoomOut size={17}/>Отдалить</button><button type="button" onClick={()=>void camera.current?.fitToView({mode:"contain",animationTime:0})}><Scan size={17}/>Вписать карту</button><button type="button" onClick={()=>void download()}><Download size={17}/>PNG</button></div><div className="world-map-viewport" style={{height:"65vh"}}><TransformWrapper ref={camera} minScale={.05} maxScale={16} fitOnInit="contain" centerOnInit limitToBounds={false}><TransformComponent wrapperStyle={{width:"100%",height:"100%"}} contentStyle={{width:map.width,height:map.height}}><img src={mapMediaURL(map.imageUrl)} alt={map.title} style={{width:map.width,height:map.height}} draggable={false} onError={()=>setError("Не удалось загрузить исходную карту.")}/></TransformComponent></TransformWrapper></div><p>{map.prompt}</p>{error&&<p role="alert">{error}</p>}</section>;
 }
 
 export function MapEditor({campaignId,original,onSaved,onDirty,onVariant}:{campaignId:string;original:WorldMapDocument;onSaved:(map:WorldMapDocument)=>void;onDirty:(dirty:boolean)=>void;onVariant?:(map:WorldMapDocument)=>void}){

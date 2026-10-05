@@ -23,6 +23,7 @@ type AppSidebarProps = {
   items: AppSidebarItem[];
   onCampaignSelect: (campaignId: string) => void;
   onCreateCampaign: () => void;
+  onOpenReadyCampaigns: () => void;
   onLogout: () => void;
 };
 
@@ -37,6 +38,7 @@ export function AppSidebar({
   items,
   onCampaignSelect,
   onCreateCampaign,
+  onOpenReadyCampaigns,
   onLogout
 }: AppSidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -69,11 +71,12 @@ export function AppSidebar({
 
           <div className="rail-select-shell">
             <select aria-label="Кампания" className="rail-select" onChange={(event) => onCampaignSelect(event.target.value)} value={activeCampaignId}>
-              {campaigns.map((item) => (
+              {campaigns.filter(item => !item.readyCampaign).map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.title}
                 </option>
               ))}
+              {campaigns.some(item => item.readyCampaign) ? <optgroup label="Готовые Кампании">{campaigns.filter(item => item.readyCampaign).map(item => <option key={item.id} value={item.id}>{item.title}</option>)}</optgroup> : null}
             </select>
             <span className="rail-select-chevron" aria-hidden="true">
               <svg className="rail-icon-svg" viewBox="0 0 20 20">
@@ -81,6 +84,7 @@ export function AppSidebar({
               </svg>
             </span>
           </div>
+          <button className="ghost ready-campaign-open" onClick={onOpenReadyCampaigns} type="button">Готовые Кампании</button>
         </section>
 
         <nav className="rail-group-nav" aria-label="Разделы кампании">
@@ -95,7 +99,7 @@ export function AppSidebar({
             <div className="rail-nav">{group.keys.map(key => items.find(item => item.key === key)).filter((item): item is AppSidebarItem => Boolean(item)).map(item => (
               <button key={item.key} className={`rail-nav-item ${activeRailKey === item.key ? "active" : ""}`} aria-current={activeRailKey === item.key ? "page" : undefined}
                 onClick={() => { item.onClick(); setMobileOpen(false); }} type="button">
-                <span className="rail-nav-icon"><RailIcon name={item.icon} /></span><span className="rail-nav-label">{item.label}</span>
+                <span className="rail-nav-icon"><RailIcon name={item.icon} /></span><span className="rail-nav-label">{item.key === "notes" && campaigns.find(c => c.id === activeCampaignId)?.readyCampaign ? "Книга приключения" : item.label}</span>
               </button>
             ))}</div>
           </section>)}

@@ -1,0 +1,108 @@
+{
+  "id": "icewind-dale-rus",
+  "version": 1,
+  "sourceFile": "Icewind Dale - Rime of the Frostmaiden RUS.pdf",
+  "sourceSHA256": "ffdf632462bfe2666132456f6a81f312475950b2501a28e8362c0fff7e2581d7",
+  "sourcePages": 323,
+  "chapters": [
+    {
+      "title": "Обложка, перевод и оглавление",
+      "firstPage": 1,
+      "lastPage": 5
+    },
+    {
+      "title": "Добро пожаловать на Крайний Север",
+      "firstPage": 6,
+      "lastPage": 17
+    },
+    {
+      "title": "Глава 1: Десять Городов",
+      "firstPage": 18,
+      "lastPage": 101
+    },
+    {
+      "title": "Глава 2: Долина Ледяного Ветра",
+      "firstPage": 102,
+      "lastPage": 171
+    },
+    {
+      "title": "Глава 3: Губители Солнца",
+      "firstPage": 172,
+      "lastPage": 187
+    },
+    {
+      "title": "Глава 4: Свет разрушения",
+      "firstPage": 188,
+      "lastPage": 197
+    },
+    {
+      "title": "Глава 5: Обитель Ориль",
+      "firstPage": 198,
+      "lastPage": 215
+    },
+    {
+      "title": "Глава 6: Пещеры голода",
+      "firstPage": 216,
+      "lastPage": 231
+    },
+    {
+      "title": "Глава 7: Погибель Итрина",
+      "firstPage": 232,
+      "lastPage": 261
+    },
+    {
+      "title": "Эпилог",
+      "firstPage": 262,
+      "lastPage": 263
+    },
+    {
+      "title": "Приложение A: Безделушки",
+      "firstPage": 264,
+      "lastPage": 264
+    },
+    {
+      "title": "Приложение B: Тайны персонажей",
+      "firstPage": 265,
+      "lastPage": 268
+    },
+    {
+      "title": "Приложение C: Чудовища",
+      "firstPage": 269,
+      "lastPage": 314
+    },
+    {
+      "title": "Приложение D: Магия",
+      "firstPage": 315,
+      "lastPage": 319
+    },
+    {
+      "title": "Приложение E: Ода Морозной Деве",
+      "firstPage": 320,
+      "lastPage": 321
+    },
+    {
+      "title": "Послесловие",
+      "firstPage": 322,
+      "lastPage": 323
+    }
+  ],
+  "counts": {
+    "locations": 441,
+    "npcs": 164,
+    "monsters": 57,
+    "quests": 32,
+    "lore": 53,
+    "maps": 41,
+    "events": 14,
+    "shops": 17
+  },
+  "indexedNPCNames": 164,
+  "unmatchedNPCNames": [],
+  "notes": [
+    "All 323 source pages have full-page facsimiles; printed page = PDF page - 1.",
+    "Card text is extracted source text. Page facsimiles remain authoritative for columns and tables.",
+    "Map 7.2 is joined from PDF pages 237 and 238, preserving labels.",
+    "The regional map 2.1 is extracted from PDF page 114; no separate folding poster is supplied.",
+    "Core-rule monster references have their source descriptions, not invented statblocks."
+  ]
+}

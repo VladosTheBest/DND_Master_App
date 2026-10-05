@@ -355,8 +355,13 @@ func (srv *server) queueAIGeneration(w http.ResponseWriter, r *http.Request, nex
 		campaign = input.CampaignID
 	}
 	if campaign != "" {
-		if _, err := srv.store.getCampaignForUser(user.ID, campaign); err != nil {
+		owned, err := srv.store.getCampaignForUser(user.ID, campaign)
+		if err != nil {
 			writeError(w, 404, "not_found", "Кампания не найдена.")
+			return true
+		}
+		if owned.ReadyCampaign != nil && kind != "codex" && kind != "chat" {
+			writeError(w, 403, "ready_campaign_read_only", errReadyCampaignReadOnly.Error())
 			return true
 		}
 	}

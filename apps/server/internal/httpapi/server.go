@@ -162,6 +162,8 @@ func NewServer(options Options) (http.Handler, error) {
 	mux.HandleFunc("/api/auth/logout", srv.auth.handleLogout)
 	mux.HandleFunc("/api/auth/oauth/", srv.auth.handleOAuth)
 	mux.HandleFunc("/api/campaigns", srv.handleCampaigns)
+	mux.HandleFunc("/api/campaign-templates", srv.handleReadyCampaigns)
+	mux.HandleFunc("/api/campaign-templates/", srv.handleReadyCampaigns)
 	mux.HandleFunc("/api/campaigns/", srv.handleCampaignByPath)
 	mux.HandleFunc("/api/ai/proposals", srv.handleAIProposals)
 	mux.HandleFunc("/api/ai/proposals/", srv.handleAIProposals)
@@ -308,6 +310,10 @@ func (srv *server) handleCampaigns(writer http.ResponseWriter, request *http.Req
 
 		campaign, err := srv.store.createCampaignForUser(user.ID, input)
 		if err != nil {
+			if input.TemplateID != "" && input.TemplateID != "icewind-dale-rus" {
+				writeError(writer, http.StatusBadRequest, "unknown_campaign_template", "Готовая кампания не найдена.")
+				return
+			}
 			writeError(writer, http.StatusInternalServerError, "create_campaign_failed", err.Error())
 			return
 		}
@@ -334,6 +340,17 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 	campaign, ok := srv.requireOwnedCampaign(writer, user, campaignID)
 	if !ok {
 		return
+	}
+	if campaign.ReadyCampaign != nil && request.Method != http.MethodGet && request.Method != http.MethodHead {
+		// Gameplay endpoints remain available; authoring cannot trigger media/AI
+		// side effects before the store's integrity check rejects the change.
+		locked := len(segments) > 1 && (segments[1] == "world-maps" || segments[1] == "events" || segments[1] == "bestiary")
+		locked = locked || (len(segments) > 2 && segments[1] == "combat" && segments[2] == "generate")
+		locked = locked || (len(segments) > 2 && segments[1] == "ai" && (segments[2] == "proposals" || len(segments) > 3))
+		if locked {
+			writeError(writer, 403, "ready_campaign_read_only", errReadyCampaignReadOnly.Error())
+			return
+		}
 	}
 
 	if len(segments) == 1 {
@@ -764,6 +781,9 @@ func writeJSON(writer http.ResponseWriter, status int, data any) {
 }
 
 func writeError(writer http.ResponseWriter, status int, code string, message string) {
+	if strings.Contains(message, errReadyCampaignReadOnly.Error()) {
+		status, code, message = http.StatusForbidden, "ready_campaign_read_only", errReadyCampaignReadOnly.Error()
+	}
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(status)
 	_ = json.NewEncoder(writer).Encode(envelope{

@@ -31,6 +31,10 @@ func starterCampaign() campaignData {
 }
 
 func ensureCampaignShape(campaign campaignData) campaignData {
+	if campaign.ReadyCampaign != nil {
+		info := *campaign.ReadyCampaign
+		campaign.ReadyCampaign = &info
+	}
 	// Map documents are edited independently; callers must not retain mutable slices from the store.
 	campaign.WorldMaps = append([]worldMapDocument(nil), campaign.WorldMaps...)
 	for i := range campaign.WorldMaps {
@@ -399,13 +403,14 @@ func rebuildDashboardCards(campaign campaignData) []dashboardCard {
 
 func campaignSummaryFromData(campaign campaignData) campaignSummary {
 	return campaignSummary{
-		ID:          campaign.ID,
-		Revision:    campaign.Revision,
-		Title:       campaign.Title,
-		System:      campaign.System,
-		SettingName: campaign.SettingName,
-		InWorldDate: campaign.InWorldDate,
-		Summary:     campaign.Summary,
+		ReadyCampaign: campaign.ReadyCampaign,
+		ID:            campaign.ID,
+		Revision:      campaign.Revision,
+		Title:         campaign.Title,
+		System:        campaign.System,
+		SettingName:   campaign.SettingName,
+		InWorldDate:   campaign.InWorldDate,
+		Summary:       campaign.Summary,
 	}
 }
 

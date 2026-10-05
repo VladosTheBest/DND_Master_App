@@ -303,8 +303,9 @@ type userAccount struct {
 }
 
 type campaignData struct {
-	WorldMaps []worldMapDocument `json:"worldMaps,omitempty"`
-	ID        string             `json:"id"`
+	ReadyCampaign *readyCampaignInfo `json:"readyCampaign,omitempty"`
+	WorldMaps     []worldMapDocument `json:"worldMaps,omitempty"`
+	ID            string             `json:"id"`
 	// Revision tracks authoring changes used by proposal conflict detection.
 	// Ephemeral live-combat state is persisted but deliberately does not make
 	// an otherwise independent content proposal stale.
@@ -334,13 +335,14 @@ type campaignData struct {
 }
 
 type campaignSummary struct {
-	ID          string `json:"id"`
-	Revision    int    `json:"revision"`
-	Title       string `json:"title"`
-	System      string `json:"system"`
-	SettingName string `json:"settingName"`
-	InWorldDate string `json:"inWorldDate"`
-	Summary     string `json:"summary"`
+	ReadyCampaign *readyCampaignInfo `json:"readyCampaign,omitempty"`
+	ID            string             `json:"id"`
+	Revision      int                `json:"revision"`
+	Title         string             `json:"title"`
+	System        string             `json:"system"`
+	SettingName   string             `json:"settingName"`
+	InWorldDate   string             `json:"inWorldDate"`
+	Summary       string             `json:"summary"`
 }
 
 type searchResult struct {
@@ -497,6 +499,7 @@ type surveyResponse struct {
 }
 
 type createCampaignInput struct {
+	TemplateID  string `json:"templateId,omitempty"`
 	Title       string `json:"title"`
 	System      string `json:"system"`
 	SettingName string `json:"settingName"`
