@@ -14,7 +14,8 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'C:/Users/User/.cach
       if (u.pathname==='/uploads/test.png') return r.fulfill({contentType:'image/png',path:'apps/web/public/session-token.png'});
       if (u.pathname==='/api/ai/jobs') return r.fulfill({json:{data:job?[job]:[]}});
       if(u.pathname==='/api/campaigns')return r.fulfill({json:{data:[{id:'campaign',title:'Тестовая кампания'}]}});
-      if(u.pathname.endsWith('/drafts/apply')){assert.deepEqual(r.request().postDataJSON(),{turnId:turns[0].id,draftId:'draft1'});applyCount++;turns[0].drafts[0].createdId='created-npc';return r.fulfill({json:{data:{campaign:{id:'campaign'}}}});}
+      if(u.pathname.endsWith('/drafts/edit')){const input=r.request().postDataJSON();assert.equal(input.revision,0);turns[0].drafts[0]={...turns[0].drafts[0],title:input.title,subtitle:input.subtitle,summary:input.summary,content:input.content,revision:1};return r.fulfill({json:{data:{draft:turns[0].drafts[0]}}});}
+      if(u.pathname.endsWith('/drafts/apply')){assert.deepEqual(r.request().postDataJSON(),{turnId:turns[0].id,draftId:'draft1',revision:1});applyCount++;turns[0].drafts[0].createdId='created-npc';return r.fulfill({json:{data:{draft:turns[0].drafts[0],campaign:{id:'campaign'}}}});}
       if (u.pathname.endsWith('/ai/chat')) {
         if (r.request().method()==='POST') {posted=r.request().postDataJSON();postRoute=r;return;}
         return r.fulfill({json:{data:{turns:u.searchParams.has('sessionIds')?[]:turns,sessions:[{id:'s1',title:'Первая сессия'},{id:'s2',title:'Вторая сессия'}]}}});
@@ -70,6 +71,30 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'C:/Users/User/.cach
     assert.equal(await page.getByText('Кто забрал ключ?',{exact:true}).count(),1);
     await page.getByAltText('Аделина').waitFor();
     await page.waitForFunction(()=>document.querySelector('.ai-chat-entity img')?.naturalWidth>0);
+    await page.getByRole('button',{name:'Редактировать',exact:true}).click();
+    await page.getByLabel('Название',{exact:true}).fill('Элиан после ручных правок');
+    await page.getByLabel('Полное описание',{exact:true}).fill('## Тайна\nРучное уточнение: хранит серебряный ключ.');
+    await page.screenshot({path:'tmp/ai-chat-editor.png'});
+    await page.getByRole('button',{name:'Сохранить в чате',exact:true}).click();
+    await page.getByRole('heading',{name:'Элиан после ручных правок',exact:true}).waitFor();
+    await page.getByRole('button',{name:'Обновить диалог'}).click();
+    await page.getByRole('heading',{name:'Элиан после ручных правок',exact:true}).waitFor();
+    postRoute=null;
+    await page.getByRole('button',{name:'Расширить',exact:true}).click();
+    while(!postRoute)await new Promise(resolve=>setTimeout(resolve,10));
+    assert.deepEqual(posted.draftRef,{turnId:id,draftId:'draft1',revision:1});
+    assert.match(posted.question,/глубже/);
+    await postRoute.fulfill({status:503,json:{error:{message:'Refine fixture'}}});
+    await page.getByText('Refine fixture',{exact:true}).waitFor();
+    await page.getByRole('button',{name:'Изменить с AI',exact:true}).click();
+    await page.getByLabel('Что изменить?',{exact:true}).fill('Добавь соперника');
+    postRoute=null;
+    await page.getByRole('button',{name:'Доработать',exact:true}).click();
+    while(!postRoute)await new Promise(resolve=>setTimeout(resolve,10));
+    assert.match(posted.question,/Добавь соперника/);
+    assert.equal(posted.draftRef.revision,1);
+    await postRoute.fulfill({status:503,json:{error:{message:'Change fixture'}}});
+    await page.getByText('Change fixture',{exact:true}).waitFor();
     await page.getByRole('button',{name:'Добавить этого НПС в кампанию'}).click();
     await page.getByRole('button',{name:'Добавлено в кампанию',exact:true}).waitFor();
     assert.equal(applyCount,1);

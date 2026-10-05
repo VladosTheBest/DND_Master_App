@@ -14,6 +14,84 @@ type chatDraft struct {
 	Content   string `json:"content"`
 	Subtitle  string `json:"subtitle"`
 	CreatedID string `json:"createdId,omitempty"`
+	Revision  int    `json:"revision"`
+}
+
+type chatDraftRef struct {
+	TurnID   string `json:"turnId"`
+	DraftID  string `json:"draftId"`
+	Revision int    `json:"revision"`
+}
+
+func (srv *server) handleChatDraftEdit(w http.ResponseWriter, r *http.Request, user authUser, campaignID string) {
+	if r.Method != http.MethodPost {
+		writeError(w, 405, "method_not_allowed", "Only POST is supported")
+		return
+	}
+	var input struct {
+		chatDraftRef
+		Title    string `json:"title"`
+		Subtitle string `json:"subtitle"`
+		Summary  string `json:"summary"`
+		Content  string `json:"content"`
+	}
+	if !boundedMutationInput(w, r, &input, 128*1024) {
+		return
+	}
+	srv.store.mu.Lock()
+	defer srv.store.mu.Unlock()
+	owned := false
+	for _, c := range srv.store.data.Campaigns {
+		if c.ID == campaignID && c.OwnerID == user.ID {
+			owned = true
+			break
+		}
+	}
+	if !owned {
+		writeError(w, 404, "not_found", "Кампания не найдена.")
+		return
+	}
+	for i := range srv.store.data.AIChatTurns {
+		turn := &srv.store.data.AIChatTurns[i]
+		if turn.ID != input.TurnID || turn.OwnerID != user.ID || turn.CampaignID != campaignID {
+			continue
+		}
+		for j := range turn.Drafts {
+			draft := &turn.Drafts[j]
+			if draft.ID != input.DraftID {
+				continue
+			}
+			if draft.CreatedID != "" {
+				writeError(w, 409, "already_added", "Запись уже добавлена. Редактируй её в кампании.")
+				return
+			}
+			if draft.Revision != input.Revision {
+				writeError(w, 409, "draft_conflict", "Предложение изменилось. Обнови диалог перед редактированием.")
+				return
+			}
+			validated, err := prepareChatDrafts([]chatDraft{{Kind: draft.Kind, Title: input.Title, Subtitle: input.Subtitle, Summary: input.Summary, Content: input.Content}})
+			if err != nil {
+				writeError(w, 400, "invalid_draft", "Проверь название и описание: они обязательны и должны укладываться в ограничения длины.")
+				return
+			}
+			original, err := cloneStorageState(srv.store.data)
+			if err != nil {
+				writeError(w, 500, "save_failed", "Не удалось сохранить правки.")
+				return
+			}
+			next := validated[0]
+			next.ID = draft.ID
+			next.Revision = draft.Revision + 1
+			*draft = next
+			if err := srv.store.saveMutationLocked(original); err != nil {
+				writeError(w, 500, "save_failed", "Правки не сохранены. Попробуй ещё раз.")
+				return
+			}
+			writeJSON(w, 200, map[string]any{"draft": next})
+			return
+		}
+	}
+	writeError(w, 404, "draft_not_found", "Предложение не найдено.")
 }
 
 func validChatDraftKind(kind string) bool {
@@ -44,6 +122,7 @@ func prepareChatDrafts(drafts []chatDraft) ([]chatDraft, error) {
 		}
 		d.ID = newID("chatdraft")
 		d.CreatedID = ""
+		d.Revision = 0
 	}
 	return drafts, nil
 }
@@ -54,8 +133,9 @@ func (srv *server) handleChatDraftApply(w http.ResponseWriter, r *http.Request, 
 		return
 	}
 	var input struct {
-		TurnID  string `json:"turnId"`
-		DraftID string `json:"draftId"`
+		TurnID   string `json:"turnId"`
+		DraftID  string `json:"draftId"`
+		Revision *int   `json:"revision,omitempty"`
 	}
 	if !feedbackInput(w, r, &input) {
 		return
@@ -86,6 +166,10 @@ func (srv *server) handleChatDraftApply(w http.ResponseWriter, r *http.Request, 
 			}
 			if draft.CreatedID != "" {
 				writeJSON(w, 200, map[string]any{"draft": draft, "campaign": campaign})
+				return
+			}
+			if input.Revision != nil && *input.Revision != draft.Revision {
+				writeError(w, 409, "draft_conflict", "Предложение изменилось. Обнови диалог перед добавлением.")
 				return
 			}
 			if !validChatDraftKind(draft.Kind) {

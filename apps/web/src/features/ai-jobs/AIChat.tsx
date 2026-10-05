@@ -1,16 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { Send, RefreshCw, MessageSquare, Sparkles, UserRound, MapPin, BookOpen, Plus, Check, ScrollText, Store, CalendarDays, ShieldCheck, Compass } from "lucide-react";
+import { Send, RefreshCw, MessageSquare, Sparkles, UserRound, MapPin, BookOpen, Plus, Check, ScrollText, Store, CalendarDays, ShieldCheck, Compass, Pencil, Save } from "lucide-react";
 import type { AIJob } from "@shadow-edge/shared-types";
 import { FormattedText } from "../formatting/FormattedText";
 import { isActiveJob } from "./useAIJobs";
 import "./ai-chat.css";
 
 type Source = { id: string; targetId: string; title: string; kind: string; text: string; firstLine: number; lastLine: number; entity?: {title: string; summary: string; imageUrl?: string} };
-type Draft = {id:string;kind:string;title:string;subtitle:string;summary:string;content:string;createdId?:string};
+type Draft = {id:string;kind:string;title:string;subtitle:string;summary:string;content:string;createdId?:string;revision?:number};
 type Turn = { id: string; question: string; answer: string; suggestions: string[]; sources: Source[]; createdAt: string; drafts?:Draft[] };
 export type ChatContext = {includeCampaign:boolean;sessionIds:string[]};
 type ChatData = { turns: Turn[]; sessions: {id: string; title: string}[] };
-type Pending = {id: string; question: string; createdAt: string; jobId?: string; error?: string};
+type DraftRef = {turnId:string;draftId:string;revision:number};
+type Pending = {draftRef?:DraftRef;id: string; question: string; createdAt: string; jobId?: string; error?: string};
 function readable(text: string, sources: Source[]) {
   for (const source of sources) { text=text.split(source.id).join(source.title); if(source.targetId) text=text.split(source.targetId).join(source.title); }
   return text;
@@ -52,16 +53,48 @@ function EntityPreview({source}: {source: Source}) {
   </article>;
 }
 
-function DraftCard({draft,turnId,campaignId,onSaved}:{draft:Draft;turnId:string;campaignId:string;onSaved:()=>void}) {
-  const [saving,setSaving]=useState(false);const [saved,setSaved]=useState(Boolean(draft.createdId));const [error,setError]=useState("");
+function DraftCard({draft,turnId,campaignId,onSaved,onRefine,busy}:{draft:Draft;turnId:string;campaignId:string;onSaved:(draft:Draft)=>void;onRefine:(draft:Draft,instruction:string)=>void;busy:boolean}) {
+  const [current,setCurrent]=useState(draft);
+  const [editing,setEditing]=useState(false);
+  const [fields,setFields]=useState(draft);
+  const [changing,setChanging]=useState(false);
+  const [instruction,setInstruction]=useState("");
+  const [saving,setSaving]=useState(false);
+  const [error,setError]=useState("");
   const lock=useRef(false);
+  useEffect(()=>{setCurrent(draft);},[draft]);
+  const added=Boolean(current.createdId);
   const labels:Record<string,string>={npc:"этого НПС",location:"эту локацию",player:"этого игрока",monster:"этого монстра",quest:"этот квест",lore:"эту заметку",event:"это событие",shop:"этот магазин",sessionPrep:"эту подготовку"};
-  async function apply(){
-    if(lock.current||saved||draft.createdId)return;lock.current=true;setSaving(true);setError("");
-    try{const result=await chatRequest<{campaign:unknown}>(`/api/campaigns/${encodeURIComponent(campaignId)}/ai/chat/drafts/apply`,{turnId,draftId:draft.id});setSaved(true);window.dispatchEvent(new CustomEvent("shadow-edge:chat-created",{detail:result.campaign}));onSaved();}
-    catch(e){setError((e as Error).message);}finally{lock.current=false;setSaving(false);}
+  async function persist(apply:boolean) {
+    if(lock.current||added)return;
+    lock.current=true;setSaving(true);setError("");
+    try {
+      const ref={turnId,draftId:current.id,revision:(apply?current.revision:fields.revision)||0};
+      const body=apply?ref:{...ref,title:fields.title,subtitle:fields.subtitle,summary:fields.summary,content:fields.content};
+      const result=await chatRequest<{draft:Draft;campaign?:unknown}>(`/api/campaigns/${encodeURIComponent(campaignId)}/ai/chat/drafts/${apply?"apply":"edit"}`,body);
+      setCurrent(result.draft);setEditing(false);onSaved(result.draft);
+      if(apply)window.dispatchEvent(new CustomEvent("shadow-edge:chat-created",{detail:result.campaign}));
+    } catch(e){setError((e as Error).message);} finally{lock.current=false;setSaving(false);}
   }
-  return <article className="ai-chat-draft"><div className="ai-chat-draft-heading"><span><Sparkles size={16}/>Предложение для кампании</span>{(saved||draft.createdId)&&<span><Check size={16}/>Добавлено</span>}</div><h3>{draft.title}</h3>{draft.subtitle&&<small>{draft.subtitle}</small>}<FormattedText content={draft.summary}/><details><summary>Посмотреть полное описание</summary><FormattedText content={draft.content}/></details><button type="button" className="ai-chat-add" disabled={saving||saved||Boolean(draft.createdId)} onClick={()=>void apply()}>{saved||draft.createdId?<Check size={17}/>:<Plus size={17}/>} {saved||draft.createdId?"Добавлено в кампанию":saving?"Сохраняю…":`Добавить ${labels[draft.kind]||"запись"} в кампанию`}</button>{error&&<p role="alert">{error}</p>}</article>;
+  return <article className="ai-chat-draft">
+    <div className="ai-chat-draft-heading"><span><Sparkles size={16}/>Предложение для кампании</span>{added&&<span><Check size={16}/>Добавлено</span>}</div>
+    {editing ? <form className="ai-chat-draft-editor" onSubmit={event=>{event.preventDefault();void persist(false);}}>
+      <label>Название<input required maxLength={160} value={fields.title} onChange={event=>setFields({...fields,title:event.target.value})}/></label>
+      <label>Роль или категория<input maxLength={300} value={fields.subtitle} onChange={event=>setFields({...fields,subtitle:event.target.value})}/></label>
+      <label>Краткое описание<textarea aria-label="Краткое описание" maxLength={2000} rows={3} value={fields.summary} onChange={event=>setFields({...fields,summary:event.target.value})}/></label>
+      <label>Полное описание<textarea aria-label="Полное описание" required maxLength={20000} rows={12} value={fields.content} onChange={event=>setFields({...fields,content:event.target.value})}/></label>
+      <div className="ai-chat-draft-actions"><button type="submit" disabled={saving||!fields.title.trim()||!fields.content.trim()}><Save size={16}/>{saving?"Сохраняю…":"Сохранить в чате"}</button><button type="button" disabled={saving} onClick={()=>{setEditing(false);setError("");}}>Отмена</button></div>
+    </form> : <><h3>{current.title}</h3>{current.subtitle&&<small>{current.subtitle}</small>}<FormattedText content={current.summary}/><details><summary>Посмотреть полное описание</summary><FormattedText content={current.content}/></details>
+      <div className="ai-chat-draft-actions">
+        <button type="button" className="ai-chat-add" disabled={saving||added||busy} onClick={()=>void persist(true)}>{added?<Check size={17}/>:<Plus size={17}/>} {added?"Добавлено в кампанию":saving?"Сохраняю…":`Добавить ${labels[current.kind]||"запись"} в кампанию`}</button>
+        {!added&&<><button type="button" disabled={saving||busy} onClick={()=>onRefine(current,"Расширь эту сущность: глубже проработай характерные особенности, мотивации, связи, секреты, варианты использования и детали, полезные мастеру. Сохрани существующие факты и ручные правки. Верни полную улучшенную версию.")}><Sparkles size={16}/>Расширить</button>
+        <button type="button" disabled={saving||busy} onClick={()=>setChanging(!changing)}><MessageSquare size={16}/>Изменить с AI</button>
+        <button type="button" disabled={saving||busy} onClick={()=>{setFields(current);setEditing(true);setChanging(false);setError("");}}><Pencil size={16}/>Редактировать</button></>}
+      </div>
+      {changing&&<form className="ai-chat-draft-editor" onSubmit={event=>{event.preventDefault();if(instruction.trim()){onRefine(current,instruction.trim());setChanging(false);setInstruction("");}}}><label>Что изменить?<textarea required maxLength={3000} rows={3} value={instruction} onChange={event=>setInstruction(event.target.value)}/></label><button type="submit" disabled={busy||!instruction.trim()}><Send size={16}/>Доработать</button></form>}
+    </>}
+    {error&&<p role="alert">{error}</p>}
+  </article>;
 }
 
 export function AIChat({campaignId, jobs, refreshJobs, initialContext, onContextChange}: {campaignId: string; jobs: AIJob[]; refreshJobs: () => void;initialContext?:ChatContext;onContextChange?:(context:ChatContext)=>void}) {
@@ -109,7 +142,7 @@ export function AIChat({campaignId, jobs, refreshJobs, initialContext, onContext
     lock.current = true;
     setPending(next); setQuestion(""); setError("");
     try {
-      const job = await chatRequest<AIJob>(`/api/campaigns/${encodeURIComponent(campaignId)}/ai/chat`,{id:next.id,question:next.question,context:JSON.parse(scope)});
+      const job = await chatRequest<AIJob>(`/api/campaigns/${encodeURIComponent(campaignId)}/ai/chat`,{id:next.id,question:next.question,context:JSON.parse(scope),...(next.draftRef?{draftRef:next.draftRef}:{})});
       setPending(previous=>previous?.id===next.id ? {...previous,jobId:job.id} : previous);
       refreshJobs();
     } catch(e) { setPending(previous=>previous?.id===next.id ? {...previous,error:(e as Error).message} : previous); }
@@ -148,7 +181,7 @@ export function AIChat({campaignId, jobs, refreshJobs, initialContext, onContext
           <Question text={turn.question} time={turn.createdAt}/>
           <div className="ai-chat-message"><span className="ai-chat-avatar assistant"><Sparkles size={19}/></span><div className="ai-chat-answer"><small><strong>Помощник мастера</strong><time>{new Date(turn.createdAt).toLocaleString("ru-RU")}</time></small><FormattedText content={readable(turn.answer,turn.sources||[])}/>
             {entities.length>0 && <div className="ai-chat-entities">{entities.map(source=><EntityPreview key={`${source.kind}:${source.targetId}`} source={source}/>)}</div>}
-            <div className="ai-chat-drafts">{turn.drafts?.map(draft=><DraftCard key={draft.id} draft={draft} turnId={turn.id} campaignId={campaignId} onSaved={()=>setReload(value=>value+1)}/>)}</div>
+            <div className="ai-chat-drafts">{turn.drafts?.map(draft=><DraftCard key={draft.id} draft={draft} turnId={turn.id} campaignId={campaignId} busy={busy} onSaved={updated=>{setData(previous=>previous?{...previous,turns:previous.turns.map(item=>item.id===turn.id?{...item,drafts:item.drafts?.map(value=>value.id===updated.id?updated:value)}:item)}:previous);}} onRefine={(updated,instruction)=>void send({id:crypto.randomUUID(),question:`Доработай «${updated.title}». ${instruction}`,createdAt:new Date().toISOString(),draftRef:{turnId:turn.id,draftId:updated.id,revision:updated.revision||0}})}/>)}</div>
             {turn.suggestions?.length>0 && <section className="ai-chat-suggestions"><strong>Что можно доработать</strong><ul>{turn.suggestions.map((text,i)=><li key={i}><FormattedText content={readable(text,turn.sources||[])}/></li>)}</ul></section>}
             {turn.sources?.length>0 && <details className="ai-chat-sources"><summary>Источники · {turn.sources.length}</summary>{turn.sources.map(source=><details key={source.id}><summary>{source.title}{source.kind==="transcript" ? ` · строки ${source.firstLine}–${source.lastLine}` : ""}</summary><pre>{readable(excerpt(source),turn.sources)}</pre></details>)}</details>}
           </div></div>

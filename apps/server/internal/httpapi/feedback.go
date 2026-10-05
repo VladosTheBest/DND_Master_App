@@ -27,11 +27,15 @@ func feedbackStatus(value string) bool {
 	return value == "new" || value == "reviewing" || value == "closed"
 }
 func feedbackInput(w http.ResponseWriter, r *http.Request, input any) bool {
+	return boundedMutationInput(w, r, input, 32768)
+}
+
+func boundedMutationInput(w http.ResponseWriter, r *http.Request, input any, limit int64) bool {
 	if r.Header.Get("Origin") == "" || !isTrustedMutationOrigin(r) {
 		writeError(w, 403, "origin_forbidden", "Недопустимый источник запроса.")
 		return false
 	}
-	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 32768))
+	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, limit))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(input); err != nil {
 		writeError(w, 400, "invalid_input", "Некорректные данные.")

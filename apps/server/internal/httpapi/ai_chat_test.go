@@ -189,6 +189,33 @@ func TestCampaignChatHTTPAndStorage(t *testing.T) {
 		t.Fatal("history scope not canonical or isolated")
 	}
 	draft := restored.data.AIChatTurns[0].Drafts[0]
+	editBody, _ := json.Marshal(map[string]any{"turnId": "synthetic-chat-001", "draftId": draft.ID, "revision": 0, "title": "Edited candidate", "subtitle": "Edited role", "summary": "Edited summary", "content": strings.Repeat("Описание ", 2200) + "MANUAL_EDIT_TAIL"})
+	if w := call("POST", base+"/ai/chat/drafts/edit", string(editBody), other); w.Code != 404 {
+		t.Fatal("foreign edit accepted", w.Code)
+	}
+	if w := call("POST", base+"/ai/chat/drafts/edit", string(editBody), nil); w.Code != 401 {
+		t.Fatal("anonymous edit accepted", w.Code)
+	}
+	if w := call("POST", base+"/ai/chat/drafts/edit", string(editBody), cookie); w.Code != 200 {
+		t.Fatal("edit failed", w.Body.String())
+	}
+	if w := call("POST", base+"/ai/chat/drafts/edit", string(editBody), cookie); w.Code != 409 {
+		t.Fatal("stale edit accepted", w.Code)
+	}
+	refBody, _ := json.Marshal(map[string]any{"id": "refine-synthetic-001", "question": "Expand this candidate", "draftRef": chatDraftRef{TurnID: "synthetic-chat-001", DraftID: draft.ID, Revision: 1}})
+	if w := call("POST", base+"/ai/chat", string(refBody), cookie); w.Code != 200 {
+		t.Fatal("refine failed", w.Body.String())
+	}
+	var focused struct {
+		Draft chatDraft `json:"focusedDraft"`
+	}
+	if err := json.Unmarshal([]byte(lastPrompt), &focused); err != nil || focused.Draft.Title != "Edited candidate" || !strings.HasSuffix(focused.Draft.Content, "MANUAL_EDIT_TAIL") {
+		t.Fatal("manual edits missing from focused model context", err)
+	}
+	refBody, _ = json.Marshal(map[string]any{"id": "refine-synthetic-002", "question": "Expand this candidate", "context": chatContext{false, ids}, "draftRef": chatDraftRef{TurnID: "synthetic-chat-001", DraftID: draft.ID, Revision: 1}})
+	if w := call("POST", base+"/ai/chat", string(refBody), cookie); w.Code != 404 {
+		t.Fatal("draft leaked to another scope", w.Code)
+	}
 	applyBody, _ := json.Marshal(map[string]string{"turnId": "synthetic-chat-001", "draftId": draft.ID})
 	if w := call("POST", base+"/ai/chat/drafts/apply", string(applyBody), other); w.Code != 404 {
 		t.Fatal("foreign draft apply accepted")
