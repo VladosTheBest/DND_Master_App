@@ -269,7 +269,7 @@ func (srv *server) generateWorldMap(w http.ResponseWriter, r *http.Request, user
 	var result mapGenerationResult
 	var err error
 	if connected {
-		result, err = srv.generateCodexWorldMap(r.Context(), user, campaign.ID, input.Prompt, reference)
+		result, err = srv.generateCodexWorldMap(r.Context(), user, campaign.ID, worldMapPrompt(campaign, input.Prompt), reference)
 	} else {
 		account, found := srv.store.getUserByID(user.ID)
 		if !found || !subscriptionActive(account.Subscription, time.Now()) {
@@ -281,7 +281,7 @@ func (srv *server) generateWorldMap(w http.ResponseWriter, r *http.Request, user
 			writeError(w, 503, "image_api_unavailable", "Серверный API изображений не настроен.")
 			return
 		}
-		result, err = g.generateWorldMap(r.Context(), input.Prompt, reference)
+		result, err = g.generateWorldMap(r.Context(), worldMapPrompt(campaign, input.Prompt), reference)
 	}
 	if err != nil {
 		writeError(w, 502, "map_generation_failed", "Не удалось создать карту. "+err.Error())

@@ -726,6 +726,10 @@ func (manager *codexBridgeManager) runPromptOnce(ctx context.Context, user authU
 	instructions := codexBridgeInstructions
 	if input.WorldMap != nil {
 		instructions = mapPlanInstructions + "\nThe user explicitly opted in to image generation. Use the built-in $imagegen skill exactly once to generate the map background. Do not use MCP tools or modify campaign data. Return only the requested JSON, with imagePath pointing to the actual generated file under CODEX_HOME/generated_images. Inspect the generated map to place labels on the correct features. Never render lettering in the bitmap. Use the provided reference image when present."
+		instructions += "\n" + mapRenderInstructions
+		if input.WorldMap.Validate {
+			instructions = mapVisualCheckInstructions
+		}
 	}
 	if input.SessionID != "" {
 		instructions = sessionAnalysisInstructions
@@ -813,6 +817,9 @@ func (manager *codexBridgeManager) runPromptOnce(ctx context.Context, user authU
 	}
 	if input.WorldMap != nil {
 		turnParams["outputSchema"] = mapPlanSchema()
+		if input.WorldMap.Validate {
+			turnParams["outputSchema"] = mapVisualCheckSchema()
+		}
 		if len(input.WorldMap.Reference) > 0 {
 			_, format, imageErr := mapImageConfig(input.WorldMap.Reference)
 			if imageErr != nil {
@@ -914,6 +921,9 @@ func (manager *codexBridgeManager) runPromptOnce(ctx context.Context, user authU
 				return codexPromptResult{}, errors.New(completion.detail)
 			}
 			if input.WorldMap != nil {
+				if input.WorldMap.Validate {
+					return codexPromptResult{Message: observation.message, Status: "completed"}, nil
+				}
 				result, mapErr := readCodexWorldMap(bridge.homeDir, observation.message)
 				return codexPromptResult{WorldMap: result, Status: "completed"}, mapErr
 			}

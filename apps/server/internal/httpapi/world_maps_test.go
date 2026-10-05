@@ -49,6 +49,9 @@ func TestWorldMapAPIStorageAccessAndReference(t *testing.T) {
 				t.Error("missing no-lettering instruction")
 			}
 			plan, _ := json.Marshal(mapFixturePlan())
+			if bytes.Contains(b, []byte("world_map_visual_check")) {
+				plan = []byte(`{"isMap":true}`)
+			}
 			_ = json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]any{"content": string(plan)}}}})
 		case "/images/generations":
 			var body map[string]any
@@ -145,7 +148,7 @@ func TestWorldMapAPIStorageAccessAndReference(t *testing.T) {
 		t.Fatal("invalid map result")
 	}
 	w = call("POST", base+"/generate", body, "http://localhost", cookie)
-	if w.Code != 200 || calls != 2 {
+	if w.Code != 200 || calls != 3 {
 		t.Fatal("retry billed twice", w.Code, calls)
 	}
 	label := result.Data.Labels[0]
@@ -285,5 +288,83 @@ func TestWorldMapCodexFirstWithoutSubscription(t *testing.T) {
 	generated, err := srv.generateCodexWorldMap(context.Background(), user, campaign.ID, "world-map-fixture-reference", mapFixturePNG())
 	if err != nil || len(generated.Image) == 0 {
 		t.Fatal("reference turn", err)
+	}
+	if err := os.WriteFile(filepath.Join(bridge.homeDir, "helper-reject-map"), []byte("reject"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	req = httptest.NewRequest("POST", "http://localhost/api/campaigns/"+campaign.ID+"/world-maps/generate", strings.NewReader(`{"requestId":"codex-map-request-002","prompt":"world-map-fixture"}`))
+	req.Header.Set("Origin", "http://localhost")
+	w = httptest.NewRecorder()
+	srv.handleWorldMaps(w, req, user, campaign, "generate")
+	if w.Code != 502 || !strings.Contains(w.Body.String(), "не прошло проверку") {
+		t.Fatal("non-map accepted", w.Code, w.Body.String())
+	}
+	saved, _ := store.getCampaignForUser(user.ID, campaign.ID)
+	if len(saved.WorldMaps) != 1 {
+		t.Fatal("rejected bitmap persisted")
+	}
+	entries, _ = os.ReadDir(filepath.Join(bridge.homeDir, "generated_images"))
+	if len(entries) != 0 {
+		t.Fatal("rejected bitmap not cleaned")
+	}
+}
+
+func TestWorldMapGeographyContext(t *testing.T) {
+	c := campaignData{Title: "Synthetic coast", SettingName: "Islands", Summary: "Geography summary", OwnerID: "private-owner", PlayerDisplayToken: "private-token", Locations: []knowledgeEntity{{Title: "Harbor", Region: "North", Content: "River enters the sea"}}, NPCs: []knowledgeEntity{{Title: "private-npc"}}}
+	p := worldMapPrompt(c, "Draw my world")
+	for _, want := range []string{"Synthetic coast", "Harbor", "River enters the sea", "Draw my world", "NOT a connection test"} {
+		if !strings.Contains(p, want) {
+			t.Fatalf("missing %q", want)
+		}
+	}
+	for _, secret := range []string{"private-owner", "private-token", "private-npc"} {
+		if strings.Contains(p, secret) {
+			t.Fatal("non-geographic data leaked")
+		}
+	}
+	c.Locations = make([]knowledgeEntity, 500)
+	for i := range c.Locations {
+		c.Locations[i] = knowledgeEntity{Title: "Town", Content: strings.Repeat("x", 100000)}
+	}
+	if len(worldMapPrompt(c, "Draw")) > 35000 {
+		t.Fatal("unbounded campaign context")
+	}
+}
+
+func TestWorldMapVisualCheckFailsClosed(t *testing.T) {
+	for _, message := range []string{`{"isMap":false}`, `{}`, `null`, `{"isMap":"true"}`, `Test successful!`, ``} {
+		if acceptMapVisualCheck(message) == nil {
+			t.Fatalf("invalid check accepted: %s", message)
+		}
+	}
+	if err := acceptMapVisualCheck(`{"isMap":true}`); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestWorldMapAPIRejectsNonMap(t *testing.T) {
+	for _, check := range []string{`{"isMap":false}`, `{}`, `invalid`} {
+		t.Run(check, func(t *testing.T) {
+			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/images/generations" {
+					_ = json.NewEncoder(w).Encode(map[string]any{"data": []any{map[string]any{"b64_json": base64.StdEncoding.EncodeToString(mapFixturePNG())}}})
+					return
+				}
+				b, _ := io.ReadAll(r.Body)
+				plan, _ := json.Marshal(mapFixturePlan())
+				if bytes.Contains(b, []byte("world_map_visual_check")) {
+					if !bytes.Contains(b, []byte("data:image/png;base64,")) {
+						t.Error("validator received no bitmap")
+					}
+					plan = []byte(check)
+				}
+				_ = json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]any{"content": string(plan)}}}})
+			}))
+			defer upstream.Close()
+			g := newEntityGenerator(AIOptions{Provider: "openai", BaseURL: upstream.URL, APIToken: "test"}).(openAIGenerator)
+			if _, err := g.generateWorldMap(context.Background(), "Make a world map", nil); err == nil {
+				t.Fatal("non-map accepted")
+			}
+		})
 	}
 }
