@@ -68,6 +68,74 @@ func TestReadyCampaignAssetsAndReferences(t *testing.T) {
 	}
 }
 
+func TestReadyCampaignPresentationSeparatesReadingFromGM(t *testing.T) {
+	handler := newAccountTestServer(t)
+	cookies := registerAccountTestUser(t, handler, "presentation-gm")
+	path := "/api/campaign-templates/icewind-dale-rus/presentation"
+	if r := accountTestRequest(t, handler, "GET", path, "", nil); r.Code != 401 {
+		t.Fatal("presentation must require login")
+	}
+	response := accountTestRequest(t, handler, "GET", path, "", cookies)
+	if response.Code != 200 {
+		t.Fatal(response.Code)
+	}
+	type section struct {
+		Title, Kind, Text string
+		Pages             []int
+	}
+	type material struct {
+		Title, Summary string
+		SourcePages    []int
+		Sections       []section
+	}
+	presentation := decodeAccountTestData[struct {
+		TemplateID string              `json:"templateId"`
+		Items      map[string]material `json:"items"`
+	}](t, response)
+	c, err := readReadyCampaign("icewind-dale-rus")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, collection := range [][]knowledgeEntity{c.Locations, c.NPCs, c.Monsters, c.Quests, c.Lore} {
+		for _, e := range collection {
+			if m, ok := presentation.Items[e.ID]; !ok || m.Title != e.Title || m.Summary == "" {
+				t.Fatalf("missing formatted card %s", e.Title)
+			}
+		}
+	}
+	if len(presentation.Items) != 778 {
+		t.Fatalf("incomplete presentation: %d", len(presentation.Items))
+	}
+	hlin := presentation.Items["frost-event-0"]
+	var readings []string
+	for _, s := range hlin.Sections {
+		if strings.Contains(s.Text, "Страница PDF") {
+			t.Fatal("page markers leaked into card text")
+		}
+		if s.Kind == "read_aloud" {
+			readings = append(readings, s.Text)
+		}
+	}
+	if len(readings) != 2 || !strings.HasPrefix(readings[0], "В Десяти Городах в разгаре") || !strings.Contains(readings[1], "Сефек Калтро работает") {
+		t.Fatal("Hlin scene lost its two source readings")
+	}
+	for _, reading := range readings {
+		if strings.Contains(reading, "Хлин Троллегуб (нейтрально-добрый") || strings.Contains(reading, "Класс Доспеха") || strings.Contains(reading, "Перед началом приключения") {
+			t.Fatal("GM or introductory material incorrectly marked as player reading")
+		}
+	}
+	for _, m := range presentation.Items {
+		for _, s := range m.Sections {
+			if s.Text == "" || len(s.Pages) == 0 {
+				t.Fatalf("section without source in %s", m.Title)
+			}
+		}
+	}
+	if r := accountTestRequest(t, handler, "POST", path, `{}`, cookies); r.Code != 405 {
+		t.Fatal("presentation is not read-only")
+	}
+}
+
 func TestReadyCampaignHTTPProtectsSourceAllowsPlay(t *testing.T) {
 	handler := newAccountTestServer(t)
 	alice := registerAccountTestUser(t, handler, "ready-alice")

@@ -133,6 +133,16 @@ func (srv *server) handleReadyCampaigns(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	segments := strings.Split(strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/campaign-templates"), "/"), "/")
+	if len(segments) == 2 && segments[0] == "icewind-dale-rus" && segments[1] == "presentation" {
+		body, err := readyCampaignFiles.ReadFile("ready_campaigns/icewind-dale-rus/presentation.json")
+		if err != nil {
+			writeError(w, 500, "template_unavailable", "Не удалось загрузить карточки приключения.")
+			return
+		}
+		w.Header().Set("Cache-Control", "private, no-cache")
+		writeJSON(w, 200, json.RawMessage(body))
+		return
+	}
 	if len(segments) == 1 && segments[0] == "" {
 		c, err := readReadyCampaign("icewind-dale-rus")
 		if err != nil {
