@@ -74,7 +74,7 @@ func TestCampaignChatHTTPAndStorage(t *testing.T) {
 			Sources []chatSource `json:"sources"`
 		}
 		_ = json.Unmarshal([]byte(req.Messages[1].Content), &context)
-		answerBytes, _ := json.Marshal(map[string]any{"answer": "Ключ у Аделины.", "queries": []string{}, "sources": []string{context.Sources[0].ID}, "suggestions": []string{"Уточнить, почему она его хранит."}})
+		answerBytes, _ := json.Marshal(map[string]any{"answer": "Ключ у Аделины.", "queries": []string{}, "sources": []string{context.Sources[0].ID}, "suggestions": []string{"Уточнить, почему она его хранит."}, "drafts": []chatDraft{{Kind: "npc", Title: "Synthetic candidate", Summary: "Synthetic summary", Content: "Synthetic complete content"}}})
 		answer := string(answerBytes)
 		if calls == 1 {
 			answer = `{"answer":"","queries":["Аделина обсерватория"],"sources":[],"suggestions":[]}`
@@ -137,6 +137,9 @@ func TestCampaignChatHTTPAndStorage(t *testing.T) {
 	if err != nil || len(restored.data.AIChatTurns) != 1 {
 		t.Fatal("history lost", err)
 	}
+	if len(restored.data.AIChatTurns[0].Drafts) != 1 {
+		t.Fatal("model draft not persisted")
+	}
 	meta, records, err := splitCloudState(restored.data)
 	if err != nil {
 		t.Fatal(err)
@@ -184,6 +187,17 @@ func TestCampaignChatHTTPAndStorage(t *testing.T) {
 	query := fmt.Sprintf("?includeCampaign=false&sessionIds=%s&sessionIds=%s", ids[1], ids[0])
 	if w := call("GET", base+"/ai/chat"+query, "", cookie); !strings.Contains(w.Body.String(), "context-two-sessions") || strings.Contains(w.Body.String(), "context-combined-test") {
 		t.Fatal("history scope not canonical or isolated")
+	}
+	draft := restored.data.AIChatTurns[0].Drafts[0]
+	applyBody, _ := json.Marshal(map[string]string{"turnId": "synthetic-chat-001", "draftId": draft.ID})
+	if w := call("POST", base+"/ai/chat/drafts/apply", string(applyBody), other); w.Code != 404 {
+		t.Fatal("foreign draft apply accepted")
+	}
+	if w := call("POST", base+"/ai/chat/drafts/apply", string(applyBody), nil); w.Code != 401 {
+		t.Fatal("anonymous draft apply accepted")
+	}
+	if w := call("POST", base+"/ai/chat/drafts/apply", string(applyBody), cookie); w.Code != 200 || !strings.Contains(w.Body.String(), "createdId") {
+		t.Fatal("apply route failed", w.Body.String())
 	}
 }
 

@@ -4,9 +4,9 @@ import type { AIJob } from "@shadow-edge/shared-types";
 import { api } from "../../app/api";
 import { isActiveJob, useAIJobs } from "./useAIJobs";
 import { AIJobProgress } from "./AIJobProgress";
-import { AIChat } from "./AIChat";
-import { useAssistantWindow } from "./useAssistantWindow";
-import { Maximize2, Minimize2, X, MessageSquare, Grip, GripHorizontal } from "lucide-react";
+import { AIChat, type ChatContext } from "./AIChat";
+import { useAssistantWindow, type ResizeEdge } from "./useAssistantWindow";
+import { Maximize2, Minimize2, X, MessageSquare, GripHorizontal, ArrowUpRight } from "lucide-react";
 
 const labels: Record<string,string> = { answer:"Ответ", suggestions:"Предложения", title:"Название", name:"Имя", summary:"Кратко", content:"Описание", sceneText:"Сцена", notes:"Примечания", entity:"Запись", linkedDrafts:"Связанные записи", card:"Карточка", event:"Событие", message:"Ответ", warning:"Обрати внимание", createdEntities:"Участники боя", role:"Роль", note:"Заметка", subtitle:"Подзаголовок", tags:"Теги" };
 function resultText(value: unknown, depth = 0): string {
@@ -17,18 +17,19 @@ function resultText(value: unknown, depth = 0): string {
   return "";
 }
 
-export function AIJobsPanel({ campaignId, onOpenSession, onOpenProposal }: { campaignId?: string; onOpenSession: (job: AIJob) => void; onOpenProposal: (id: string) => void }) {
+export function AIJobsPanel({ campaignId, onOpenSession, onOpenProposal, pageMode=false, initialContext }: { campaignId?: string; onOpenSession: (job: AIJob) => void; onOpenProposal: (id: string) => void;pageMode?:boolean;initialContext?:ChatContext }) {
   const { jobs, error, loading, refresh } = useAIJobs();
   const [tab,setTab] = useState<"chat"|"jobs">("chat");
   const [expanded,setExpanded] = useState(false);
-  const [open,setOpen] = useState(false);
+  const [open,setOpen] = useState(pageMode);
+  const [context,setContext] = useState<ChatContext>(initialContext||{includeCampaign:true,sessionIds:[]});
   const [detail,setDetail] = useState<AIJob|null>(null);
   const [detailError,setDetailError] = useState("");
   const [loadingDetail,setLoadingDetail] = useState("");
   const dialog = useRef<HTMLDialogElement>(null);
   const floating = useAssistantWindow();
   const requestVersion = useRef(0);
-  useEffect(() => { if(open) dialog.current?.show(); else dialog.current?.close(); },[open]);
+  useEffect(() => { if(pageMode)return;if(open) dialog.current?.show(); else dialog.current?.close(); },[open,pageMode]);
   useEffect(() => () => { requestVersion.current++; },[]);
   const active = jobs.filter(isActiveJob);
   const showResult = async (job: AIJob) => {
@@ -47,13 +48,13 @@ export function AIJobsPanel({ campaignId, onOpenSession, onOpenProposal }: { cam
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   return <>
-    <button className={`ai-jobs-launcher ${active.length ? "working" : ""}`} onClick={() => setOpen(true)} type="button">
+    {!pageMode && <button className={`ai-jobs-launcher ${active.length ? "working" : ""}`} onClick={() => setOpen(true)} type="button">
       <MessageSquare size={17} aria-hidden="true"/>{active.length ? `AI работает · ${active.length}` : "AI-помощник"}{error ? " · !" : ""}
-    </button>
-    {createPortal(<dialog className={`panel ai-jobs-dialog ai-assistant ${expanded ? "expanded" : ""}`} style={expanded?{left:8,top:8,width:"calc(100vw - 16px)",height:"calc(100dvh - 16px)"}:floating.box} ref={dialog} onCancel={() => setOpen(false)} onKeyDown={event=>{if(event.key==="Escape"){event.stopPropagation();setOpen(false);}}} aria-modal="false" aria-label="AI-помощник">
-      <><header className="ai-assistant-drag" tabIndex={expanded?-1:0} title="Переместить окно" aria-label="Переместить окно помощника" onPointerDown={event=>{if(!expanded)floating.start(event);}} onPointerMove={floating.move} onPointerUp={floating.end} onPointerCancel={floating.end} onKeyDown={event=>{if(!expanded)floating.key(event);}}><h2><GripHorizontal size={17}/> AI-помощник</h2><div className="ai-assistant-tools"><button type="button" className="ghost" title={expanded ? "Свернуть" : "На весь экран"} aria-label={expanded ? "Свернуть" : "На весь экран"} onClick={()=>setExpanded(!expanded)}>{expanded ? <Minimize2 size={18}/> : <Maximize2 size={18}/>}</button><button type="button" className="ghost" title="Закрыть" aria-label="Закрыть AI-помощник" onClick={() => setOpen(false)}><X size={18}/></button></div></header>
-        <nav className="ai-assistant-tabs" aria-label="Разделы AI"><button type="button" aria-pressed={tab==="chat"} onClick={()=>setTab("chat")}>Чат</button><button type="button" aria-pressed={tab==="jobs"} onClick={()=>setTab("jobs")}>Задачи{active.length ? ` · ${active.length}` : ""}</button></nav>
-        <div className="ai-assistant-chat" hidden={tab!=="chat"}>{campaignId ? <AIChat key={campaignId} campaignId={campaignId} jobs={jobs} refreshJobs={()=>void refresh()}/> : <p>Открой кампанию, чтобы начать диалог.</p>}</div>
+    </button>}
+    {createPortal(<dialog open={pageMode?true:undefined} className={`panel ai-jobs-dialog ai-assistant ${expanded ? "expanded" : ""} ${pageMode ? "ai-assistant-page" : ""}`} style={pageMode?{position:"relative",left:0,top:0,width:"100%",height:"100%"}:expanded?{left:8,top:8,width:"calc(100vw - 16px)",height:"calc(100dvh - 16px)"}:floating.box} ref={dialog} onCancel={() => setOpen(false)} onKeyDown={event=>{if(!pageMode && event.key==="Escape"){event.stopPropagation();setOpen(false);}}} aria-modal="false" aria-label="AI-помощник">
+      <><header className="ai-assistant-drag" tabIndex={pageMode?undefined:expanded?-1:0} title="Переместить окно" aria-label="Переместить окно помощника" onPointerDown={event=>{if(!expanded&&!pageMode)floating.start(event);}} onPointerMove={floating.move} onPointerUp={floating.end} onPointerCancel={floating.end} onKeyDown={event=>{if(!expanded&&!pageMode)floating.key(event);}}><h2><GripHorizontal size={17}/> AI-помощник</h2><div className="ai-assistant-tools">{!pageMode && <><a className="ai-chat-page-link" href={`/chat?campaign=${encodeURIComponent(campaignId||"")}&context=${encodeURIComponent(JSON.stringify(context))}`} title="Открыть страницу чата" aria-label="Открыть страницу чата"><ArrowUpRight size={19}/></a><button type="button" className="ghost" title={expanded ? "Свернуть" : "На весь экран"} aria-label={expanded ? "Свернуть" : "На весь экран"} onClick={()=>setExpanded(!expanded)}>{expanded ? <Minimize2 size={18}/> : <Maximize2 size={18}/>}</button><button type="button" className="ghost" title="Закрыть" aria-label="Закрыть AI-помощник" onClick={() => setOpen(false)}><X size={18}/></button></>}</div></header>
+        {!pageMode && <nav className="ai-assistant-tabs" aria-label="Разделы AI"><button type="button" aria-pressed={tab==="chat"} onClick={()=>setTab("chat")}>Чат</button><button type="button" aria-pressed={tab==="jobs"} onClick={()=>setTab("jobs")}>Задачи{active.length ? ` · ${active.length}` : ""}</button></nav>}
+        <div className="ai-assistant-chat" hidden={tab!=="chat"}>{campaignId ? <AIChat key={campaignId} campaignId={campaignId} jobs={jobs} refreshJobs={()=>void refresh()} initialContext={initialContext} onContextChange={setContext}/> : <p>Открой кампанию, чтобы начать диалог.</p>}</div>
         <div className="ai-assistant-job-list" hidden={tab!=="jobs"}>
         {error && <p role="alert">{error}</p>}{loading && <p role="status">Проверяю задачи…</p>}
         {!loading && !jobs.length && <p>Здесь появятся анализы сессий, изображения и другие генерации.</p>}
@@ -73,7 +74,7 @@ export function AIJobsPanel({ campaignId, onOpenSession, onOpenProposal }: { cam
         <small>История хранит до 50 недавних завершённых задач на аккаунт. Перезапуск сервера прерывает незавершённые задачи и отмечает их ошибкой.</small>
         </div>
       </>
-      {!expanded && <button className="ai-assistant-resize" type="button" title="Изменить размер окна" aria-label="Изменить размер окна" onPointerDown={event=>floating.start(event,true)} onPointerMove={floating.move} onPointerUp={floating.end} onPointerCancel={floating.end} onKeyDown={event=>floating.key(event,true)}><Grip size={15}/></button>}
-    </dialog>, document.body)}
+      {!expanded && !pageMode && (["n","s","e","w","ne","nw","se","sw"] as ResizeEdge[]).map(edge=><button key={edge} className={`ai-assistant-edge edge-${edge}`} type="button" title="Изменить размер окна" aria-label={`Изменить размер окна ${edge}`} onPointerDown={event=>floating.start(event,edge)} onPointerMove={floating.move} onPointerUp={floating.end} onPointerCancel={floating.end} onKeyDown={event=>floating.key(event,edge)}/>)}
+    </dialog>, pageMode ? document.querySelector(".ai-chat-page-main") || document.body : document.body)}
   </>;
 }

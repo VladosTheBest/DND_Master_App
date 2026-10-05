@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { Send, RefreshCw, MessageSquare, Sparkles, UserRound, MapPin, BookOpen } from "lucide-react";
+import { Send, RefreshCw, MessageSquare, Sparkles, UserRound, MapPin, BookOpen, Plus, Check } from "lucide-react";
 import type { AIJob } from "@shadow-edge/shared-types";
 import { FormattedText } from "../formatting/FormattedText";
 import { isActiveJob } from "./useAIJobs";
 import "./ai-chat.css";
 
 type Source = { id: string; targetId: string; title: string; kind: string; text: string; firstLine: number; lastLine: number; entity?: {title: string; summary: string; imageUrl?: string} };
-type Turn = { id: string; question: string; answer: string; suggestions: string[]; sources: Source[]; createdAt: string };
+type Draft = {id:string;kind:string;title:string;subtitle:string;summary:string;content:string;createdId?:string};
+type Turn = { id: string; question: string; answer: string; suggestions: string[]; sources: Source[]; createdAt: string; drafts?:Draft[] };
+export type ChatContext = {includeCampaign:boolean;sessionIds:string[]};
 type ChatData = { turns: Turn[]; sessions: {id: string; title: string}[] };
 type Pending = {id: string; question: string; createdAt: string; jobId?: string; error?: string};
 function readable(text: string, sources: Source[]) {
@@ -50,9 +52,21 @@ function EntityPreview({source}: {source: Source}) {
   </article>;
 }
 
-export function AIChat({campaignId, jobs, refreshJobs}: {campaignId: string; jobs: AIJob[]; refreshJobs: () => void}) {
-  const [includeCampaign,setIncludeCampaign] = useState(true);
-  const [sessionIds,setSessionIds] = useState<string[]>([]);
+function DraftCard({draft,turnId,campaignId,onSaved}:{draft:Draft;turnId:string;campaignId:string;onSaved:()=>void}) {
+  const [saving,setSaving]=useState(false);const [saved,setSaved]=useState(Boolean(draft.createdId));const [error,setError]=useState("");
+  const lock=useRef(false);
+  const labels:Record<string,string>={npc:"этого НПС",location:"эту локацию",player:"этого игрока",monster:"этого монстра",quest:"этот квест",lore:"эту заметку",event:"это событие",shop:"этот магазин",sessionPrep:"эту подготовку"};
+  async function apply(){
+    if(lock.current||saved||draft.createdId)return;lock.current=true;setSaving(true);setError("");
+    try{const result=await chatRequest<{campaign:unknown}>(`/api/campaigns/${encodeURIComponent(campaignId)}/ai/chat/drafts/apply`,{turnId,draftId:draft.id});setSaved(true);window.dispatchEvent(new CustomEvent("shadow-edge:chat-created",{detail:result.campaign}));onSaved();}
+    catch(e){setError((e as Error).message);}finally{lock.current=false;setSaving(false);}
+  }
+  return <article className="ai-chat-draft"><div className="ai-chat-draft-heading"><span><Sparkles size={16}/>Предложение для кампании</span>{(saved||draft.createdId)&&<span><Check size={16}/>Добавлено</span>}</div><h3>{draft.title}</h3>{draft.subtitle&&<small>{draft.subtitle}</small>}<FormattedText content={draft.summary}/><details><summary>Посмотреть полное описание</summary><FormattedText content={draft.content}/></details><button type="button" className="ai-chat-add" disabled={saving||saved||Boolean(draft.createdId)} onClick={()=>void apply()}>{saved||draft.createdId?<Check size={17}/>:<Plus size={17}/>} {saved||draft.createdId?"Добавлено в кампанию":saving?"Сохраняю…":`Добавить ${labels[draft.kind]||"запись"} в кампанию`}</button>{error&&<p role="alert">{error}</p>}</article>;
+}
+
+export function AIChat({campaignId, jobs, refreshJobs, initialContext, onContextChange}: {campaignId: string; jobs: AIJob[]; refreshJobs: () => void;initialContext?:ChatContext;onContextChange?:(context:ChatContext)=>void}) {
+  const [includeCampaign,setIncludeCampaign] = useState(initialContext?.includeCampaign ?? true);
+  const [sessionIds,setSessionIds] = useState<string[]>(initialContext?.sessionIds ?? []);
   const scope = JSON.stringify({includeCampaign,sessionIds:[...sessionIds].sort()});
   const [data,setData] = useState<ChatData|null>(null);
   const [question,setQuestion] = useState("");
@@ -69,6 +83,7 @@ export function AIChat({campaignId, jobs, refreshJobs}: {campaignId: string; job
   const visiblePending = pending && !data?.turns.some(turn=>turn.id===pending.id);
   const busy = chatJobs.some(isActiveJob) || Boolean(visiblePending && !pendingError);
   const fingerprint = chatJobs.map(job=>`${job.id}:${job.state}`).join("|");
+  useEffect(()=>onContextChange?.(JSON.parse(scope)),[scope,onContextChange]);
 
   useEffect(()=>{
     const controller = new AbortController();
@@ -117,6 +132,7 @@ export function AIChat({campaignId, jobs, refreshJobs}: {campaignId: string; job
           <Question text={turn.question} time={turn.createdAt}/>
           <div className="ai-chat-message"><span className="ai-chat-avatar assistant"><Sparkles size={19}/></span><div className="ai-chat-answer"><small><strong>Помощник мастера</strong><time>{new Date(turn.createdAt).toLocaleString("ru-RU")}</time></small><FormattedText content={readable(turn.answer,turn.sources||[])}/>
             {entities.length>0 && <div className="ai-chat-entities">{entities.map(source=><EntityPreview key={`${source.kind}:${source.targetId}`} source={source}/>)}</div>}
+            {turn.drafts?.map(draft=><DraftCard key={draft.id} draft={draft} turnId={turn.id} campaignId={campaignId} onSaved={()=>setReload(value=>value+1)}/>)}
             {turn.suggestions?.length>0 && <section className="ai-chat-suggestions"><strong>Что можно доработать</strong><ul>{turn.suggestions.map((text,i)=><li key={i}><FormattedText content={readable(text,turn.sources||[])}/></li>)}</ul></section>}
             {turn.sources?.length>0 && <details className="ai-chat-sources"><summary>Источники · {turn.sources.length}</summary>{turn.sources.map(source=><details key={source.id}><summary>{source.title}{source.kind==="transcript" ? ` · строки ${source.firstLine}–${source.lastLine}` : ""}</summary><pre>{readable(excerpt(source),turn.sources)}</pre></details>)}</details>}
           </div></div>
@@ -128,6 +144,6 @@ export function AIChat({campaignId, jobs, refreshJobs}: {campaignId: string; job
       <div ref={end}/>
     </div>
     {error && <p role="alert" className="ai-job-error">{error}</p>}
-    <form className="ai-chat-compose" onSubmit={e=>{e.preventDefault();if(includeCampaign||sessionIds.length)void send();}}><textarea ref={composer} aria-label="Вопрос AI" placeholder="Спросить о кампании или сессии…" rows={2} maxLength={4000} required minLength={2} disabled={busy} value={question} onChange={e=>setQuestion(e.target.value)}/><button type="submit" title="Отправить вопрос" aria-label="Отправить вопрос" disabled={busy||loading||question.trim().length<2||(!includeCampaign&&!sessionIds.length)}><Send size={20}/></button></form><small className="ai-chat-disclaimer">{!includeCampaign&&!sessionIds.length ? "Выбери материалы кампании или хотя бы одну сессию." : "Ответы AI могут ошибаться. Предложения не меняют кампанию."}</small>
+    <form className="ai-chat-compose" onSubmit={e=>{e.preventDefault();if(includeCampaign||sessionIds.length)void send();}}><textarea ref={composer} aria-label="Вопрос AI" placeholder="Спросить о кампании или сессии…" rows={2} maxLength={4000} required minLength={2} disabled={busy} value={question} onChange={e=>setQuestion(e.target.value)}/><button type="submit" title="Отправить вопрос" aria-label="Отправить вопрос" disabled={busy||loading||question.trim().length<2||(!includeCampaign&&!sessionIds.length)}><Send size={20}/></button></form><small className="ai-chat-disclaimer">{!includeCampaign&&!sessionIds.length ? "Выбери материалы кампании или хотя бы одну сессию." : "AI может ошибаться. Записи добавляются только после подтверждения."}</small>
   </section>;
 }

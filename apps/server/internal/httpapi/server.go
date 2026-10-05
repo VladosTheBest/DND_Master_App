@@ -367,6 +367,8 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 		srv.handleSessionAnalysis(writer, request, user.ID, campaignID, segments[2])
 	case len(segments) == 3 && segments[1] == "ai" && segments[2] == "chat":
 		srv.handleCampaignChat(writer, request, user, campaign)
+	case len(segments) == 5 && segments[1] == "ai" && segments[2] == "chat" && segments[3] == "drafts" && segments[4] == "apply":
+		srv.handleChatDraftApply(writer, request, user, campaignID)
 	case (len(segments) == 2 || len(segments) == 3) && segments[1] == "sessions":
 		id := ""
 		if len(segments) == 3 {

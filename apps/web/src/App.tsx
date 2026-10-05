@@ -1928,6 +1928,12 @@ export default function App() {
     return data;
   };
 
+  useEffect(()=>{
+    const update=(event:Event)=>{const data=(event as CustomEvent<CampaignData>).detail;if(data?.id===activeCampaignId)hydrateCampaign(data);};
+    window.addEventListener("shadow-edge:chat-created",update);
+    return()=>window.removeEventListener("shadow-edge:chat-created",update);
+  },[activeCampaignId, hydrateCampaign]);
+
   const resetCampaignState = () => {
     setCampaigns([]);
     setCampaign(null);
