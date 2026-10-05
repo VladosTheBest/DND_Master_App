@@ -25,6 +25,8 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'C:/Users/User/.cach
     await page.goto('https://chat-test.local');
     await page.getByRole('button',{name:'AI-помощник',exact:true}).click();
     await page.getByText('Обсудим вашу кампанию').waitFor();
+    await page.getByRole('button',{name:'НПС',exact:true}).click();
+    assert.match(await page.getByLabel('Вопрос AI').inputValue(),/Создай нового НПС/);
     await page.getByRole('button',{name:'Фоновая кнопка'}).click();
     await page.getByText('Приложение доступно').waitFor();
     assert.equal(await page.getByRole('dialog').evaluate(e=>e.matches(':modal')),false);
@@ -99,13 +101,21 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'C:/Users/User/.cach
     while(!postRoute) await new Promise(resolve=>setTimeout(resolve,10));
     assert.deepEqual(posted.context,{includeCampaign:false,sessionIds:['s1','s2']});
     await postRoute.fulfill({status:503,json:{error:{message:'Тест завершён'}}});
+    await page.getByRole('link',{name:'Открыть страницу чата',exact:true}).click();
+    await page.waitForURL('**/chat?**');
+    const transferred=JSON.parse(new URL(page.url()).searchParams.get('context'));
+    assert.deepEqual(transferred,{includeCampaign:false,sessionIds:['s1','s2']});
+    await page.getByText('Обсудим вашу кампанию').waitFor();
     await page.goto('https://chat-test.local/chat?campaign=campaign');
     await page.getByRole('heading',{name:'AI-чат',exact:true}).waitFor();
     await page.getByText('Ключ у Аделины.',{exact:true}).waitFor();
+    await page.locator('.ai-chat-related summary').click();
+    await page.locator('.ai-chat-related[open]').waitFor();
+    await page.locator('.ai-chat-messages').evaluate(e=>e.scrollTop=0);
     await page.setViewportSize({width:1440,height:1000});await page.screenshot({path:'tmp/ai-chat-page-desktop.png'});
     await page.setViewportSize({width:390,height:844});await page.screenshot({path:'tmp/ai-chat-page-mobile.png'});
     assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'page overflow');
     assert.deepEqual(errors,[]);
-    console.log('PASS: optimistic message, pending animation/reduced motion, failed retry, deduplication, entity image, responsive/fullscreen, scope isolation.');
+    console.log('PASS: quick-create, page navigation with context, related materials, optimistic send/retry, drafts, resize, desktop/mobile, scope isolation.');
   } finally {await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});

@@ -168,3 +168,86 @@
 .ai-chat-answer .formatted-text { font-size:15px; }
 .ai-jobs-dialog.ai-assistant .formatted-text p { font-family:"Segoe UI",sans-serif; font-size:15px; font-weight:400; }
 @media(max-width:600px) { .ai-chat-user { grid-template-columns:minmax(0,1fr); } }
+
+/* Shared workspace layout for the floating assistant and its dedicated page. */
+.ai-chat-scope-shortcuts { display:flex; gap:7px; overflow-x:auto; flex-shrink:0; padding:0 6px; }
+.ai-chat-scope-shortcuts button { display:flex; align-items:center; gap:9px; flex-shrink:0; border:1px solid #344b40; border-radius:5px; padding:7px 12px; background:#19231e; color:#b8cabc; font:inherit; font-size:11px; cursor:pointer; }
+.ai-chat-scope-shortcuts button[aria-pressed="true"] { background:#294436; border-color:#75a18a; color:#ecf7ee; }
+.ai-chat-scope-shortcuts button:disabled { opacity:.4; cursor:default; }
+.ai-jobs-dialog.ai-assistant { container-type:inline-size; background:#151c1c; border-color:#43665e; padding:20px; }
+.ai-assistant-brand { display:flex; align-items:center; gap:16px; min-width:0; }
+.ai-assistant-emblem { display:grid; place-items:center; flex-shrink:0; width:60px; height:60px; border:1px solid #56766b; border-radius:50%; color:#9adbc2; box-shadow:inset 0 0 0 5px #202f29; }
+.ai-assistant > header .ai-assistant-brand h2 { margin:0; font-family:Georgia,serif; font-size:25px; font-weight:500; color:#e3e8e4; }
+.ai-assistant-brand p { margin:5px 0 0; color:#a9bab4; font-size:13px; }
+.ai-assistant > header { display:flex; justify-content:space-between; gap:12px; padding:0 8px 6px; }
+.ai-assistant-tabs { gap:6px; padding:0; margin-bottom:-12px; border-bottom:1px solid #344c43; flex-shrink:0; }
+.ai-assistant-tabs button { display:flex; gap:9px; align-items:center; justify-content:center; min-width:112px; padding:12px 18px; border:1px solid #344c43; border-radius:6px 6px 0 0; color:#bac9c2; background:#192322; }
+.ai-assistant-tabs button[aria-pressed="true"] { background:#28473a; border-color:#659780; color:#edfff6; box-shadow:inset 0 2px #84b79e; }
+.ai-chat { gap:10px; min-width:0; }
+.ai-chat-scope { padding:8px 12px; border:1px solid #344c43; border-radius:6px; background:#192322; gap:12px; }
+.ai-chat-context > summary { font-size:13px; color:#d0dfd7; padding:7px 0; }
+.ai-chat-context fieldset { left:0; right:auto; width:min(440px,100%); box-sizing:border-box; }
+.ai-chat-quick-create { display:flex; flex-wrap:wrap; gap:8px; flex-shrink:0; padding:0 6px; }
+.ai-chat-quick-create button { display:flex; gap:9px; align-items:center; padding:9px 12px; border:1px solid #3f5c50; border-radius:6px; background:#1e2e28; color:#d5e4db; font:inherit; font-size:12px; cursor:pointer; }
+.ai-chat-quick-create button>svg:first-child { color:#96c9b1; }
+.ai-chat-quick-create button:nth-child(3n)>svg:first-child { color:#d3bd85; }
+.ai-chat-quick-create button:disabled { opacity:.4; cursor:default; }
+.ai-chat-workspace { display:grid; grid-template-columns:minmax(0,1fr) 250px; gap:12px; flex:1; min-height:0; min-width:0; }
+.ai-chat-conversation { display:flex; flex-direction:column; gap:10px; min-height:0; min-width:0; }
+.ai-chat-messages { max-width:none; width:100%; margin:0; padding:16px 12px; border:1px solid #30493f; border-radius:7px; background:#121b19; box-sizing:border-box; }
+.ai-chat-turn { margin-bottom:24px; }
+.ai-chat-message { gap:10px; grid-template-columns:32px minmax(0,1fr); }
+.ai-chat-avatar.assistant { width:32px; height:32px; border:1px solid #56796a; border-radius:50%; background:#20352b; }
+.ai-chat-user { grid-template-columns:minmax(0,1fr); padding-left:42px; }
+.ai-chat-question { background:#273b40; border:1px solid #344c50; border-radius:7px; padding:10px 14px; font-size:13px; }
+.ai-chat-answer { border:1px solid #30463c; background:#1b2823; border-radius:7px; padding:14px; }
+.ai-chat-answer > small { margin-bottom:8px; }
+.ai-chat-answer .formatted-text { font-size:14px; line-height:1.65; }
+.ai-jobs-dialog.ai-assistant .formatted-text p { font-family:inherit; font-size:14px; line-height:1.65; }
+.ai-chat-answer .formatted-text h2,.ai-chat-answer .formatted-text h3 { font-family:Georgia,serif; font-size:18px; color:#e2e9de; margin:16px 0 8px; }
+.ai-chat-entities { grid-template-columns:repeat(auto-fit,minmax(min(210px,100%),1fr)); gap:10px; }
+.ai-chat-entity { background:#18231f; border-color:#3a5246; align-items:start; }
+.ai-chat-entity img { object-fit:cover; }
+.ai-chat-drafts { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr)); gap:10px; }
+.ai-chat-draft { margin:12px 0 0; background:#16241e; border-color:#3f6451; padding:14px; min-width:0; display:flex; flex-direction:column; align-items:stretch; }
+.ai-chat-draft h3 { font-family:Georgia,serif; font-size:20px; color:#f0eddd; margin:12px 0 8px; }
+.ai-chat-draft > small { color:#d1bf95; }
+.ai-chat-draft .ai-chat-add { margin-top:auto; }
+.ai-chat-suggestions { background:#1c3026; border:1px solid #3f5b48; border-radius:6px; padding:12px; }
+.ai-chat-suggestions ul { padding-left:20px; margin-bottom:0; }
+.ai-chat-suggestions li .formatted-text p { margin:4px 0; }
+.ai-chat-compose { max-width:none; padding:8px 10px; background:#1c2c26; border-color:#496b59; box-sizing:border-box; }
+.ai-chat-compose button { width:40px; height:40px; background:#91cbb0; }
+.ai-chat-inspector { border:1px solid #344c43; border-radius:7px; padding:14px; overflow:auto; min-width:0; background:#15201c; }
+.ai-chat-inspector > header { display:flex; align-items:center; gap:9px; color:#a4d5bb; margin:3px 0 18px; }
+.ai-chat-inspector h3 { margin:0 0 4px; font:500 19px Georgia,serif; color:#e5e9df; }
+.ai-chat-inspector small { display:block; font-size:11px; color:#9fb3a7; line-height:1.5; }
+.ai-chat-inspector > section { border-top:1px solid #334c3d; padding:16px 0; }
+.ai-chat-inspector h4 { display:flex; align-items:center; gap:8px; margin:0 0 12px; font-size:12px; font-weight:500; color:#dedfcd; }
+.ai-chat-inspector h4 span { margin-left:auto; color:#9bbcaa; }
+.ai-chat-inspector-empty,.ai-chat-save-policy p { font-size:12px; line-height:1.65; color:#adc0b4; }
+.ai-chat-related { border:1px solid #344d40; border-radius:6px; margin:8px 0; padding:10px; background:#1a2820; }
+.ai-chat-related summary { display:flex; gap:9px; align-items:center; cursor:pointer; list-style:none; }
+.ai-chat-related summary::after { content:"+"; margin-left:auto; color:#9bbb9f; }
+.ai-chat-related[open] summary::after { content:"−"; }
+.ai-chat-related-icon { color:#a6c5ac; flex-shrink:0; }
+.ai-chat-related strong,.ai-chat-draft-index strong { font-size:12px; font-weight:500; overflow-wrap:anywhere; }
+.ai-chat-related .formatted-text { max-height:200px; overflow:auto; margin-top:10px; white-space:pre-wrap; overflow-wrap:anywhere; }
+.ai-jobs-dialog.ai-assistant .ai-chat-related .formatted-text p { font-size:12px; }
+.ai-chat-draft-index { display:flex; align-items:center; justify-content:space-between; gap:8px; padding:10px 0; color:#b5d2b7; }
+.ai-chat-draft-index svg { flex-shrink:0; }
+.ai-chat-save-policy h4 svg { color:#cfbc84; }
+.ai-chat-page { grid-template-columns:220px minmax(0,1fr); background:#151c1c; }
+.ai-chat-page-sidebar { background:#111c17; border-color:#334d3c; padding:24px 18px; }
+.ai-chat-page-brand { border-bottom:1px solid #334d3c; padding-bottom:24px; margin:28px 0; }
+.ai-chat-page-brand h1 { font:500 24px Georgia,serif; color:#e2e5d7; }
+.ai-chat-page-sidebar select { border-color:#425d4b; background:#1c2b22; }
+.ai-jobs-dialog.ai-assistant.ai-assistant-page { padding:20px; }
+.ai-assistant-page .ai-chat-scope { max-width:none; }
+.ai-chat-page-current { border:1px solid #395340; padding:16px; margin-top:24px; border-radius:6px; }
+.ai-chat-page-current small { color:#9faf9f; font-size:11px; }
+.ai-chat-page-current strong { display:block; margin:10px 0; font:500 18px Georgia,serif; overflow-wrap:anywhere; }
+.ai-chat-page-current p { color:#a6b5a8; font-size:12px; line-height:1.6; }
+@container (max-width:850px) { .ai-chat-workspace { grid-template-columns:minmax(0,1fr); overflow:auto; }.ai-chat-inspector { display:none; }.ai-chat-answer { padding:12px; } }
+@container (max-width:520px) { .ai-assistant-emblem { width:40px;height:40px; }.ai-assistant-emblem svg { width:27px; }.ai-assistant > header .ai-assistant-brand h2 { font-size:19px; }.ai-assistant-brand p { display:none; }.ai-assistant-brand { gap:9px; }.ai-chat-message { grid-template-columns:minmax(0,1fr); }.ai-chat-message > .ai-chat-avatar { display:none; }.ai-chat-user { padding-left:16px; }.ai-chat-messages { padding:10px 7px; }.ai-chat-quick-create { flex-wrap:nowrap; overflow-x:auto; padding-bottom:4px; }.ai-chat-quick-create button { flex-shrink:0; }.ai-chat-quick-create button>svg:last-child { display:none; }.ai-assistant-tools { gap:0; }.ai-chat-draft h3 { font-size:18px; } }
+@media(max-width:700px) { .ai-chat-page { grid-template-columns:1fr; }.ai-chat-page-current { display:none; }.ai-chat-page-sidebar { padding:10px 14px; }.ai-jobs-dialog.ai-assistant.ai-assistant-page { padding:12px; }.ai-assistant > header { padding:0; }.ai-jobs-dialog.ai-assistant { padding:12px; } }

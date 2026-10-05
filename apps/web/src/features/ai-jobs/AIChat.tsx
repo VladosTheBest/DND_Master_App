@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Send, RefreshCw, MessageSquare, Sparkles, UserRound, MapPin, BookOpen, Plus, Check } from "lucide-react";
+import { Send, RefreshCw, MessageSquare, Sparkles, UserRound, MapPin, BookOpen, Plus, Check, ScrollText, Store, CalendarDays, ShieldCheck, Compass } from "lucide-react";
 import type { AIJob } from "@shadow-edge/shared-types";
 import { FormattedText } from "../formatting/FormattedText";
 import { isActiveJob } from "./useAIJobs";
@@ -121,8 +121,24 @@ export function AIChat({campaignId, jobs, refreshJobs, initialContext, onContext
     setData(previous=>previous?{...previous,turns:[]}:previous);
   }
 
+  const latest = data?.turns.at(-1);
+  const related = (latest?.sources || []).filter((source, index, all) =>
+    all.findIndex(other => other.kind === source.kind && other.targetId === source.targetId) === index
+  );
+  const quickCreate = [
+    {label:"НПС", icon:UserRound, prompt:"Создай нового НПС для выбранного контекста. Придумай имя, характер, мотив и сюжетную зацепку."},
+    {label:"Локация", icon:MapPin, prompt:"Создай новую локацию для выбранного контекста: атмосферу, приметы, опасности и зацепки."},
+    {label:"Квест", icon:ScrollText, prompt:"Создай квест для выбранного контекста: завязку, цель, препятствия, варианты исхода и награды."},
+    {label:"Магазин", icon:Store, prompt:"Создай магазин для выбранного контекста: название, владельца, ассортимент и секрет."},
+    {label:"Событие", icon:CalendarDays, prompt:"Создай событие для следующей игры с завязкой и вариантами развития."},
+    {label:"Заметка", icon:BookOpen, prompt:"Создай заметку лора для выбранного контекста с полезными мастеру деталями."},
+  ];
+
   return <section className="ai-chat" aria-label="Чат по кампании">
     <div className="ai-chat-scope"><BookOpen size={18}/><details className="ai-chat-context"><summary>Контекст: {includeCampaign ? "кампания" : "без кампании"}{sessionIds.length ? ` · сессии: ${sessionIds.length}` : ""}</summary><fieldset disabled={busy}><label><input type="checkbox" checked={includeCampaign} onChange={e=>changeContext(e.target.checked,sessionIds)}/>Материалы кампании</label><div className="ai-chat-context-actions"><button type="button" onClick={()=>changeContext(true,[])}>Только кампания</button><button type="button" disabled={!data?.sessions.length} onClick={()=>changeContext(includeCampaign,data?.sessions.map(s=>s.id)||[])}>Все сессии</button><button type="button" disabled={!sessionIds.length} onClick={()=>changeContext(includeCampaign,[])}>Снять сессии</button></div><div className="ai-chat-session-options">{data?.sessions.map(session=><label key={session.id}><input type="checkbox" checked={sessionIds.includes(session.id)} onChange={e=>changeContext(includeCampaign,e.target.checked?[...sessionIds,session.id]:sessionIds.filter(id=>id!==session.id))}/>{session.title}</label>)}{data && !data.sessions.length && <small>Загруженных сессий пока нет</small>}</div></fieldset></details><button type="button" title="Обновить диалог" aria-label="Обновить диалог" onClick={()=>{setReload(v=>v+1);refreshJobs();}} disabled={loading}><RefreshCw size={17}/></button></div>
+    <div className="ai-chat-scope-shortcuts" aria-label="Выбор материалов"><button type="button" disabled={busy} aria-pressed={includeCampaign&&!sessionIds.length} onClick={()=>changeContext(true,[])}>Только кампания</button><button type="button" disabled={busy||!data?.sessions.length} aria-pressed={Boolean(data?.sessions.length)&&sessionIds.length===data?.sessions.length} onClick={()=>changeContext(includeCampaign,data?.sessions.map(session=>session.id)||[])}>Все сессии</button>{data?.sessions.filter(session=>sessionIds.includes(session.id)).map(session=><button type="button" disabled={busy} key={session.id} title={`Убрать из контекста: ${session.title}`} onClick={()=>changeContext(includeCampaign,sessionIds.filter(id=>id!==session.id))}>{session.title}<span aria-hidden="true">×</span></button>)}</div>
+    <div className="ai-chat-quick-create" aria-label="Быстрое создание">{quickCreate.map(({label,icon:Icon,prompt})=><button type="button" key={label} disabled={busy} onClick={()=>choosePrompt(prompt)}><Icon size={17}/>{label}<Plus size={12}/></button>)}</div>
+    <div className="ai-chat-workspace"><div className="ai-chat-conversation">
     <div className="ai-chat-messages" aria-label="История диалога">
       {loading && !data && <p role="status">Загружаю диалог…</p>}
       {data && !data.turns.length && !visiblePending && <div className="ai-chat-empty"><Sparkles size={28}/><h3>Обсудим вашу кампанию</h3><div>{["Какие сюжетные линии остались открыты?","Что стоит подготовить к следующей игре?","Где в истории есть противоречия?"].map(prompt=><button type="button" key={prompt} disabled={busy} onClick={()=>choosePrompt(prompt)}><MessageSquare size={16}/>{prompt}</button>)}</div></div>}
@@ -132,7 +148,7 @@ export function AIChat({campaignId, jobs, refreshJobs, initialContext, onContext
           <Question text={turn.question} time={turn.createdAt}/>
           <div className="ai-chat-message"><span className="ai-chat-avatar assistant"><Sparkles size={19}/></span><div className="ai-chat-answer"><small><strong>Помощник мастера</strong><time>{new Date(turn.createdAt).toLocaleString("ru-RU")}</time></small><FormattedText content={readable(turn.answer,turn.sources||[])}/>
             {entities.length>0 && <div className="ai-chat-entities">{entities.map(source=><EntityPreview key={`${source.kind}:${source.targetId}`} source={source}/>)}</div>}
-            {turn.drafts?.map(draft=><DraftCard key={draft.id} draft={draft} turnId={turn.id} campaignId={campaignId} onSaved={()=>setReload(value=>value+1)}/>)}
+            <div className="ai-chat-drafts">{turn.drafts?.map(draft=><DraftCard key={draft.id} draft={draft} turnId={turn.id} campaignId={campaignId} onSaved={()=>setReload(value=>value+1)}/>)}</div>
             {turn.suggestions?.length>0 && <section className="ai-chat-suggestions"><strong>Что можно доработать</strong><ul>{turn.suggestions.map((text,i)=><li key={i}><FormattedText content={readable(text,turn.sources||[])}/></li>)}</ul></section>}
             {turn.sources?.length>0 && <details className="ai-chat-sources"><summary>Источники · {turn.sources.length}</summary>{turn.sources.map(source=><details key={source.id}><summary>{source.title}{source.kind==="transcript" ? ` · строки ${source.firstLine}–${source.lastLine}` : ""}</summary><pre>{readable(excerpt(source),turn.sources)}</pre></details>)}</details>}
           </div></div>
@@ -144,6 +160,14 @@ export function AIChat({campaignId, jobs, refreshJobs, initialContext, onContext
       <div ref={end}/>
     </div>
     {error && <p role="alert" className="ai-job-error">{error}</p>}
-    <form className="ai-chat-compose" onSubmit={e=>{e.preventDefault();if(includeCampaign||sessionIds.length)void send();}}><textarea ref={composer} aria-label="Вопрос AI" placeholder="Спросить о кампании или сессии…" rows={2} maxLength={4000} required minLength={2} disabled={busy} value={question} onChange={e=>setQuestion(e.target.value)}/><button type="submit" title="Отправить вопрос" aria-label="Отправить вопрос" disabled={busy||loading||question.trim().length<2||(!includeCampaign&&!sessionIds.length)}><Send size={20}/></button></form><small className="ai-chat-disclaimer">{!includeCampaign&&!sessionIds.length ? "Выбери материалы кампании или хотя бы одну сессию." : "AI может ошибаться. Записи добавляются только после подтверждения."}</small>
+    <form className="ai-chat-compose" onSubmit={e=>{e.preventDefault();if(includeCampaign||sessionIds.length)void send();}}><textarea ref={composer} aria-label="Вопрос AI" placeholder="Спросить о кампании или создать сущность…" onKeyDown={event=>{if(event.key==="Enter"&&(event.ctrlKey||event.metaKey)){event.preventDefault();if(!loading&&(includeCampaign||sessionIds.length))void send();}}} rows={2} maxLength={4000} required minLength={2} disabled={busy} value={question} onChange={e=>setQuestion(e.target.value)}/><button type="submit" title="Отправить вопрос" aria-label="Отправить вопрос" disabled={busy||loading||question.trim().length<2||(!includeCampaign&&!sessionIds.length)}><Send size={20}/></button></form><small className="ai-chat-disclaimer">{!includeCampaign&&!sessionIds.length ? "Выбери материалы кампании или хотя бы одну сессию." : "AI может ошибаться. Записи добавляются только после подтверждения."}</small>
+    </div><aside className="ai-chat-inspector" aria-label="Материалы ответа">
+      <header><Compass size={20}/><div><h3>Рабочая панель</h3><small>Материалы текущего ответа</small></div></header>
+      <section><h4><BookOpen size={17}/>Найдено в контексте <span>{related.length}</span></h4>
+        {related.length ? related.map(source=><details className="ai-chat-related" key={source.id}><summary><span className="ai-chat-related-icon">{source.kind==="locations"?<MapPin size={19}/>:source.kind==="npcs"?<UserRound size={19}/>:<BookOpen size={19}/>}</span><span><strong>{source.title}</strong><small>{kindLabels[source.kind]||"Материал сессии"}</small></span></summary><FormattedText content={source.entity?.summary || readable(excerpt(source),latest?.sources||[])}/></details>) : <p className="ai-chat-inspector-empty">Связанные материалы появятся после ответа помощника.</p>}
+      </section>
+      {!!latest?.drafts?.length && <section><h4><Sparkles size={17}/>Предложения <span>{latest.drafts.length}</span></h4>{latest.drafts.map(draft=><div className="ai-chat-draft-index" key={draft.id}><span><strong>{draft.title}</strong><small>{draft.createdId?"Добавлено в кампанию":"Ожидает подтверждения"}</small></span>{draft.createdId?<Check size={17}/>:<Plus size={17}/>}</div>)}</section>}
+      <section className="ai-chat-save-policy"><h4><ShieldCheck size={18}/>Сохранение</h4><p>После подтверждения</p><small>Предложения остаются в истории чата. Добавляй нужные записи кнопкой под описанием.</small></section>
+    </aside></div>
   </section>;
 }

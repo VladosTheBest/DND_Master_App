@@ -18,11 +18,11 @@ function clamp(box:Box):Box {
   return {width,height,left:Math.max(8,Math.min(box.left,window.innerWidth-width-8)),top:Math.max(8,Math.min(box.top,window.innerHeight-height-8))};
 }
 export function useAssistantWindow() {
-  const [box,setBox]=useState(()=>clamp({left:window.innerWidth-780,top:40,width:760,height:760}));
+  const [box,setBox]=useState(()=>clamp({left:(window.innerWidth-1180)/2,top:24,width:1180,height:880}));
   const gesture=useRef<{x:number;y:number;box:Box;resize:ResizeEdge|false}|null>(null);
   useEffect(()=>{const fit=()=>setBox(current=>clamp(current));window.addEventListener("resize",fit);return()=>window.removeEventListener("resize",fit);},[]);
   function start(event:PointerEvent<HTMLElement>,resize:ResizeEdge|false=false) {
-    if(event.button!==0 || (!resize && (event.target as HTMLElement).closest("button")))return;
+    if(event.button!==0 || (!resize && (event.target as HTMLElement).closest("button, a, input, select")))return;
     gesture.current={x:event.clientX,y:event.clientY,box,resize};
     event.currentTarget.setPointerCapture(event.pointerId);event.preventDefault();
   }
