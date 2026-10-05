@@ -1,14 +1,17 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { ArrowLeft, Bold, Download, Italic, Map, MessageSquare, Plus, Redo2, Save, Trash2, Type, Undo2, Scan, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowLeft, Bold, Download, Italic, Map, MessageSquare, Plus, Redo2, Save, Sparkles, Trash2, Type, Undo2, Scan, ZoomIn, ZoomOut } from "lucide-react";
 import { TransformWrapper, TransformComponent, type ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
 import type { WorldMapDocument, WorldMapLabel } from "@shadow-edge/shared-types";
 import { api } from "../../app/api";
 import { MapCreateForm } from "./MapCreateForm";
 import { mapFont, mapMediaURL, renderMapPNG, worldMapsAPI } from "./world-maps.api";
 import { labelGeometry, labelTextSize, labelRoleSizes } from "./map-label-geometry";
+import { AISoundToggle } from "../ai-jobs/AISoundToggle";
+import { useAIJobs } from "../ai-jobs/useAIJobs";
 import "./world-maps.css";
 
 export function WorldMapsPage(){
+  useAIJobs();
   const [campaigns,setCampaigns]=useState<{id:string;title:string}[]>([]);
   const [campaign,setCampaign]=useState(new URLSearchParams(location.search).get("campaign")||"");
   const [error,setError]=useState("");
@@ -24,16 +27,17 @@ function MapWorkspace({campaignId}:{campaignId:string}){
   function navigate(id:string){if(dirty&&!confirm("Есть несохранённые правки. Перейти без сохранения?"))return;setDirty(false);setSelected(id);setCreating(!id);history.replaceState(null,"",`/maps?campaign=${encodeURIComponent(campaignId)}${id?`&map=${encodeURIComponent(id)}`:""}`);}
   function upsert(map:WorldMapDocument){setMaps(items=>[map,...items.filter(item=>item.id!==map.id)]);}
   const current=maps.find(map=>map.id===selected);
-  return <><header className="world-maps-heading"><div><small>АТЛАС КАМПАНИИ</small><h2>{creating?"Новая карта":current?.title||"Карты мира"}</h2></div><button type="button" onClick={()=>navigate("")}><Plus size={18}/>Новая карта</button></header>
+  return <><header className="world-maps-heading"><div><small>АТЛАС КАМПАНИИ</small><h2>{creating?"Новая карта":current?.title||"Карты мира"}</h2></div><div className="world-map-tools"><AISoundToggle/><button type="button" onClick={()=>navigate("")}><Plus size={18}/>Новая карта</button></div></header>
     <nav className="world-map-library" aria-label="Карты кампании">{maps.map(map=><button type="button" key={map.id} aria-current={!creating&&selected===map.id?"page":undefined} onClick={()=>navigate(map.id)}><img src={mapMediaURL(map.imageUrl)} alt=""/><span>{map.title}</span></button>)}</nav>
-    {error&&<p role="alert">{error}</p>}{loading?<p role="status">Загружаю карты…</p>:creating?<div className="world-map-new"><h3>Каким будет этот мир?</h3><MapCreateForm campaignId={campaignId} onCreated={map=>{upsert(map);navigate(map.id);}}/></div>:current?<MapEditor key={current.id} campaignId={campaignId} original={current} onSaved={upsert} onDirty={setDirty}/>:null}
+    {error&&<p role="alert">{error}</p>}{loading?<p role="status">Загружаю карты…</p>:creating?<div className="world-map-new"><h3>Каким будет этот мир?</h3><MapCreateForm campaignId={campaignId} onCreated={map=>{upsert(map);navigate(map.id);}}/></div>:current?<MapEditor key={current.id} campaignId={campaignId} original={current} onSaved={upsert} onVariant={map=>{upsert(map);navigate(map.id);}} onDirty={setDirty}/>:null}
   </>;
 }
 
-export function MapEditor({campaignId,original,onSaved,onDirty}:{campaignId:string;original:WorldMapDocument;onSaved:(map:WorldMapDocument)=>void;onDirty:(dirty:boolean)=>void}){
+export function MapEditor({campaignId,original,onSaved,onDirty,onVariant}:{campaignId:string;original:WorldMapDocument;onSaved:(map:WorldMapDocument)=>void;onDirty:(dirty:boolean)=>void;onVariant?:(map:WorldMapDocument)=>void}){
   const [doc,setDoc]=useState(original),[saved,setSaved]=useState(original),[selection,setSelection]=useState(original.labels[0]?.id||"");
   const [past,setPast]=useState<WorldMapDocument[]>([]),[future,setFuture]=useState<WorldMapDocument[]>([]);
   const [zoom,setZoom]=useState(100),[busy,setBusy]=useState(false),[error,setError]=useState(""),[notice,setNotice]=useState("");
+  const [editingAI,setEditingAI]=useState(false);
   const [imageError,setImageError]=useState(false);
 	const [wheelStep,setWheelStep]=useState(()=>{try{const n=Number(localStorage.getItem("shadow-edge:map-wheel-step"));return n>=1&&n<=20?n:2;}catch{return 2;}});
 	function changeWheelStep(value:number){const n=Math.min(20,Math.max(1,value||2));setWheelStep(n);try{localStorage.setItem("shadow-edge:map-wheel-step",String(n));}catch{/* Storage may be unavailable in private browsing. */}}
@@ -61,8 +65,10 @@ export function MapEditor({campaignId,original,onSaved,onDirty}:{campaignId:stri
       <button type="button" aria-label="Повторить правку" title="Повторить правку" disabled={!future.length||busy} onClick={()=>{setPast(v=>[...v,doc]);setDoc({...future[0],revision:doc.revision});setFuture(v=>v.slice(1));}}><Redo2 size={18}/></button>
       <button type="button" disabled={busy||doc.labels.length>=100} onClick={()=>{const l:WorldMapLabel={id:crypto.randomUUID(),text:"Новое название",x:.5,y:.5,size:22,rotation:0,font:"serif",color:"#eee8ff",outline:"#211b30",bold:true,italic:false};change({...doc,labels:[...doc.labels,l]});setSelection(l.id);}}><Type size={18}/>Подпись</button>
       <button type="button" className="map-primary" disabled={busy||!dirty||!doc.title.trim()||doc.labels.some(l=>!l.text.trim())} onClick={()=>void save()}><Save size={18}/>Сохранить</button>
+      <button type="button" title={dirty?"Сначала сохрани правки карты":"Изменить фон карты с AI"} disabled={busy||dirty||imageError} onClick={()=>setEditingAI(v=>!v)} aria-expanded={editingAI}><Sparkles size={18}/>Изменить с AI</button>
       <button type="button" disabled={busy||imageError} onClick={()=>void download()}><Download size={18}/>PNG</button>
     </div></div>
+    {editingAI&&<section className="world-map-ai-edit"><h3>Новый вариант карты</h3>{dirty?<p role="status">Сохрани правки перед AI-редактированием.</p>:<MapCreateForm campaignId={campaignId} sourceMap={saved} storageKey={`edit:${saved.id}`} onCreated={map=>{setEditingAI(false);onVariant?.(map);}}/>}</section>}
     <div className="world-map-edit-layout"><div className="world-map-canvas-area"><div className="world-map-viewport">
 		<TransformWrapper ref={transform} minScale={.01} maxScale={32} limitToBounds={false} fitOnInit="contain" centerOnInit smooth={false} wheel={{step:wheelStep/100}} panning={{excluded:["text","textPath"],velocityDisabled:true,allowMiddleClickPan:true}} doubleClick={{disabled:true}} zoomAnimation={{disabled:true}} autoAlignment={{disabled:true}} onTransform={(_,state)=>setZoom(Math.round(state.scale*100))}>
 		<TransformComponent wrapperStyle={{width:"100%",height:"100%"}} contentStyle={{width:doc.width,height:doc.height}}><div className="world-map-surface" style={{width:doc.width,height:doc.height}}>

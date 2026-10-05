@@ -224,6 +224,45 @@ func TestWorldMapAPIStorageAccessAndReference(t *testing.T) {
 	if !found {
 		t.Fatal("SQL codec lost map")
 	}
+	editRequest := worldMapGenerateInput{RequestID: "request-map-edit-0001", SourceMapID: result.Data.ID, SourceRevision: 1, Prompt: "Add a northern bay"}
+	editCall := func(in worldMapGenerateInput) *httptest.ResponseRecorder {
+		b, _ := json.Marshal(in)
+		return call("POST", base+"/generate", string(b), "http://localhost", cookie)
+	}
+	bad := editRequest
+	bad.SourceMapID = "foreign-map"
+	if w = editCall(bad); w.Code != 404 {
+		t.Fatal("foreign source accepted", w.Code)
+	}
+	bad = editRequest
+	bad.SourceRevision = 0
+	if w = editCall(bad); w.Code != 409 {
+		t.Fatal("stale source accepted", w.Code)
+	}
+	bad = editRequest
+	bad.Prompt = ""
+	if w = editCall(bad); w.Code != 400 {
+		t.Fatal("empty edit accepted", w.Code)
+	}
+	beforeEdit := calls
+	if w = editCall(editRequest); w.Code != 201 {
+		t.Fatal("edit failed", w.Body.String())
+	}
+	var variant struct {
+		Data worldMapDocument `json:"data"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &variant)
+	if variant.Data.ID == result.Data.ID || variant.Data.SourceMapID != result.Data.ID || variant.Data.SourceRevision != 1 || variant.Data.Labels[0] != label || variant.Data.ReferenceURL != result.Data.ImageURL {
+		t.Fatal("edit did not preserve source/labels")
+	}
+	if w = editCall(editRequest); w.Code != 200 || calls != beforeEdit+3 {
+		t.Fatal("edit retry billed again", w.Code, calls)
+	}
+	reloaded, _ := newCampaignStore(file)
+	sourceCampaign, _ := reloaded.getCampaignForUser(account.ID, campaign.ID)
+	if len(sourceCampaign.WorldMaps) != 3 || sourceCampaign.WorldMaps[0].ImageURL != result.Data.ImageURL || sourceCampaign.WorldMaps[0].Labels[0] != label {
+		t.Fatal("edit mutated original")
+	}
 	before := calls
 	for _, ref := range []string{"https://evil.invalid/file.png", "/uploads/" + other.ID + "/" + otherCampaign.ID + "/ref.png", "/uploads/" + account.ID + "/" + campaign.ID + "/../ref.png"} {
 		b, _ := json.Marshal(worldMapGenerateInput{RequestID: "request-map-0000003", ReferenceURL: ref})

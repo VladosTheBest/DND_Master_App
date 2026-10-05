@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { AIJob } from "@shadow-edge/shared-types";
 import { api } from "../../app/api";
+import { observeAIJobs, prepareAISound } from "./ai-completion-sound";
 
 export const isActiveJob = (job: AIJob) => job.state === "queued" || job.state === "running";
 
@@ -17,6 +18,7 @@ export function useAIJobs(campaignId?: string) {
     try {
       const next = await api.listAIJobs(campaignId);
       if (version !== generation.current) return;
+      observeAIJobs(next);
       setJobs(next); setError(""); setLoading(false);
     } catch {
       if (version !== generation.current) return;
@@ -26,6 +28,7 @@ export function useAIJobs(campaignId?: string) {
     }
   }, [campaignId]);
   useEffect(() => {
+    prepareAISound();
     setJobs([]); setLoading(true);
     void refresh();
     const timer = window.setInterval(() => void refresh(false), 2500);

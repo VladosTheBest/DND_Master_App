@@ -66,6 +66,15 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/User/.cache/co
     await page.getByRole('button',{name:'Отменить правку',exact:true}).click();
     await page.screenshot({path:'tmp/world-maps-desktop.png',fullPage:true});
     await page.setViewportSize({width:390,height:844});await page.getByRole('button',{name:'Вписать карту',exact:true}).click();await page.screenshot({path:'tmp/world-maps-mobile.png',fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'mobile overflow');
+    await page.getByRole('button',{name:'Звук завершения AI',exact:true}).click();assert.equal(await page.getByRole('button',{name:'Звук завершения AI',exact:true}).getAttribute('aria-pressed'),'false');
+    await page.getByRole('button',{name:'Изменить с AI',exact:true}).click();
+    assert.equal(await page.getByRole('button',{name:'Создать новый вариант',exact:true}).isDisabled(),true);
+    await page.getByLabel('Что изменить на карте').fill('Добавь залив на севере, сохрани остальные берега');
+    await page.screenshot({path:'tmp/world-maps-ai-edit-mobile.png',fullPage:true});
+    await page.getByRole('button',{name:'Создать новый вариант',exact:true}).click();await page.getByText('Рисую фон карты без надписей',{exact:true}).waitFor();
+    assert.equal(posted.sourceMapId,'map-one');assert.equal(posted.sourceRevision,maps[0].revision);
+    const edited={...maps[0],id:'map-edited',sourceMapId:'map-one',title:'Северный залив'};maps.push(edited);job={...job,state:'succeeded',result:{data:edited}};
+    await page.getByRole('heading',{name:'Северный залив',exact:true}).waitFor();assert.equal(maps[0].title,original.title);assert.equal(maps[0].labels[0].curve,30);
     await page.getByRole('button',{name:'Новая карта',exact:true}).click();await page.getByLabel('Описание карты').fill('Остров на основе референса');
     await page.getByLabel('Уровень детализации').selectOption('island');
     await page.getByLabel('Учитывать контекст кампании').uncheck();await page.getByLabel('Карта конкретной локации').check();await page.getByLabel('Локация карты').selectOption('harbor');

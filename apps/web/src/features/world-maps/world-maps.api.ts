@@ -17,7 +17,7 @@ export async function mapRequest<T>(path: string, method = "GET", body?: unknown
 export const worldMapsAPI = {
   list: (campaign: string, signal?:AbortSignal) => mapRequest<WorldMapDocument[]>(mapRoute(campaign),"GET",undefined,signal),
   save: (campaign:string,map:WorldMapDocument) => mapRequest<WorldMapDocument>(`${mapRoute(campaign)}/${encodeURIComponent(map.id)}`,"PUT",{title:map.title,revision:map.revision,labels:map.labels}),
-  generate: (campaign:string,input:{requestId:string;prompt:string;referenceUrl:string;context?:WorldMapDocument["context"];scale?:WorldMapDocument["scale"]}) => mapRequest<AIJob|WorldMapDocument>(`${mapRoute(campaign)}/generate`,"POST",input),
+  generate: (campaign:string,input:{requestId:string;prompt:string;referenceUrl:string;context?:WorldMapDocument["context"];scale?:WorldMapDocument["scale"];sourceMapId?:string;sourceRevision?:number}) => mapRequest<AIJob|WorldMapDocument>(`${mapRoute(campaign)}/generate`,"POST",input),
 };
 
 export const mapFont = (font:WorldMapLabel["font"]) => font === "serif" ? "Georgia" : font === "monospace" ? "Courier New" : "Arial";

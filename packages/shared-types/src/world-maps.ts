@@ -15,6 +15,8 @@ export interface WorldMapLabel {
   italic: boolean;
 }
 export interface WorldMapDocument {
+  sourceMapId?: string;
+  sourceRevision?: number;
   scale?: "auto" | "world" | "region" | "island" | "city" | "site";
 	context?: {includeCampaign: boolean; locationId?: string};
   id: string;

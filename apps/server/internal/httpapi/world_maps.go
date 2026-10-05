@@ -37,26 +37,30 @@ type worldMapLabel struct {
 	Italic   bool    `json:"italic"`
 }
 type worldMapDocument struct {
-	Scale        string           `json:"scale,omitempty"`
-	Context      *worldMapContext `json:"context,omitempty"`
-	ID           string           `json:"id"`
-	Title        string           `json:"title"`
-	Prompt       string           `json:"prompt"`
-	ImageURL     string           `json:"imageUrl"`
-	ReferenceURL string           `json:"referenceUrl,omitempty"`
-	Labels       []worldMapLabel  `json:"labels"`
-	Width        int              `json:"width"`
-	Height       int              `json:"height"`
-	Revision     int              `json:"revision"`
-	Provider     string           `json:"provider"`
-	CreatedAt    time.Time        `json:"createdAt"`
+	SourceMapID    string           `json:"sourceMapId,omitempty"`
+	SourceRevision int              `json:"sourceRevision,omitempty"`
+	Scale          string           `json:"scale,omitempty"`
+	Context        *worldMapContext `json:"context,omitempty"`
+	ID             string           `json:"id"`
+	Title          string           `json:"title"`
+	Prompt         string           `json:"prompt"`
+	ImageURL       string           `json:"imageUrl"`
+	ReferenceURL   string           `json:"referenceUrl,omitempty"`
+	Labels         []worldMapLabel  `json:"labels"`
+	Width          int              `json:"width"`
+	Height         int              `json:"height"`
+	Revision       int              `json:"revision"`
+	Provider       string           `json:"provider"`
+	CreatedAt      time.Time        `json:"createdAt"`
 }
 type worldMapGenerateInput struct {
-	Scale        string           `json:"scale,omitempty"`
-	Context      *worldMapContext `json:"context,omitempty"`
-	RequestID    string           `json:"requestId"`
-	Prompt       string           `json:"prompt"`
-	ReferenceURL string           `json:"referenceUrl"`
+	SourceMapID    string           `json:"sourceMapId,omitempty"`
+	SourceRevision int              `json:"sourceRevision,omitempty"`
+	Scale          string           `json:"scale,omitempty"`
+	Context        *worldMapContext `json:"context,omitempty"`
+	RequestID      string           `json:"requestId"`
+	Prompt         string           `json:"prompt"`
+	ReferenceURL   string           `json:"referenceUrl"`
 }
 
 type worldMapContext struct {
@@ -280,6 +284,26 @@ func (srv *server) generateWorldMap(w http.ResponseWriter, r *http.Request, user
 		return
 	}
 	campaign = current
+	var source *worldMapDocument
+	if input.SourceMapID != "" {
+		for i := range campaign.WorldMaps {
+			if campaign.WorldMaps[i].ID == input.SourceMapID {
+				source = &campaign.WorldMaps[i]
+				break
+			}
+		}
+		if source == nil {
+			writeError(w, 404, "not_found", "Исходная карта не найдена.")
+			return
+		}
+		if input.Prompt == "" {
+			writeError(w, 400, "invalid_map", "Опиши, что изменить на карте.")
+			return
+		}
+		input.ReferenceURL = source.ImageURL
+		input.Scale = normalizedMapScale(source.Scale)
+		scope = normalizedMapContext(source.Context)
+	}
 	generationPrompt, contextErr := scopedWorldMapPrompt(campaign, input.Prompt, scope, input.Scale)
 	if contextErr != nil {
 		writeError(w, 400, "invalid_map_context", contextErr.Error())
@@ -288,7 +312,7 @@ func (srv *server) generateWorldMap(w http.ResponseWriter, r *http.Request, user
 	// Completed retries return their original result without another paid call.
 	for _, m := range campaign.WorldMaps {
 		if m.ID == id {
-			if m.Prompt != input.Prompt || m.ReferenceURL != input.ReferenceURL || normalizedMapContext(m.Context) != scope || normalizedMapScale(m.Scale) != input.Scale {
+			if m.Prompt != input.Prompt || m.ReferenceURL != input.ReferenceURL || normalizedMapContext(m.Context) != scope || normalizedMapScale(m.Scale) != input.Scale || m.SourceMapID != input.SourceMapID || m.SourceRevision != input.SourceRevision {
 				writeError(w, 409, "map_request_changed", "Создай новый запрос для другой карты.")
 				return
 			}
@@ -299,6 +323,14 @@ func (srv *server) generateWorldMap(w http.ResponseWriter, r *http.Request, user
 	if len(campaign.WorldMaps) >= 200 {
 		writeError(w, 409, "map_limit", "В кампании уже 200 карт.")
 		return
+	}
+	if source != nil {
+		if source.Revision != input.SourceRevision {
+			writeError(w, 409, "stale_revision", "Карта изменилась. Обнови её перед AI-редактированием.")
+			return
+		}
+		anchors, _ := json.Marshal(source.Labels)
+		generationPrompt += "\nIMAGE EDIT, not a new design. The reference is the current map background. Apply only the requested changes, preserve unrelated geography, composition, framing and aspect ratio. Do not paint text. Existing editable labels will be kept unchanged; keep their geographic anchors aligned. Return no new labels. Original description (reference data):\n" + source.Prompt + "\nExisting label anchors (reference data):\n" + string(anchors) + "\nRequested edit:\n" + input.Prompt
 	}
 	var reference []byte
 	if input.ReferenceURL != "" {
@@ -354,6 +386,9 @@ func (srv *server) generateWorldMap(w http.ResponseWriter, r *http.Request, user
 	for _, l := range result.Plan.Labels {
 		labels = append(labels, plannedWorldMapLabel(l, newID("label")))
 	}
+	if source != nil {
+		labels = append([]worldMapLabel(nil), source.Labels...)
+	}
 	if err := validateMapLabels(labels); err != nil {
 		writeError(w, 502, "invalid_map", err.Error())
 		return
@@ -382,6 +417,8 @@ func (srv *server) generateWorldMap(w http.ResponseWriter, r *http.Request, user
 	doc := worldMapDocument{ID: id, Title: result.Plan.Title, Prompt: input.Prompt, ImageURL: "/uploads/" + sanitizeUploadPathSegment(user.ID) + "/" + sanitizeUploadPathSegment(campaign.ID) + "/" + filepath.Base(file), ReferenceURL: input.ReferenceURL, Labels: labels, Width: cfg.Width, Height: cfg.Height, Provider: result.Provider, CreatedAt: time.Now().UTC()}
 	doc.Context = &scope
 	doc.Scale = input.Scale
+	doc.SourceMapID = input.SourceMapID
+	doc.SourceRevision = input.SourceRevision
 	srv.store.mu.Lock()
 	defer srv.store.mu.Unlock()
 	for ci := range srv.store.data.Campaigns {
