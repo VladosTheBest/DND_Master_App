@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -51,6 +52,8 @@ func TestChatEntityPreviewsAreOwnedCurrentAndPresentationOnly(t *testing.T) {
 
 func TestCampaignChatHTTPAndStorage(t *testing.T) {
 	calls := 0
+	lastPrompt := ""
+	requireAdelina := true
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 		var req openAIChatCompletionRequest
@@ -63,7 +66,8 @@ func TestCampaignChatHTTPAndStorage(t *testing.T) {
 		if !strings.Contains(req.Messages[0].Content, "read-only") || strings.Contains(req.Messages[1].Content, "FOREIGN_SECRET") {
 			t.Error("unsafe context")
 		}
-		if !strings.Contains(req.Messages[1].Content, "Аделина") {
+		lastPrompt = req.Messages[1].Content
+		if requireAdelina && !strings.Contains(req.Messages[1].Content, "Аделина") {
 			t.Error("missing relevant source")
 		}
 		var context struct {
@@ -143,5 +147,61 @@ func TestCampaignChatHTTPAndStorage(t *testing.T) {
 	}
 	if kind, id := backgroundGenerationRoute(base + "/ai/chat"); kind != "chat" || id != result.Data.ID {
 		t.Fatal("chat not in background/subscription gate")
+	}
+	requireAdelina = false
+	call("POST", base+"/sessions", `{"title":"Second session","text":"SECOND_SESSION_ONLY"}`, cookie)
+	call("POST", base+"/sessions", `{"title":"Third session","text":"EXCLUDED_SESSION"}`, cookie)
+	latest, _ := newCampaignStore(path)
+	ids := []string{latest.data.ImportedSessions[0].ID, latest.data.ImportedSessions[1].ID}
+	postContext := func(id string, c chatContext) *httptest.ResponseRecorder {
+		body, _ := json.Marshal(map[string]any{"id": id, "question": "Что известно?", "context": c})
+		return call("POST", base+"/ai/chat", string(body), cookie)
+	}
+	if w := postContext("context-two-sessions", chatContext{false, ids}); w.Code != 200 {
+		t.Fatal(w.Body.String())
+	}
+	if strings.Contains(lastPrompt, "Chat campaign") || strings.Contains(lastPrompt, "EXCLUDED_SESSION") || !strings.Contains(lastPrompt, "SECOND_SESSION_ONLY") || !strings.Contains(lastPrompt, "Аделина") {
+		t.Fatal("scope leaked or lost selected sessions")
+	}
+	if w := postContext("context-campaign-only", chatContext{true, nil}); w.Code != 200 {
+		t.Fatal(w.Body.String())
+	}
+	if !strings.Contains(lastPrompt, "Chat campaign") || strings.Contains(lastPrompt, "SECOND_SESSION_ONLY") || strings.Contains(lastPrompt, "Аделина") {
+		t.Fatal("campaign-only context leaked transcript/history")
+	}
+	if w := postContext("context-combined-test", chatContext{true, ids}); w.Code != 200 {
+		t.Fatal(w.Body.String())
+	}
+	if !strings.Contains(lastPrompt, "Chat campaign") || !strings.Contains(lastPrompt, "SECOND_SESSION_ONLY") || strings.Contains(lastPrompt, "EXCLUDED_SESSION") {
+		t.Fatal("combined scope invalid")
+	}
+	if w := postContext("context-empty-invalid", chatContext{false, nil}); w.Code != 400 {
+		t.Fatal("empty context accepted")
+	}
+	if w := postContext("context-foreign-invalid", chatContext{true, []string{"foreign"}}); w.Code != 404 {
+		t.Fatal("foreign session accepted")
+	}
+	query := fmt.Sprintf("?includeCampaign=false&sessionIds=%s&sessionIds=%s", ids[1], ids[0])
+	if w := call("GET", base+"/ai/chat"+query, "", cookie); !strings.Contains(w.Body.String(), "context-two-sessions") || strings.Contains(w.Body.String(), "context-combined-test") {
+		t.Fatal("history scope not canonical or isolated")
+	}
+}
+
+func TestChatRosterAndContext(t *testing.T) {
+	campaign := campaignData{}
+	for i := 0; i < 85; i++ {
+		campaign.NPCs = append(campaign.NPCs, knowledgeEntity{ID: fmt.Sprintf("private-id-%03d", i), Title: fmt.Sprintf("Персонаж %03d", i), Summary: "Описание"})
+	}
+	answer, ok := chatNPCRoster("Перечисли всех НПС которые есть в кампании", campaign)
+	if !ok || strings.Count(answer, "| **Персонаж") != 85 || strings.Contains(answer, "private-id") {
+		t.Fatal("roster incomplete or leaks IDs")
+	}
+	if _, ok := chatNPCRoster("Перечисли всех НПС которые погибли", campaign); ok {
+		t.Fatal("filtered question treated as entire roster")
+	}
+	a := chatContext{true, []string{"b", "a", "a"}}
+	b := chatContext{true, []string{"a", "b"}}
+	if a.normalize() != b.normalize() {
+		t.Fatal("context order changed history")
 	}
 }

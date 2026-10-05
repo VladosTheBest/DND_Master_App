@@ -15,14 +15,24 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'C:/Users/User/.cach
       if (u.pathname==='/api/ai/jobs') return r.fulfill({json:{data:job?[job]:[]}});
       if (u.pathname.endsWith('/ai/chat')) {
         if (r.request().method()==='POST') {posted=r.request().postDataJSON();postRoute=r;return;}
-        return r.fulfill({json:{data:{turns:u.searchParams.get('sessionId')?[]:turns,sessions:[{id:'s1',title:'Первая сессия'}]}}});
+        return r.fulfill({json:{data:{turns:u.searchParams.has('sessionIds')?[]:turns,sessions:[{id:'s1',title:'Первая сессия'},{id:'s2',title:'Вторая сессия'}]}}});
       }
-      if (u.pathname==='/') return r.fulfill({contentType:'text/html',body:'<meta name="viewport" content="width=device-width,initial-scale=1"><div id="root"></div><link rel="stylesheet" href="/test.css"><script src="/test.js"></script>'});
+      if (u.pathname==='/') return r.fulfill({contentType:'text/html',body:'<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><button id="background" onclick="this.textContent=\'Приложение доступно\'">Фоновая кнопка</button><div id="root"></div><link rel="stylesheet" href="/test.css"><script src="/test.js"></script>'});
       return r.fulfill({contentType:u.pathname.endsWith('css')?'text/css':'application/javascript',body:bundle.outputFiles.find(f=>f.path.endsWith(u.pathname.endsWith('css')?'.css':'.js')).text});
     });
     await page.goto('https://chat-test.local');
     await page.getByRole('button',{name:'AI-помощник',exact:true}).click();
     await page.getByText('Обсудим вашу кампанию').waitFor();
+    await page.getByRole('button',{name:'Фоновая кнопка'}).click();
+    await page.getByText('Приложение доступно').waitFor();
+    assert.equal(await page.getByRole('dialog').evaluate(e=>e.matches(':modal')),false);
+    const before=await page.getByRole('dialog').boundingBox();
+    const handle=await page.getByLabel('Переместить окно помощника').boundingBox();
+    await page.mouse.move(handle.x+30,handle.y+15);await page.mouse.down();await page.mouse.move(handle.x-100,handle.y+45);await page.mouse.up();
+    const moved=await page.getByRole('dialog').boundingBox();assert.ok(moved.x<before.x-100,'window did not move');
+    const grip=await page.getByLabel('Изменить размер окна').boundingBox();
+    await page.mouse.move(grip.x+10,grip.y+10);await page.mouse.down();await page.mouse.move(grip.x-70,grip.y-60);await page.mouse.up();
+    const resized=await page.getByRole('dialog').boundingBox();assert.ok(resized.width<moved.width-50,'window did not resize');
     await page.getByLabel('Вопрос AI').fill('Кто забрал ключ?');
     await page.getByRole('button',{name:'Отправить вопрос'}).click();
     await page.getByText('Кто забрал ключ?',{exact:true}).waitFor();
@@ -33,6 +43,7 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'C:/Users/User/.cach
     await page.emulateMedia({reducedMotion:'no-preference'});
     await page.screenshot({path:'tmp/ai-chat-pending.png'});
     const id=posted.id;
+    assert.deepEqual(posted.context,{includeCampaign:true,sessionIds:[]});
     await postRoute.fulfill({status:503,json:{error:{message:'Тестовая ошибка'}}});
     await page.getByText('Тестовая ошибка',{exact:true}).waitFor();
     postRoute=null;
@@ -62,9 +73,20 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE || 'C:/Users/User/.cach
     await page.getByRole('button',{name:'Закрыть AI-помощник'}).click();
     await page.getByRole('button',{name:'AI-помощник',exact:true}).click();
     await page.getByText('Ключ у Аделины.',{exact:true}).waitFor();
-    await page.getByLabel('Контекст чата').selectOption('s1');
+    await page.locator('.ai-chat-context > summary').click();
+    await page.getByLabel('Материалы кампании',{exact:true}).uncheck();
+    await page.getByLabel('Первая сессия',{exact:true}).check();
+    await page.getByLabel('Вторая сессия',{exact:true}).check();
     await page.getByText('Обсудим вашу кампанию').waitFor();
     assert.equal(await page.getByText('Ключ у Аделины.',{exact:true}).count(),0);
+    await page.screenshot({path:'tmp/ai-chat-context.png'});
+    await page.locator('.ai-chat-context > summary').click();
+    await page.getByLabel('Вопрос AI').fill('Сравни две сессии');
+    postRoute=null;
+    await page.getByRole('button',{name:'Отправить вопрос'}).click();
+    while(!postRoute) await new Promise(resolve=>setTimeout(resolve,10));
+    assert.deepEqual(posted.context,{includeCampaign:false,sessionIds:['s1','s2']});
+    await postRoute.fulfill({status:503,json:{error:{message:'Тест завершён'}}});
     assert.deepEqual(errors,[]);
     console.log('PASS: optimistic message, pending animation/reduced motion, failed retry, deduplication, entity image, responsive/fullscreen, scope isolation.');
   } finally {await browser.close();}

@@ -5,7 +5,8 @@ import { api } from "../../app/api";
 import { isActiveJob, useAIJobs } from "./useAIJobs";
 import { AIJobProgress } from "./AIJobProgress";
 import { AIChat } from "./AIChat";
-import { Maximize2, Minimize2, X, MessageSquare } from "lucide-react";
+import { useAssistantWindow } from "./useAssistantWindow";
+import { Maximize2, Minimize2, X, MessageSquare, Grip, GripHorizontal } from "lucide-react";
 
 const labels: Record<string,string> = { answer:"Ответ", suggestions:"Предложения", title:"Название", name:"Имя", summary:"Кратко", content:"Описание", sceneText:"Сцена", notes:"Примечания", entity:"Запись", linkedDrafts:"Связанные записи", card:"Карточка", event:"Событие", message:"Ответ", warning:"Обрати внимание", createdEntities:"Участники боя", role:"Роль", note:"Заметка", subtitle:"Подзаголовок", tags:"Теги" };
 function resultText(value: unknown, depth = 0): string {
@@ -25,8 +26,9 @@ export function AIJobsPanel({ campaignId, onOpenSession, onOpenProposal }: { cam
   const [detailError,setDetailError] = useState("");
   const [loadingDetail,setLoadingDetail] = useState("");
   const dialog = useRef<HTMLDialogElement>(null);
+  const floating = useAssistantWindow();
   const requestVersion = useRef(0);
-  useEffect(() => { if(open) dialog.current?.showModal(); else dialog.current?.close(); },[open]);
+  useEffect(() => { if(open) dialog.current?.show(); else dialog.current?.close(); },[open]);
   useEffect(() => () => { requestVersion.current++; },[]);
   const active = jobs.filter(isActiveJob);
   const showResult = async (job: AIJob) => {
@@ -48,8 +50,8 @@ export function AIJobsPanel({ campaignId, onOpenSession, onOpenProposal }: { cam
     <button className={`ai-jobs-launcher ${active.length ? "working" : ""}`} onClick={() => setOpen(true)} type="button">
       <MessageSquare size={17} aria-hidden="true"/>{active.length ? `AI работает · ${active.length}` : "AI-помощник"}{error ? " · !" : ""}
     </button>
-    {createPortal(<dialog className={`panel ai-jobs-dialog ai-assistant ${expanded ? "expanded" : ""}`} ref={dialog} onCancel={() => setOpen(false)} aria-label="AI-помощник">
-      <><header><h2>AI-помощник</h2><div className="ai-assistant-tools"><button type="button" className="ghost" title={expanded ? "Свернуть" : "На весь экран"} aria-label={expanded ? "Свернуть" : "На весь экран"} onClick={()=>setExpanded(!expanded)}>{expanded ? <Minimize2 size={18}/> : <Maximize2 size={18}/>}</button><button type="button" className="ghost" title="Закрыть" aria-label="Закрыть AI-помощник" onClick={() => setOpen(false)}><X size={18}/></button></div></header>
+    {createPortal(<dialog className={`panel ai-jobs-dialog ai-assistant ${expanded ? "expanded" : ""}`} style={expanded?{left:8,top:8,width:"calc(100vw - 16px)",height:"calc(100dvh - 16px)"}:floating.box} ref={dialog} onCancel={() => setOpen(false)} onKeyDown={event=>{if(event.key==="Escape"){event.stopPropagation();setOpen(false);}}} aria-modal="false" aria-label="AI-помощник">
+      <><header className="ai-assistant-drag" tabIndex={expanded?-1:0} title="Переместить окно" aria-label="Переместить окно помощника" onPointerDown={event=>{if(!expanded)floating.start(event);}} onPointerMove={floating.move} onPointerUp={floating.end} onPointerCancel={floating.end} onKeyDown={event=>{if(!expanded)floating.key(event);}}><h2><GripHorizontal size={17}/> AI-помощник</h2><div className="ai-assistant-tools"><button type="button" className="ghost" title={expanded ? "Свернуть" : "На весь экран"} aria-label={expanded ? "Свернуть" : "На весь экран"} onClick={()=>setExpanded(!expanded)}>{expanded ? <Minimize2 size={18}/> : <Maximize2 size={18}/>}</button><button type="button" className="ghost" title="Закрыть" aria-label="Закрыть AI-помощник" onClick={() => setOpen(false)}><X size={18}/></button></div></header>
         <nav className="ai-assistant-tabs" aria-label="Разделы AI"><button type="button" aria-pressed={tab==="chat"} onClick={()=>setTab("chat")}>Чат</button><button type="button" aria-pressed={tab==="jobs"} onClick={()=>setTab("jobs")}>Задачи{active.length ? ` · ${active.length}` : ""}</button></nav>
         <div className="ai-assistant-chat" hidden={tab!=="chat"}>{campaignId ? <AIChat key={campaignId} campaignId={campaignId} jobs={jobs} refreshJobs={()=>void refresh()}/> : <p>Открой кампанию, чтобы начать диалог.</p>}</div>
         <div className="ai-assistant-job-list" hidden={tab!=="jobs"}>
@@ -71,6 +73,7 @@ export function AIJobsPanel({ campaignId, onOpenSession, onOpenProposal }: { cam
         <small>История хранит до 50 недавних завершённых задач на аккаунт. Перезапуск сервера прерывает незавершённые задачи и отмечает их ошибкой.</small>
         </div>
       </>
+      {!expanded && <button className="ai-assistant-resize" type="button" title="Изменить размер окна" aria-label="Изменить размер окна" onPointerDown={event=>floating.start(event,true)} onPointerMove={floating.move} onPointerUp={floating.end} onPointerCancel={floating.end} onKeyDown={event=>floating.key(event,true)}><Grip size={15}/></button>}
     </dialog>, document.body)}
   </>;
 }
