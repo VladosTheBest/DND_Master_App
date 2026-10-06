@@ -9,8 +9,11 @@ import argparse
 import hashlib
 import json
 import re
+import sys
 from pathlib import Path
 import pymupdf as pdf
+sys.dont_write_bytecode = True
+from frostmaiden_structure import enrich, name_pattern
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "apps/server/internal/httpapi/ready_campaigns/icewind-dale-rus"
@@ -172,10 +175,10 @@ def run(path):
         if start is not None:
             selected = selected[start:]
         if kind == "npc":
-            needle = title.lower()
-            matches = [i for i,u in enumerate(selected) if u["kind"] == "gm" and needle in u["text"].lower() and u["page"] > 17 and u["page"] < 269]
+            pattern = name_pattern(title)
+            matches = [i for i,u in enumerate(selected) if u["kind"] == "gm" and pattern.search(u["text"]) and u["page"] > 17 and u["page"] < 269]
             if not matches:
-                matches = [i for i,u in enumerate(selected) if u["kind"] == "gm" and needle in u["text"].lower()]
+                matches = [i for i,u in enumerate(selected) if u["kind"] == "gm" and pattern.search(u["text"])]
             if matches:
                 keep=set()
                 for i in matches[:8]:
@@ -208,7 +211,8 @@ def run(path):
             candidate=candidate or next((u["text"] for u in selected if u["kind"]!="heading"),"")
             summary=excerpt(candidate) or "Материал приключения. Описание и правила доступны в исходной книге."
         items[record["id"]]={"title":title,"summary":summary,"sourcePages":list(range(a,b+1)),"sections":content}
-    presentation={"templateId":pack["id"],"version":1,"sourceSHA256":manifest["sourceSHA256"],"items":items}
+    structure = enrich(pack, items, units, ROOT, OUT)
+    presentation={"templateId":pack["id"],"version":2,"sourceSHA256":manifest["sourceSHA256"],"items":items, **structure}
     (OUT/"presentation.json").write_text(json.dumps(presentation,ensure_ascii=False,indent=2),encoding="utf-8")
     print(f"Formatted {len(items)} cards; {sum(sum(s['kind']=='read_aloud' for s in i['sections']) for i in items.values())} source read-aloud blocks")
 
