@@ -6,7 +6,7 @@ import { CombatEntityStatSheet } from "../../combat-ui";
 import { FormattedText } from "../formatting/FormattedText";
 import { PlayerFacingCardStrip } from "../../quests";
 import { ReadyLocationHierarchy } from "./ReadyLocationHierarchy";
-import { adventureSourceId as sourceId, type AdventureSection, type AdventureMaterial, type AdventurePresentation, type AdventureChapter } from "./ready-adventure.types";
+import { adventureSourceId as sourceId, adventureKindLabels, adventureMatchesLevel, type AdventureSection, type AdventureMaterial, type AdventurePresentation, type AdventureChapter } from "./ready-adventure.types";
 import { mapMediaURL, mapRequest } from "../world-maps/world-maps.api";
 import "../events/events.css";
 import "./ready-campaigns.css";
@@ -40,6 +40,7 @@ export function ReadyAdventureReader({ campaign, module, selected, selectedEvent
   const [error,setError] = useState("");
   const [locationView,setLocationView] = useState<"hierarchy"|"cards">("hierarchy");
   const [chapterFilter,setChapterFilter] = useState("");
+  const [levelFilter,setLevelFilter] = useState("");
   const [sort,setSort] = useState("name");
   const templateId = campaign.readyCampaign!.templateId;
   useEffect(() => {
@@ -48,7 +49,7 @@ export function ReadyAdventureReader({ campaign, module, selected, selectedEvent
     void loadPresentation(templateId).then(p=>{if(alive)setPresentation(p);}).catch(()=>{if(alive)setError("Оформленные карточки не загрузились. Исходная книга доступна по кнопке выше.");});
     return ()=>{alive=false;};
   },[templateId]);
-  useEffect(() => {setQuery("");setCategory("");setChapterFilter("");setBook(false);setShowCards(true);setLocalId("");},[module,campaign.id]);
+  useEffect(() => {setQuery("");setCategory("");setChapterFilter("");setLevelFilter("");setBook(false);setShowCards(true);setLocalId("");},[module,campaign.id]);
   useEffect(() => {if(selected?.id){setLocalId(selected.id);setShowCards(false);}},[selected?.id]);
   useEffect(() => {if(module==="events"&&selectedEventId){setLocalId(selectedEventId);setShowCards(false);}},[module,selectedEventId]);
   const all = useMemo(()=>[...campaign.locations,...campaign.npcs,...campaign.monsters,...campaign.quests,...campaign.lore],[campaign]);
@@ -61,9 +62,13 @@ export function ReadyAdventureReader({ campaign, module, selected, selectedEvent
   const items = collections[module] ?? campaign.lore;
   const labels:Record<string,string>={locations:"Локации",npcs:"НПС",monsters:"Существа",quests:"Задания",lore:"Книга приключения",notes:"Книга приключения",events:"Сцены приключения",shops:"Места торговли"};
   const material = (e:KnowledgeEntity)=>presentation?.items[sourceId(e.id)] || fallback(e);
-  const materialType = (e:KnowledgeEntity)=>e.quickFacts.find(f=>f.label==="Тип материала")?.value || (module==="events"?"Сцена":module==="shops"?"Место торговли":"");
+  const locationKinds = new Map(presentation?.nodes?.filter(n=>n.kind!=="npc"&&n.kind!=="group").map(n=>[n.entityId,n.kind]));
+  const materialType = (e:KnowledgeEntity)=>module==="locations"&&locationKinds.has(sourceId(e.id)) ? adventureKindLabels[locationKinds.get(sourceId(e.id))!] : e.quickFacts.find(f=>f.label==="Тип материала")?.value || (module==="events"?"Сцена":module==="shops"?"Место торговли":"");
   const categories = [...new Set(items.map(materialType).filter(Boolean))];
-  const filtered = items.filter(e=>(!category||materialType(e)===category)&&(!chapterFilter||material(e).chapterIds?.includes(Number(chapterFilter)))&&(!query.trim()||`${e.title} ${material(e).summary} ${e.content}`.toLocaleLowerCase("ru").includes(query.trim().toLocaleLowerCase("ru")))).sort((a,b)=>sort==="chapter"?(material(a).chapterIds?.[0]||99)-(material(b).chapterIds?.[0]||99)||a.title.localeCompare(b.title,"ru",{numeric:true}):a.title.localeCompare(b.title,"ru",{numeric:true}));
+  const chapters = presentation?.chapters ?? [];
+  const firstChapter = (e:KnowledgeEntity)=>Math.min(...(material(e).chapterIds?.length ? material(e).chapterIds! : [99]));
+  const minimumLevel = (e:KnowledgeEntity)=>Math.min(...chapters.filter(c=>material(e).chapterIds?.includes(c.id)&&(!chapterFilter||c.id===Number(chapterFilter))).map(c=>c.levelMin),99);
+  const filtered = items.filter(e=>(!category||materialType(e)===category)&&adventureMatchesLevel(chapters,material(e).chapterIds??[],chapterFilter,levelFilter)&&(!query.trim()||`${e.title} ${material(e).summary} ${e.content}`.toLocaleLowerCase("ru").includes(query.trim().toLocaleLowerCase("ru")))).sort((a,b)=>(sort==="chapter"?firstChapter(a)-firstChapter(b):sort==="level"?minimumLevel(a)-minimumLevel(b):sort==="type"?materialType(a).localeCompare(materialType(b),"ru"):0)||a.title.localeCompare(b.title,"ru",{numeric:true}));
   const active = !showCards ? items.find(e=>e.id===localId) || (selected&&items.find(e=>e.id===selected.id)) : null;
   function open(e:KnowledgeEntity){setLocalId(e.id);setShowCards(false);setBook(false);if(module!=="events"&&module!=="shops")onSelect(e.id);}
   const hierarchy = module==="locations"&&locationView==="hierarchy"&&Boolean(presentation?.nodes);
@@ -72,7 +77,7 @@ export function ReadyAdventureReader({ campaign, module, selected, selectedEvent
   const pageImage={title:`Страница PDF ${page} · книга ${page-1}`,url:`/api/campaign-templates/${templateId}/assets/pages/${String(page).padStart(3,"0")}.webp`};
   const overviewCard=(e:KnowledgeEntity,compact=false)=><button key={e.id} type="button" className={`card ready-material-card ${compact?"compact":""} ${active?.id===e.id?"selected":""}`} onClick={()=>open(e)}>
     <div className="ready-material-card-top"><EntityVisual entity={e}/><span className="ready-material-type">{materialType(e)||labels[module]}</span></div>
-    <strong>{e.title}</strong><p>{material(e).summary}</p>
+    <strong>{e.title}</strong><small className="ready-material-level">{material(e).chapterIds?.length ? `Главы ${material(e).chapterIds!.join(", ")}` : "Общий материал"}{minimumLevel(e)<99 ? ` · от ${minimumLevel(e)} ур. (по главе)` : ""}</small><p>{material(e).summary}</p>
     <span className="ready-material-card-foot">{material(e).sections.some(s=>s.kind==="read_aloud")?<><ScrollText size={14}/>Есть текст для зачитки</>:<><BookOpen size={14}/>Описание и правила</>}</span>
   </button>;
   return <div className="ready-reader">
@@ -87,7 +92,7 @@ export function ReadyAdventureReader({ campaign, module, selected, selectedEvent
       {error?<p role="alert">{error}</p>:!presentation?<p role="status">Подготавливаю карточки приключения…</p>:null}
       {hierarchy&&presentation?<><ReadyLocationHierarchy presentation={presentation} selectedId={active?sourceId(active.id):undefined} onOpen={openSource}/>{renderDetail()}</>:(presentation||error)&&<div className={active?"ready-reader-grid":"ready-reader-overview"}>
         <aside className="ready-reader-directory"><div className="ready-directory-filters"><label>Поиск<input className="input" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Название, персонаж или место"/></label>{categories.length>1&&<select className="input" aria-label="Тип материала" value={category} onChange={e=>setCategory(e.target.value)}><option value="">Все материалы</option>{categories.map(c=><option key={c} value={c}>{c}</option>)}</select>}<small>{filtered.length} карточек</small></div>
-          <div className="ready-catalog-sort"><label>Глава<select className="input" aria-label="Глава каталога" value={chapterFilter} onChange={e=>setChapterFilter(e.target.value)}><option value="">Все главы</option>{presentation?.chapters?.map(c=><option key={c.id} value={c.id}>{c.id}. {c.title} · ур. {c.levelLabel}</option>)}</select></label><label>Сортировка<select className="input" value={sort} onChange={e=>setSort(e.target.value)}><option value="name">По названию</option><option value="chapter">По главе</option></select></label></div>
+          <div className="ready-catalog-sort"><label>Глава<select className="input" aria-label="Глава каталога" value={chapterFilter} onChange={e=>setChapterFilter(e.target.value)}><option value="">Все главы</option>{presentation?.chapters?.map(c=><option key={c.id} value={c.id}>{c.id}. {c.title} · ур. {c.levelLabel}</option>)}</select></label><label>Рекомендации для уровня<select className="input" aria-label="Уровень каталога" value={levelFilter} onChange={e=>setLevelFilter(e.target.value)}><option value="">Любой уровень</option>{Array.from({length:12},(_,i)=><option key={i+1} value={i+1}>{i+1}</option>)}</select></label><label>Сортировка<select className="input" aria-label="Сортировка каталога" value={sort} onChange={e=>setSort(e.target.value)}><option value="name">По названию</option><option value="chapter">По главе</option><option value="level">По уровню</option><option value="type">По типу</option></select></label></div>
           <div className={active?"ready-reader-list":"ready-material-grid"}>{filtered.map(e=>overviewCard(e,Boolean(active)))}{!filtered.length&&<p>Ничего не найдено.</p>}</div>
         </aside>
         {renderDetail()}

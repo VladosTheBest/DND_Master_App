@@ -39,3 +39,7 @@ export const adventureSourceId = (id: string) => id.slice(id.lastIndexOf("frost-
 export const adventureKindLabels: Record<AdventureNode["kind"], string> = {
   adventure: "Приключение", region: "Регион", city: "Город", site: "Место приключения", area: "Область карты", landmark: "Место в городе", npc: "НПС", group: "Персонажи приключения"
 };
+export function adventureMatchesLevel(chapters: AdventureChapter[], chapterIds: number[], chapter: string, level: string) {
+  const relevant = chapters.filter(c => chapterIds.includes(c.id) && (!chapter || c.id === Number(chapter)));
+  return (!chapter || relevant.length > 0) && (!level || relevant.some(c => Number(level) >= c.levelMin && (c.levelMax === null || Number(level) <= c.levelMax)));
+}
