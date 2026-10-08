@@ -459,11 +459,67 @@ func applyFoundryChange(state *storageState, ci int, v foundryChange, id string)
 }
 func foundryOwnedURL(raw string, c foundryConnection) bool {
 	u, e := url.Parse(raw)
-	if e != nil || u.Host != "" || u.RawQuery != "" || u.Fragment != "" || strings.ContainsAny(u.Path, "\\\x00") {
+	if e != nil || u.Host != "" || u.Scheme != "" || u.RawQuery != "" || u.Fragment != "" || strings.ContainsAny(u.Path, "\\\x00") {
 		return false
 	}
 	prefix := "/uploads/" + sanitizeUploadPathSegment(c.OwnerID) + "/" + sanitizeUploadPathSegment(c.CampaignID) + "/"
-	return strings.HasPrefix(u.Path, prefix) && path.Clean(u.Path) == u.Path && !strings.Contains(strings.TrimPrefix(u.Path, prefix), "/")
+	name := strings.TrimPrefix(u.Path, prefix)
+	return strings.HasPrefix(u.Path, prefix) && path.Clean(u.Path) == u.Path && fs.ValidPath(name)
+}
+
+// Older generated art predates owner namespaces. Permit only an actual media
+// reference in this owner's campaign, never a guessed filename or text mention.
+func (m *foundryManager) legacyAsset(raw, host string, c foundryConnection) bool {
+	u, err := url.Parse(raw)
+	prefix := "/uploads/" + sanitizeUploadPathSegment(c.CampaignID) + "/"
+	if err != nil || u.Host != "" || u.Scheme != "" || u.RawQuery != "" || u.Fragment != "" || strings.ContainsAny(u.Path, "\\\x00") || !strings.HasPrefix(u.Path, prefix) || path.Clean(u.Path) != u.Path || !fs.ValidPath(strings.TrimPrefix(u.Path, prefix)) {
+		return false
+	}
+	match := func(candidate string) bool {
+		ref, err := url.Parse(candidate)
+		return err == nil && (ref.Host == "" || strings.EqualFold(ref.Host, host)) && ref.Path == u.Path && ref.RawQuery == "" && ref.Fragment == ""
+	}
+	media := func(art *heroArt, gallery []galleryImage) bool {
+		if art != nil && match(art.URL) {
+			return true
+		}
+		for _, image := range gallery {
+			if match(image.URL) {
+				return true
+			}
+		}
+		return false
+	}
+	m.srv.store.mu.RLock()
+	defer m.srv.store.mu.RUnlock()
+	for _, campaign := range m.srv.store.data.Campaigns {
+		if campaign.ID != c.CampaignID || campaign.OwnerID != c.OwnerID {
+			continue
+		}
+		for _, entity := range campaignEntities(campaign) {
+			if media(entity.Art, entity.Gallery) {
+				return true
+			}
+		}
+		for _, shop := range campaign.Shops {
+			if media(shop.Art, shop.Gallery) {
+				return true
+			}
+		}
+		for _, world := range campaign.WorldMaps {
+			if match(world.ImageURL) {
+				return true
+			}
+		}
+		for _, scene := range campaign.SessionMaps {
+			for _, level := range scene.Levels {
+				if match(level.ImageURL) {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 func (m *foundryManager) asset(w http.ResponseWriter, r *http.Request, c foundryConnection) {
 	raw := r.URL.Query().Get("url")
@@ -489,7 +545,7 @@ func (m *foundryManager) asset(w http.ResponseWriter, r *http.Request, c foundry
 		writeError(w, 404, "asset_not_found", "Медиа этой кампании не найдено.")
 		return
 	}
-	if !foundryOwnedURL(raw, c) || m.srv.uploads == nil {
+	if m.srv.uploads == nil || !foundryOwnedURL(raw, c) && !m.legacyAsset(raw, r.Host, c) {
 		writeError(w, 404, "asset_not_found", "Медиа этой кампании не найдено.")
 		return
 	}

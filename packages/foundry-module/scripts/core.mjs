@@ -33,7 +33,7 @@ export function damageFormula(raw) {
   const m=value.match(/(?:\(\s*)?(\d+d(?:4|6|8|10|12|20)(?:\s*[+-]\s*\d+)?)(?:\s*\))?/i);
   return m ? m[1].replace(/\s/g,"") : /^\d+$/.test(value) ? value : null;
 }
-export const attackBonus = raw => /^[+-]?\d+$/.test(String(raw).trim()) ? Number(raw) : null;
+export const attackBonus = raw => {const match=String(raw??'').trim().match(/^([+-]?\d+)(?:\s+к\s+попаданию|\s+to\s+hit)?$/iu);return match?Number(match[1]):null};
 export const damageTypes={fire:"fire",огн:"fire",cold:"cold",холод:"cold",lightning:"lightning",элект:"lightning",thunder:"thunder",звук:"thunder",force:"force",силов:"force",poison:"poison",яд:"poison",acid:"acid",кислот:"acid",necrotic:"necrotic",некрот:"necrotic",radiant:"radiant",излуч:"radiant",psychic:"psychic",псих:"psychic",slashing:"slashing",рубящ:"slashing",piercing:"piercing",колющ:"piercing",bludgeoning:"bludgeoning",дробящ:"bludgeoning"};
 export function damageType(text){return Object.entries(damageTypes).find(([key])=>String(text).toLowerCase().includes(key))?.[1]??null}
 export const activityValues=collection=>Array.isArray(collection?.contents)?collection.contents:typeof collection?.values==="function"?Array.from(collection.values()):Object.values(collection??{});
@@ -42,9 +42,9 @@ export function mechanicsFromActivity(activity,item){
   const range=activity.range?.override?activity.range:item.system?.range,parts=activity.damage?.parts??[];
   const damageParts=activity.healing?[activity.healing]:parts;
   if(activity.damage?.includeBase||activity.consumption?.scaling?.allowed||activity.duration?.concentration||activity.effects?.length||damageParts.some(p=>p.scaling?.mode&&p.scaling.mode!=="none"||Array.from(p.types??[]).length>1))return {kind:"manual"};
-  const plain=activityValues(item.system?.activities).length===1&&parts.length<=1&&(!range?.value||["ft",""].includes(range.units??""))&&["action","bonus","reaction"].includes(activity.activation?.type)&&!(activity.consumption?.targets?.length||activity.consumption?.spellSlot||activity.uses?.max||item.system?.uses?.max||item.effects?.size||item.effects?.length)&&(activity.type!=="attack"||activity.attack?.flat)&&(activity.type!=="save"||Array.from(activity.save?.ability??[]).length===1&&!activity.save?.dc?.calculation&&/^\d+$/.test(String(activity.save?.dc?.formula)));
+  const plain=activityValues(item.system?.activities).length===1&&!activity.target?.template?.type&&(!range?.value||["ft",""].includes(range.units??""))&&["action","bonus","reaction"].includes(activity.activation?.type)&&!(activity.consumption?.targets?.length||activity.consumption?.spellSlot||activity.uses?.max||item.system?.uses?.max||item.effects?.size||item.effects?.length)&&(activity.type!=="attack"||activity.attack?.flat)&&(activity.type!=="save"||Array.from(activity.save?.ability??[]).length===1&&!activity.save?.dc?.calculation&&/^\d+$/.test(String(activity.save?.dc?.formula)));
   if(!plain)return {kind:"manual"};
-  return {kind:activity.type,activation:activity.activation?.type,attackMode:activity.attack?.type?.value,range:Number(range?.value)||0,saveAbility:Array.from(activity.save?.ability??[])[0],saveDc:Number(activity.save?.dc?.formula)||0,saveDamage:activity.damage?.onSave==="half"?"half":"none",damageType:Array.from(parts[0]?.types??[])[0]};
+  return {kind:activity.type,activation:activity.activation?.type,attackMode:activity.attack?.type?.value,range:Number(range?.value)||0,saveAbility:Array.from(activity.save?.ability??[])[0],saveDc:Number(activity.save?.dc?.formula)||0,saveDamage:activity.damage?.onSave==="half"?"half":"none",damageType:parts.length>1?'':Array.from(parts[0]?.types??[])[0]};
 }
 export function authoringActor(doc) {
   const s=doc.system??{};
@@ -52,7 +52,8 @@ export function authoringActor(doc) {
     items:Array.from(doc.items??[]).filter(i=>["spell","weapon","feat"].includes(i.type)).map(i=>{
       const activity=activityValues(i.system?.activities).find(a=>["attack","save","heal","damage"].includes(a.type));
       const part=activity?.damage?.parts?.[0]??activity?.healing;
-      return {id:i.id??i._id,name:i.name,description:plainText(i.system?.description?.value??""),type:i.type,mechanics:mechanicsFromActivity(activity,i),spellId:i.flags?.[MODULE]?.spellId??"",attackBonus:activity?.attack?.flat?Number(activity.attack.bonus)||0:0,damage:part?.custom?.enabled?part.custom.formula:part?`${part.number}d${part.denomination}${part.bonus?`+${part.bonus}`:""}`:"",damageType:Array.from(part?.types??[])[0]??"",saveAbility:Array.from(activity?.save?.ability??[])[0]??"",saveDc:Number(activity?.save?.dc?.formula)||0,range:Number(i.system?.range?.value)||0};
+      const parts=activity?.damage?.parts??[],multi=parts.length>1?parts.map(p=>`${p.custom?.enabled?p.custom.formula:`${p.number}d${p.denomination}${p.bonus?`+${p.bonus}`:''}`} ${Array.from(p.types??[])[0]??''}`).join(' plus '):null;
+      return {id:i.id??i._id,name:i.name,description:plainText(i.system?.description?.value??""),type:i.type,mechanics:mechanicsFromActivity(activity,i),spellId:i.flags?.[MODULE]?.spellId??"",attackBonus:activity?.attack?.flat?Number(activity.attack.bonus)||0:0,damage:multi??(part?.custom?.enabled?part.custom.formula:part?`${part.number}d${part.denomination}${part.bonus?`+${part.bonus}`:""}`:""),damageType:multi?'':Array.from(part?.types??[])[0]??"",saveAbility:Array.from(activity?.save?.ability??[])[0]??"",saveDc:Number(activity?.save?.dc?.formula)||0,range:Number(i.system?.range?.value)||0};
     })};
 }
 export function exportEntity(source,actor) {

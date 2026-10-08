@@ -15,7 +15,7 @@ export function animationProfile(item,activity){
  activity??=activityValues(item.system?.activities)[0];
  if(activity?.type==='heal')return effects['cure-wounds'];
  if(activity?.type==='attack'){const weapon=weaponProfile(item),ranged=activity.attack?.type?.value==='ranged';if(ranged){const thrown=/метан|брос|throw|javelin/u.test(item.name?.toLowerCase()??'');return thrown?effects.thrown:weapon?.key==='crossbow'?effects.crossbow:effects.bow}return weapon??effects.sword}
- if(['save','damage'].includes(activity?.type))return effects.impact;
+ if(['save','damage'].includes(activity?.type)){const types=activity.damage?.parts?.flatMap(p=>Array.from(p.types??[]))??[];if(types.includes('fire'))return activity.target?.template?.type==='circle'?effects.fireball:effects['fire-bolt'];return effects.impact}
  return null;
 }
 export function animationStatus(){return `Встроенные анимации готовы · ${midiAnimationMode()?'Midi-QOL':'обычные способности dnd5e'}. Выделите свой токен и отметьте цель.`}

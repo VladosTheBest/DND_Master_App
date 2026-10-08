@@ -31,7 +31,8 @@ export async function compendiumItem(name,edition,type="spell"){
 }
 export function basicAbility(v,index=0){
   const a=abilityActivity(v,index),m=v.foundry??v.mechanics;
-  return {name:v.name??"Способность",img:itemIcon(v),type:["feat","weapon","spell"].includes(v.type)?v.type:isWeaponAbility(v)&&a?.type==='attack'?"weapon":"feat",system:{description:{value:safeHTML(v.description)},activities:a?{[a._id]:a}:{},range:{value:m?.range??v.range??null,units:"ft"},identifier:`shadow-edge-${index}`},flags:{autoanimations:{isEnabled:false},[MODULE]:{abilityIndex:index,spellId:v.spellId||undefined,coverage:a?"partial":"manual",reason:a?"Базовая механика настроена; сложные условия и эффекты требуют проверки.":"Неоднозначный статблок: автоматический расчёт не назначен."}}};
+  const daily=String(v.name??'').match(/\((\d+)\s*\/\s*день\)/iu);if(a&&daily)a.consumption.targets=[{type:'itemUses',target:'',value:'1'}];
+  return {name:v.name??"Способность",img:itemIcon(v),type:["feat","weapon","spell"].includes(v.type)?v.type:isWeaponAbility(v)&&a?.type==='attack'?"weapon":"feat",system:{description:{value:safeHTML(v.description)},activities:a?{[a._id]:a}:{},...(a&&daily?{uses:{max:daily[1],spent:0,recovery:[{period:'day',type:'recoverAll'}]}}:{}),range:{value:m?.range??v.range??a?.range?.value??null,units:"ft"},identifier:`shadow-edge-${index}`},flags:{autoanimations:{isEnabled:false},[MODULE]:{abilityIndex:index,spellId:v.spellId||undefined,coverage:a?"partial":"manual",reason:a?"Базовая механика настроена; сложные условия и эффекты требуют проверки.":"Неоднозначный статблок: автоматический расчёт не назначен."}}};
 }
 async function spellItems(record,catalog){
   let selected=[];const d=record.data;

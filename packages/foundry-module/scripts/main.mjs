@@ -1,6 +1,7 @@
 import {MODULE,clone,equal,mergeThree,validBaseURL,authoringActor,exportEntity,exportJournal,sceneLevel,plainText} from "./core.mjs";
 import {loadState,saveState} from "./storage.mjs";
 import {completeConnection} from "./connection.mjs";
+import {importProgress} from "./import-progress.mjs";
 import {category,folderPath,managedFolder,mediaEntries} from "./presentation.mjs";
 import {actorPlan,journalPlan,scenePlan,persistentProjection,safeHTML} from "./adapter.mjs";
 import {registerAnimations,animationStatus} from "./animations.mjs";
@@ -45,14 +46,15 @@ const tracked=(doc,state)=>doc.flags?.[MODULE]?.campaignId===state.campaignId &&
 function findDocument(entry){return entry?.uuid?fromUuid(entry.uuid):null}
 async function localAsset(state,url,bucket="Медиа"){
   if(!url)return "";if(url.startsWith("icons/")||url.startsWith("systems/dnd5e/icons/"))return url;
-  if(/^https?:/.test(url)){const parsed=new URL(url);if(parsed.origin!==new URL(state.base).origin)return "";url=parsed.pathname}
+  if(/^https?:/.test(url)){const parsed=new URL(url);if(parsed.origin!==new URL(state.base).origin)throw Error("Внешняя картинка: требуется загрузить её в кампанию на сайте.");url=parsed.pathname}
   const cached=state.assetBuckets?.[`${bucket}:${url}`]??state.assets?.[url];if(cached&&decodeURI(cached).includes(`/${bucket}/`))return cached;
-  if(!url.startsWith("/uploads/")&&!url.startsWith("/api/campaign-templates/"))return "";
-  const response=await fetch(`${state.base}/api/integrations/foundry/v1/assets?url=${encodeURIComponent(url)}`,{headers:{Authorization:`Bearer ${state.token}`},credentials:"omit",signal:AbortSignal.timeout(60000)});if(!response.ok)throw Error("Не удалось получить изображение кампании.");
-  const blob=await response.blob(),digest=await crypto.subtle.digest("SHA-256",await blob.arrayBuffer());const name=Array.from(new Uint8Array(digest),v=>v.toString(16).padStart(2,"0")).join("")+({"image/png":".png","image/jpeg":".jpg","image/webp":".webp","video/webm":".webm","video/mp4":".mp4"}[blob.type]??".bin");
+  if(!url.startsWith("/uploads/")&&!url.startsWith("/api/campaign-templates/"))throw Error("Этот адрес не является медиа кампании.");
+  const response=await fetch(`${state.base}/api/integrations/foundry/v1/assets?url=${encodeURIComponent(url)}`,{headers:{Authorization:`Bearer ${state.token}`},credentials:"omit",signal:AbortSignal.timeout(60000)});if(!response.ok)throw Error(`Сайт не выдал изображение (HTTP ${response.status}).`);
+  const blob=await response.blob(),mime=blob.type.split(';')[0].trim().toLowerCase(),ext={"image/png":".png","image/jpeg":".jpg","image/webp":".webp","image/gif":".gif","image/avif":".avif","image/svg+xml":".svg","video/webm":".webm","video/mp4":".mp4"}[mime];if(!ext)throw Error(`Сайт вернул неподдерживаемый формат: ${mime||'без Content-Type'}.`);
+  const digest=await crypto.subtle.digest("SHA-256",await blob.arrayBuffer());const name=Array.from(new Uint8Array(digest),v=>v.toString(16).padStart(2,"0")).join("")+ext;
   const root="shadow-edge-gm",campaignPath=`${root}/${state.campaignId}`,path=`${campaignPath}/${bucket}`;const Picker=foundry.applications.apps.FilePicker.implementation;
   for(const dir of [root,campaignPath,path]){try{await Picker.createDirectory("data",dir)}catch{await Picker.browse("data",dir)}}
-  const result=await Picker.upload("data",path,new File([blob],name,{type:blob.type}),{}, {notify:false});state.assets??={};state.assets[url]=result.path;state.assetBuckets??={};state.assetBuckets[`${bucket}:${url}`]=result.path;return result.path;
+  const result=await Picker.upload("data",path,new File([blob],name,{type:mime}),{}, {notify:false});if(!result?.path)throw Error("Foundry не сохранил файл: проверьте права записи в папку данных.");state.assets??={};state.assets[url]=result.path;state.assetBuckets??={};state.assetBuckets[`${bucket}:${url}`]=result.path;return result.path;
 }
 async function updateProjection(doc,projection,previous){
   const local=persistentProjection(doc,previous??projection),result=mergeThree(previous??projection,local,projection);
@@ -72,11 +74,12 @@ async function importItems(actor,items,state){
     next[key]=persistentProjection(existing,source);
   }state.itemBaselines=next;
 }
-async function importMedia(state,title,record,failures){
+async function importMedia(state,title,record,failures,progress){
   const entries=mediaEntries(record);if(!entries.length)return;
   const folder=await managedFolder(state,title,"JournalEntry",[`Галерея · ${category(record.kind)}`,record.title]);
   for(const entry of entries){
-    let src;try{src=await localAsset(state,entry.url,record.kind.includes("map")?"Карты":"Галерея")}catch{failures.push(entry.title);continue}if(!src){failures.push(entry.title);continue}
+    progress.stage(`Изображение · ${record.title} · ${entry.title}`);
+    let src;try{src=await localAsset(state,entry.url,record.kind.includes("map")?"Карты":"Галерея")}catch(error){failures.push({url:entry.url,title:entry.title,message:error.message});continue}
     const key=`${record.key}:${entry.url}`;
     let doc=game.journal.find(j=>tracked(j,state)&&j.flags?.[MODULE]?.mediaKey===key);
     const data={name:entry.title,folder,ownership:{default:0},pages:[{name:entry.title,type:"image",src,image:{caption:entry.caption}}],flags:{[MODULE]:{site:state.base,campaignId:state.campaignId,managedMedia:true,mediaKey:key}}};
@@ -85,19 +88,27 @@ async function importMedia(state,title,record,failures){
   }
 }
 export async function refresh(){
+  const progress=importProgress(),mediaFailures=[];let failure;
+  try{await refreshCampaign(progress,mediaFailures)}catch(error){failure=error;throw error}finally{progress.finish(failure,mediaFailures)}
+}
+async function refreshCampaign(progress,mediaFailures){
+  progress.stage('Подключение и получение материалов кампании');
   const state=await connected(),snapshot=await request(state,"v1/snapshot");if(snapshot.schemaVersion!==1)throw Error("Версия API не поддерживается.");
-  const deferred=[],mediaFailures=[];
+  const deferred=[];
   const players=new Map(snapshot.records.filter(r=>r.kind==="player").map(r=>[r.id,r]));
   for(const r of snapshot.records)if(r.kind==="character"){const player=players.get(r.data.playerId);if(player)r.data={...r.data,art:player.data.art,gallery:player.data.gallery}}
   const nativePlayers=new Set(snapshot.records.filter(r=>r.kind==="character").map(r=>r.data.playerId));
-  for(const record of snapshot.records){
-    if(record.kind==="player"&&nativePlayers.has(record.id)&&!record.data.foundryCharacter)continue;
+  const records=snapshot.records.filter(record=>!(record.kind==="player"&&nativePlayers.has(record.id)&&!record.data.foundryCharacter)&&!(record.kind==="character"&&snapshot.records.some(r=>r.id===record.data.playerId&&r.data.foundryCharacter)));
+  progress.total(records.reduce((n,r)=>n+(r.kind==='session-map'?r.data.levels.length:1),0));
+  for(const record of records){
     // An external sheet overrides the imported wizard sheet, but never rewrites wizard choices.
     if(record.kind==="character"&&snapshot.records.some(r=>r.id===record.data.playerId&&r.data.foundryCharacter))continue;
     const actorKind=["character","player","npc","monster"].includes(record.kind);
     const sceneKind=["session-map","world-map"].includes(record.kind);
     const levels=record.kind==="session-map"?record.data.levels:[null];
     for(const level of levels){
+      try{
+      progress.stage(`Импорт · ${record.title}${level?` · ${level.title??level.name??level.id}`:''}`);
       const key=level?`${record.key}/${level.id}`:record.key;
       const overridden=record.data.foundryCharacter?Object.values(state.records).find(e=>e.record.kind==="character"&&e.record.data.playerId===record.id):null;
       const entry=state.records[key]??overridden;let doc=await findDocument(entry);
@@ -105,32 +116,35 @@ export async function refresh(){
       const type=actorKind?"Actor":sceneKind?"Scene":"JournalEntry";
       const destination=await managedFolder(state,snapshot.title,type,folderPath(record,snapshot.records,type));
       if(doc&&(doc.folder?.id??null)!==destination)await doc.update({folder:destination});
-      await importMedia(state,snapshot.title,record,mediaFailures);
+      await importMedia(state,snapshot.title,record,mediaFailures,progress);
+      progress.stage(`Данные и способности · ${record.title}`);
       const presentationHash=JSON.stringify([record.data.art,record.data.gallery]);
-      if(doc && entry?.record.hash===record.hash&&entry.adapterVersion===9&&entry.presentationHash===presentationHash&&!entry.mediaPending)continue;
+      if(doc && entry?.record.hash===record.hash&&entry.adapterVersion===10&&entry.presentationHash===presentationHash&&!entry.mediaPending)continue;
       const localChanged=doc&&entry?.authoring&&!equal(actorKind?authoringActor(doc):sceneKind?sceneAuthoring(record,doc):exportJournal(entry.record.data,doc),entry.authoring);
       if(actorKind&&doc&&game.combats.some(c=>c.started&&c.combatants.some(x=>x.actorId===doc.id))){deferred.push(record.title);continue}
       let mediaPending=false;const plan=actorKind?await actorPlan(record,snapshot.spells??[]):null;
       const projection=plan?.projection??(sceneKind?scenePlan(record,level):journalPlan(record));
       projection.flags[MODULE]={...projection.flags[MODULE],campaignId:state.campaignId,site:state.base};
-      if(projection.img){try{projection.img=await localAsset(state,projection.img,"Портреты")||"icons/svg/mystery-man.svg"}catch{mediaPending=true;mediaFailures.push(record.title);projection.img=doc?.img??"icons/svg/mystery-man.svg"}if(actorKind)projection.prototypeToken.texture={src:projection.img}}
-      if(projection.background?.src)try{projection.background.src=await localAsset(state,projection.background.src,"Карты")||projection.background.src}catch{mediaPending=true;mediaFailures.push(record.title);if(doc)projection.background.src=doc.background.src;else projection.background.src=""}
+      if(projection.img){const url=projection.img;try{progress.stage(`Портрет · ${record.title}`);projection.img=await localAsset(state,url,"Портреты")}catch(error){mediaPending=true;mediaFailures.push({url,title:record.title,message:error.message});projection.img=doc?.img??"icons/svg/mystery-man.svg"}if(actorKind)projection.prototypeToken.texture={src:projection.img}}
+      if(projection.background?.src){const url=projection.background.src;try{progress.stage(`Карта · ${record.title}`);projection.background.src=await localAsset(state,url,"Карты")}catch(error){mediaPending=true;mediaFailures.push({url,title:record.title,message:error.message});if(doc)projection.background.src=doc.background.src;else projection.background.src=""}}
       projection.folder=destination;
       if(doc)await updateProjection(doc,projection,entry?.projection);
       else{projection.folder=destination;const creation=clone(projection);if(actorKind){creation.system.attributes.hp.value=creation.system.attributes.hp.max;for(const slot of Object.values(creation.system.spells??{}))if(Number.isInteger(slot.override)&&slot.override>=0)slot.value=slot.override}doc=await (actorKind?Actor:sceneKind?Scene:JournalEntry).create(creation)}
-      const saved={...entry,uuid:doc.uuid,record:clone(record),projection:clone(projection),adapterVersion:9,presentationHash,mediaPending};
+      const saved={...entry,uuid:doc.uuid,record:clone(record),projection:clone(projection),adapterVersion:10,presentationHash,mediaPending};
       if(plan)await importItems(doc,plan.items,saved);
       if(record.kind==="world-map")await importMapLabels(doc,record.data.labels,saved,(name,fields)=>DialogV2().confirm({window:{title:`Конфликт подписи: ${name}`},content:`<p>Изменены: ${safeHTML(fields.join(", "))}. Применить версию сайта?</p>`}));
       saved.authoring=localChanged?entry.authoring:actorKind?authoringActor(doc):sceneKind?sceneAuthoring(record,doc):exportJournal(record.data,doc);
       state.records[key]=saved;await saveState(state);
       // GM text never lives on an Actor owned by a player.
       if(actorKind&&(record.data.content||entry?.notesText!==undefined)){let notes=game.journal.find(j=>tracked(j,state)&&j.flags?.[MODULE]?.gmFor===doc.id);const changed=notes&&entry?.notesText!==undefined&&entry.notesText!==plainText(Array.from(notes.pages)[0]?.text?.content);const data={folder:await managedFolder(state,snapshot.title,"JournalEntry",["Заметки мастера",category(record.kind)]),name:`GM · ${record.title}`,ownership:{default:0},pages:[{name:"Заметки мастера",type:"text",text:{content:safeHTML(record.data.content),format:1}}],flags:{[MODULE]:{campaignId:state.campaignId,site:state.base,gmFor:doc.id}}};if(!notes){notes=await JournalEntry.create(data)}else{if(notes.folder?.id!==data.folder)await notes.update({folder:data.folder});if(!changed){const page=Array.from(notes.pages)[0];if(page)await page.update({"text.content":safeHTML(record.data.content)})}}saved.notesText=changed?entry.notesText:plainText(Array.from(notes.pages)[0]?.text?.content);await saveState(state)}
+      }finally{progress.done()}
     }
   }
   for(const [key,entry] of Object.entries(state.records)){if(!snapshot.records.some(r=>r.key===entry.record.key)){entry.archived=true}}
-  await saveState(state);if(mediaFailures.length)ui.notifications.warn(`Не удалось загрузить часть изображений (${new Set(mediaFailures).size}). Остальные материалы импортированы; повторите обновление после восстановления доступа к медиа.`);ui.notifications.info(`Обновление завершено.${deferred.length?` Отложено до конца боя: ${deferred.join(", ")}.`:""}`);
+  await saveState(state);if(mediaFailures.length)ui.notifications.warn(`Не удалось загрузить изображений: ${new Set(mediaFailures.map(f=>f.url)).size}. Причины указаны в окне обновления.`);ui.notifications.info(`Обновление завершено.${deferred.length?` Отложено до конца боя: ${deferred.join(", ")}.`:""}`);
 }
-async function uploadAsset(state,path){
+async function uploadAsset(state,path,preferred){
+  if(preferred){const original=new URL(preferred,state.base).pathname;if(state.assets?.[original]===path||Object.entries(state.assetBuckets??{}).some(([key,local])=>key.endsWith(`:${original}`)&&local===path))return preferred}
   if(!path)return "";const known=Object.entries(state.assets??{}).find(([,local])=>local===path);if(known)return known[0];const bucket=Object.entries(state.assetBuckets??{}).find(([,local])=>local===path);if(bucket)return bucket[0].slice(bucket[0].indexOf(":")+1);
   const u=new URL(path,window.location.origin);if(u.origin!==window.location.origin)throw Error("Для экспорта загрузите внешнее изображение в хранилище Foundry.");
   const response=await fetch(u,{credentials:"same-origin",signal:AbortSignal.timeout(60000)});if(!response.ok)throw Error("Не удалось прочитать медиа Foundry.");const blob=await response.blob();const form=new FormData();form.set("file",new File([blob],u.pathname.split("/").at(-1)||"map.png",{type:blob.type}));const result=await request(state,"v1/assets",{method:"POST",body:form});state.assets??={};state.assets[result.url]=path;await saveState(state);return result.url;
@@ -156,8 +170,8 @@ export async function exportSite(){
   if(!selected?.length)return;
   const changes=[];
   for(const x of selected){let data;
-    if(x.doc.documentName==="Actor"){data=x.kind==="character"?x.current:exportEntity(x.entry?.record.data,x.doc);if(x.kind!=="character"&&x.notesText!==undefined)data.content=x.notesText;if(x.kind!=="character"&&x.doc.img&&!x.doc.img.startsWith("icons/")&&!x.doc.img.startsWith("systems/dnd5e/icons/"))data.art={url:await uploadAsset(state,x.doc.img)}}
-    else if(x.doc.documentName==="Scene"){const l=clone(x.current);l.imageUrl=await uploadAsset(state,l.imageUrl);if(x.kind==="world-map"){data={...clone(x.entry.record.data),title:x.doc.name,imageUrl:l.imageUrl,width:l.width,height:l.height,labels:l.labels}}else{data={title:x.entry?.record.title??x.doc.name,levels:[l]};if(x.entry?.record.data.levels){data=clone(x.entry.record.data);const index=data.levels.findIndex(v=>v.id===x.doc.flags[MODULE].levelId);const before=data.levels[index];if(x.doc.name===`${data.title} — ${before.name}`)l.name=before.name;data.levels[index]={...before,...l};l.id=x.doc.flags[MODULE].levelId;data.levels[index].id=l.id}}}
+    if(x.doc.documentName==="Actor"){data=x.kind==="character"?x.current:exportEntity(x.entry?.record.data,x.doc);if(x.kind!=="character"&&x.notesText!==undefined)data.content=x.notesText;if(x.kind!=="character"&&x.doc.img&&!x.doc.img.startsWith("icons/")&&!x.doc.img.startsWith("systems/dnd5e/icons/"))data.art={...data.art,url:await uploadAsset(state,x.doc.img,x.entry?.record.data.art?.url)}}
+    else if(x.doc.documentName==="Scene"){const l=clone(x.current);l.imageUrl=await uploadAsset(state,l.imageUrl,x.entry?.record.data.imageUrl??x.entry?.record.data.levels?.find(v=>v.id===x.doc.flags[MODULE]?.levelId)?.imageUrl);if(x.kind==="world-map"){data={...clone(x.entry.record.data),title:x.doc.name,imageUrl:l.imageUrl,width:l.width,height:l.height,labels:l.labels}}else{data={title:x.entry?.record.title??x.doc.name,levels:[l]};if(x.entry?.record.data.levels){data=clone(x.entry.record.data);const index=data.levels.findIndex(v=>v.id===x.doc.flags[MODULE].levelId);const before=data.levels[index];if(x.doc.name===`${data.title} — ${before.name}`)l.name=before.name;data.levels[index]={...before,...l};l.id=x.doc.flags[MODULE].levelId;data.levels[index].id=l.id}}}
     else{data=exportJournal(x.entry?.record.data,x.doc);if(x.kind==="prep")data={title:x.doc.name,focus:data.content??data.focus??"",status:"draft",location:""}}
     changes.push({key:x.doc.uuid,id:x.entry?.record.id??"",kind:x.kind,baseHash:x.entry?.record.hash??"",data});
   }

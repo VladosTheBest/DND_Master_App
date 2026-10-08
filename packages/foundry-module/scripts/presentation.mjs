@@ -26,7 +26,7 @@ export function itemIcon(v){
   if(v.type==='spell'||v.spellId)return 'icons/svg/book.svg';
   return v.type==='loot'||v.type==='equipment'?'icons/containers/bags/case-simple-brown.webp':'icons/svg/combat.svg';
 }
-export function isWeaponAbility(v){return !v.spellId&&/(меч|выстрел|лук|арбалет|топор|секир|кинжал|копь|молот|sword|bow|crossbow|axe|dagger|spear|hammer)/iu.test(v.name??'')}
+export function isWeaponAbility(v){return !v.spellId&&/(меч|выстрел|лук|арбалет|топор|секир|кинжал|копь|молот|скимитар|булава|sword|bow|crossbow|axe|dagger|spear|hammer|scimitar|mace)/iu.test(v.name??'')}
 export function lootItems(record){
   const d=record.data,items=[],seen=new Set();
   const add=(name,description,key,quantity=1,inferred=false)=>{if(!name||seen.has(name.toLowerCase()))return;seen.add(name.toLowerCase());items.push({name,type:'loot',img:itemIcon({name,type:'loot'}),system:{quantity,description:{value:description}},flags:{[MODULE]:{inventoryKey:key,inferredLoot:inferred}}})};

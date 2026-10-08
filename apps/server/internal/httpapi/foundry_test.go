@@ -3,13 +3,81 @@ package httpapi
 import (
 	"bytes"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 )
+
+func TestFoundryNestedCampaignPortraitAndScope(t *testing.T) {
+	m, c := foundryFixture(t)
+	root := t.TempDir()
+	rel := sanitizeUploadPathSegment(c.OwnerID) + "/" + sanitizeUploadPathSegment(c.CampaignID) + "/proposal-generated/media.webp"
+	file := filepath.Join(root, filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(file), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(file, []byte("RIFF-test-WEBP"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	m.srv.uploads = http.StripPrefix("/uploads/", http.FileServer(http.Dir(root)))
+	w := foundryCall(t, m, "GET", "v1/assets?url="+url.QueryEscape("/uploads/"+rel), nil)
+	if w.Code != 200 || w.Body.String() != "RIFF-test-WEBP" || w.Header().Get("Access-Control-Allow-Origin") != c.Origin {
+		t.Fatalf("nested portrait: %d %s", w.Code, w.Body)
+	}
+	for _, raw := range []string{"/uploads/other/" + c.CampaignID + "/proposal/media.webp", "/uploads/" + sanitizeUploadPathSegment(c.OwnerID) + "/other/proposal/media.webp", "/uploads/" + rel + "/../secret.webp", "/uploads/" + rel + "?x=1", "https://other.example/uploads/" + rel} {
+		if foundryOwnedURL(raw, c) {
+			t.Fatal("unsafe asset accepted")
+		}
+	}
+	// Snapshot exports campaign membership, never the global bestiary or another campaign.
+	for i := range m.srv.store.data.Campaigns {
+		if m.srv.store.data.Campaigns[i].ID == c.CampaignID {
+			m.srv.store.data.Campaigns[i].Monsters = []knowledgeEntity{{ID: "selected", Kind: "monster", Title: "Selected"}}
+		}
+	}
+	m.srv.store.data.Campaigns = append(m.srv.store.data.Campaigns, campaignData{ID: "other", Monsters: []knowledgeEntity{{ID: "unselected", Kind: "monster", Title: "Unselected"}}})
+	rows, _ := foundryRecords(m.srv.store.data, c.CampaignID)
+	if len(rows) != 1 || rows[0].ID != "selected" {
+		t.Fatal("snapshot leaked unselected monsters")
+	}
+	legacy := "/uploads/" + sanitizeUploadPathSegment(c.CampaignID) + "/old-npc.webp"
+	legacyFile := filepath.Join(root, filepath.FromSlash(strings.TrimPrefix(legacy, "/uploads/")))
+	if err := os.MkdirAll(filepath.Dir(legacyFile), 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(legacyFile, []byte("legacy-image"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	if w = foundryCall(t, m, "GET", "v1/assets?url="+url.QueryEscape(legacy), nil); w.Code != 404 {
+		t.Fatal("unreferenced legacy file exposed")
+	}
+	for i := range m.srv.store.data.Campaigns {
+		if m.srv.store.data.Campaigns[i].ID == c.CampaignID {
+			m.srv.store.data.Campaigns[i].Monsters[0].Content = legacy
+		}
+	}
+	if m.legacyAsset(legacy, "example.com", c) {
+		t.Fatal("text mention allowed legacy file")
+	}
+	for i := range m.srv.store.data.Campaigns {
+		if m.srv.store.data.Campaigns[i].ID == c.CampaignID {
+			m.srv.store.data.Campaigns[i].Monsters[0].Art = &heroArt{URL: legacy}
+		}
+	}
+	if w = foundryCall(t, m, "GET", "v1/assets?url="+url.QueryEscape(legacy), nil); w.Code != 200 || w.Body.String() != "legacy-image" {
+		t.Fatal("referenced legacy portrait unavailable")
+	}
+	other := c
+	other.OwnerID = "other-owner"
+	if m.legacyAsset(legacy, "example.com", other) || m.legacyAsset(legacy+"/../secret.webp", "example.com", c) {
+		t.Fatal("legacy ownership or traversal bypass")
+	}
+}
 
 func TestFoundryWizardSnapshotResolvesCurrentBookAndPreparation(t *testing.T) {
 	var draft characterDraft
