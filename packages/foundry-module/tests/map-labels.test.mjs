@@ -1,0 +1,6 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {labelDrawing,drawingLabel,mapLabels} from "../scripts/map-labels.mjs";
+const label={id:"town",text:"Город",x:.4,y:.6,size:20,rotation:30,font:"serif",color:"#ffffff",outline:"#000000",bold:true,italic:false,curve:15,span:200};
+test("world labels roundtrip normalized positions, font scale and metadata",()=>{const drawing=labelDrawing(label,4000,2000),restored=drawingLabel(drawing,4000,2000);assert.equal(drawing.fontSize,80);for(const key of ["x","y","size"])assert(Math.abs(restored[key]-label[key])<1e-10);for(const key of ["text","rotation","font","curve","span","bold"])assert.equal(restored[key],label[key])});
+test("moved, renamed and new text drawings can be exported without geometric annotations",()=>{const drawing=labelDrawing(label,1000,500);drawing.x+=100;drawing.text="Новый город";const labels=mapLabels({width:1000,height:500,drawings:[drawing,{id:"new",text:"Порт",x:50,y:50,shape:{width:100,height:30},fontSize:12,fontFamily:"Arial",textColor:"#ffffff",rotation:0},{text:"",shape:{}}]});assert.equal(labels.length,2);assert.equal(labels[0].text,"Новый город");assert(Math.abs(labels[0].x-.5)<1e-10);assert.equal(labels[1].id,"fvtt-new")});

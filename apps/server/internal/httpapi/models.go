@@ -82,12 +82,13 @@ type abilityScores struct {
 }
 
 type statBlockEntry struct {
-	Name        string `json:"name"`
-	Subtitle    string `json:"subtitle,omitempty"`
-	ToHit       string `json:"toHit,omitempty"`
-	Damage      string `json:"damage,omitempty"`
-	SaveDC      string `json:"saveDc,omitempty"`
-	Description string `json:"description"`
+	Foundry     *foundryMechanics `json:"foundry,omitempty"`
+	Name        string            `json:"name"`
+	Subtitle    string            `json:"subtitle,omitempty"`
+	ToHit       string            `json:"toHit,omitempty"`
+	Damage      string            `json:"damage,omitempty"`
+	SaveDC      string            `json:"saveDc,omitempty"`
+	Description string            `json:"description"`
 }
 
 type spellSlotSummary struct {

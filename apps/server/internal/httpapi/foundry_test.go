@@ -205,6 +205,38 @@ type fmtError string
 
 func (e fmtError) Error() string { return string(e) }
 
+func TestFoundryStructuredMechanicsPersistAndValidate(t *testing.T) {
+	m, c := foundryFixture(t)
+	profile := &foundryMechanics{Kind: "save", Activation: "reaction", Range: 30, SaveAbility: "dex", SaveDC: 15, SaveDamage: "half", DamageType: "fire"}
+	entity := knowledgeEntity{Kind: "npc", Title: "Breath", StatBlock: &npcStatBlock{Actions: []statBlockEntry{{Name: "Breath", Damage: "4d6 fire", Foundry: profile}}}}
+	data, _ := json.Marshal(entity)
+	input := foundryExport{RequestID: "structured-profile-0001", Changes: []foundryChange{{Key: "Actor.profile", Kind: "npc", Data: data}}}
+	if w := foundryCall(t, m, "POST", "v1/export/preview", input); !strings.Contains(w.Body.String(), `"canCommit":true`) {
+		t.Fatal(w.Body.String())
+	}
+	if w := foundryCall(t, m, "POST", "v1/export/commit", input); w.Code != 200 {
+		t.Fatal(w.Body.String())
+	}
+	campaign, _ := m.srv.store.getCampaignForUser(c.OwnerID, c.CampaignID)
+	npc := campaign.NPCs[0]
+	if _, err := m.srv.store.updateEntity(c.CampaignID, npc.ID, createEntityInput{Kind: "npc", Title: "Renamed", StatBlock: npc.StatBlock}); err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := newCampaignStore(m.srv.store.path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved, _ := loaded.getCampaignForUser(c.OwnerID, c.CampaignID)
+	if p := saved.NPCs[0].StatBlock.Actions[0].Foundry; p == nil || *p != *profile {
+		t.Fatal("profile lost after CRUD/restart")
+	}
+	for _, bad := range []foundryMechanics{{Kind: "script"}, {Kind: "save", SaveAbility: "eval"}, {Kind: "attack", Range: -1}, {Kind: "heal", DamageType: "macro"}} {
+		if validateFoundryMechanics(&bad) == nil {
+			t.Fatal("invalid profile accepted")
+		}
+	}
+}
+
 func TestFoundryDistributionUsesServerRouting(t *testing.T) {
 	if !isServerManagedPath("/foundry/connect") || !isServerManagedPath("/foundry/module.json") {
 		t.Fatal("Foundry endpoints would be intercepted by SPA")

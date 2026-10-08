@@ -1,4 +1,5 @@
-import {MODULE,clone,scalarNumber,damageFormula,damageType,attackBonus,authoringActor,sceneLevel} from "./core.mjs";
+import {MODULE,clone,scalarNumber,authoringActor,sceneLevel} from "./core.mjs";
+import {abilityActivity} from "./mechanics.mjs";
 
 export const supportedSpells=new Set(["fire-bolt","ray-of-frost","magic-missile","cure-wounds","healing-word","burning-hands","fireball","lightning-bolt","bless","shield"]);
 export const englishName=name=>String(name).split(" · ").at(-1).trim();
@@ -17,10 +18,8 @@ export async function compendiumItem(name,edition,type="spell"){
   return null;
 }
 export function basicAbility(v,index=0){
-  const formula=damageFormula(v.damage),bonus=attackBonus(v.toHit??v.attackBonus),type=v.damageType||damageType(v.damage);
-  const complete=Boolean(formula&&type&&bonus!==null);
-  const a={_id:`segmact${String(index).padStart(9,"0")}`,type:"attack",activation:{type:"action",value:1},attack:{flat:true,bonus:String(bonus??0),type:{value:"melee",classification:"weapon"}},damage:{includeBase:false,parts:[{custom:{enabled:true,formula:formula??"0"},types:[type??"bludgeoning"]}]},consumption:{spellSlot:false,targets:[]}};
-  return {name:v.name??"Способность",type:"feat",system:{description:{value:safeHTML(v.description)},activities:complete?{[a._id]:a}:{},identifier:`shadow-edge-${index}`},flags:{[MODULE]:{abilityIndex:index,coverage:complete?"partial":"manual",reason:complete?"Настроены бросок и урон; дальность и особые условия требуют проверки.":"Неоднозначный статблок: автоматический расчёт не назначен."}}};
+  const a=abilityActivity(v,index),m=v.foundry??v.mechanics;
+  return {name:v.name??"Способность",type:["feat","weapon","spell"].includes(v.type)?v.type:"feat",system:{description:{value:safeHTML(v.description)},activities:a?{[a._id]:a}:{},range:{value:m?.range??v.range??null,units:"ft"},identifier:`shadow-edge-${index}`},flags:{[MODULE]:{abilityIndex:index,spellId:v.spellId||undefined,coverage:a?"partial":"manual",reason:a?"Базовая механика настроена; сложные условия и эффекты требуют проверки.":"Неоднозначный статблок: автоматический расчёт не назначен."}}};
 }
 async function spellItems(record,catalog){
   let selected=[];const d=record.data;
@@ -56,7 +55,7 @@ export async function actorPlan(record,catalog){
     const skillIDs={"animal-handling":"ani","sleight-of-hand":"slt",athletics:"ath",acrobatics:"acr",arcana:"arc",deception:"dec",history:"his",insight:"ins",intimidation:"itm",investigation:"inv",medicine:"med",nature:"nat",perception:"prc",performance:"prf",persuasion:"per",religion:"rel",stealth:"ste",survival:"sur"};
     projection.system.skills=Object.fromEntries((s.skills??[]).filter(x=>skillIDs[x.id]).map(x=>[skillIDs[x.id],{value:x.proficient?1:0}]));
   }else{
-    let index=0;for(const section of ["actions","bonusActions","reactions","traits"])for(const v of s[section]??[]){const item=basicAbility(v,index++);item.flags[MODULE].section=section;for(const activity of Object.values(item.system.activities))activity.activation.type=section==="bonusActions"?"bonus":section==="reactions"?"reaction":"action";items.push(item)}
+    let index=0;for(const section of ["actions","bonusActions","reactions","traits"])for(const v of s[section]??[]){const item=basicAbility(v,index++);item.flags[MODULE].section=section;if(!v.foundry?.activation)for(const activity of Object.values(item.system.activities))activity.activation.type=section==="bonusActions"?"bonus":section==="reactions"?"reaction":"action";items.push(item)}
     if(external)items=(external.items??[]).map((v,i)=>basicAbility({...v,toHit:String(v.attackBonus)},i));
   }
   items.push(...await spellItems(record,catalog));

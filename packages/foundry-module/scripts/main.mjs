@@ -2,6 +2,8 @@ import {MODULE,clone,equal,mergeThree,validBaseURL,authoringActor,exportEntity,e
 import {loadState,saveState} from "./storage.mjs";
 import {actorPlan,journalPlan,scenePlan,persistentProjection,safeHTML} from "./adapter.mjs";
 import {registerAnimations} from "./animations.mjs";
+import {mapAuthoring,importMapLabels} from "./map-labels.mjs";
+const sceneAuthoring=(record,doc)=>record?.kind==="world-map"?mapAuthoring(doc):sceneLevel(doc);
 
 const DialogV2=()=>foundry.applications.api.DialogV2;
 let busy=false;
@@ -67,8 +69,8 @@ export async function refresh(){
       const overridden=record.data.foundryCharacter?Object.values(state.records).find(e=>e.record.kind==="character"&&e.record.data.playerId===record.id):null;
       const entry=state.records[key]??overridden;let doc=await findDocument(entry);
       if(!doc){const collection=actorKind?game.actors:sceneKind?game.scenes:game.journal;doc=collection.find(d=>tracked(d,state)&&d.flags?.[MODULE]?.sourceKey===record.key&&(!level||d.flags[MODULE].levelId===level.id));if(!doc)doc=collection.find(d=>snapshot.aliases?.[d.uuid]===record.id&&(!level||!d.flags?.[MODULE]?.levelId||d.flags[MODULE].levelId===level.id))}
-      if(doc && entry?.record.hash===record.hash)continue;
-      const localChanged=doc&&entry?.authoring&&!equal(actorKind?authoringActor(doc):sceneKind?sceneLevel(doc):exportJournal(entry.record.data,doc),entry.authoring);
+      if(doc && entry?.record.hash===record.hash&&entry.adapterVersion===2)continue;
+      const localChanged=doc&&entry?.authoring&&!equal(actorKind?authoringActor(doc):sceneKind?sceneAuthoring(record,doc):exportJournal(entry.record.data,doc),entry.authoring);
       if(actorKind&&doc&&game.combats.some(c=>c.started&&c.combatants.some(x=>x.actorId===doc.id))){deferred.push(record.title);continue}
       let plan=actorKind?await actorPlan(record,snapshot.spells??[]):null;
       const projection=plan?.projection??(sceneKind?scenePlan(record,level):journalPlan(record));
@@ -77,9 +79,10 @@ export async function refresh(){
       if(projection.background?.src)projection.background.src=await localAsset(state,projection.background.src)||projection.background.src;
       if(doc)await updateProjection(doc,projection,entry?.projection);
       else{projection.folder=await folder(actorKind?"Actor":sceneKind?"Scene":"JournalEntry",`Shadow Edge · ${snapshot.title}`);const creation=clone(projection);if(actorKind)creation.system.attributes.hp.value=creation.system.attributes.hp.max;doc=await (actorKind?Actor:sceneKind?Scene:JournalEntry).create(creation)}
-      const saved={...entry,uuid:doc.uuid,record:clone(record),projection:clone(projection)};
+      const saved={...entry,uuid:doc.uuid,record:clone(record),projection:clone(projection),adapterVersion:2};
       if(plan)await importItems(doc,plan.items,saved);
-      saved.authoring=localChanged?entry.authoring:actorKind?authoringActor(doc):sceneKind?sceneLevel(doc):exportJournal(record.data,doc);
+      if(record.kind==="world-map")await importMapLabels(doc,record.data.labels,saved,(name,fields)=>DialogV2().confirm({window:{title:`Конфликт подписи: ${name}`},content:`<p>Изменены: ${safeHTML(fields.join(", "))}. Применить версию сайта?</p>`}));
+      saved.authoring=localChanged?entry.authoring:actorKind?authoringActor(doc):sceneKind?sceneAuthoring(record,doc):exportJournal(record.data,doc);
       state.records[key]=saved;await saveState(state);
       // GM text never lives on an Actor owned by a player.
       if(actorKind&&(record.data.content||entry?.notesText!==undefined)){let notes=game.journal.find(j=>tracked(j,state)&&j.flags?.[MODULE]?.gmFor===doc.id);const changed=notes&&entry?.notesText!==undefined&&entry.notesText!==plainText(Array.from(notes.pages)[0]?.text?.content);const data={name:`GM · ${record.title}`,ownership:{default:0},pages:[{name:"Заметки мастера",type:"text",text:{content:safeHTML(record.data.content),format:1}}],flags:{[MODULE]:{campaignId:state.campaignId,site:state.base,gmFor:doc.id}}};if(!notes){notes=await JournalEntry.create(data)}else if(!changed){const page=Array.from(notes.pages)[0];if(page)await page.update({"text.content":safeHTML(record.data.content)})}saved.notesText=changed?entry.notesText:plainText(Array.from(notes.pages)[0]?.text?.content);await saveState(state)}
@@ -100,7 +103,7 @@ export async function exportSite(){
     if(doc.flags?.[MODULE]?.campaignId && !tracked(doc,state))continue;
     const entry=byUUID.get(doc.uuid),record=entry?.record;
     const kind=record?.kind??(doc.documentName==="Actor"?(doc.type==="character"?"character":"npc"):doc.documentName==="Scene"?"session-map":"lore");
-    const current=doc.documentName==="Actor"?authoringActor(doc):doc.documentName==="Scene"?sceneLevel(doc):exportJournal(record?.data,doc);
+    const current=doc.documentName==="Actor"?authoringActor(doc):doc.documentName==="Scene"?sceneAuthoring(record,doc):exportJournal(record?.data,doc);
     const notes=doc.documentName==="Actor"?game.journal.find(j=>tracked(j,state)&&j.flags?.[MODULE]?.gmFor===doc.id):null;
     const notesText=notes?plainText(Array.from(notes.pages)[0]?.text?.content):undefined;
     if(entry&&equal(current,entry.authoring)&&notesText===entry.notesText)continue;
@@ -113,7 +116,7 @@ export async function exportSite(){
   const changes=[];
   for(const x of selected){let data;
     if(x.doc.documentName==="Actor"){data=x.kind==="character"?x.current:exportEntity(x.entry?.record.data,x.doc);if(x.kind!=="character"&&x.notesText!==undefined)data.content=x.notesText;if(x.kind!=="character"&&x.doc.img&&!x.doc.img.startsWith("icons/")&&!x.doc.img.startsWith("systems/dnd5e/icons/"))data.art={url:await uploadAsset(state,x.doc.img)}}
-    else if(x.doc.documentName==="Scene"){const l=clone(x.current);l.imageUrl=await uploadAsset(state,l.imageUrl);if(x.kind==="world-map"){data={...clone(x.entry.record.data),title:x.doc.name,imageUrl:l.imageUrl,width:l.width,height:l.height}}else{data={title:x.entry?.record.title??x.doc.name,levels:[l]};if(x.entry?.record.data.levels){data=clone(x.entry.record.data);const index=data.levels.findIndex(v=>v.id===x.doc.flags[MODULE].levelId);const before=data.levels[index];if(x.doc.name===`${data.title} — ${before.name}`)l.name=before.name;data.levels[index]={...before,...l};l.id=x.doc.flags[MODULE].levelId;data.levels[index].id=l.id}}}
+    else if(x.doc.documentName==="Scene"){const l=clone(x.current);l.imageUrl=await uploadAsset(state,l.imageUrl);if(x.kind==="world-map"){data={...clone(x.entry.record.data),title:x.doc.name,imageUrl:l.imageUrl,width:l.width,height:l.height,labels:l.labels}}else{data={title:x.entry?.record.title??x.doc.name,levels:[l]};if(x.entry?.record.data.levels){data=clone(x.entry.record.data);const index=data.levels.findIndex(v=>v.id===x.doc.flags[MODULE].levelId);const before=data.levels[index];if(x.doc.name===`${data.title} — ${before.name}`)l.name=before.name;data.levels[index]={...before,...l};l.id=x.doc.flags[MODULE].levelId;data.levels[index].id=l.id}}}
     else{data=exportJournal(x.entry?.record.data,x.doc);if(x.kind==="prep")data={title:x.doc.name,focus:data.content??data.focus??"",status:"draft",location:""}}
     changes.push({key:x.doc.uuid,id:x.entry?.record.id??"",kind:x.kind,baseHash:x.entry?.record.hash??"",data});
   }

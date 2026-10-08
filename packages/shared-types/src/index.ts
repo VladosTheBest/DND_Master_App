@@ -1,6 +1,6 @@
 import type { WorldMapDocument } from "./world-maps";
-import type { FoundryActor, SessionMapDocument } from "./foundry";
-export type { FoundryActor, FoundryAbility, SessionMapDocument } from "./foundry";
+import type { FoundryActor, FoundryMechanics, SessionMapDocument } from "./foundry";
+export type { FoundryActor, FoundryAbility, FoundryMechanics, SessionMapDocument } from "./foundry";
 export type { WorldMapDocument, WorldMapLabel } from "./world-maps";
 
 export type ModuleId =
@@ -124,6 +124,7 @@ export interface AbilityScores {
 }
 
 export interface StatBlockEntry {
+  foundry?: FoundryMechanics;
   name: string;
   subtitle?: string;
   toHit?: string;

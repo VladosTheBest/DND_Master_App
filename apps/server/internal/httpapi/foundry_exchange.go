@@ -211,6 +211,15 @@ func normalizeFoundryChange(v foundryChange, old foundryRecord, c foundryConnect
 		e.ID = v.ID
 		e.Kind = v.Kind
 		e.Revision = 1
+		if e.StatBlock != nil {
+			for _, section := range [][]statBlockEntry{e.StatBlock.Actions, e.StatBlock.BonusActions, e.StatBlock.Reactions, e.StatBlock.Traits} {
+				for _, entry := range section {
+					if err := validateFoundryMechanics(entry.Foundry); err != nil {
+						return nil, "", err
+					}
+				}
+			}
+		}
 		var previous knowledgeEntity
 		_ = json.Unmarshal(old.Data, &previous)
 		if err := validateProposalEntityMedia(e, &previous, c.OwnerID, c.CampaignID); err != nil {
@@ -307,12 +316,33 @@ func validateFoundryActor(a foundryActor) error {
 		}
 	}
 	for _, v := range a.Items {
+		if err := validateFoundryMechanics(v.Mechanics); err != nil {
+			return err
+		}
 		if len(v.Description) > 60000 || len(v.Name) > 200 || len(v.Damage) > 80 {
 			return fmt.Errorf("Слишком большая способность.")
 		}
 		if v.Type != "spell" && v.Type != "weapon" && v.Type != "feat" {
 			return fmt.Errorf("Неизвестный тип способности.")
 		}
+	}
+	return nil
+}
+func validateFoundryMechanics(m *foundryMechanics) error {
+	if m == nil {
+		return nil
+	}
+	if m.Kind != "attack" && m.Kind != "save" && m.Kind != "heal" && m.Kind != "damage" && m.Kind != "manual" {
+		return fmt.Errorf("Неизвестный тип расчёта способности.")
+	}
+	if m.Activation != "" && m.Activation != "action" && m.Activation != "bonus" && m.Activation != "reaction" || m.AttackMode != "" && m.AttackMode != "melee" && m.AttackMode != "ranged" || m.Range < 0 || m.Range > 10000 || m.SaveDC < 0 || m.SaveDC > 100 {
+		return fmt.Errorf("Некорректные параметры способности.")
+	}
+	if m.SaveAbility != "" && m.SaveAbility != "str" && m.SaveAbility != "dex" && m.SaveAbility != "con" && m.SaveAbility != "int" && m.SaveAbility != "wis" && m.SaveAbility != "cha" || m.SaveDamage != "" && m.SaveDamage != "half" && m.SaveDamage != "none" {
+		return fmt.Errorf("Некорректный спасбросок.")
+	}
+	if m.DamageType != "" && !strings.Contains("|acid|bludgeoning|cold|fire|force|lightning|necrotic|piercing|poison|psychic|radiant|slashing|thunder|healing|", "|"+m.DamageType+"|") {
+		return fmt.Errorf("Неизвестный тип урона.")
 	}
 	return nil
 }

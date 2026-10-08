@@ -50,17 +50,29 @@ type foundryActor struct {
 
 // No JavaScript, macros, arbitrary flags or effect expressions are transported.
 type foundryAbility struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Type        string `json:"type"`
-	SpellID     string `json:"spellId,omitempty"`
-	AttackBonus int    `json:"attackBonus,omitempty"`
-	Damage      string `json:"damage,omitempty"`
-	DamageType  string `json:"damageType,omitempty"`
+	Mechanics   *foundryMechanics `json:"mechanics,omitempty"`
+	ID          string            `json:"id"`
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
+	Type        string            `json:"type"`
+	SpellID     string            `json:"spellId,omitempty"`
+	AttackBonus int               `json:"attackBonus,omitempty"`
+	Damage      string            `json:"damage,omitempty"`
+	DamageType  string            `json:"damageType,omitempty"`
+	SaveAbility string            `json:"saveAbility,omitempty"`
+	SaveDC      int               `json:"saveDc,omitempty"`
+	Range       int               `json:"range,omitempty"`
+}
+
+type foundryMechanics struct {
+	Kind        string `json:"kind"`
+	Activation  string `json:"activation,omitempty"`
+	AttackMode  string `json:"attackMode,omitempty"`
+	Range       int    `json:"range,omitempty"`
 	SaveAbility string `json:"saveAbility,omitempty"`
 	SaveDC      int    `json:"saveDc,omitempty"`
-	Range       int    `json:"range,omitempty"`
+	SaveDamage  string `json:"saveDamage,omitempty"`
+	DamageType  string `json:"damageType,omitempty"`
 }
 type foundryRecord struct {
 	Key   string          `json:"key"`

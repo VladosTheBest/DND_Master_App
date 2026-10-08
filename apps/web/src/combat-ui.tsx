@@ -3,6 +3,7 @@ import {
   useState,
   type ReactNode
 } from "react";
+import { FoundryMechanicsEditor } from "./features/entities/FoundryMechanicsEditor";
 import type {
   CombatEntry,
   EntityKind,
@@ -553,6 +554,7 @@ export function StatEntryEditorSection({
                   <span>Описание</span>
                   <textarea className="input textarea" onChange={(event) => onChange(index, { description: event.target.value })} value={entry.description} />
                 </label>
+                <FoundryMechanicsEditor entry={entry} onChange={patch=>onChange(index,patch)} />
               </div>
             </article>
           ))
