@@ -1,7 +1,9 @@
 import {MODULE,clone,scalarNumber,authoringActor,sceneLevel,damageType} from "./core.mjs";
 import {abilityActivity} from "./mechanics.mjs";
+import {areaProfiles} from './area-profiles.mjs';
 
 export const supportedSpells=new Set(["fire-bolt","ray-of-frost","magic-missile","cure-wounds","healing-word","burning-hands","fireball","lightning-bolt","bless","shield"]);
+for(const [id,p]of Object.entries(areaProfiles))if(!['oil','acid','alchemists-fire'].includes(id))supportedSpells.add(id);
 export const englishName=name=>String(name).split(" · ").at(-1).trim();
 export function spellKey(id){return String(id).replace(/-(2014|2024)$/,"")}
 export function safeHTML(text){return `<p>${String(text??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll("\n","<br>")}</p>`}
@@ -83,7 +85,7 @@ export function scenePlan(record,level){
   return {name:level?`${record.title} — ${d.name}`:record.title,width:w,height:h,background:{src:d.imageUrl},active:false,grid:{type:d.grid?.type==="none"?0:1,size:Math.max(50,Math.round((d.grid?.size??0.1)*w)),distance:d.gridDistance||5,units:"ft"},walls:(d.walls??[]).map(wall=>({c:[wall.start.x*w,wall.start.y*h,wall.end.x*w,wall.end.y*h],door:wall.kind==="door"?1:0})),flags:{[MODULE]:{sourceKey:record.key,kind:record.kind,levelId:d.id,scaleKnown:Boolean(d.gridDistance)}}};
 }
 export function persistentProjection(doc,template){
-  const source=doc.toObject?doc.toObject():doc;
+  const raw=doc.toObject?doc.toObject():doc,source=raw.walls?{...raw,walls:Array.from(raw.walls).filter(w=>!w.flags?.[MODULE]?.areaRegion)}:raw;
   function take(v,t){if(Array.isArray(t))return (v??[]).map((item,index)=>t[index]&&typeof t[index]==="object"?take(item,t[index]):t[0]&&typeof t[0]==="object"?take(item,t[0]):clone(item));if(t&&typeof t==="object"){const out={};for(const k of Object.keys(t))out[k]=take(v?.[k],t[k]);return out}return clone(v)}
   return take(source,template);
 }

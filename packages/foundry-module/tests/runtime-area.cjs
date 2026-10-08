@@ -13,13 +13,13 @@ const assert=require('node:assert/strict'),{chromium}=require(process.env.PLAYWR
    for(const region of [...scene.regions])if(region.flags.dnd5e?.activity)await region.delete();
    const [unrelated]=await scene.createEmbeddedDocuments('Region',[{name:'Preserved region',shapes:[{type:'circle',x:1400,y:900,radius:50}]}]);
    window.__areaEvents=[];window.__dsnRolls=[];window.__areaGraphics=new Map();window.__areaRendered=new Set();
-   Hooks.on('shadow-edge-gm.animationFrame',e=>{if(e.graphics.geometry?.graphicsData?.length>50||e.graphics.parent?.children.filter(c=>c.visible).length>10)window.__areaRendered.add(e.id)});
+   Hooks.on('shadow-edge-gm.animationFrame',e=>{if(e.graphics.geometry?.graphicsData?.length>4||e.graphics.parent?.children.filter(c=>c.visible).length>10)window.__areaRendered.add(e.id)});
    Hooks.on('shadow-edge-gm.animationStart',e=>{window.__areaEvents.push({kind:'start',id:e.id,time:performance.now(),regions:canvas.scene.regions.size});window.__areaGraphics.set(e.id,e.graphics)});
    Hooks.on('shadow-edge-gm.animationEnd',e=>window.__areaEvents.push({kind:'end',id:e.id,time:performance.now()}));
    Hooks.on('diceSoNiceRollStart',(id,data)=>window.__dsnRolls.push({id,sides:data.roll.dice.map(d=>d.faces),time:performance.now()}));
    return {scene:scene.id,actors,unrelated:unrelated.id,regions:scene.regions.size};
   });
-  for(const key of ['fireball-2024','burning-hands-2024','lightning-bolt-2024']){
+  for(const key of ['fireball-2024','burning-hands-2024','lightning-bolt-2024','thunderwave-2024','shatter-2024','ice-storm-2024']){
    await page.mouse.move(800,450);
    await page.evaluate(key=>{const caster=canvas.tokens.placeables.find(t=>t.name.startsWith('Тестовый маг'));caster.control();for(const t of game.user.targets)t.setTarget(false,{user:game.user});const item=caster.actor.items.find(i=>i.flags['shadow-edge-gm']?.spellId===key);window.__areaCast=item.system.activities.contents[0].use({},{configure:false})},key);
    await page.waitForFunction(()=>!!canvas.regions._placementContext?.preview);

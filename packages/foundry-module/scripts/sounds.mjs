@@ -10,7 +10,14 @@ export const soundProfiles={
   'cure-wounds':{noise:0.03,tone:523,fall:659,chime:true},'healing-word':{noise:0.03,tone:659,fall:784,chime:true},
   fireball:{noise:0.95,tone:75,fall:32,hit:0.18},'burning-hands':{noise:0.9,tone:140,fall:55,hit:0.15},
   'lightning-bolt':{noise:0.9,tone:1800,fall:80,hit:0.15},bless:{noise:0.02,tone:784,fall:1047,chime:true},
-  shield:{noise:0.08,tone:392,fall:523,chime:true}
+  shield:{noise:0.08,tone:392,fall:523,chime:true},
+  grease:{noise:.25,tone:140,fall:65},oil:{noise:.3,tone:120,fall:45},
+  'wall-of-fire':{noise:.8,tone:130,fall:45,hit:.4},'spike-growth':{noise:.4,tone:230,fall:120},
+  entangle:{noise:.3,tone:350,fall:180},darkness:{noise:.15,tone:90,fall:50,chime:true},
+  'fog-cloud':{noise:.4,tone:300,fall:120},web:{noise:.2,tone:550,fall:260},
+  moonbeam:{noise:.03,tone:880,fall:1320,chime:true},thunderwave:{noise:.95,tone:80,fall:35,hit:.4},
+  shatter:{noise:.65,tone:1600,fall:650,hit:.4},'ice-storm':{noise:.7,tone:1300,fall:500,hit:.4},
+  acid:{noise:.6,tone:420,fall:130,hit:.6},'alchemists-fire':{noise:.75,tone:270,fall:80,hit:.6}
 };
 export function soundSamples(key,sampleRate=48000){
   if(!Object.hasOwn(soundProfiles,key)||!Number.isFinite(sampleRate)||sampleRate<8000||sampleRate>192000)return null;

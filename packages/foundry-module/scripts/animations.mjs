@@ -1,5 +1,6 @@
 import {MODULE,activityValues} from './core.mjs';
 import {profiles,renderEffect,validEffect,clearEffects,effectFinished} from './native-effects.mjs';
+import {areaProfile,zoneGeometry} from './area-profiles.mjs';
 export const effects=Object.fromEntries(Object.entries(profiles).map(([key,[mode]])=>[key,{key,mode}]));
 export function midiAnimationMode(){const m=game.modules.get('midi-qol');return Boolean(m?.active&&(Number.parseInt(game.system.version,10)<6||m.version?.startsWith('14.6.')))}
 export function weaponProfile(item){
@@ -9,6 +10,7 @@ export function weaponProfile(item){
 }
 export function animationProfile(item,activity){
  if(!item?.flags?.[MODULE])return null;
+ const area=areaProfile(item);if(area)return effects[area.key];
  const spell=item.flags[MODULE].spellId?.replace(/-(2014|2024)$/,'');if(effects[spell])return effects[spell];
  activity??=activityValues(item.system?.activities)[0];
  if(activity?.type==='heal')return effects['cure-wounds'];
@@ -33,7 +35,7 @@ export async function playAnimation({item,activity,source,targets=[],template,id
  if(profile.mode==='self'||(!targets.length&&!template&&activity?.type==='heal'))targets=[source];
  if(!targets.length&&!template)return false;
  const p={key:profile.key,id:String(id??foundry.utils.randomID()),sceneId:canvas.scene.id,userId:game.user.id,actorUuid:item.actor.uuid,source:point(source),targets:targets.map(point),size:Math.min(1000,Math.max(10,canvas.grid.size)),loop};
- if(template){const d=template.document??template,s=d.shapes?.[0];p.template=s?{x:s.x,y:s.y,length:s.radius??s.length??20*canvas.grid.size/canvas.scene.grid.distance,direction:s.rotation??0}:{x:d.x,y:d.y,length:(d.distance??20)*canvas.grid.size/canvas.scene.grid.distance,direction:d.direction??0}}
+ if(template){const d=template.document??template,s=d.shapes?.[0],bounds=d.shapes&&zoneGeometry(d.shapes);p.template=bounds&&profile.mode==='zone'?{x:bounds.cx,y:bounds.cy,length:Math.max(bounds.width,bounds.height)/2,direction:0,shapes:d.shapes.map(s=>({...s}))}:s?{x:s.x,y:s.y,length:s.radius??s.length??20*canvas.grid.size/canvas.scene.grid.distance,direction:s.rotation??0}:{x:d.x,y:d.y,length:(d.distance??20)*canvas.grid.size/canvas.scene.grid.distance,direction:d.direction??0}}
  if(!validEffect(p))return false;
  const played=receive(p);
  // Hidden tokens stay local to the GM; do not publish even their coordinates.
@@ -49,6 +51,7 @@ export function registerAnimations(){
  const play=data=>void playAnimation(data).catch(()=>ui.notifications.warn('Не удалось воспроизвести анимацию. Способность остаётся доступной.'));
  Hooks.on('dnd5e.postUseActivity',(activity,config,results)=>{
   if(midiAnimationMode()||!results?.message)return;
+  if(areaProfile(activity.item)?.persistent)return;
   if(results.message.flags?.[MODULE]?.combatOrigin?.areaExpected&&!results.templates?.length)return;
   // Managed areas are captured, removed and animated by the authoritative GM before resolving combat.
   if(results.templates?.length&&results.message.flags?.[MODULE]?.combatOrigin)return;

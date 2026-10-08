@@ -86,5 +86,5 @@ export function exportJournal(source,doc) {
 }
 export function sceneLevel(doc,id="level") {
   const w=doc.width||doc.dimensions?.sceneWidth||1000,h=doc.height||doc.dimensions?.sceneHeight||1000;
-  return {id,name:doc.name,imageUrl:doc.background?.src??"",width:w,height:h,walls:Array.from(doc.walls??[]).map(x=>({id:x.id??x._id,kind:x.door?"door":"wall",start:{x:x.c[0]/w,y:x.c[1]/h},end:{x:x.c[2]/w,y:x.c[3]/h},disabled:false})),grid:{type:doc.grid?.type===0?"none":"square",size:(doc.grid?.size??100)/w,color:doc.grid?.color??"#ffffff",opacity:doc.grid?.alpha??0.3},gridDistance:doc.grid?.distance??0};
+  return {id,name:doc.name,imageUrl:doc.background?.src??"",width:w,height:h,walls:Array.from(doc.walls??[]).filter(x=>!x.flags?.[MODULE]?.areaRegion).map(x=>({id:x.id??x._id,kind:x.door?"door":"wall",start:{x:x.c[0]/w,y:x.c[1]/h},end:{x:x.c[2]/w,y:x.c[3]/h},disabled:false})),grid:{type:doc.grid?.type===0?"none":"square",size:(doc.grid?.size??100)/w,color:doc.grid?.color??"#ffffff",opacity:doc.grid?.alpha??0.3},gridDistance:doc.grid?.distance??0};
 }

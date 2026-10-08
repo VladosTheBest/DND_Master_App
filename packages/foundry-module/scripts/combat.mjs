@@ -1,8 +1,9 @@
 import {MODULE,clone} from './core.mjs';
 import {safeHTML} from './adapter.mjs';
 import {midiAnimationMode,playAnimation} from './animations.mjs';
+import {areaProfile} from './area-profiles.mjs';
 const key='combat',requestKey='combatRequest';
-export function combatEnabled(activity){return Number.parseInt(game.system.version,10)>=6&&!midiAnimationMode()&&activity?.item?.flags?.[MODULE]?.coverage==='partial'&&!activity.item.flags[MODULE].spellId?.startsWith('magic-missile')&&['attack','save','damage'].includes(activity.type)}
+export function combatEnabled(activity){return Number.parseInt(game.system.version,10)>=6&&!midiAnimationMode()&&!areaProfile(activity?.item)?.persistent&&activity?.item?.flags?.[MODULE]?.coverage==='partial'&&!activity.item.flags[MODULE].spellId?.startsWith('magic-missile')&&['attack','save','damage'].includes(activity.type)}
 export function attackHits(roll,ac){const die=roll.dice?.find(d=>d.faces===20)?.results?.find(r=>r.active!==false&&!r.discarded)?.result;return die!==1&&(roll.isCritical||die===20||roll.total>=ac)}
 export function areaTargets(scene,template){
  if(template.shapes?.length){const size=scene.grid.size;return scene.tokens.filter(t=>t.actor&&template.shapes.some(s=>{const cx=t.x+t.width*size/2,cy=t.y+t.height*size/2,point={x:s.type==='circle'?Math.max(t.x,Math.min(s.x,t.x+t.width*size)):cx,y:s.type==='circle'?Math.max(t.y,Math.min(s.y,t.y+t.height*size)):cy,elevation:t.elevation??0};return template.testPoint?.(point)??(s.type==='circle'&&(point.x-s.x)**2+(point.y-s.y)**2<=s.radius**2)})).map(t=>t.uuid)}
@@ -15,8 +16,8 @@ export function areaTargets(scene,template){
 function gm(){return game.users.filter(u=>u.active&&u.isGM).sort((a,b)=>a.id.localeCompare(b.id))[0]}
 const owns=(user,actor)=>Boolean(user?.isGM||actor?.testUserPermission(user,'OWNER'));
 let queue=Promise.resolve(),registered=false,coordinator=true;
-const controlsCombat=()=>coordinator&&game.user.id===gm()?.id&&game.user.flags?.[MODULE]?.combatSession===game.socket.id;
-function enqueue(fn){queue=queue.then(fn).catch(e=>{console.error(`${MODULE}: combat`,e);ui.notifications.error(`Бой: ${e.message}`)})}
+export const controlsCombat=()=>coordinator&&game.user.id===gm()?.id&&game.user.flags?.[MODULE]?.combatSession===game.socket.id;
+export function enqueue(fn){queue=queue.then(fn).catch(e=>{console.error(`${MODULE}: combat`,e);ui.notifications.error(`Бой: ${e.message}`)})}
 async function activityFor(w){let a=await fromUuid(w.activityUuid);if(w.scaling)a=a.item.scaledClone(w.scaling).system.activities.get(a.id);return a}
 async function write(message,w){await message.update({[`flags.${MODULE}.${key}`]:w})}
 export async function startCombat(origin){
@@ -128,7 +129,7 @@ async function finishUsage(a,results){
 export function registerCombat(){
  if(registered)return;registered=true;
  const handleRequest=message=>{const blocked=fromUuidSync(message.flags?.[MODULE]?.[requestKey]?.workflowUuid)?.flags?.[MODULE]?.[key]?.phase==='animation';enqueue(async()=>{if(!controlsCombat())return;try{if(!blocked)await processCombatRequest(message)}finally{if(game.messages.has(message.id))await message.delete()}})};
- Hooks.on('ready',()=>{if(!game.user.isGM)return;coordinator=false;const claim=async()=>{await game.user.setFlag(MODULE,'combatSession',game.socket.id);coordinator=true;for(const m of game.messages){if(m.flags?.[MODULE]?.combatReady)enqueue(()=>startCombat(m));else if(m.flags?.[MODULE]?.[key]?.phase==='animation')enqueue(async()=>{if(controlsCombat()){const w=clone(m.flags[MODULE][key]);w.phase='resolve';await write(m,w)}});else if(m.flags?.[MODULE]?.[requestKey]&&controlsCombat())handleRequest(m)}};if(globalThis.navigator?.locks)void navigator.locks.request(`${MODULE}:combat:${game.world.id}:${game.user.id}`,async()=>{await claim();await new Promise(resolve=>window.addEventListener('pagehide',resolve,{once:true}));coordinator=false});else void claim()});
+ Hooks.on('ready',()=>{if(!game.user.isGM)return;coordinator=false;const claim=async()=>{await game.user.setFlag(MODULE,'combatSession',game.socket.id);coordinator=true;Hooks.callAll("shadow-edge-gm.combatCoordinatorReady");for(const m of game.messages){if(m.flags?.[MODULE]?.combatReady)enqueue(()=>startCombat(m));else if(m.flags?.[MODULE]?.[key]?.phase==='animation')enqueue(async()=>{if(controlsCombat()){const w=clone(m.flags[MODULE][key]);w.phase='resolve';await write(m,w)}});else if(m.flags?.[MODULE]?.[requestKey]&&controlsCombat())handleRequest(m)}};if(globalThis.navigator?.locks)void navigator.locks.request(`${MODULE}:combat:${game.world.id}:${game.user.id}`,async()=>{await claim();await new Promise(resolve=>window.addEventListener('pagehide',resolve,{once:true}));coordinator=false});else void claim()});
  Hooks.on('dnd5e.preUseActivity',(a,usage,dialog,message)=>{
   if(!combatEnabled(a)||!gm()||usage.subsequentActions===false)return;
   const source=a.actor.token?.object??a.actor.getActiveTokens().find(t=>t.controlled)??a.actor.getActiveTokens()[0];

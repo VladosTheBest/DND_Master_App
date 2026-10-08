@@ -1,5 +1,7 @@
 // Original procedural textures and vector effects; no external media or renderer dependency.
 import {playEffectSound} from './sounds.mjs';
+import {areaProfiles,validZoneShapes} from './area-profiles.mjs';
+import {makeZonePainter} from './area-effects.mjs';
 export const profiles = {
   'fire-bolt': ['projectile',0xff8028], 'ray-of-frost':['projectile',0x80ddff],
   'magic-missile':['projectile',0xc082ff], 'cure-wounds':['target',0x55ffaa],
@@ -11,14 +13,16 @@ export const profiles = {
   dagger:['melee',0xb8e7ff], spear:['melee',0xd1d9b2], claw:['melee',0xff7777],
   thrown:['projectile',0xcccddd], impact:['target',0x99bbff]
 };
+for(const [key,p] of Object.entries(areaProfiles))profiles[key]=[['acid','alchemists-fire'].includes(key)?'projectile':'zone',p.color];
 export function validEffect(p){
+  if(p?.template?.shapes&&!validZoneShapes(p.template.shapes))return false;
   const point=v=>v&&Number.isFinite(v.x)&&Number.isFinite(v.y)&&Math.abs(v.x)<100000&&Math.abs(v.y)<100000;
   return Boolean(p&&Object.hasOwn(profiles,p.key)&&(p.loop===undefined||typeof p.loop==='boolean')&&(!p.loop||['cure-wounds','healing-word'].includes(p.key))&&typeof p.id==='string'&&p.id.length<=200&&typeof p.sceneId==='string'&&typeof p.userId==='string'&&typeof p.actorUuid==='string'&&p.actorUuid.length<200&&point(p.source)&&Array.isArray(p.targets)&&p.targets.length<=20&&p.targets.every(point)&&Number.isFinite(p.size)&&p.size>=10&&p.size<=1000&&(!p.template||(point(p.template)&&Number.isFinite(p.template.length)&&p.template.length>0&&p.template.length<=10000&&Number.isFinite(p.template.direction))));
 }
 const active=new Set();
 const completions=new Map();
 const endings=new Map();
-export const effectDuration=p=>p.template||profiles[p.key]?.[0]==='burst'?2800:2600;
+export const effectDuration=p=>p.template||['burst','zone'].includes(profiles[p.key]?.[0])?2800:2600;
 export const effectFinished=id=>completions.get(id)??Promise.resolve();
 export const endEffect=id=>endings.get(id)?.();
 export function clearEffects(){for(const stop of [...active])stop()}
@@ -61,6 +65,7 @@ export function renderEffect(p){
   const targets=p.targets.filter(t=>game.user.isGM||(!canvas.tokens.get(t.tokenId)?.document.hidden&&canvas.tokens.get(t.tokenId)?.visible));
   if(!targets.length&&!p.template)return false;
   const [mode,color]=profiles[p.key],g=new PIXI.Graphics(),layer=new PIXI.Container(),sprites=[];layer.name=`shadow-edge-effect:${p.id}`;layer.addChild(g);canvas.interface.addChild(layer);let spriteIndex=0;
+  const zone=mode==='zone'?makeZonePainter(layer,p.key,p.template?.shapes??[{type:'circle',x:p.template?.x??targets[0]?.x,y:p.template?.y??targets[0]?.y,radius:p.template?.length??p.size}],p.size):null;
   let frame,finish,ending=null;const start=performance.now(),duration=effectDuration(p);
   endings.set(p.id,()=>{ending??=performance.now()});
   completions.set(p.id,new Promise(resolve=>{finish=resolve}));
@@ -108,6 +113,7 @@ export function renderEffect(p){
     for(const target of targets){const token=canvas.tokens.get(target.tokenId);if(token?.center)Object.assign(target,token.center)}
     g.clear();
     spriteIndex=0;for(const sprite of sprites)sprite.visible=false;
+    if(zone){const u=Math.min(1,t/.4),x=p.source.x+(zone.bounds.cx-p.source.x)*u,y=p.source.y+(zone.bounds.cy-p.source.y)*u;glow(x,y,s*.35,color,Math.max(0,1-t/.5));zone.draw(t*2.8,Math.min(1,Math.max(0,(t-.25)/.2))*fade);Hooks.callAll('shadow-edge-gm.animationFrame',{id:p.id,key:p.key,graphics:zone.graphics});frame=requestAnimationFrame(draw);return}
     if(p.template||mode==='burst'){cinematic(t,s);Hooks.callAll('shadow-edge-gm.animationFrame',{id:p.id,key:p.key,graphics:g});frame=requestAnimationFrame(draw);return}
     const dest=p.template?[{x:p.template.x,y:p.template.y}]:targets;
     for(const target of dest){
