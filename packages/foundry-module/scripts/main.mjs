@@ -1,3 +1,5 @@
+import {importItems} from './item-import.mjs';
+export {importItems} from './item-import.mjs';
 import {sceneCreation,sceneBackground,setSceneBackground} from './scene-background.mjs';
 import {roundTokenAsset,updatePlacedTokenArt} from './token-art.mjs';
 import {showAnimationLibrary} from './animation-library.mjs';
@@ -73,16 +75,6 @@ async function updateProjection(doc,projection,previous){
   if(doc.documentName==='Scene')delete result.value.background;
   await doc.update(result.value);if(background!==undefined)await setSceneBackground(doc,background);return persistentProjection(doc,projection);
 }
-export async function importItems(actor,items,state){
-  const previous=state.itemBaselines??{};const next={...previous};
-  for(let index=0;index<items.length;index++){
-    const source=clone(items[index]);if(source.system?.uses)delete source.system.uses.spent;for(const activity of Object.values(source.system?.activities??{}))if(activity.uses)delete activity.uses.spent;
-    const key=source.flags?.[MODULE]?.inventoryKey??source.flags?.[MODULE]?.spellId??(source.flags?.[MODULE]?.sourceClass?"class":`ability-${index}`);
-    let existing=actor.items.find(i=>i.flags?.[MODULE]?.importKey===key);if(!existing&&(source.flags?.[MODULE]?.inventoryKey||source.flags?.[MODULE]?.aiAdded)&&previous[key])continue;source.flags??={};source.flags[MODULE]={...source.flags[MODULE],importKey:key};
-    if(existing){const template=clone(source);delete template._id;const baseline=previous[key];const local=persistentProjection(existing,baseline??template);if(!baseline || !equal(local,baseline)){if(source.img&&(!existing.img||existing.img==="icons/svg/item-bag.svg"))await existing.update({img:source.img});ui.notifications.warn(`Сохранена местная способность: ${existing.name}.`);continue};const spent=existing.system.uses?.spent;if(existing.type!==template.type){template.flags={...clone(existing.flags),...template.flags};const [replacement]=await actor.createEmbeddedDocuments("Item",[template]);try{await existing.delete()}catch(error){await replacement.delete();throw error}existing=replacement}else {for(const id of Object.keys(existing.system.activities??{}))if(!template.system?.activities?.[id])template[`system.activities.-=${id}`]=null;await existing.update(template);}if(spent!==undefined)await existing.update({"system.uses.spent":spent})}else{[existing]=await actor.createEmbeddedDocuments("Item",[source])}
-    next[key]=persistentProjection(existing,source);
-  }state.itemBaselines=next;
-}
 async function importMedia(state,title,record,failures,progress){
   const entries=mediaEntries(record);if(!entries.length)return;
   const folder=await managedFolder(state,title,"JournalEntry",[`Галерея · ${category(record.kind)}`,record.title]);
@@ -97,10 +89,10 @@ async function importMedia(state,title,record,failures,progress){
   }
 }
 export async function refresh(){
-  const progress=importProgress(),mediaFailures=[];let failure;
-  try{await refreshCampaign(progress,mediaFailures)}catch(error){failure=error;throw error}finally{progress.finish(failure,mediaFailures)}
+  const progress=importProgress(),mediaFailures=[],preserved=[];let failure;
+  try{await refreshCampaign(progress,mediaFailures,preserved)}catch(error){failure=error;throw error}finally{progress.finish(failure,mediaFailures,preserved)}
 }
-async function refreshCampaign(progress,mediaFailures){
+async function refreshCampaign(progress,mediaFailures,preserved){
   progress.stage('Подключение и получение материалов кампании');
   const state=await connected(),snapshot=await request(state,"v1/snapshot");if(snapshot.schemaVersion!==1)throw Error("Версия API не поддерживается.");
   const deferred=[];
@@ -144,7 +136,7 @@ async function refreshCampaign(progress,mediaFailures){
       if(sceneKind&&projection.background?.src&&!sceneBackground(doc))await setSceneBackground(doc,projection.background.src);
       if(actorKind)try{await updatePlacedTokenArt(doc,previousTokenArt)}catch(error){mediaPending=true;mediaFailures.push({url:projection.img,title:record.title,message:`Токены на сценах: ${error.message}`})}
       const saved={...entry,uuid:doc.uuid,record:clone(record),projection:clone(projection),adapterVersion:13,presentationHash,mediaPending};
-      if(plan)await importItems(doc,plan.items,saved);
+      if(plan)preserved.push(...await importItems(doc,plan.items,saved));
       if(record.kind==="world-map")await importMapLabels(doc,record.data.labels,saved,(name,fields)=>DialogV2().confirm({window:{title:`Конфликт подписи: ${name}`},content:`<p>Изменены: ${safeHTML(fields.join(", "))}. Применить версию сайта?</p>`}));
       saved.authoring=localChanged?entry.authoring:actorKind?authoringActor(doc):sceneKind?sceneAuthoring(record,doc):exportJournal(record.data,doc);
       state.records[key]=saved;await saveState(state);

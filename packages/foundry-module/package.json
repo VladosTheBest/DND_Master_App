@@ -1,10 +1,10 @@
 {
   "name": "@shadow-edge/foundry-module",
-  "version": "0.13.2",
+  "version": "0.13.3",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test tests/core.test.mjs tests/adapter.test.mjs tests/boot.test.mjs tests/connection.test.mjs tests/presentation.test.mjs tests/mechanics.test.mjs tests/map-labels.test.mjs tests/animations.test.mjs tests/sounds.test.mjs tests/combat.test.mjs tests/areas.test.mjs tests/actor-ai.test.mjs tests/scene-ai.test.mjs tests/token-art.test.mjs",
+    "test": "node --test tests/core.test.mjs tests/adapter.test.mjs tests/boot.test.mjs tests/connection.test.mjs tests/presentation.test.mjs tests/mechanics.test.mjs tests/map-labels.test.mjs tests/animations.test.mjs tests/sounds.test.mjs tests/combat.test.mjs tests/areas.test.mjs tests/actor-ai.test.mjs tests/scene-ai.test.mjs tests/token-art.test.mjs tests/item-import.test.mjs",
     "test:runtime": "node tests/runtime-smoke.cjs",
     "build": "node scripts/build.mjs"
   }
