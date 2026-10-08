@@ -1,4 +1,4 @@
-import {MODULE,clone,scalarNumber,authoringActor,sceneLevel} from "./core.mjs";
+import {MODULE,clone,scalarNumber,authoringActor,sceneLevel,damageType} from "./core.mjs";
 import {abilityActivity} from "./mechanics.mjs";
 
 export const supportedSpells=new Set(["fire-bolt","ray-of-frost","magic-missile","cure-wounds","healing-word","burning-hands","fireball","lightning-bolt","bless","shield"]);
@@ -6,6 +6,15 @@ export const englishName=name=>String(name).split(" · ").at(-1).trim();
 export function spellKey(id){return String(id).replace(/-(2014|2024)$/,"")}
 export function safeHTML(text){return `<p>${String(text??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll("\n","<br>")}</p>`}
 const indexCache=new Map();
+export function npcSaveBonuses(text,scores,modern=true){
+  if(typeof text!=='string')return {};
+  const names={str:'str',сила:'str',сил:'str',dex:'dex',ловкость:'dex',лов:'dex',con:'con',телосложение:'con',тел:'con',int:'int',интеллект:'int',инт:'int',wis:'wis',мудрость:'wis',мдр:'wis',cha:'cha',харизма:'cha',хар:'cha'},out={};
+  for(const part of text.split(/[,;]/)){const m=part.trim().toLowerCase().match(/^([a-zа-яё]+)\s*:?\s*([+-]\d+)$/u),id=m&&names[m[1]];if(!id||Math.abs(Number(m[2]))>50)continue;const bonus=String(Number(m[2])-Math.floor(((scores[id]??10)-10)/2));out[id]=modern?{save:{roll:{bonus}}}:{bonuses:{save:bonus}}}return out;
+}
+export function plainDamageTraits(text){
+  if(typeof text!=='string')return [];
+  return [...new Set(text.split(/[,;]/).map(part=>/^[a-zа-яё-]+(?:\s+(?:damage|урон[а-яё]*))?$/iu.test(part.trim())?damageType(part):null).filter(Boolean))];
+}
 export async function compendiumItem(name,edition,type="spell"){
   const english=englishName(name).toLowerCase();
   for(const pack of game.packs.values()){
@@ -31,7 +40,7 @@ async function spellItems(record,catalog){
     const configured=Boolean(item&&supportedSpells.has(spellKey(id)));
     item??={type:"spell",system:{level:s.level,description:{value:safeHTML(s.description)},activities:{}}};
     item.name=s.name;item.flags??={};item.flags[MODULE]={spellId:id,coverage:configured?"partial":"manual",reason:configured?"Механика взята из SRD системы; требуется проверка сложных эффектов в целевой связке.":"Вне проверяемого набора или нет совпадения в SRD."};
-    // Only our Sequencer hook owns imported spell animations.
+    // Our built-in hook owns imported spell animations.
     item.flags.autoanimations={isEnabled:false};items.push(item);
   }return items;
 }
@@ -43,6 +52,7 @@ export async function actorPlan(record,catalog){
   if(d.art?.url)projection.img=d.art.url;
   // dnd5e 6 stores AC calculations as a set; calc is now a derived field.
   if(Number.parseInt(globalThis.game?.system?.version??"5",10)>=6)projection.system.attributes.ac={calcs:["flat"],flat:ac??10};
+  if(!native&&!external){for(const [id,save]of Object.entries(npcSaveBonuses(s.savingThrows,abilityValues,Number.parseInt(game.system.version,10)>=6)))Object.assign(projection.system.abilities[id],save);const dr=plainDamageTraits(s.resistances),di=plainDamageTraits(s.immunities);if(dr.length||di.length)projection.system.traits={...(dr.length?{dr:{value:dr}}:{}),...(di.length?{di:{value:di}}:{})}}
   let items=[];
   if(native){
     const classNames={barbarian:"Barbarian",bard:"Bard",cleric:"Cleric",druid:"Druid",fighter:"Fighter",monk:"Monk",paladin:"Paladin",ranger:"Ranger",rogue:"Rogue",sorcerer:"Sorcerer",warlock:"Warlock",wizard:"Wizard",artificer:"Artificer"};

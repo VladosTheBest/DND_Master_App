@@ -33,7 +33,7 @@ export async function playAnimation({item,activity,source,targets=[],template,id
  if(profile.mode==='self'||(!targets.length&&!template&&activity?.type==='heal'))targets=[source];
  if(!targets.length&&!template)return false;
  const p={key:profile.key,id:String(id??foundry.utils.randomID()),sceneId:canvas.scene.id,userId:game.user.id,actorUuid:item.actor.uuid,source:point(source),targets:targets.map(point),size:Math.min(1000,Math.max(10,canvas.grid.size))};
- if(template&&['burst','cone','ray'].includes(profile.mode)){const d=template.document??template;p.template={x:d.x,y:d.y,length:(d.distance??20)*canvas.grid.size/canvas.scene.grid.distance,direction:d.direction??0}}
+ if(template&&['burst','cone','ray'].includes(profile.mode)){const d=template.document??template,s=d.shapes?.[0];p.template=s?{x:s.x,y:s.y,length:s.radius??s.length??20*canvas.grid.size/canvas.scene.grid.distance,direction:s.rotation??0}:{x:d.x,y:d.y,length:(d.distance??20)*canvas.grid.size/canvas.scene.grid.distance,direction:d.direction??0}}
  if(!validEffect(p))return false;
  const played=receive(p);
  // Hidden tokens stay local to the GM; do not publish even their coordinates.
@@ -48,6 +48,7 @@ export function registerAnimations(){
  const play=data=>void playAnimation(data).catch(()=>ui.notifications.warn('Не удалось воспроизвести анимацию. Способность остаётся доступной.'));
  Hooks.on('dnd5e.postUseActivity',(activity,config,results)=>{
   if(midiAnimationMode()||!results?.message)return;
+  if(results.message.flags?.[MODULE]?.combatOrigin?.areaExpected&&!results.templates?.length)return;
   const actor=activity.item?.actor,source=actor?.token?.object??actor?.getActiveTokens()?.find(t=>t.controlled)??actor?.getActiveTokens()?.[0];
   play({item:activity.item,activity,source,targets:Array.from(game.user.targets??[]),template:results.templates?.[0],id:results.message.uuid??results.message.id});
  });
