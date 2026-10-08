@@ -1,4 +1,5 @@
 // Original vector effects, bundled with the module; no external media or renderer dependency.
+import {playEffectSound} from './sounds.mjs';
 export const profiles = {
   'fire-bolt': ['projectile',0xff8028], 'ray-of-frost':['projectile',0x80ddff],
   'magic-missile':['projectile',0xc082ff], 'cure-wounds':['target',0x55ffaa],
@@ -24,7 +25,8 @@ export function renderEffect(p){
   if(!targets.length&&!p.template)return false;
   const [mode,color]=profiles[p.key],g=new PIXI.Graphics();canvas.interface.addChild(g);
   let frame;const start=performance.now(),duration=1100;
-  const stop=()=>{cancelAnimationFrame(frame);active.delete(stop);g.parent?.removeChild(g);g.destroy()};active.add(stop);
+  const stopSound=playEffectSound(p.key,p.id);
+  const stop=()=>{cancelAnimationFrame(frame);stopSound?.();active.delete(stop);g.parent?.removeChild(g);g.destroy()};active.add(stop);
   Hooks.callAll('shadow-edge-gm.animationStart',{id:p.id,key:p.key,graphics:g});
   const line=(a,b,width,c=color,alpha=1)=>{g.lineStyle(width,c,alpha);g.moveTo(a.x,a.y);g.lineTo(b.x,b.y)};
   const circle=(x,y,r,c=color,alpha=1)=>{g.beginFill(c,alpha);g.drawCircle(x,y,r);g.endFill()};
