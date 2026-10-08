@@ -8,7 +8,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||"playwright");
   try{
     const page=await browser.newPage({viewport:{width:1440,height:900}});
     await page.goto(process.env.FOUNDRY_TEST_URL);
-    await page.selectOption('select[name="userid"]',{label:"Gamemaster"});
+    if(await page.locator('select[name="userid"]').count())await page.selectOption('select[name="userid"]',{label:"Gamemaster"});else await page.locator('input[name="username"]').fill("Gamemaster");
     await page.locator('button[name="join"]').click();
     await page.waitForFunction(()=>typeof game!=="undefined"&&game.ready,null,{timeout:45000});
     const result=await page.evaluate(async()=>{

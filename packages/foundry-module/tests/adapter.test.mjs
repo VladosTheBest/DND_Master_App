@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {basicAbility,scenePlan,spellKey,supportedSpells,persistentProjection} from "../scripts/adapter.mjs";
+import {basicAbility,actorPlan,scenePlan,spellKey,supportedSpells,persistentProjection} from "../scripts/adapter.mjs";
+test("dnd5e 6 stores flat AC in calcs while dnd5e 5 retains calc",async()=>{
+ const previous=globalThis.game;try{for(const version of ["5.3.3","6.0.6"]){globalThis.game={system:{version},packs:new Map()};const plan=await actorPlan({key:"npc:ac",kind:"npc",data:{title:"AC",statBlock:{armorClass:"17"}}},[]);assert.deepEqual(plan.projection.system.attributes.ac,version.startsWith("6")?{calcs:["flat"],flat:17}:{calc:"flat",flat:17})}}finally{globalThis.game=previous}
+});
 test("ambiguous attacks stay manual instead of receiving invented damage",()=>{
  const x=basicAbility({name:"Unknown",toHit:"special",damage:"varies"});assert.deepEqual(x.system.activities,{});assert.equal(x.flags["shadow-edge-gm"].coverage,"manual");
  const y=basicAbility({name:"Sword",toHit:"+5",damage:"1d8+3 slashing"});assert.equal(Object.values(y.system.activities)[0].attack.bonus,"5");

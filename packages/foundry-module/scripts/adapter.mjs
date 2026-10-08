@@ -41,6 +41,8 @@ export async function actorPlan(record,catalog){
   const hp=native?s.maxHp:external?s.maxHp:scalarNumber(s.hitPoints),ac=native?s.armorClass:external?s.armorClass:scalarNumber(s.armorClass),speed=native?s.speed:external?s.speed:scalarNumber(s.speed);
   const projection={name:native?d.draft.name:d.title,type:native||record.kind==="player"?"character":"npc",system:{abilities:Object.fromEntries(["str","dex","con","int","wis","cha"].map(k=>[k,{value:abilityValues[k]??10}])),attributes:{ac:{calc:"flat",flat:ac??10},hp:{max:hp??1},movement:{walk:speed??30}},details:{biography:{value:safeHTML(d.playerContent??""),public:safeHTML(d.playerContent??"")}}},prototypeToken:{name:native?d.draft.name:d.title,actorLink:native||record.kind==="player",disposition:native||record.kind==="player"?1:-1},flags:{[MODULE]:{sourceKey:record.key,kind:record.kind,edition:d.draft?.edition??external?.edition??"2014"}}};
   if(d.art?.url)projection.img=d.art.url;
+  // dnd5e 6 stores AC calculations as a set; calc is now a derived field.
+  if(Number.parseInt(globalThis.game?.system?.version??"5",10)>=6)projection.system.attributes.ac={calcs:["flat"],flat:ac??10};
   let items=[];
   if(native){
     const classNames={barbarian:"Barbarian",bard:"Bard",cleric:"Cleric",druid:"Druid",fighter:"Fighter",monk:"Monk",paladin:"Paladin",ranger:"Ranger",rogue:"Rogue",sorcerer:"Sorcerer",warlock:"Warlock",wizard:"Wizard",artificer:"Artificer"};

@@ -69,7 +69,7 @@ export async function refresh(){
       const overridden=record.data.foundryCharacter?Object.values(state.records).find(e=>e.record.kind==="character"&&e.record.data.playerId===record.id):null;
       const entry=state.records[key]??overridden;let doc=await findDocument(entry);
       if(!doc){const collection=actorKind?game.actors:sceneKind?game.scenes:game.journal;doc=collection.find(d=>tracked(d,state)&&d.flags?.[MODULE]?.sourceKey===record.key&&(!level||d.flags[MODULE].levelId===level.id));if(!doc)doc=collection.find(d=>snapshot.aliases?.[d.uuid]===record.id&&(!level||!d.flags?.[MODULE]?.levelId||d.flags[MODULE].levelId===level.id))}
-      if(doc && entry?.record.hash===record.hash&&entry.adapterVersion===2)continue;
+      if(doc && entry?.record.hash===record.hash&&entry.adapterVersion===3)continue;
       const localChanged=doc&&entry?.authoring&&!equal(actorKind?authoringActor(doc):sceneKind?sceneAuthoring(record,doc):exportJournal(entry.record.data,doc),entry.authoring);
       if(actorKind&&doc&&game.combats.some(c=>c.started&&c.combatants.some(x=>x.actorId===doc.id))){deferred.push(record.title);continue}
       let plan=actorKind?await actorPlan(record,snapshot.spells??[]):null;
@@ -79,7 +79,7 @@ export async function refresh(){
       if(projection.background?.src)projection.background.src=await localAsset(state,projection.background.src)||projection.background.src;
       if(doc)await updateProjection(doc,projection,entry?.projection);
       else{projection.folder=await folder(actorKind?"Actor":sceneKind?"Scene":"JournalEntry",`Shadow Edge · ${snapshot.title}`);const creation=clone(projection);if(actorKind)creation.system.attributes.hp.value=creation.system.attributes.hp.max;doc=await (actorKind?Actor:sceneKind?Scene:JournalEntry).create(creation)}
-      const saved={...entry,uuid:doc.uuid,record:clone(record),projection:clone(projection),adapterVersion:2};
+      const saved={...entry,uuid:doc.uuid,record:clone(record),projection:clone(projection),adapterVersion:3};
       if(plan)await importItems(doc,plan.items,saved);
       if(record.kind==="world-map")await importMapLabels(doc,record.data.labels,saved,(name,fields)=>DialogV2().confirm({window:{title:`Конфликт подписи: ${name}`},content:`<p>Изменены: ${safeHTML(fields.join(", "))}. Применить версию сайта?</p>`}));
       saved.authoring=localChanged?entry.authoring:actorKind?authoringActor(doc):sceneKind?sceneAuthoring(record,doc):exportJournal(record.data,doc);
@@ -134,6 +134,7 @@ export async function exportSite(){
   await saveState(state);ui.notifications.info("Экспорт сохранён на сайте.");
 }
 async function configureAutomation(){
+  if(Number.parseInt(game.system.version,10)>=6&&game.modules.get("midi-qol")?.active&&!game.modules.get("midi-qol").version.startsWith("14.6."))throw Error("Для dnd5e 6 нужен совместимый Midi-QOL 14.6.x. Обмен с сайтом работает без него.");
   if(!game.modules.get("midi-qol")?.active)throw Error("Включите обязательный модуль Midi-QOL.");
   const accepted=await DialogV2().confirm({window:{title:"Настроить полный расчёт"},content:"<p>Включить автоматические атаки, спасброски, применение урона и расход ресурсов? Текущие настройки будут сохранены для восстановления.</p>"});if(!accepted)return;
   const old=clone(game.settings.get("midi-qol","ConfigSettings"));if(!game.settings.get(MODULE,"automationBackup"))await game.settings.set(MODULE,"automationBackup",old);

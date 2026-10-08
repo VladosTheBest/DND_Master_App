@@ -2,7 +2,7 @@
 const assert=require("node:assert/strict");
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||"playwright");
 (async()=>{if(!process.env.FOUNDRY_TEST_URL)throw Error("Set FOUNDRY_TEST_URL to a launched disposable world.");const browser=await chromium.launch({headless:true,channel:"chrome"});try{
- const page=await browser.newPage({viewport:{width:1440,height:900}});await page.goto(process.env.FOUNDRY_TEST_URL);await page.selectOption('select[name="userid"]',{label:"Gamemaster"});await page.locator('button[name="join"]').click();await page.waitForFunction(()=>typeof game!=="undefined"&&game.ready,null,{timeout:45000});
+ const page=await browser.newPage({viewport:{width:1440,height:900}});await page.goto(process.env.FOUNDRY_TEST_URL);if(await page.locator('select[name="userid"]').count())await page.selectOption('select[name="userid"]',{label:"Gamemaster"});else await page.locator('input[name="username"]').fill("Gamemaster");await page.locator('button[name="join"]').click();await page.waitForFunction(()=>typeof game!=="undefined"&&game.ready,null,{timeout:45000});
  const result=await page.evaluate(async()=>{
   const {basicAbility}=await import("/modules/shadow-edge-gm/scripts/adapter.mjs"),{authoringActor}=await import("/modules/shadow-edge-gm/scripts/core.mjs"),{importMapLabels,mapLabels}=await import("/modules/shadow-edge-gm/scripts/map-labels.mjs");
   const actor=await Actor.create({name:"Extension test",type:"npc"});let scene;
