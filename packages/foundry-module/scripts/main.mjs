@@ -1,10 +1,11 @@
 import {MODULE,clone,equal,mergeThree,validBaseURL,authoringActor,exportEntity,exportJournal,sceneLevel,plainText} from "./core.mjs";
 import {loadState,saveState} from "./storage.mjs";
 import {actorPlan,journalPlan,scenePlan,persistentProjection,safeHTML} from "./adapter.mjs";
-import {registerAnimations} from "./animations.mjs";
+import {registerAnimations,animationStatus} from "./animations.mjs";
 import {mapAuthoring,importMapLabels} from "./map-labels.mjs";
 const sceneAuthoring=(record,doc)=>record?.kind==="world-map"?mapAuthoring(doc):sceneLevel(doc);
 
+import {createDemoScene} from "./demo.mjs";
 const DialogV2=()=>foundry.applications.api.DialogV2;
 let busy=false;
 function exchangeGM(){const gm=game.users.filter(u=>u.active&&u.isGM).sort((a,b)=>a.id.localeCompare(b.id))[0];if(gm?.id!==game.user.id)throw Error(`Обмен выполняет активный мастер ${gm?.name??"—"}.`)}
@@ -69,7 +70,7 @@ export async function refresh(){
       const overridden=record.data.foundryCharacter?Object.values(state.records).find(e=>e.record.kind==="character"&&e.record.data.playerId===record.id):null;
       const entry=state.records[key]??overridden;let doc=await findDocument(entry);
       if(!doc){const collection=actorKind?game.actors:sceneKind?game.scenes:game.journal;doc=collection.find(d=>tracked(d,state)&&d.flags?.[MODULE]?.sourceKey===record.key&&(!level||d.flags[MODULE].levelId===level.id));if(!doc)doc=collection.find(d=>snapshot.aliases?.[d.uuid]===record.id&&(!level||!d.flags?.[MODULE]?.levelId||d.flags[MODULE].levelId===level.id))}
-      if(doc && entry?.record.hash===record.hash&&entry.adapterVersion===3)continue;
+      if(doc && entry?.record.hash===record.hash&&entry.adapterVersion===4)continue;
       const localChanged=doc&&entry?.authoring&&!equal(actorKind?authoringActor(doc):sceneKind?sceneAuthoring(record,doc):exportJournal(entry.record.data,doc),entry.authoring);
       if(actorKind&&doc&&game.combats.some(c=>c.started&&c.combatants.some(x=>x.actorId===doc.id))){deferred.push(record.title);continue}
       let plan=actorKind?await actorPlan(record,snapshot.spells??[]):null;
@@ -79,7 +80,7 @@ export async function refresh(){
       if(projection.background?.src)projection.background.src=await localAsset(state,projection.background.src)||projection.background.src;
       if(doc)await updateProjection(doc,projection,entry?.projection);
       else{projection.folder=await folder(actorKind?"Actor":sceneKind?"Scene":"JournalEntry",`Shadow Edge · ${snapshot.title}`);const creation=clone(projection);if(actorKind)creation.system.attributes.hp.value=creation.system.attributes.hp.max;doc=await (actorKind?Actor:sceneKind?Scene:JournalEntry).create(creation)}
-      const saved={...entry,uuid:doc.uuid,record:clone(record),projection:clone(projection),adapterVersion:3};
+      const saved={...entry,uuid:doc.uuid,record:clone(record),projection:clone(projection),adapterVersion:4};
       if(plan)await importItems(doc,plan.items,saved);
       if(record.kind==="world-map")await importMapLabels(doc,record.data.labels,saved,(name,fields)=>DialogV2().confirm({window:{title:`Конфликт подписи: ${name}`},content:`<p>Изменены: ${safeHTML(fields.join(", "))}. Применить версию сайта?</p>`}));
       saved.authoring=localChanged?entry.authoring:actorKind?authoringActor(doc):sceneKind?sceneAuthoring(record,doc):exportJournal(record.data,doc);
@@ -100,6 +101,7 @@ export async function exportSite(){
   const state=await connected(),candidates=[];const byUUID=new Map(Object.values(state.records).map(e=>[e.uuid,e]));
   for(const collection of [game.actors,game.scenes,game.journal])for(const doc of collection){
     if(doc.flags?.[MODULE]?.gmFor)continue;
+    if(doc.flags?.[MODULE]?.demo)continue;
     if(doc.flags?.[MODULE]?.campaignId && !tracked(doc,state))continue;
     const entry=byUUID.get(doc.uuid),record=entry?.record;
     const kind=record?.kind??(doc.documentName==="Actor"?(doc.type==="character"?"character":"npc"):doc.documentName==="Scene"?"session-map":"lore");
@@ -140,6 +142,6 @@ async function configureAutomation(){
   const old=clone(game.settings.get("midi-qol","ConfigSettings"));if(!game.settings.get(MODULE,"automationBackup"))await game.settings.set(MODULE,"automationBackup",old);
   await game.settings.set("midi-qol","ConfigSettings",{...old,autoRollAttack:true,gmAutoAttack:true,autoRollDamage:"always",gmAutoDamage:"always",autoCheckHit:"all",autoCheckSaves:"all",autoApplyDamage:"yes",consumeResource:"both",gmConsumeResource:"both",autoItemEffects:"applyRemove",concentrationAutomation:true});ui.notifications.info("Профиль автоматизации сохранён.");
 }
-async function panel(){const state=await loadState();const abilities=game.actors.filter(a=>tracked(a,state)).flatMap(a=>a.items.contents).filter(i=>i.flags?.[MODULE]?.coverage);const manual=abilities.filter(i=>i.flags[MODULE].coverage==="manual").length;await DialogV2().wait({window:{title:"Shadow Edge GM"},content:`<div class="shadow-edge-panel"><p>${safeHTML(state.title??"Кампания не подключена")}</p><p>Обмен выполняется только по кнопкам.</p><p>Способности: ${abilities.length-manual} с частичной настройкой, ${manual} для ручного расчёта. Сложные условия и эффекты требуют проверки мастером.</p></div>`,buttons:[{action:"connect",label:"Подключить",callback:()=>run(beginConnection)},{action:"finish",label:"Завершить подключение",callback:()=>run(finishConnection)},{action:"refresh",label:"Обновить с сайта",callback:()=>run(refresh)},{action:"export",label:"Экспортировать на сайт",callback:()=>run(exportSite)},{action:"setup",label:"Настроить расчёты",callback:()=>run(configureAutomation)},{action:"restore",label:"Восстановить настройки",callback:()=>run(async()=>{const backup=game.settings.get(MODULE,"automationBackup");if(backup){await game.settings.set("midi-qol","ConfigSettings",backup);await game.settings.set(MODULE,"automationBackup",null)}})},{action:"disconnect",label:"Отключить в браузере",callback:()=>run(async()=>saveState({records:{}}))}]})}
+async function panel(){const state=await loadState();const abilities=game.actors.filter(a=>tracked(a,state)).flatMap(a=>a.items.contents).filter(i=>i.flags?.[MODULE]?.coverage);const manual=abilities.filter(i=>i.flags[MODULE].coverage==="manual").length;await DialogV2().wait({window:{title:"Shadow Edge GM"},content:`<div class="shadow-edge-panel"><p>${safeHTML(state.title??"Кампания не подключена")}</p><p>Обмен выполняется только по кнопкам.</p><p>${safeHTML(animationStatus())}</p><p>Способности: ${abilities.length-manual} с частичной настройкой, ${manual} для ручного расчёта. Сложные условия и эффекты требуют проверки мастером.</p></div>`,buttons:[{action:"connect",label:"Подключить",callback:()=>run(beginConnection)},{action:"finish",label:"Завершить подключение",callback:()=>run(finishConnection)},{action:"refresh",label:"Обновить с сайта",callback:()=>run(refresh)},{action:"export",label:"Экспортировать на сайт",callback:()=>run(exportSite)},{action:"demo",label:"Тестовая сцена анимаций",callback:()=>run(createDemoScene)},{action:"setup",label:"Настроить расчёты",callback:()=>run(configureAutomation)},{action:"restore",label:"Восстановить настройки",callback:()=>run(async()=>{const backup=game.settings.get(MODULE,"automationBackup");if(backup){await game.settings.set("midi-qol","ConfigSettings",backup);await game.settings.set(MODULE,"automationBackup",null)}})},{action:"disconnect",label:"Отключить в браузере",callback:()=>run(async()=>saveState({records:{}}))}]})}
 Hooks.once("init",()=>game.settings.register(MODULE,"automationBackup",{scope:"world",config:false,type:Object,default:null}));
 Hooks.once("ready",()=>{registerAnimations();if(!game.user.isGM)return;const button=document.createElement("button");button.className="shadow-edge-launch";button.textContent="Shadow Edge GM";button.onclick=()=>panel().catch(e=>ui.notifications.error(e.message));document.body.append(button)});
