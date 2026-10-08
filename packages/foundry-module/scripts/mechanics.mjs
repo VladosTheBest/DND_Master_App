@@ -11,7 +11,7 @@ function inferredSave(v){
 function damageParts(raw,kind,explicitType){
   const text=String(raw??'').replace(/(\d)к(?=\d)/gi,'$1d');if(/[@*/]|если|спасброс|при\s+(?:провал|успеш)|\bif\b|\bsave\b/iu.test(text))return null;
   const chunks=text.split(/\s+(?:плюс|plus)\s+|\s+(?:и|and)\s+(?=\d+\s*\()/iu),parts=[];
-  for(const chunk of chunks){const formula=damageFormula(chunk),dice=chunk.match(/\d+d\d+/gi)??[],type=explicitType||damageType(chunk);if(!formula||dice.length>1||kind!=='heal'&&!types.has(type))return null;parts.push({custom:{enabled:true,formula},types:[kind==='heal'?'healing':type]})}
+  for(const chunk of chunks){const formula=damageFormula(chunk),dice=chunk.match(/\d+d\d+/gi)??[],type=damageType(chunk)||explicitType;if(!formula||dice.length>1||kind!=='heal'&&!types.has(type))return null;parts.push({custom:{enabled:true,formula},types:[kind==='heal'?'healing':type]})}
   return parts;
 }
 export function abilityActivity(v,index=0){

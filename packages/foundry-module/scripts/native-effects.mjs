@@ -15,6 +15,7 @@ export const profiles = {
 };
 for(const [key,p] of Object.entries(areaProfiles))profiles[key]=[['acid','alchemists-fire'].includes(key)?'projectile':'zone',p.color];
 export function validEffect(p){
+  if(p?.color!==undefined&&(typeof p.color!=='string'||!/^#[0-9a-f]{6}$/i.test(p.color)))return false;
   if(p?.template?.shapes&&!validZoneShapes(p.template.shapes))return false;
   const point=v=>v&&Number.isFinite(v.x)&&Number.isFinite(v.y)&&Math.abs(v.x)<100000&&Math.abs(v.y)<100000;
   return Boolean(p&&Object.hasOwn(profiles,p.key)&&(p.loop===undefined||typeof p.loop==='boolean')&&(!p.loop||['cure-wounds','healing-word'].includes(p.key))&&typeof p.id==='string'&&p.id.length<=200&&typeof p.sceneId==='string'&&typeof p.userId==='string'&&typeof p.actorUuid==='string'&&p.actorUuid.length<200&&point(p.source)&&Array.isArray(p.targets)&&p.targets.length<=20&&p.targets.every(point)&&Number.isFinite(p.size)&&p.size>=10&&p.size<=1000&&(!p.template||(point(p.template)&&Number.isFinite(p.template.length)&&p.template.length>0&&p.template.length<=10000&&Number.isFinite(p.template.direction))));
@@ -64,14 +65,14 @@ export function renderEffect(p){
   if(!game.user.isGM&&(!sourceToken?.visible||sourceToken.document.hidden))return false;
   const targets=p.targets.filter(t=>game.user.isGM||(!canvas.tokens.get(t.tokenId)?.document.hidden&&canvas.tokens.get(t.tokenId)?.visible));
   if(!targets.length&&!p.template)return false;
-  const [mode,color]=profiles[p.key],g=new PIXI.Graphics(),layer=new PIXI.Container(),sprites=[];layer.name=`shadow-edge-effect:${p.id}`;layer.addChild(g);canvas.interface.addChild(layer);let spriteIndex=0;
+  const [mode,baseColor]=profiles[p.key],color=p.color?Number.parseInt(p.color.slice(1),16):baseColor,g=new PIXI.Graphics(),layer=new PIXI.Container(),sprites=[];layer.name=`shadow-edge-effect:${p.id}`;layer.addChild(g);canvas.interface.addChild(layer);let spriteIndex=0;
   const zone=mode==='zone'?makeZonePainter(layer,p.key,p.template?.shapes??[{type:'circle',x:p.template?.x??targets[0]?.x,y:p.template?.y??targets[0]?.y,radius:p.template?.length??p.size}],p.size):null;
   let frame,finish,ending=null;const start=performance.now(),duration=effectDuration(p);
   endings.set(p.id,()=>{ending??=performance.now()});
   completions.set(p.id,new Promise(resolve=>{finish=resolve}));
   const stopSound=playEffectSound(p.key,p.id);
   const stop=()=>{cancelAnimationFrame(frame);stopSound?.();active.delete(stop);layer.parent?.removeChild(layer);layer.destroy({children:true});completions.delete(p.id);endings.delete(p.id);finish();Hooks.callAll('shadow-edge-gm.animationEnd',{id:p.id,key:p.key})};active.add(stop);
-  Hooks.callAll('shadow-edge-gm.animationStart',{id:p.id,key:p.key,graphics:g,duration,source:p.source,loop:Boolean(p.loop)});
+  Hooks.callAll('shadow-edge-gm.animationStart',{id:p.id,key:p.key,color,graphics:g,duration,source:p.source,loop:Boolean(p.loop)});
   const line=(a,b,width,c=color,alpha=1)=>{g.lineStyle(width,c,alpha);g.moveTo(a.x,a.y);g.lineTo(b.x,b.y)};
   const circle=(x,y,r,c=color,alpha=1)=>{g.beginFill(c,alpha);g.drawCircle(x,y,r);g.endFill()};
   const glow=(x,y,r,c,alpha)=>{let sprite=sprites[spriteIndex++];if(!sprite){sprite=new PIXI.Sprite(softCloudTexture());sprite.anchor.set(.5);sprite.blendMode=PIXI.BLEND_MODES.ADD;layer.addChildAt(sprite,layer.children.length-1);sprites.push(sprite)}sprite.visible=true;sprite.position.set(x,y);sprite.width=r*2;sprite.height=r*2.1;sprite.rotation=spriteIndex*2.399;sprite.tint=c;sprite.alpha=alpha};
@@ -89,11 +90,11 @@ export function renderEffect(p){
         for(let j=0;j<10;j++){const v=point(length*(j+.5)/10,0);glow(v.x,v.y,s*.55,0x62bfff,fade*.65)}
         glow(point(length,0).x,point(length,0).y,s*.8,0xffffff,fade*.6);
       }else{
-        for(let j=0;j<48;j++){const along=length*(.12+(j%12)/14),width=along*.40,side=Math.sin(j*2.399+t*9)*width,v=point(along,side),r=s*.18+along*.10;glow(v.x,v.y,r*2.2,0xff3808,fade*.68);glow(v.x,v.y,r,0xffd33c,fade*.8)}
+        for(let j=0;j<48;j++){const along=length*(.12+(j%12)/14),width=along*.40,side=Math.sin(j*2.399+t*9)*width,v=point(along,side),r=s*.18+along*.10;glow(v.x,v.y,r*2.2,p.color?color:0xff3808,fade*.68);glow(v.x,v.y,r,p.color?color:0xffd33c,fade*.8)}
       }
       return;
     }
-    const fire=p.key==='fireball',warm=fire?0xff590c:color,hot=fire?0xffd658:0xddeeff;
+    const fire=p.key==='fireball',warm=fire&&!p.color?0xff590c:color,hot=p.color?0xffffff:fire?0xffd658:0xddeeff;
     const travel=Math.min(1,t/.18),explode=Math.max(0,(t-.18)/.82),expansion=ease(explode/.35),r=radius*expansion;
     if(t<.21){const x=p.source.x+(o.x-p.source.x)*travel,y=p.source.y+(o.y-p.source.y)*travel;for(let j=12;j>=0;j--)glow(x-(o.x-p.source.x)*j*.012,y-(o.y-p.source.y)*j*.012,s*(.22-j*.01),warm,.7);glow(x,y,s*.5,hot,.9)}
     if(!explode)return;

@@ -35,7 +35,7 @@ export async function playAnimation({item,activity,source,targets=[],template,id
  targets=targets.map(t=>t?.object??t).filter(t=>t?.center).slice(0,20);
  if(profile.mode==='self'||(!targets.length&&!template&&activity?.type==='heal'))targets=[source];
  if(!targets.length&&!template)return false;
- const p={key:profile.key,id:String(id??foundry.utils.randomID()),sceneId:canvas.scene.id,userId:game.user.id,actorUuid:item.actor.uuid,source:point(source),targets:targets.map(point),size:Math.min(1000,Math.max(10,canvas.grid.size)),loop};
+ const p={key:profile.key,color:item.flags[MODULE].aiAnimationColor||undefined,id:String(id??foundry.utils.randomID()),sceneId:canvas.scene.id,userId:game.user.id,actorUuid:item.actor.uuid,source:point(source),targets:targets.map(point),size:Math.min(1000,Math.max(10,canvas.grid.size)),loop};
  if(template){const d=template.document??template,s=d.shapes?.[0],bounds=d.shapes&&zoneGeometry(d.shapes);p.template=bounds&&profile.mode==='zone'?{x:bounds.cx,y:bounds.cy,length:Math.max(bounds.width,bounds.height)/2,direction:0,shapes:d.shapes.map(s=>({...s}))}:s?{x:s.x,y:s.y,length:s.radius??s.length??20*canvas.grid.size/canvas.scene.grid.distance,direction:s.rotation??0}:{x:d.x,y:d.y,length:(d.distance??20)*canvas.grid.size/canvas.scene.grid.distance,direction:d.direction??0}}
  if(!validEffect(p))return false;
  const played=receive(p);
