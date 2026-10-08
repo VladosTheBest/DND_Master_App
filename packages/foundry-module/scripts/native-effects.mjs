@@ -1,4 +1,4 @@
-// Original vector effects, bundled with the module; no external media or renderer dependency.
+// Original procedural textures and vector effects; no external media or renderer dependency.
 import {playEffectSound} from './sounds.mjs';
 export const profiles = {
   'fire-bolt': ['projectile',0xff8028], 'ray-of-frost':['projectile',0x80ddff],
@@ -16,24 +16,68 @@ export function validEffect(p){
   return Boolean(p&&Object.hasOwn(profiles,p.key)&&typeof p.id==='string'&&p.id.length<=200&&typeof p.sceneId==='string'&&typeof p.userId==='string'&&typeof p.actorUuid==='string'&&p.actorUuid.length<200&&point(p.source)&&Array.isArray(p.targets)&&p.targets.length<=20&&p.targets.every(point)&&Number.isFinite(p.size)&&p.size>=10&&p.size<=1000&&(!p.template||(point(p.template)&&Number.isFinite(p.template.length)&&p.template.length>0&&p.template.length<=10000&&Number.isFinite(p.template.direction))));
 }
 const active=new Set();
+const completions=new Map();
+export const effectDuration=p=>p.template||profiles[p.key]?.[0]==='burst'?2800:1100;
+export const effectFinished=id=>completions.get(id)??Promise.resolve();
 export function clearEffects(){for(const stop of [...active])stop()}
+let cloudTexture;
+function softCloudTexture(){
+ if(cloudTexture)return cloudTexture;
+ const image=document.createElement('canvas');image.width=image.height=128;const ctx=image.getContext('2d'),data=ctx.createImageData(128,128);
+ const hash=(x,y)=>{const n=Math.sin(x*127.1+y*311.7)*43758.5453;return n-Math.floor(n)};
+ const noise=(x,y)=>{const ix=Math.floor(x),iy=Math.floor(y),u=x-ix,v=y-iy,a=u*u*(3-2*u),b=v*v*(3-2*v);return (hash(ix,iy)*(1-a)+hash(ix+1,iy)*a)*(1-b)+(hash(ix,iy+1)*(1-a)+hash(ix+1,iy+1)*a)*b};
+ for(let y=0;y<128;y++)for(let x=0;x<128;x++){const r=Math.hypot((x-64)/64,(y-64)/64),n=.55*noise(x/19,y/19)+.3*noise(x/9,y/9)+.15*noise(x/4,y/4),i=(y*128+x)*4;data.data[i]=data.data[i+1]=data.data[i+2]=255;data.data[i+3]=Math.round(255*Math.max(0,1-r)**1.3*(.45+.75*n))}
+ ctx.putImageData(data,0,0);cloudTexture=PIXI.Texture.from(image);return cloudTexture;
+}
 export function renderEffect(p){
   if(!validEffect(p)||!canvas.ready||canvas.scene.id!==p.sceneId||active.size>=40)return false;
   const sourceToken=canvas.tokens.get(p.source.tokenId);
   if(!game.user.isGM&&(!sourceToken?.visible||sourceToken.document.hidden))return false;
   const targets=p.targets.filter(t=>game.user.isGM||(!canvas.tokens.get(t.tokenId)?.document.hidden&&canvas.tokens.get(t.tokenId)?.visible));
   if(!targets.length&&!p.template)return false;
-  const [mode,color]=profiles[p.key],g=new PIXI.Graphics();canvas.interface.addChild(g);
-  let frame;const start=performance.now(),duration=1100;
+  const [mode,color]=profiles[p.key],g=new PIXI.Graphics(),layer=new PIXI.Container(),sprites=[];layer.addChild(g);canvas.interface.addChild(layer);let spriteIndex=0;
+  let frame,finish;const start=performance.now(),duration=effectDuration(p);
+  completions.set(p.id,new Promise(resolve=>{finish=resolve}));
   const stopSound=playEffectSound(p.key,p.id);
-  const stop=()=>{cancelAnimationFrame(frame);stopSound?.();active.delete(stop);g.parent?.removeChild(g);g.destroy()};active.add(stop);
-  Hooks.callAll('shadow-edge-gm.animationStart',{id:p.id,key:p.key,graphics:g});
+  const stop=()=>{cancelAnimationFrame(frame);stopSound?.();active.delete(stop);layer.parent?.removeChild(layer);layer.destroy({children:true});completions.delete(p.id);finish();Hooks.callAll('shadow-edge-gm.animationEnd',{id:p.id,key:p.key})};active.add(stop);
+  Hooks.callAll('shadow-edge-gm.animationStart',{id:p.id,key:p.key,graphics:g,duration});
   const line=(a,b,width,c=color,alpha=1)=>{g.lineStyle(width,c,alpha);g.moveTo(a.x,a.y);g.lineTo(b.x,b.y)};
   const circle=(x,y,r,c=color,alpha=1)=>{g.beginFill(c,alpha);g.drawCircle(x,y,r);g.endFill()};
+  const glow=(x,y,r,c,alpha)=>{let sprite=sprites[spriteIndex++];if(!sprite){sprite=new PIXI.Sprite(softCloudTexture());sprite.anchor.set(.5);sprite.blendMode=PIXI.BLEND_MODES.ADD;layer.addChildAt(sprite,layer.children.length-1);sprites.push(sprite)}sprite.visible=true;sprite.position.set(x,y);sprite.width=r*2;sprite.height=r*2.1;sprite.rotation=spriteIndex*2.399;sprite.tint=c;sprite.alpha=alpha};
+  const cinematic=(t,s)=>{
+    const mode=profiles[p.key][0],o=p.template??targets[0],radius=p.template?.length??s*1.5;
+    if(!o)return;
+    const fade=1-Math.max(0,(t-.62)/.38),ease=v=>1-(1-Math.min(1,Math.max(0,v)))**3;
+    g.blendMode=PIXI.BLEND_MODES.ADD;
+    if(mode==='cone'||mode==='ray'){
+      const angle=(o.direction??0)*Math.PI/180,progress=ease(t/.22),length=radius*progress;
+      const point=(along,side)=>({x:o.x+Math.cos(angle)*along-Math.sin(angle)*side,y:o.y+Math.sin(angle)*along+Math.cos(angle)*side});
+      if(mode==='ray'){
+        for(let strand=0;strand<5;strand++){let last=point(0,0);for(let j=1;j<=24;j++){const v=point(length*j/24,j===24?0:Math.sin(j*19+strand*3+t*75)*s*(.10+strand*.035));line(last,v,s*(strand===0?.07:.025),strand===0?0xeaffff:0x548fff,fade);last=v}}
+        for(let j=0;j<10;j++){const v=point(length*(j+.5)/10,0);glow(v.x,v.y,s*.55,0x62bfff,fade*.65)}
+        glow(point(length,0).x,point(length,0).y,s*.8,0xffffff,fade*.6);
+      }else{
+        for(let j=0;j<48;j++){const along=length*(.12+(j%12)/14),width=along*.40,side=Math.sin(j*2.399+t*9)*width,v=point(along,side),r=s*.18+along*.10;glow(v.x,v.y,r*2.2,0xff3808,fade*.68);glow(v.x,v.y,r,0xffd33c,fade*.8)}
+      }
+      return;
+    }
+    const fire=p.key==='fireball',warm=fire?0xff590c:color,hot=fire?0xffd658:0xddeeff;
+    const travel=Math.min(1,t/.18),explode=Math.max(0,(t-.18)/.82),expansion=ease(explode/.35),r=radius*expansion;
+    if(t<.21){const x=p.source.x+(o.x-p.source.x)*travel,y=p.source.y+(o.y-p.source.y)*travel;for(let j=12;j>=0;j--)glow(x-(o.x-p.source.x)*j*.012,y-(o.y-p.source.y)*j*.012,s*(.22-j*.01),warm,.7);glow(x,y,s*.5,hot,.9)}
+    if(!explode)return;
+    glow(o.x,o.y,r*1.25,warm,fade*.95);
+    for(let j=0;j<32;j++){const angle=j*2.399+Math.sin(j*7+explode*4)*.22,spread=Math.sqrt((j+.5)/32)*r*.78,x=o.x+Math.cos(angle)*spread,y=o.y+Math.sin(angle)*spread,r1=r*(.15+.10*(1+Math.sin(j*9+explode*11))/2);glow(x,y,r1*2.1,warm,fade*.82);glow(x,y,r1,hot,fade*.85)}
+    glow(o.x,o.y,r*.7,hot,fade*.85);
+    glow(o.x,o.y,r*.35,0xffffff,Math.max(0,1-explode*4)*.9);
+    g.lineStyle(s*.04,hot,Math.max(0,1-explode*3)*.65);g.drawCircle(o.x,o.y,radius*ease(explode/.18));g.lineStyle(0);
+    for(let j=0;j<52;j++){const angle=j*2.399,dist=r*(.6+explode*.55),x=o.x+Math.cos(angle)*dist,y=o.y+Math.sin(angle)*dist-explode*s*.45;circle(x,y,s*(.015+.025*(j%5)/5),hot,fade);if(j%3===0)line({x,y},{x:x-Math.cos(angle)*s*.1,y:y-Math.sin(angle)*s*.1},s*.012,warm,fade*.7)}
+  };
   const draw=()=>{
     const t=Math.min((performance.now()-start)/duration,1),fade=Math.sin(Math.PI*t),s=p.size;
     if(!canvas.ready||canvas.scene.id!==p.sceneId||t>=1){stop();return}
     g.clear();
+    spriteIndex=0;for(const sprite of sprites)sprite.visible=false;
+    if(p.template||mode==='burst'){cinematic(t,s);Hooks.callAll('shadow-edge-gm.animationFrame',{id:p.id,key:p.key,graphics:g});frame=requestAnimationFrame(draw);return}
     const dest=p.template?[{x:p.template.x,y:p.template.y}]:targets;
     for(const target of dest){
       let a=p.source,b=target;

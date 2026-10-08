@@ -1,6 +1,6 @@
 import {MODULE,clone} from './core.mjs';
 import {safeHTML} from './adapter.mjs';
-import {midiAnimationMode} from './animations.mjs';
+import {midiAnimationMode,playAnimation} from './animations.mjs';
 const key='combat',requestKey='combatRequest';
 export function combatEnabled(activity){return Number.parseInt(game.system.version,10)>=6&&!midiAnimationMode()&&activity?.item?.flags?.[MODULE]?.coverage==='partial'&&!activity.item.flags[MODULE].spellId?.startsWith('magic-missile')&&['attack','save','damage'].includes(activity.type)}
 export function attackHits(roll,ac){const die=roll.dice?.find(d=>d.faces===20)?.results?.find(r=>r.active!==false&&!r.discarded)?.result;return die!==1&&(roll.isCritical||die===20||roll.total>=ac)}
@@ -28,16 +28,25 @@ export async function startCombat(origin){
  const scene=game.scenes.get(data.sceneId),source=await fromUuid(data.sourceTokenUuid);
  if(!scene||source?.parent?.id!==scene.id||source.actor?.uuid!==activity.actor.uuid)return;
  const ready=origin.flags[MODULE].combatReady,template=ready.templateUuid?await fromUuid(ready.templateUuid):null;
+ if(ready.templateUuid&&!template){await origin.setFlag(MODULE,'combatStopped',true);ui.notifications.warn('Область способности уже удалена. Используйте способность снова.');return}
  if(template&&template.parent.id!==scene.id)return;
  let targets=template?areaTargets(scene,template):origin.system.targets.map(t=>t.token).filter(Boolean);
- targets=[...new Set(targets)].slice(0,50);if(!targets.length){await origin.setFlag(MODULE,'combatStopped',true);ui.notifications.warn('В области нет целей для способности.');return}
+ targets=[...new Set(targets)].slice(0,50);if(!targets.length&&!template){await origin.setFlag(MODULE,'combatStopped',true);ui.notifications.warn('Нет целей для способности.');return}
  if(activity.type==='attack'&&targets.length!==1)throw Error('Для одной атаки выберите ровно одну цель.');
- const w={origin:origin.uuid,ownerId:author.id,activityUuid:activity.uuid,sceneId:scene.id,sourceTokenUuid:source.uuid,scaling:Math.max(0,Math.min(20,Number(origin.system.scaling)||0)),type:activity.type,rows:[],damageStatus:'pending'};
+ const w={origin:origin.uuid,ownerId:author.id,activityUuid:activity.uuid,sceneId:scene.id,sourceTokenUuid:source.uuid,scaling:Math.max(0,Math.min(20,Number(origin.system.scaling)||0)),type:activity.type,rows:[],damageStatus:'pending',phase:template?'animation':'resolve'};
  for(const uuid of targets){const t=await fromUuid(uuid);if(t?.parent?.id===scene.id&&t.actor&&!w.rows.some(r=>r.actorUuid===t.actor.uuid))w.rows.push({tokenUuid:uuid,actorUuid:t.actor.uuid,save:null,applied:false})}
+ if(!w.rows.length)w.notice='В области нет целей для способности.';
  const a=await activityFor(w);w.name=a.item.name;w.dc=a.save?.dc?.value??null;w.ability=Array.from(a.save?.ability??[])[0];w.onSave=a.damage?.onSave??'none';
  if(w.type==='save'&&(!w.ability||!Number.isFinite(w.dc)))throw Error('У способности отсутствует характеристика или сложность спасброска.');
  const card=await ChatMessage.create({content:safeHTML(w.name),speaker:ChatMessage.getSpeaker({actor:a.actor,token:source}),whisper:origin.whisper.map(u=>u.id??u),blind:origin.blind,flags:{[MODULE]:{[key]:w}}});
  await origin.setFlag(MODULE,'combatStarted',card.uuid);
+ if(template){
+  // Snapshot geometry/targets before deleting only this use's template; unrelated regions are untouched.
+  const geometry=template.toObject();
+  try{await template.delete();await playAnimation({item:a.item,activity:a,source:source.object,targets:w.rows.map(r=>fromUuidSync(r.tokenUuid)?.object).filter(Boolean),template:geometry,id:origin.uuid,waitForEnd:true})}
+  catch(e){console.error(`${MODULE}: area animation`,e);ui.notifications.warn('Не удалось завершить эффект области. Цели сохранены в карточке боя.')}
+  w.phase='resolve';await write(card,w);
+ }
  if(w.type==='attack'){
   const target=await fromUuid(w.rows[0].tokenUuid),ac=target.actor.system.attributes.ac.value;
   if(!Number.isFinite(ac)||target.actor.statuses.has('coverTotal')){w.damageStatus='blocked';w.notice='КД недоступна или цель за полным укрытием.';await write(card,w);return}
@@ -63,7 +72,7 @@ async function applyRows(card,w){
 export async function processCombatRequest(request){
  if(!controlsCombat()||request.flags?.[MODULE]?.processed)return;
  const input=request.flags?.[MODULE]?.[requestKey],card=await fromUuid(input?.workflowUuid),stored=card?.flags?.[MODULE]?.[key];
- if(!stored||!card.author?.isGM||!['save','damage'].includes(input.action))return;
+ if(!stored||stored.phase==='animation'||!card.author?.isGM||!['save','damage'].includes(input.action))return;
  const w=clone(stored),user=request.author,a=await activityFor(w);
  if(input.action==='save'){
   const row=w.rows.find(r=>r.tokenUuid===input.targetUuid),token=row?await fromUuid(row.tokenUuid):null;
@@ -88,6 +97,7 @@ function renderCard(message,html){
  const w=message.flags?.[MODULE]?.[key];if(!w)return;
  const root=html[0]??html,container=root.querySelector('.message-content');if(!container)return;container.replaceChildren();
  const title=document.createElement('strong');title.textContent=w.name;container.append(title);
+ if(w.phase==='animation'){const p=document.createElement('p');p.textContent='Заклинание… После затухания появятся спасброски и урон.';container.append(p);return}
  const status=document.createElement('p');status.textContent=w.notice??(w.type==='attack'?(w.attack===undefined?'Бросок попадания…':`${w.attack} · ${w.hit?'Попадание'+(w.critical?' · Критический удар':''):'Промах'}`):w.type==='save'?`Спасбросок ${CONFIG.DND5E.abilities[w.ability]?.label??w.ability} · СЛ ${w.dc}`:'Урон без броска попадания');container.append(status);
  const button=(label,action,targetUuid)=>{const b=document.createElement('button');b.textContent=label;b.dataset.segmAction=action;b.onclick=async()=>{b.disabled=true;try{if(!gm())throw Error('Нужен активный мастер.');await ChatMessage.create({content:'Shadow Edge · запрос броска',whisper:[gm().id],flags:{[MODULE]:{[requestKey]:{workflowUuid:message.uuid,action,targetUuid}}}})}catch(e){ui.notifications.error(e.message);b.disabled=false}};return b};
  for(const row of w.rows){const token=fromUuidSync(row.tokenUuid);if(!token||!game.user.isGM&&token.hidden)continue;const p=document.createElement('p');p.textContent=`${token.name}: ${row.applied?'урон применён':row.save!==null?`${row.save} · ${row.save>=w.dc?'успех':'провал'}`:w.type==='save'?'ожидает спасбросок':'ожидает урон'}`;if(w.type==='save'&&row.save===null&&owns(game.user,token.actor))p.append(button('Спасбросок','save',row.tokenUuid));container.append(p)}
@@ -96,8 +106,8 @@ function renderCard(message,html){
 }
 export function registerCombat(){
  if(registered)return;registered=true;
- const handleRequest=message=>enqueue(async()=>{if(!controlsCombat())return;try{await processCombatRequest(message)}finally{if(game.messages.has(message.id))await message.delete()}});
- Hooks.on('ready',()=>{if(!game.user.isGM)return;coordinator=false;const claim=async()=>{await game.user.setFlag(MODULE,'combatSession',game.socket.id);coordinator=true;for(const m of game.messages){if(m.flags?.[MODULE]?.combatReady)enqueue(()=>startCombat(m));else if(m.flags?.[MODULE]?.[requestKey]&&controlsCombat())handleRequest(m)}};if(globalThis.navigator?.locks)void navigator.locks.request(`${MODULE}:combat:${game.world.id}:${game.user.id}`,async()=>{await claim();await new Promise(resolve=>window.addEventListener('pagehide',resolve,{once:true}));coordinator=false});else void claim()});
+ const handleRequest=message=>{const blocked=fromUuidSync(message.flags?.[MODULE]?.[requestKey]?.workflowUuid)?.flags?.[MODULE]?.[key]?.phase==='animation';enqueue(async()=>{if(!controlsCombat())return;try{if(!blocked)await processCombatRequest(message)}finally{if(game.messages.has(message.id))await message.delete()}})};
+ Hooks.on('ready',()=>{if(!game.user.isGM)return;coordinator=false;const claim=async()=>{await game.user.setFlag(MODULE,'combatSession',game.socket.id);coordinator=true;for(const m of game.messages){if(m.flags?.[MODULE]?.combatReady)enqueue(()=>startCombat(m));else if(m.flags?.[MODULE]?.[key]?.phase==='animation')enqueue(async()=>{if(controlsCombat()){const w=clone(m.flags[MODULE][key]);w.phase='resolve';await write(m,w)}});else if(m.flags?.[MODULE]?.[requestKey]&&controlsCombat())handleRequest(m)}};if(globalThis.navigator?.locks)void navigator.locks.request(`${MODULE}:combat:${game.world.id}:${game.user.id}`,async()=>{await claim();await new Promise(resolve=>window.addEventListener('pagehide',resolve,{once:true}));coordinator=false});else void claim()});
  Hooks.on('dnd5e.preUseActivity',(a,usage,dialog,message)=>{
   if(!combatEnabled(a)||!gm()||usage.subsequentActions===false)return;
   const source=a.actor.token?.object??a.actor.getActiveTokens().find(t=>t.controlled)??a.actor.getActiveTokens()[0];
