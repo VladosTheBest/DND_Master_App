@@ -1,5 +1,6 @@
 import {MODULE,clone,equal,mergeThree,validBaseURL,authoringActor,exportEntity,exportJournal,sceneLevel,plainText} from "./core.mjs";
 import {loadState,saveState} from "./storage.mjs";
+import {completeConnection} from "./connection.mjs";
 import {actorPlan,journalPlan,scenePlan,persistentProjection,safeHTML} from "./adapter.mjs";
 import {registerAnimations,animationStatus} from "./animations.mjs";
 import {registerCombat} from "./combat.mjs";
@@ -17,7 +18,17 @@ async function request(state,path,options={}){
   const headers=new Headers(options.headers);if(state.token)headers.set("Authorization",`Bearer ${state.token}`);
   if(options.body&&!(options.body instanceof FormData))headers.set("Content-Type","application/json");
   const response=await fetch(`${state.base}/api/integrations/foundry/${path}`,{...options,headers,credentials:"omit",signal:AbortSignal.timeout(60000)});
-  if(!response.ok){let data;try{data=await response.json()}catch{}throw Error(data?.error?.message??`HTTP ${response.status}`)}return response.json().then(b=>b.data);
+  if(!response.ok){let data;try{data=await response.json()}catch{}throw Object.assign(Error(data?.error?.message??`HTTP ${response.status}`),{status:response.status,code:data?.error?.code})}return response.json().then(b=>b.data);
+}
+// DialogV2.wait resolves on submit before its closing animation ends.
+async function waitClosed(config){
+  let closed;
+  const result=await DialogV2().wait({...config,render:(_event,dialog)=>{closed=new Promise(resolve=>dialog.addEventListener("close",resolve,{once:true}))}});
+  await closed;return result;
+}
+async function confirmation(url){
+  const action=await waitClosed({window:{title:"Подтверждение подключения"},content:`<p>Подтвердите кампанию на сайте, затем нажмите кнопку ниже. После подключения станет доступна загрузка материалов.</p><a href="${safeHTML(url)}" target="_blank" rel="noopener">Открыть страницу подтверждения</a>`,buttons:[{action:"finish",label:"Завершить подключение",default:true},{action:"later",label:"Позже"}]});
+  if(action==="finish")await finishConnection();
 }
 async function beginConnection(){
   const base=await DialogV2().prompt({window:{title:"Подключить Shadow Edge GM"},content:'<label>Адрес сайта<input name="base" type="url" placeholder="https://…" required></label>',ok:{label:"Открыть подтверждение",callback:(_event,_button,dialog)=>dialog.element.querySelector('[name="base"]').value}});
@@ -25,10 +36,10 @@ async function beginConnection(){
   const bytes=await crypto.subtle.digest("SHA-256",new TextEncoder().encode(state.token));const tokenHash=Array.from(new Uint8Array(bytes),v=>v.toString(16).padStart(2,"0")).join("");
   const pairing=await request(state,"pairings",{method:"POST",body:JSON.stringify({tokenHash})});state.pairing=pairing.id;await saveState(state);
   const url=new URL(pairing.url,state.base).href;window.open(url,"_blank","noopener");
-  await DialogV2().wait({window:{title:"Подтверждение подключения"},content:`<p>Подтвердите кампанию на сайте, затем нажмите «Завершить подключение» в модуле.</p><a href="${url}" target="_blank" rel="noopener">Открыть страницу подтверждения</a>`,buttons:[{action:"ok",label:"Понятно",default:true}]});
+  await confirmation(url);
 }
-async function finishConnection(){const state=await loadState();if(!state.pairing)throw Error("Сначала начните подключение.");const result=await request(state,`pairings/${encodeURIComponent(state.pairing)}`);if(!result.approved)throw Error("Подтвердите кампанию на сайте.");const snapshot=await request(state,"v1/snapshot");state.campaignId=snapshot.campaignId;state.title=snapshot.title;state.connectionId=result.connectionId;delete state.pairing;await saveState(state);ui.notifications.info(`Подключено: ${snapshot.title}. Нажмите «Обновить с сайта».`)}
-async function connected(){const s=await loadState();if(!s.campaignId)throw Error("Сначала подключите кампанию.");return s}
+async function finishConnection(){const state=await completeConnection(await loadState(),request);await saveState(state);ui.notifications.info(`Подключено: ${state.title}. Нажмите «Обновить с сайта».`);return state}
+async function connected(){const s=await loadState();if(s.campaignId)return s;if(s.pairing)return finishConnection();throw Error("Сначала подключите кампанию.")}
 async function folder(type,title){let f=game.folders.find(f=>f.type===type&&f.name===title);if(!f)f=await Folder.create({name:title,type,ownership:{default:0}});return f.id}
 const tracked=(doc,state)=>doc.flags?.[MODULE]?.campaignId===state.campaignId && doc.flags?.[MODULE]?.site===state.base;
 function findDocument(entry){return entry?.uuid?fromUuid(entry.uuid):null}
@@ -146,6 +157,6 @@ async function configureAutomation(){
   const old=clone(game.settings.get("midi-qol","ConfigSettings"));if(!game.settings.get(MODULE,"automationBackup"))await game.settings.set(MODULE,"automationBackup",old);
   await game.settings.set("midi-qol","ConfigSettings",{...old,autoRollAttack:true,gmAutoAttack:true,autoRollDamage:"always",gmAutoDamage:"always",autoCheckHit:"all",autoCheckSaves:"all",autoApplyDamage:"yes",consumeResource:"both",gmConsumeResource:"both",autoItemEffects:"applyRemove",concentrationAutomation:true});ui.notifications.info("Профиль автоматизации сохранён.");
 }
-async function panel(){const state=await loadState();const abilities=game.actors.filter(a=>tracked(a,state)).flatMap(a=>a.items.contents).filter(i=>i.flags?.[MODULE]?.coverage);const manual=abilities.filter(i=>i.flags[MODULE].coverage==="manual").length;await DialogV2().wait({window:{title:"Shadow Edge GM"},content:`<div class="shadow-edge-panel"><p>${safeHTML(state.title??"Кампания не подключена")}</p><p>Обмен выполняется только по кнопкам.</p><p>${safeHTML(animationStatus())}</p><p>Способности: ${abilities.length-manual} с частичной настройкой, ${manual} для ручного расчёта. Сложные условия и эффекты требуют проверки мастером.</p></div>`,buttons:[{action:"connect",label:"Подключить",callback:()=>run(beginConnection)},{action:"finish",label:"Завершить подключение",callback:()=>run(finishConnection)},{action:"refresh",label:"Обновить с сайта",callback:()=>run(refresh)},{action:"export",label:"Экспортировать на сайт",callback:()=>run(exportSite)},{action:"demo",label:"Тестовая сцена анимаций",callback:()=>run(createDemoScene)},{action:"setup",label:"Дополнительно: Midi-QOL",callback:()=>run(configureAutomation)},{action:"restore",label:"Восстановить настройки",callback:()=>run(async()=>{const backup=game.settings.get(MODULE,"automationBackup");if(backup){await game.settings.set("midi-qol","ConfigSettings",backup);await game.settings.set(MODULE,"automationBackup",null)}})},{action:"disconnect",label:"Отключить в браузере",callback:()=>run(async()=>saveState({records:{}}))}]})}
+async function panel(){const state=await loadState();const abilities=game.actors.filter(a=>tracked(a,state)).flatMap(a=>a.items.contents).filter(i=>i.flags?.[MODULE]?.coverage);const manual=abilities.filter(i=>i.flags[MODULE].coverage==="manual").length;const action=await waitClosed({window:{title:"Shadow Edge GM"},content:`<div class="shadow-edge-panel"><p>${safeHTML(state.title??(state.pairing?"Ожидается завершение подключения":"Кампания не подключена"))}</p><p>Обмен выполняется только по кнопкам.</p><p>${safeHTML(animationStatus())}</p><p>Способности: ${abilities.length-manual} с частичной настройкой, ${manual} для ручного расчёта. Сложные условия и эффекты требуют проверки мастером.</p></div>`,buttons:[{action:"connect",label:state.pairing||state.campaignId?"Новое подключение":"Подключить",callback:async()=>{await run(beginConnection);return "connect"}},...(state.pairing?[{action:"finish",label:"Завершить подключение",callback:async()=>{await run(finishConnection);return "finish"}}]:[]),{action:"refresh",label:"Обновить с сайта",callback:async()=>{await run(refresh);return "refresh"}},{action:"export",label:"Экспортировать на сайт",callback:()=>run(exportSite)},{action:"demo",label:"Тестовая сцена анимаций",callback:()=>run(createDemoScene)},{action:"setup",label:"Дополнительно: Midi-QOL",callback:()=>run(configureAutomation)},{action:"restore",label:"Восстановить настройки",callback:()=>run(async()=>{const backup=game.settings.get(MODULE,"automationBackup");if(backup){await game.settings.set("midi-qol","ConfigSettings",backup);await game.settings.set(MODULE,"automationBackup",null)}})},{action:"disconnect",label:"Отключить в браузере",callback:()=>run(async()=>saveState({records:{}}))}]});if(["connect","finish","refresh"].includes(action))return panel()}
 Hooks.once("init",()=>{game.settings.register(MODULE,"automationBackup",{scope:"world",config:false,type:Object,default:null});registerCombat();registerSustainedEffects();registerPersistentAreas()});
 Hooks.once("ready",()=>{registerAnimations();registerCombat();if(!game.user.isGM)return;const button=document.createElement("button");button.className="shadow-edge-launch";button.textContent="Shadow Edge GM";button.onclick=()=>panel().catch(e=>ui.notifications.error(e.message));document.body.append(button)});
