@@ -102,6 +102,7 @@ export function scenePlan(record,level){
 }
 export function persistentProjection(doc,template){
   const raw=doc.toObject?doc.toObject():doc,source=raw.walls?{...raw,walls:Array.from(raw.walls).filter(w=>!w.flags?.[MODULE]?.areaRegion)}:raw;
+  if(raw.levels?.length)source.background=clone(raw.levels[0].background);
   function take(v,t){if(Array.isArray(t))return (v??[]).map((item,index)=>t[index]&&typeof t[index]==="object"?take(item,t[index]):t[0]&&typeof t[0]==="object"?take(item,t[0]):clone(item));if(t&&typeof t==="object"){const out={};for(const k of Object.keys(t))out[k]=take(v?.[k],t[k]);return out}return clone(v)}
   return take(source,template);
 }

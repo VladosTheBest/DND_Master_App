@@ -1,3 +1,4 @@
+import {sceneCreation,sceneBackground,setSceneBackground} from './scene-background.mjs';
 import {roundTokenAsset,updatePlacedTokenArt} from './token-art.mjs';
 import {showAnimationLibrary} from './animation-library.mjs';
 import {MODULE,clone,equal,mergeThree,validBaseURL,authoringActor,exportEntity,exportJournal,sceneLevel,plainText} from "./core.mjs";
@@ -30,7 +31,7 @@ async function request(state,path,options={}){
 // DialogV2.wait resolves on submit before its closing animation ends.
 async function waitClosed(config){
   let closed;
-  const result=await DialogV2().wait({...config,render:(_event,dialog)=>{closed=new Promise(resolve=>dialog.addEventListener("close",resolve,{once:true}))}});
+  const result=await DialogV2().wait({...config,render:(_event,dialog)=>{closed=new Promise(resolve=>dialog.addEventListener("close",resolve,{once:true}));config.render?.(_event,dialog)}});
   await closed;return result;
 }
 async function confirmation(url){
@@ -68,7 +69,9 @@ async function updateProjection(doc,projection,previous){
   // Applying authoring data must not reset combat resources.
   delete result.value.active;
   if(doc.documentName==='Scene'&&result.value.walls)result.value.walls.push(...doc.walls.filter(w=>w.flags?.[MODULE]?.areaRegion).map(w=>w.toObject()));
-  await doc.update(result.value);return persistentProjection(doc,projection);
+  const background=doc.documentName==='Scene'?result.value.background?.src:undefined;
+  if(doc.documentName==='Scene')delete result.value.background;
+  await doc.update(result.value);if(background!==undefined)await setSceneBackground(doc,background);return persistentProjection(doc,projection);
 }
 export async function importItems(actor,items,state){
   const previous=state.itemBaselines??{};const next={...previous};
@@ -126,7 +129,7 @@ async function refreshCampaign(progress,mediaFailures){
       await importMedia(state,snapshot.title,record,mediaFailures,progress);
       progress.stage(`Данные и способности · ${record.title}`);
       const presentationHash=JSON.stringify([record.data.art,record.data.gallery]);
-      if(doc && entry?.record.hash===record.hash&&entry.adapterVersion===12&&entry.presentationHash===presentationHash&&!entry.mediaPending)continue;
+      if(doc && entry?.record.hash===record.hash&&entry.adapterVersion===13&&entry.presentationHash===presentationHash&&!entry.mediaPending)continue;
       const localChanged=doc&&entry?.authoring&&!equal(actorKind?authoringActor(doc):sceneKind?sceneAuthoring(record,doc):exportJournal(entry.record.data,doc),entry.authoring);
       if(actorKind&&doc&&game.combats.some(c=>c.started&&c.combatants.some(x=>x.actorId===doc.id))){deferred.push(record.title);continue}
       let mediaPending=false;const plan=actorKind?await actorPlan(record,snapshot.spells??[]):null;
@@ -137,9 +140,10 @@ async function refreshCampaign(progress,mediaFailures){
       if(projection.background?.src){const url=projection.background.src;try{progress.stage(`Карта · ${record.title}`);projection.background.src=await localAsset(state,url,"Карты")}catch(error){mediaPending=true;mediaFailures.push({url,title:record.title,message:error.message});if(doc)projection.background.src=doc.background.src;else projection.background.src=""}}
       projection.folder=destination;
       if(doc)await updateProjection(doc,projection,entry?.projection);
-      else{projection.folder=destination;const creation=clone(projection);if(actorKind){creation.system.attributes.hp.value=creation.system.attributes.hp.max;for(const slot of Object.values(creation.system.spells??{}))if(Number.isInteger(slot.override)&&slot.override>=0)slot.value=slot.override}doc=await (actorKind?Actor:sceneKind?Scene:JournalEntry).create(creation)}
+      else{projection.folder=destination;const creation=clone(projection);if(actorKind){creation.system.attributes.hp.value=creation.system.attributes.hp.max;for(const slot of Object.values(creation.system.spells??{}))if(Number.isInteger(slot.override)&&slot.override>=0)slot.value=slot.override}doc=await (actorKind?Actor:sceneKind?Scene:JournalEntry).create(sceneKind?sceneCreation(creation):creation)}
+      if(sceneKind&&projection.background?.src&&!sceneBackground(doc))await setSceneBackground(doc,projection.background.src);
       if(actorKind)try{await updatePlacedTokenArt(doc,previousTokenArt)}catch(error){mediaPending=true;mediaFailures.push({url:projection.img,title:record.title,message:`Токены на сценах: ${error.message}`})}
-      const saved={...entry,uuid:doc.uuid,record:clone(record),projection:clone(projection),adapterVersion:12,presentationHash,mediaPending};
+      const saved={...entry,uuid:doc.uuid,record:clone(record),projection:clone(projection),adapterVersion:13,presentationHash,mediaPending};
       if(plan)await importItems(doc,plan.items,saved);
       if(record.kind==="world-map")await importMapLabels(doc,record.data.labels,saved,(name,fields)=>DialogV2().confirm({window:{title:`Конфликт подписи: ${name}`},content:`<p>Изменены: ${safeHTML(fields.join(", "))}. Применить версию сайта?</p>`}));
       saved.authoring=localChanged?entry.authoring:actorKind?authoringActor(doc):sceneKind?sceneAuthoring(record,doc):exportJournal(record.data,doc);
