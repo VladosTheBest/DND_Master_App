@@ -35,9 +35,6 @@ func foundryAISpellDC(e knowledgeEntity) int {
 	}
 	return 0
 }
-func validAIAnimation(s string) bool {
-	return strings.Contains("||sword|axe|hammer|dagger|spear|claw|bow|crossbow|thrown|impact|fire-bolt|ray-of-frost|magic-missile|cure-wounds|healing-word|fireball|burning-hands|lightning-bolt|bless|shield|", "|"+s+"|")
-}
 func foundryAICastingEvidence(e knowledgeEntity, ability string) bool {
 	names := map[string]string{"str": "сил|strength", "dex": "ловк|dexterity", "con": "телослож|constitution", "int": "интеллект|intelligence", "wis": "мудрост|wisdom", "cha": "харизм|charisma"}
 	for _, entries := range foundryAISections(e.StatBlock) {

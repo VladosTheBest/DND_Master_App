@@ -1,0 +1,479 @@
+[
+  {
+    "key": "fire-bolt",
+    "mode": "projectile",
+    "color": 16744488,
+    "label": "Огненный снаряд",
+    "description": "Built-in fire-bolt effect",
+    "sound": "fire-bolt"
+  },
+  {
+    "key": "ray-of-frost",
+    "mode": "projectile",
+    "color": 8445439,
+    "label": "Луч холода",
+    "description": "Built-in ray-of-frost effect",
+    "sound": "ray-of-frost"
+  },
+  {
+    "key": "magic-missile",
+    "mode": "projectile",
+    "color": 12616447,
+    "label": "Волшебная стрела",
+    "description": "Built-in magic-missile effect",
+    "sound": "magic-missile"
+  },
+  {
+    "key": "cure-wounds",
+    "mode": "target",
+    "color": 5636010,
+    "label": "Лечение ран",
+    "description": "Built-in cure-wounds effect",
+    "sound": "cure-wounds"
+  },
+  {
+    "key": "healing-word",
+    "mode": "target",
+    "color": 5636010,
+    "label": "Лечащее слово",
+    "description": "Built-in healing-word effect",
+    "sound": "healing-word"
+  },
+  {
+    "key": "fireball",
+    "mode": "burst",
+    "color": 16740384,
+    "label": "Огненный шар",
+    "description": "Built-in fireball effect",
+    "sound": "fireball"
+  },
+  {
+    "key": "burning-hands",
+    "mode": "cone",
+    "color": 16748584,
+    "label": "Огненные ладони",
+    "description": "Built-in burning-hands effect",
+    "sound": "burning-hands"
+  },
+  {
+    "key": "lightning-bolt",
+    "mode": "ray",
+    "color": 8441855,
+    "label": "Молния",
+    "description": "Built-in lightning-bolt effect",
+    "sound": "lightning-bolt"
+  },
+  {
+    "key": "bless",
+    "mode": "target",
+    "color": 16768870,
+    "label": "Благословение",
+    "description": "Built-in bless effect",
+    "sound": "bless"
+  },
+  {
+    "key": "shield",
+    "mode": "self",
+    "color": 7388415,
+    "label": "Щит",
+    "description": "Built-in shield effect",
+    "sound": "shield"
+  },
+  {
+    "key": "bow",
+    "mode": "projectile",
+    "color": 15058581,
+    "label": "Лук",
+    "description": "Built-in bow effect",
+    "sound": "bow"
+  },
+  {
+    "key": "crossbow",
+    "mode": "projectile",
+    "color": 12964571,
+    "label": "Арбалет",
+    "description": "Built-in crossbow effect",
+    "sound": "crossbow"
+  },
+  {
+    "key": "sword",
+    "mode": "melee",
+    "color": 14412543,
+    "label": "Меч",
+    "description": "Built-in sword effect",
+    "sound": "sword"
+  },
+  {
+    "key": "axe",
+    "mode": "melee",
+    "color": 16760184,
+    "label": "Топор",
+    "description": "Built-in axe effect",
+    "sound": "axe"
+  },
+  {
+    "key": "hammer",
+    "mode": "melee",
+    "color": 10928090,
+    "label": "Боевой молот",
+    "description": "Built-in hammer effect",
+    "sound": "hammer"
+  },
+  {
+    "key": "dagger",
+    "mode": "melee",
+    "color": 12118015,
+    "label": "Кинжал",
+    "description": "Built-in dagger effect",
+    "sound": "dagger"
+  },
+  {
+    "key": "spear",
+    "mode": "melee",
+    "color": 13752754,
+    "label": "Копьё",
+    "description": "Built-in spear effect",
+    "sound": "spear"
+  },
+  {
+    "key": "claw",
+    "mode": "melee",
+    "color": 16742263,
+    "label": "Когти",
+    "description": "Built-in claw effect",
+    "sound": "claw"
+  },
+  {
+    "key": "thrown",
+    "mode": "projectile",
+    "color": 13422045,
+    "label": "Метательное оружие",
+    "description": "Built-in thrown effect",
+    "sound": "thrown"
+  },
+  {
+    "key": "impact",
+    "mode": "target",
+    "color": 10075135,
+    "label": "Магический удар",
+    "description": "Built-in impact effect",
+    "sound": "impact"
+  },
+  {
+    "key": "grease",
+    "mode": "zone",
+    "color": 9876555,
+    "label": "Жир",
+    "description": "Built-in grease effect",
+    "sound": "grease"
+  },
+  {
+    "key": "wall-of-fire",
+    "mode": "zone",
+    "color": 16740384,
+    "label": "Стена огня",
+    "description": "Built-in wall-of-fire effect",
+    "sound": "wall-of-fire"
+  },
+  {
+    "key": "spike-growth",
+    "mode": "zone",
+    "color": 6469707,
+    "label": "Терновая поросль",
+    "description": "Built-in spike-growth effect",
+    "sound": "spike-growth"
+  },
+  {
+    "key": "entangle",
+    "mode": "zone",
+    "color": 4964727,
+    "label": "Опутывание",
+    "description": "Built-in entangle effect",
+    "sound": "entangle"
+  },
+  {
+    "key": "darkness",
+    "mode": "zone",
+    "color": 3482703,
+    "label": "Тьма",
+    "description": "Built-in darkness effect",
+    "sound": "darkness"
+  },
+  {
+    "key": "fog-cloud",
+    "mode": "zone",
+    "color": 12901608,
+    "label": "Туманное облако",
+    "description": "Built-in fog-cloud effect",
+    "sound": "fog-cloud"
+  },
+  {
+    "key": "web",
+    "mode": "zone",
+    "color": 14477549,
+    "label": "Паутина",
+    "description": "Built-in web effect",
+    "sound": "web"
+  },
+  {
+    "key": "moonbeam",
+    "mode": "zone",
+    "color": 10934015,
+    "label": "Лунный луч",
+    "description": "Built-in moonbeam effect",
+    "sound": "moonbeam"
+  },
+  {
+    "key": "thunderwave",
+    "mode": "zone",
+    "color": 9030399,
+    "label": "Волна грома",
+    "description": "Built-in thunderwave effect",
+    "sound": "thunderwave"
+  },
+  {
+    "key": "shatter",
+    "mode": "zone",
+    "color": 13023231,
+    "label": "Дребезги",
+    "description": "Built-in shatter effect",
+    "sound": "shatter"
+  },
+  {
+    "key": "ice-storm",
+    "mode": "zone",
+    "color": 9100287,
+    "label": "Град",
+    "description": "Built-in ice-storm effect",
+    "sound": "ice-storm"
+  },
+  {
+    "key": "oil",
+    "mode": "zone",
+    "color": 11046965,
+    "label": "Масло",
+    "description": "Built-in oil effect",
+    "sound": "oil"
+  },
+  {
+    "key": "acid",
+    "mode": "projectile",
+    "color": 9895746,
+    "label": "Кислота",
+    "description": "Built-in acid effect",
+    "sound": "acid"
+  },
+  {
+    "key": "alchemists-fire",
+    "mode": "projectile",
+    "color": 16739104,
+    "label": "Алхимический огонь",
+    "description": "Built-in alchemists-fire effect",
+    "sound": "alchemists-fire"
+  },
+  {
+    "key": "sword-blood",
+    "mode": "melee",
+    "color": 15200255,
+    "label": "Кровавый удар мечом",
+    "description": "Cutting sword attack; blood only on confirmed hit",
+    "sound": "sword",
+    "weapon": "sword",
+    "blood": true
+  },
+  {
+    "key": "axe-blood",
+    "mode": "melee",
+    "color": 16760960,
+    "label": "Кровавый удар топором",
+    "description": "Heavy axe cleave; blood only on confirmed hit",
+    "sound": "axe",
+    "weapon": "axe",
+    "blood": true
+  },
+  {
+    "key": "dagger-blood",
+    "mode": "melee",
+    "color": 12903679,
+    "label": "Укол кинжалом",
+    "description": "Fast dagger stab with crimson impact",
+    "sound": "dagger",
+    "weapon": "dagger",
+    "blood": true
+  },
+  {
+    "key": "claw-blood",
+    "mode": "melee",
+    "color": 15618660,
+    "label": "Разрывающие когти",
+    "description": "Three claw cuts with blood impact",
+    "sound": "claw",
+    "weapon": "claw",
+    "blood": true
+  },
+  {
+    "key": "fire-sword",
+    "mode": "melee",
+    "color": 16740392,
+    "label": "Пылающий клинок",
+    "description": "Flaming weapon and burning sparks",
+    "sound": "sword",
+    "weapon": "sword",
+    "style": "flame"
+  },
+  {
+    "key": "frost-sword",
+    "mode": "melee",
+    "color": 9560063,
+    "label": "Ледяной клинок",
+    "description": "Frost-covered blade and ice sparks",
+    "sound": "sword",
+    "weapon": "sword",
+    "style": "frost"
+  },
+  {
+    "key": "lightning-sword",
+    "mode": "melee",
+    "color": 8894975,
+    "label": "Грозовой клинок",
+    "description": "Electrified blade",
+    "sound": "sword",
+    "weapon": "sword",
+    "style": "lightning"
+  },
+  {
+    "key": "eldritch-blast",
+    "mode": "projectile",
+    "color": 10249215,
+    "label": "Мистический заряд",
+    "description": "Violet arcane energy projectile",
+    "sound": "magic-missile",
+    "style": "arcane"
+  },
+  {
+    "key": "necrotic-bolt",
+    "mode": "projectile",
+    "color": 6672780,
+    "label": "Некротический заряд",
+    "description": "Soul-corrupting emerald necrotic projectile",
+    "sound": "fire-bolt",
+    "style": "necrotic"
+  },
+  {
+    "key": "poison-bolt",
+    "mode": "projectile",
+    "color": 10869302,
+    "label": "Ядовитый плевок",
+    "description": "Toxic green globule",
+    "sound": "acid",
+    "style": "poison"
+  },
+  {
+    "key": "acid-bolt",
+    "mode": "projectile",
+    "color": 12645451,
+    "label": "Кислотный сгусток",
+    "description": "Acid droplet with corrosive splash",
+    "sound": "acid",
+    "style": "acid"
+  },
+  {
+    "key": "holy-bolt",
+    "mode": "projectile",
+    "color": 16767111,
+    "label": "Священный заряд",
+    "description": "Golden radiant projectile",
+    "sound": "magic-missile",
+    "style": "holy"
+  },
+  {
+    "key": "ice-lance",
+    "mode": "projectile",
+    "color": 10149631,
+    "label": "Ледяное копьё",
+    "description": "Sharp faceted travelling ice crystal",
+    "sound": "ray-of-frost",
+    "style": "ice"
+  },
+  {
+    "key": "meteor-strike",
+    "mode": "projectile",
+    "color": 16735785,
+    "label": "Удар метеора",
+    "description": "Heavy fiery projectile and expanding blast",
+    "sound": "fireball",
+    "style": "meteor"
+  },
+  {
+    "key": "arcane-sigil",
+    "mode": "target",
+    "color": 11372543,
+    "label": "Магическая печать",
+    "description": "Rotating arcane runic rings for wards and enchantments",
+    "sound": "bless",
+    "style": "sigil"
+  },
+  {
+    "key": "soul-drain",
+    "mode": "ray",
+    "color": 7461792,
+    "label": "Похищение души",
+    "description": "Winding necrotic tether and soul motes",
+    "sound": "darkness",
+    "style": "drain"
+  },
+  {
+    "key": "thorn-whip",
+    "mode": "ray",
+    "color": 6792775,
+    "label": "Терновый кнут",
+    "description": "Curved living vine with ivory thorns",
+    "sound": "entangle",
+    "style": "whip"
+  },
+  {
+    "key": "vine-bind",
+    "mode": "target",
+    "color": 8435281,
+    "label": "Опутывающие лозы",
+    "description": "Detailed writhing vines around a creature; cosmetic burst, not a persistent region",
+    "sound": "entangle",
+    "style": "vines"
+  },
+  {
+    "key": "holy-smite",
+    "mode": "target",
+    "color": 16768146,
+    "label": "Божественная кара",
+    "description": "Radiant rays and sacred ring",
+    "sound": "bless",
+    "style": "radiant"
+  },
+  {
+    "key": "psychic-wave",
+    "mode": "target",
+    "color": 15698395,
+    "label": "Психическая волна",
+    "description": "Counter-rotating psychic rings",
+    "sound": "shatter",
+    "style": "psychic"
+  },
+  {
+    "key": "poison-cloud",
+    "mode": "target",
+    "color": 8038965,
+    "label": "Ядовитое облако",
+    "description": "Swirling toxic vapor impact; cosmetic only",
+    "sound": "fog-cloud",
+    "style": "shadow"
+  },
+  {
+    "key": "shadow-step",
+    "mode": "target",
+    "color": 9268651,
+    "label": "Теневой шаг",
+    "description": "Dark dissolving wisps; cosmetic only, does not move a token",
+    "sound": "darkness",
+    "style": "shadow"
+  }
+]

@@ -1,3 +1,4 @@
+import {animationCatalog} from './animation-catalog.mjs';
 // Original synthesized sound library. No downloads or third-party recordings.
 export const soundProfiles={
   bow:{noise:0.4,tone:190,fall:70,hit:0.62},crossbow:{noise:0.55,tone:115,fall:50,hit:0.62},
@@ -19,6 +20,7 @@ export const soundProfiles={
   shatter:{noise:.65,tone:1600,fall:650,hit:.4},'ice-storm':{noise:.7,tone:1300,fall:500,hit:.4},
   acid:{noise:.6,tone:420,fall:130,hit:.6},'alchemists-fire':{noise:.75,tone:270,fall:80,hit:.6}
 };
+for(const p of animationCatalog)if(!soundProfiles[p.key]&&soundProfiles[p.sound])soundProfiles[p.key]={...soundProfiles[p.sound]};
 export function soundSamples(key,sampleRate=48000){
   if(!Object.hasOwn(soundProfiles,key)||!Number.isFinite(sampleRate)||sampleRate<8000||sampleRate>192000)return null;
   const p=soundProfiles[key],duration=2.6,samples=new Float32Array(Math.ceil(sampleRate*duration));

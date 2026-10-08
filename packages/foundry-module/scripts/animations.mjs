@@ -1,3 +1,4 @@
+import {artTexture} from './effect-art.mjs';
 import {MODULE,activityValues} from './core.mjs';
 import {profiles,renderEffect,validEffect,clearEffects,effectFinished} from './native-effects.mjs';
 import {areaProfile,zoneGeometry} from './area-profiles.mjs';
@@ -28,19 +29,19 @@ export async function receiveAnimation(p){
  if(!user||!actor||(!user.isGM&&!actor.testUserPermission(user,'OWNER')))return false;
  return receive(p);
 }
-export async function playAnimation({item,activity,source,targets=[],template,id,waitForEnd=false,loop=false}){
+export async function playAnimation({item,activity,source,targets=[],template,id,waitForEnd=false,loop=false,hit=false,hitTargets=null,localOnly=false}){
  const profile=animationProfile(item,activity);source=source?.object??source;template=template?.object??template;
  if(!profile||!source?.center||!item.actor?.uuid||!canvas.ready)return false;
  const point=t=>({x:t.center.x,y:t.center.y,tokenId:t.id??t.document?.id});
  targets=targets.map(t=>t?.object??t).filter(t=>t?.center).slice(0,20);
  if(profile.mode==='self'||(!targets.length&&!template&&activity?.type==='heal'))targets=[source];
  if(!targets.length&&!template)return false;
- const p={key:profile.key,color:item.flags[MODULE].aiAnimationColor||undefined,id:String(id??foundry.utils.randomID()),sceneId:canvas.scene.id,userId:game.user.id,actorUuid:item.actor.uuid,source:point(source),targets:targets.map(point),size:Math.min(1000,Math.max(10,canvas.grid.size)),loop};
+ const p={key:profile.key,color:item.flags[MODULE].aiAnimationColor||undefined,id:String(id??foundry.utils.randomID()),sceneId:canvas.scene.id,userId:game.user.id,actorUuid:item.actor.uuid,source:point(source),targets:targets.map(t=>({...point(t),hit:hitTargets?hitTargets.some(h=>(h.id??h.document?.id)===(t.id??t.document?.id)):hit})),size:Math.min(1000,Math.max(10,canvas.grid.size)),loop};
  if(template){const d=template.document??template,s=d.shapes?.[0],bounds=d.shapes&&zoneGeometry(d.shapes);p.template=bounds&&profile.mode==='zone'?{x:bounds.cx,y:bounds.cy,length:Math.max(bounds.width,bounds.height)/2,direction:0,shapes:d.shapes.map(s=>({...s}))}:s?{x:s.x,y:s.y,length:s.radius??s.length??20*canvas.grid.size/canvas.scene.grid.distance,direction:s.rotation??0}:{x:d.x,y:d.y,length:(d.distance??20)*canvas.grid.size/canvas.scene.grid.distance,direction:d.direction??0}}
  if(!validEffect(p))return false;
  const played=receive(p);
  // Hidden tokens stay local to the GM; do not publish even their coordinates.
- if(played&&!source.document?.hidden){const publicTargets=p.targets.filter(t=>!canvas.tokens.get(t.tokenId)?.document.hidden);if(publicTargets.length||p.template)game.socket.emit(`module.${MODULE}`,{...p,targets:publicTargets})}
+ if(played&&!localOnly&&!source.document?.hidden){const publicTargets=p.targets.filter(t=>!canvas.tokens.get(t.tokenId)?.document.hidden);if(publicTargets.length||p.template)game.socket.emit(`module.${MODULE}`,{...p,targets:publicTargets})}
  if(played&&waitForEnd)await effectFinished(p.id);
  return played;
 }
@@ -49,9 +50,11 @@ export function registerAnimations(){
  if(registered)return;registered=true;
  game.socket.on(`module.${MODULE}`,p=>{void receiveAnimation(p).catch(()=>{})});
  Hooks.on('canvasTearDown',clearEffects);
+ Hooks.on('canvasReady',()=>{for(const name of ['weapons','vines','blood-slash','magic'])artTexture(name)});
  const play=data=>void playAnimation(data).catch(()=>ui.notifications.warn('Не удалось воспроизвести анимацию. Способность остаётся доступной.'));
  Hooks.on('dnd5e.postUseActivity',(activity,config,results)=>{
   if(midiAnimationMode()||!results?.message)return;
+  if(activity.type==='attack'&&results.message.flags?.[MODULE]?.combatOrigin)return;
   if(areaProfile(activity.item)?.persistent)return;
   if(results.message.flags?.[MODULE]?.combatOrigin?.areaExpected&&!results.templates?.length)return;
   // Managed areas are captured, removed and animated by the authoritative GM before resolving combat.
@@ -61,6 +64,6 @@ export function registerAnimations(){
  });
  Hooks.on('midi-qol.RollComplete',workflow=>{
   if(!midiAnimationMode()||(workflow.userId??workflow.user?.id)!==game.user.id)return;
-  void (async()=>{const template=workflow.templateUuid?await fromUuid(workflow.templateUuid):null;await playAnimation({item:workflow.item,activity:workflow.activity,source:workflow.token,targets:Array.from(workflow.targets??[]),template,id:workflow.uuid??workflow.id})})().catch(()=>ui.notifications.warn('Не удалось воспроизвести анимацию Midi-QOL.'));
+  void (async()=>{const template=workflow.templateUuid?await fromUuid(workflow.templateUuid):null;await playAnimation({item:workflow.item,activity:workflow.activity,source:workflow.token,targets:Array.from(workflow.targets??[]),hitTargets:Array.from(workflow.hitTargets??[]),template,id:workflow.uuid??workflow.id})})().catch(()=>ui.notifications.warn('Не удалось воспроизвести анимацию Midi-QOL.'));
  });
 }

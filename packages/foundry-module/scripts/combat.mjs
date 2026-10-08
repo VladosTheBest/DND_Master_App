@@ -59,6 +59,7 @@ export async function startCombat(origin){
    w.damageStatus='blocked';w.notice='Не удалось подтвердить бросок атаки.';
   }else{w.attack=roll.total;w.hit=attackHits(roll,ac);w.critical=Boolean(roll.isCritical);w.attackOptions={ability:roll.options.ability,attackMode:roll.options.attackMode};w.attackMessageUuid=attack.uuid;if(!w.hit)w.damageStatus='miss'}
   await write(card,w);
+  if(w.hit!==undefined)await playAnimation({item:a.item,activity:a,source:source.object,targets:[target.object],hit:w.hit,id:origin.uuid});
  }
  return card;
 }

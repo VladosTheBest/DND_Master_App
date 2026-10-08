@@ -1,24 +1,16 @@
-// Original procedural textures and vector effects; no external media or renderer dependency.
+// Bundled original artwork, procedural textures and vectors; no external module dependency.
 import {playEffectSound} from './sounds.mjs';
 import {areaProfiles,validZoneShapes} from './area-profiles.mjs';
 import {makeZonePainter} from './area-effects.mjs';
-export const profiles = {
-  'fire-bolt': ['projectile',0xff8028], 'ray-of-frost':['projectile',0x80ddff],
-  'magic-missile':['projectile',0xc082ff], 'cure-wounds':['target',0x55ffaa],
-  'healing-word':['target',0x55ffaa], fireball:['burst',0xff7020],
-  'burning-hands':['cone',0xff9028], 'lightning-bolt':['ray',0x80cfff],
-  bless:['target',0xffdf66], shield:['self',0x70bcff],
-  bow:['projectile',0xe5c695], crossbow:['projectile',0xc5d2db],
-  sword:['melee',0xdbeaff], axe:['melee',0xffbd78], hammer:['melee',0xa6bfda],
-  dagger:['melee',0xb8e7ff], spear:['melee',0xd1d9b2], claw:['melee',0xff7777],
-  thrown:['projectile',0xcccddd], impact:['target',0x99bbff]
-};
+import {animationCatalog} from './animation-catalog.mjs';
+import {makeRichPainter} from './rich-effects.mjs';
+export const profiles=Object.fromEntries(animationCatalog.map(p=>[p.key,[p.mode,p.color]]));
 for(const [key,p] of Object.entries(areaProfiles))profiles[key]=[['acid','alchemists-fire'].includes(key)?'projectile':'zone',p.color];
 export function validEffect(p){
   if(p?.color!==undefined&&(typeof p.color!=='string'||!/^#[0-9a-f]{6}$/i.test(p.color)))return false;
   if(p?.template?.shapes&&!validZoneShapes(p.template.shapes))return false;
   const point=v=>v&&Number.isFinite(v.x)&&Number.isFinite(v.y)&&Math.abs(v.x)<100000&&Math.abs(v.y)<100000;
-  return Boolean(p&&Object.hasOwn(profiles,p.key)&&(p.loop===undefined||typeof p.loop==='boolean')&&(!p.loop||['cure-wounds','healing-word'].includes(p.key))&&typeof p.id==='string'&&p.id.length<=200&&typeof p.sceneId==='string'&&typeof p.userId==='string'&&typeof p.actorUuid==='string'&&p.actorUuid.length<200&&point(p.source)&&Array.isArray(p.targets)&&p.targets.length<=20&&p.targets.every(point)&&Number.isFinite(p.size)&&p.size>=10&&p.size<=1000&&(!p.template||(point(p.template)&&Number.isFinite(p.template.length)&&p.template.length>0&&p.template.length<=10000&&Number.isFinite(p.template.direction))));
+  return Boolean(p&&Object.hasOwn(profiles,p.key)&&(p.loop===undefined||typeof p.loop==='boolean')&&(!p.loop||['cure-wounds','healing-word'].includes(p.key))&&typeof p.id==='string'&&p.id.length<=200&&typeof p.sceneId==='string'&&typeof p.userId==='string'&&typeof p.actorUuid==='string'&&p.actorUuid.length<200&&point(p.source)&&Array.isArray(p.targets)&&p.targets.length<=20&&p.targets.every(t=>point(t)&&(t.hit===undefined||typeof t.hit==='boolean'))&&Number.isFinite(p.size)&&p.size>=10&&p.size<=1000&&(!p.template||(point(p.template)&&Number.isFinite(p.template.length)&&p.template.length>0&&p.template.length<=10000&&Number.isFinite(p.template.direction))));
 }
 const active=new Set();
 const completions=new Map();
@@ -67,6 +59,7 @@ export function renderEffect(p){
   if(!targets.length&&!p.template)return false;
   const [mode,baseColor]=profiles[p.key],color=p.color?Number.parseInt(p.color.slice(1),16):baseColor,g=new PIXI.Graphics(),layer=new PIXI.Container(),sprites=[];layer.name=`shadow-edge-effect:${p.id}`;layer.addChild(g);canvas.interface.addChild(layer);let spriteIndex=0;
   const zone=mode==='zone'?makeZonePainter(layer,p.key,p.template?.shapes??[{type:'circle',x:p.template?.x??targets[0]?.x,y:p.template?.y??targets[0]?.y,radius:p.template?.length??p.size}],p.size):null;
+  const rich=makeRichPainter(layer,g,p);
   let frame,finish,ending=null;const start=performance.now(),duration=effectDuration(p);
   endings.set(p.id,()=>{ending??=performance.now()});
   completions.set(p.id,new Promise(resolve=>{finish=resolve}));
@@ -98,6 +91,7 @@ export function renderEffect(p){
     const travel=Math.min(1,t/.18),explode=Math.max(0,(t-.18)/.82),expansion=ease(explode/.35),r=radius*expansion;
     if(t<.21){const x=p.source.x+(o.x-p.source.x)*travel,y=p.source.y+(o.y-p.source.y)*travel;for(let j=12;j>=0;j--)glow(x-(o.x-p.source.x)*j*.012,y-(o.y-p.source.y)*j*.012,s*(.22-j*.01),warm,.7);glow(x,y,s*.5,hot,.9)}
     if(!explode)return;
+    rich.burst(o.x,o.y,r,t,fade*(1-explode*.6));
     glow(o.x,o.y,r*1.25,warm,fade*.95);
     for(let j=0;j<32;j++){const angle=j*2.399+Math.sin(j*7+explode*4)*.22,spread=Math.sqrt((j+.5)/32)*r*.78,x=o.x+Math.cos(angle)*spread,y=o.y+Math.sin(angle)*spread,r1=r*(.15+.10*(1+Math.sin(j*9+explode*11))/2);glow(x,y,r1*2.1,warm,fade*.82);glow(x,y,r1,hot,fade*.85)}
     glow(o.x,o.y,r*.7,hot,fade*.85);
@@ -113,15 +107,16 @@ export function renderEffect(p){
     layer.visible=game.user.isGM||Boolean(source?.visible&&!source.document.hidden);
     for(const target of targets){const token=canvas.tokens.get(target.tokenId);if(token?.center)Object.assign(target,token.center)}
     g.clear();
-    spriteIndex=0;for(const sprite of sprites)sprite.visible=false;
+    rich.reset();spriteIndex=0;for(const sprite of sprites)sprite.visible=false;
     if(zone){const u=Math.min(1,t/.4),x=p.source.x+(zone.bounds.cx-p.source.x)*u,y=p.source.y+(zone.bounds.cy-p.source.y)*u;glow(x,y,s*.35,color,Math.max(0,1-t/.5));zone.draw(t*2.8,Math.min(1,Math.max(0,(t-.25)/.2))*fade);Hooks.callAll('shadow-edge-gm.animationFrame',{id:p.id,key:p.key,graphics:zone.graphics});frame=requestAnimationFrame(draw);return}
-    if(p.template||mode==='burst'){cinematic(t,s);Hooks.callAll('shadow-edge-gm.animationFrame',{id:p.id,key:p.key,graphics:g});frame=requestAnimationFrame(draw);return}
+    if((p.template||mode==='burst')&&!rich.handlesTemplate){cinematic(t,s);Hooks.callAll('shadow-edge-gm.animationFrame',{id:p.id,key:p.key,graphics:g});frame=requestAnimationFrame(draw);return}
     const dest=p.template?[{x:p.template.x,y:p.template.y}]:targets;
     for(const target of dest){
       const targetToken=canvas.tokens.get(target.tokenId);if(!p.template&&!game.user.isGM&&(!targetToken?.visible||targetToken.document.hidden))continue;
       let a=p.source,b=target;
-      if(p.template&&['ray','cone'].includes(mode)){a=p.template;const r=p.template.direction*Math.PI/180;b={x:a.x+Math.cos(r)*p.template.length,y:a.y+Math.sin(r)*p.template.length}}
+      if(p.template&&['ray','cone'].includes(mode)&&!rich.handlesTemplate){a=p.template;const r=p.template.direction*Math.PI/180;b={x:a.x+Math.cos(r)*p.template.length,y:a.y+Math.sin(r)*p.template.length}}
       const angle=Math.atan2(b.y-a.y,b.x-a.x),point=(x,y,origin=b)=>({x:origin.x+Math.cos(angle)*x-Math.sin(angle)*y,y:origin.y+Math.sin(angle)*x+Math.cos(angle)*y});
+      if(rich.draw(a,b,t,s,fade))continue;
       if(mode==='projectile'){
         const missiles=p.key==='magic-missile'?3:1;
         for(let n=0;n<missiles;n++){
