@@ -38,7 +38,8 @@ export async function startCombat(origin){
  if(!w.rows.length)w.notice='В области нет целей для способности.';
  const a=await activityFor(w);w.name=a.item.name;w.dc=a.save?.dc?.value??null;w.ability=Array.from(a.save?.ability??[])[0];w.onSave=a.damage?.onSave??'none';
  if(w.type==='save'&&(!w.ability||!Number.isFinite(w.dc)))throw Error('У способности отсутствует характеристика или сложность спасброска.');
- const card=await ChatMessage.create({content:safeHTML(w.name),speaker:ChatMessage.getSpeaker({actor:a.actor,token:source}),whisper:origin.whisper.map(u=>u.id??u),blind:origin.blind,flags:{[MODULE]:{[key]:w}}});
+ const attack=w.type==='attack'&&ready.attackMessageUuid?await fromUuid(ready.attackMessageUuid):null,privacy=attack??origin;
+ const card=await ChatMessage.create({content:safeHTML(w.name),speaker:ChatMessage.getSpeaker({actor:a.actor,token:source}),whisper:privacy.whisper.map(u=>u.id??u),blind:privacy.blind,flags:{[MODULE]:{[key]:w}}});
  await origin.setFlag(MODULE,'combatStarted',card.uuid);
  if(template){
   // Snapshot geometry/targets before deleting only this use's template; unrelated regions are untouched.
@@ -50,8 +51,12 @@ export async function startCombat(origin){
  if(w.type==='attack'){
   const target=await fromUuid(w.rows[0].tokenUuid),ac=target.actor.system.attributes.ac.value;
   if(!Number.isFinite(ac)||target.actor.statuses.has('coverTotal')){w.damageStatus='blocked';w.notice='КД недоступна или цель за полным укрытием.';await write(card,w);return}
-  const rolls=await a.rollAttack({target:ac},{configure:false},{data:{whisper:card.whisper.map(u=>u.id??u),blind:card.blind}});
-  if(!rolls?.length){w.damageStatus='blocked';w.notice='Бросок отменён.'}else{w.attack=rolls[0].total;w.hit=attackHits(rolls[0],ac);w.critical=Boolean(rolls[0].isCritical);w.attackOptions={ability:rolls[0].options.ability,attackMode:rolls[0].options.attackMode};if(!w.hit)w.damageStatus='miss'}
+  const roll=attack?.rolls?.[0];
+  // The owner rolls on their own client; the GM validates the native document before resolving damage.
+  if(!roll){w.damageStatus='blocked';w.notice='Бросок отменён.'}
+  else if(attack.type!=='attack'||attack.author?.id!==author.id||attack.system.activity?.uuid!==activity.uuid||attack.system.origin?.id!==origin.id||attack.speaker.actor!==activity.actor.id||!Number.isFinite(roll.total)){
+   w.damageStatus='blocked';w.notice='Не удалось подтвердить бросок атаки.';
+  }else{w.attack=roll.total;w.hit=attackHits(roll,ac);w.critical=Boolean(roll.isCritical);w.attackOptions={ability:roll.options.ability,attackMode:roll.options.attackMode};w.attackMessageUuid=attack.uuid;if(!w.hit)w.damageStatus='miss'}
   await write(card,w);
  }
  return card;
@@ -104,6 +109,22 @@ function renderCard(message,html){
  const a=fromUuidSync(w.activityUuid);if(owns(game.user,a?.actor)&&w.damageStatus!=='miss'&&w.damageStatus!=='blocked'&&w.damageStatus!=='rolling'&&(w.type!=='attack'||w.hit)&&w.rows.some(r=>!r.applied))container.append(button(w.damage?'Применить оставшийся урон':'Бросить урон','damage'));
  if(w.damage){const p=document.createElement('p');p.textContent=`Урон: ${w.damage.map(d=>`${d.value} ${d.type??''}`).join(' + ')}`;container.append(p)}
 }
+const choosingAttacks=new Set();
+async function finishUsage(a,results){
+ const origin=results.message;if(!origin?.flags?.[MODULE]?.combatOrigin||origin.flags[MODULE].combatReady||choosingAttacks.has(origin.uuid))return;
+ choosingAttacks.add(origin.uuid);
+ try{
+  const ready={templateUuid:results.templates?.[0]?.uuid??null,cancelled:Boolean(origin.flags[MODULE].combatOrigin.areaExpected&&!results.templates?.length)};
+  if(a.type==='attack'){
+   const target=await fromUuid(origin.system.targets[0]?.token),ac=target?.actor?.system.attributes.ac.value;
+   if(Number.isFinite(ac)&&!target.actor.statuses.has('coverTotal')){
+    const rolls=await a.rollAttack({target:ac},{configure:true},{data:{system:{origin:origin.id},whisper:origin.whisper.map(u=>u.id??u),blind:origin.blind}});
+    ready.attackMessageUuid=rolls?.[0]?.parent?.uuid??null;
+   }
+  }
+  await origin.setFlag(MODULE,'combatReady',ready);
+ }finally{choosingAttacks.delete(origin.uuid)}
+}
 export function registerCombat(){
  if(registered)return;registered=true;
  const handleRequest=message=>{const blocked=fromUuidSync(message.flags?.[MODULE]?.[requestKey]?.workflowUuid)?.flags?.[MODULE]?.[key]?.phase==='animation';enqueue(async()=>{if(!controlsCombat())return;try{if(!blocked)await processCombatRequest(message)}finally{if(game.messages.has(message.id))await message.delete()}})};
@@ -116,7 +137,7 @@ export function registerCombat(){
   if(a.target?.template?.type){usage.create??={};usage.create.measuredTemplate=true}
   usage.subsequentActions=false;message.data.flags??={};message.data.flags[MODULE]??={};message.data.flags[MODULE].combatOrigin={activityUuid:a.uuid,sceneId:canvas.scene.id,sourceTokenUuid:source.document.uuid,areaExpected:Boolean(a.target?.template?.type)};
  });
- Hooks.on('dnd5e.postUseActivity',(a,usage,results)=>{if(results.message?.flags?.[MODULE]?.combatOrigin)void results.message.setFlag(MODULE,'combatReady',{templateUuid:results.templates?.[0]?.uuid??null,cancelled:Boolean(results.message.flags[MODULE].combatOrigin.areaExpected&&!results.templates?.length)}).catch(e=>ui.notifications.error(e.message))});
+ Hooks.on('dnd5e.postUseActivity',(a,usage,results)=>{void finishUsage(a,results).catch(e=>ui.notifications.error(e.message))});
  Hooks.on('updateChatMessage',message=>{if(coordinator&&message.flags?.[MODULE]?.combatReady)enqueue(()=>startCombat(message))});
  Hooks.on('createChatMessage',message=>{if(controlsCombat()&&message.flags?.[MODULE]?.[requestKey])handleRequest(message)});
  Hooks.on('renderChatMessageHTML',renderCard);
