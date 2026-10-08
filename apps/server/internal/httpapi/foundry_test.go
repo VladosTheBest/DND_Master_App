@@ -6,9 +6,45 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
+
+func TestFoundryWizardSnapshotResolvesCurrentBookAndPreparation(t *testing.T) {
+	var draft characterDraft
+	for _, f := range characterRules.ValidationFixtures {
+		if f.Valid && f.Name == "2024 wizard 5 human soldier" {
+			draft = f.Draft
+			break
+		}
+	}
+	if len(draft.Levels) == 0 {
+		t.Fatal("missing wizard fixture")
+	}
+	selection := foundryWizardSpells(draft)
+	if !characterHas(selection.Known, "continual-flame-2024") || !characterHas(selection.Known, "fireball-2024") {
+		t.Fatal("subclass book grants missing")
+	}
+	if !reflect.DeepEqual(selection.Prepared, draft.Levels[4].PreparedSpellIDs) {
+		t.Fatal("preparation is not current")
+	}
+	sheet := characterSheet{ID: "wizard", Draft: draft}
+	state := storageState{CharacterSheets: []storedCharacterSheet{{Sheet: sheet, CampaignID: "campaign"}}}
+	records, _ := foundryRecords(state, "campaign")
+	var imported foundryCharacterSheet
+	if len(records) != 1 || json.Unmarshal(records[0].Data, &imported) != nil || imported.SpellSelection == nil {
+		t.Fatal("snapshot lost selection")
+	}
+	spells := foundrySpells(records)
+	seen := map[string]bool{}
+	for _, spell := range spells {
+		seen[spell.ID] = true
+	}
+	if !seen["continual-flame-2024"] {
+		t.Fatal("unprepared bonus book spell missing from snapshot catalog")
+	}
+}
 
 func foundryFixture(t *testing.T) (*foundryManager, foundryConnection) {
 	t.Helper()

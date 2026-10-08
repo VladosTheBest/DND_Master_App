@@ -74,7 +74,7 @@ export async function refresh(){
       const overridden=record.data.foundryCharacter?Object.values(state.records).find(e=>e.record.kind==="character"&&e.record.data.playerId===record.id):null;
       const entry=state.records[key]??overridden;let doc=await findDocument(entry);
       if(!doc){const collection=actorKind?game.actors:sceneKind?game.scenes:game.journal;doc=collection.find(d=>tracked(d,state)&&d.flags?.[MODULE]?.sourceKey===record.key&&(!level||d.flags[MODULE].levelId===level.id));if(!doc)doc=collection.find(d=>snapshot.aliases?.[d.uuid]===record.id&&(!level||!d.flags?.[MODULE]?.levelId||d.flags[MODULE].levelId===level.id))}
-      if(doc && entry?.record.hash===record.hash&&entry.adapterVersion===6)continue;
+      if(doc && entry?.record.hash===record.hash&&entry.adapterVersion===8)continue;
       const localChanged=doc&&entry?.authoring&&!equal(actorKind?authoringActor(doc):sceneKind?sceneAuthoring(record,doc):exportJournal(entry.record.data,doc),entry.authoring);
       if(actorKind&&doc&&game.combats.some(c=>c.started&&c.combatants.some(x=>x.actorId===doc.id))){deferred.push(record.title);continue}
       let plan=actorKind?await actorPlan(record,snapshot.spells??[]):null;
@@ -83,8 +83,8 @@ export async function refresh(){
       if(projection.img){projection.img=await localAsset(state,projection.img)||"icons/svg/mystery-man.svg";if(actorKind)projection.prototypeToken.texture={src:projection.img}}
       if(projection.background?.src)projection.background.src=await localAsset(state,projection.background.src)||projection.background.src;
       if(doc)await updateProjection(doc,projection,entry?.projection);
-      else{projection.folder=await folder(actorKind?"Actor":sceneKind?"Scene":"JournalEntry",`Shadow Edge · ${snapshot.title}`);const creation=clone(projection);if(actorKind)creation.system.attributes.hp.value=creation.system.attributes.hp.max;doc=await (actorKind?Actor:sceneKind?Scene:JournalEntry).create(creation)}
-      const saved={...entry,uuid:doc.uuid,record:clone(record),projection:clone(projection),adapterVersion:6};
+      else{projection.folder=await folder(actorKind?"Actor":sceneKind?"Scene":"JournalEntry",`Shadow Edge · ${snapshot.title}`);const creation=clone(projection);if(actorKind){creation.system.attributes.hp.value=creation.system.attributes.hp.max;for(const slot of Object.values(creation.system.spells??{}))if(Number.isInteger(slot.override)&&slot.override>=0)slot.value=slot.override}doc=await (actorKind?Actor:sceneKind?Scene:JournalEntry).create(creation)}
+      const saved={...entry,uuid:doc.uuid,record:clone(record),projection:clone(projection),adapterVersion:8};
       if(plan)await importItems(doc,plan.items,saved);
       if(record.kind==="world-map")await importMapLabels(doc,record.data.labels,saved,(name,fields)=>DialogV2().confirm({window:{title:`Конфликт подписи: ${name}`},content:`<p>Изменены: ${safeHTML(fields.join(", "))}. Применить версию сайта?</p>`}));
       saved.authoring=localChanged?entry.authoring:actorKind?authoringActor(doc):sceneKind?sceneAuthoring(record,doc):exportJournal(record.data,doc);

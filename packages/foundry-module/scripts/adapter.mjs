@@ -34,7 +34,8 @@ export function basicAbility(v,index=0){
 }
 async function spellItems(record,catalog){
   let selected=[];const d=record.data;
-  if(record.kind==="character")selected=[...new Set(d.draft.levels.flatMap(l=>[...(l.spellIds??[]),...(l.cantripIds??[]),...(l.preparedSpellIds??[])]))];
+  const current=d.draft?.levels?.at(-1),selection=d.spellSelection;
+  if(record.kind==="character")selected=[...new Set(selection?[...selection.known,...selection.cantrips]:[...(current?.spellIds??[]),...(current?.cantripIds??[]),...(current?.preparedSpellIds??[])])];
   else selected=catalog.filter(s=>(d.statBlock?.spellcasting?.spells??[]).some(n=>[s.name,englishName(s.name),s.name.split(" · ")[0]].includes(n))).map(s=>s.id);
   const edition=d.draft?.edition??"2014",items=[];
   for(const id of selected){const s=catalog.find(s=>s.id===id);if(!s)continue;const spellEdition=id.endsWith("-2024")?"2024":id.endsWith("-2014")?"2014":edition;
@@ -42,6 +43,11 @@ async function spellItems(record,catalog){
     const configured=Boolean(item&&supportedSpells.has(spellKey(id)));
     item??={type:"spell",system:{level:s.level,description:{value:safeHTML(s.description)},activities:{}}};
     item.name=s.name;item.flags??={};item.flags[MODULE]={spellId:id,coverage:configured?"partial":"manual",reason:configured?"Механика взята из SRD системы; требуется проверка сложных эффектов в целевой связке.":"Вне проверяемого набора или нет совпадения в SRD."};
+    if(record.kind==='character'){
+      const always=s.level===0||selection?.always.includes(id),prepared=always||(selection?.prepared??current?.preparedSpellIds??current?.spellIds??[]).includes(id);
+      if(Number.parseInt(game.system.version,10)>=6){item.system.method=d.draft.classId==='warlock'?'pact':'spell';item.system.prepared=always?2:prepared?1:0;item.system.sourceItem=d.draft.classId}
+      else item.system.preparation={mode:always?'always':d.draft.classId==='warlock'?'pact':'prepared',prepared};
+    }
     // Our built-in hook owns imported spell animations.
     item.flags.autoanimations={isEnabled:false};items.push(item);
   }return items;
@@ -67,7 +73,8 @@ export async function actorPlan(record,catalog){
     projection.system.spells=Object.fromEntries((s.spellSlots??[]).map((n,i)=>[`spell${i+1}`,{override:n}]));
     if(s.pactSlots)projection.system.spells.pact={override:s.pactSlots,level:s.pactSlotLevel};
     const skillIDs={"animal-handling":"ani","sleight-of-hand":"slt",athletics:"ath",acrobatics:"acr",arcana:"arc",deception:"dec",history:"his",insight:"ins",intimidation:"itm",investigation:"inv",medicine:"med",nature:"nat",perception:"prc",performance:"prf",persuasion:"per",religion:"rel",stealth:"ste",survival:"sur"};
-    projection.system.skills=Object.fromEntries((s.skills??[]).filter(x=>skillIDs[x.id]).map(x=>[skillIDs[x.id],{value:x.proficient?1:0}]));
+    const prof=s.proficiencyBonus??Math.floor((d.draft.targetLevel-1)/4)+2,modern=Number.parseInt(game.system.version,10)>=6;
+    projection.system.skills=Object.fromEntries((s.skills??[]).filter(x=>skillIDs[x.id]).map(x=>{const mod=Math.floor(((s.abilities?.[x.ability]??10)-10)/2),value=x.proficient?(x.bonus-mod>=2*prof?2:1):0,extra=Number.isFinite(x.bonus)?x.bonus-mod-value*prof:0;return [skillIDs[x.id],{value,...(x.ability?{ability:x.ability}:{}),...(extra?(modern?{roll:{bonus:String(extra)}}:{bonuses:{check:String(extra)}}):{})}]}));
   }else{
     let index=0;for(const section of ["actions","bonusActions","reactions","traits"])for(const v of s[section]??[]){const item=basicAbility(v,index++);item.flags[MODULE].section=section;if(!v.foundry?.activation)for(const activity of Object.values(item.system.activities))activity.activation.type=section==="bonusActions"?"bonus":section==="reactions"?"reaction":"action";items.push(item)}
     if(external)items=(external.items??[]).map((v,i)=>basicAbility({...v,toHit:String(v.attackBonus)},i));

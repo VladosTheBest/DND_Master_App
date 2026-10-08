@@ -29,6 +29,41 @@ type foundryConnection struct {
 	TokenHash  string `json:"tokenHash"`
 	CreatedAt  string `json:"createdAt"`
 }
+
+// Resolve the wizard's current book and preparation, including subclass book grants.
+// This is an exchange projection, not a change to the saved character draft.
+type foundrySpellSelection struct {
+	Known    []string `json:"known"`
+	Prepared []string `json:"prepared"`
+	Always   []string `json:"always"`
+	Cantrips []string `json:"cantrips"`
+}
+type foundryCharacterSheet struct {
+	characterSheet
+	SpellSelection *foundrySpellSelection `json:"spellSelection,omitempty"`
+}
+
+func foundryWizardSpells(d characterDraft) *foundrySpellSelection {
+	if d.ClassID != "wizard" || len(d.Levels) == 0 {
+		return nil
+	}
+	current := d.Levels[len(d.Levels)-1]
+	unique := func(ids []string) []string {
+		result := []string{}
+		seen := map[string]bool{}
+		for _, id := range ids {
+			if !seen[id] {
+				seen[id] = true
+				result = append(result, id)
+			}
+		}
+		return result
+	}
+	always := characterWizardAlwaysPrepared(d, d.TargetLevel)
+	known := append(append(append([]string{}, current.SpellIDs...), characterWizardBookBonusSpells(d, d.TargetLevel)...), always...)
+	return &foundrySpellSelection{Known: unique(known), Prepared: unique(current.PreparedSpellIDs), Always: unique(always), Cantrips: unique(current.CantripIDs)}
+}
+
 type foundryReceipt struct {
 	ID           string            `json:"id"`
 	ConnectionID string            `json:"connectionId"`
@@ -432,7 +467,7 @@ func foundryRecords(state storageState, campaignID string) ([]foundryRecord, str
 	}
 	for _, s := range state.CharacterSheets {
 		if s.CampaignID == campaignID {
-			add("character", s.Sheet.ID, s.Sheet.Draft.Name, s.Sheet)
+			add("character", s.Sheet.ID, s.Sheet.Draft.Name, foundryCharacterSheet{characterSheet: s.Sheet, SpellSelection: foundryWizardSpells(s.Sheet.Draft)})
 		}
 	}
 	return rows, title
@@ -443,11 +478,17 @@ func foundrySpells(records []foundryRecord) []characterSpell {
 	names := []string{}
 	for _, r := range records {
 		if r.Kind == "character" {
-			var s characterSheet
+			var s foundryCharacterSheet
 			_ = json.Unmarshal(r.Data, &s)
-			for _, l := range s.Draft.Levels {
-				for _, id := range append(append(append([]string{}, l.SpellIDs...), l.CantripIDs...), l.PreparedSpellIDs...) {
+			if s.SpellSelection != nil {
+				for _, id := range append(append([]string{}, s.SpellSelection.Known...), s.SpellSelection.Cantrips...) {
 					ids[id] = true
+				}
+			} else {
+				for _, l := range s.Draft.Levels {
+					for _, id := range append(append(append([]string{}, l.SpellIDs...), l.CantripIDs...), l.PreparedSpellIDs...) {
+						ids[id] = true
+					}
 				}
 			}
 		} else if r.Kind == "npc" || r.Kind == "monster" {
