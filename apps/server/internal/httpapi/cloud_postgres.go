@@ -147,6 +147,9 @@ CREATE TABLE IF NOT EXISTS migration_runs(id text PRIMARY KEY, source_digest tex
 	if _, err = tx.Exec(ctx, `CREATE INDEX IF NOT EXISTS ai_chat_campaign_owner ON ai_chat_turns(campaign_id,owner_id); INSERT INTO schema_migrations(version) VALUES(6) ON CONFLICT DO NOTHING`); err != nil {
 		return errors.New("create chat indexes failed")
 	}
+	if _, err = tx.Exec(ctx, `INSERT INTO schema_migrations(version) VALUES(7) ON CONFLICT DO NOTHING`); err != nil {
+		return errors.New("create Foundry exchange schema failed")
+	}
 	if err = tx.Commit(ctx); err != nil {
 		return errors.New("commit schema migration failed")
 	}

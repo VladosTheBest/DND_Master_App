@@ -27,3 +27,4 @@ go.work.sum
 /data/store.json
 /data/store.json.bak
 /tmp/
+/apps/web/public/foundry/

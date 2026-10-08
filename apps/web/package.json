@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node ../../packages/foundry-module/scripts/build.mjs",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview"
   },

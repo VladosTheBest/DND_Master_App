@@ -1,0 +1,18 @@
+{
+  "id": "shadow-edge-gm",
+  "title": "Shadow Edge GM",
+  "description": "Manual campaign exchange with Shadow Edge GM / Ручной обмен кампанией",
+  "version": "0.1.0",
+  "authors": [{"name":"Shadow Edge GM"}],
+  "compatibility": {"minimum":"14.368","maximum":"14"},
+  "relationships": {
+    "systems": [{"id":"dnd5e","type":"system","compatibility":{"minimum":"5.3.3","maximum":"5.3.3"}}],
+    "requires": [
+      {"id":"midi-qol","type":"module","compatibility":{"minimum":"14.0.13","maximum":"14.0.13"}},
+      {"id":"sequencer","type":"module","compatibility":{"minimum":"4.2.3","maximum":"4.2.3"}},
+      {"id":"JB2A_DnD5e","type":"module","compatibility":{"minimum":"0.9.4","maximum":"0.9.4"}}
+    ]
+  },
+  "esmodules": ["scripts/main.mjs"],
+  "styles": ["styles/module.css"]
+}

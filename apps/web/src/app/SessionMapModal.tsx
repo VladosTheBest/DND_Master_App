@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -19,6 +20,7 @@ import type {
   PlayerDisplayViewport,
   PlayerDisplayWall,
   UploadImageResult,
+  SessionMapDocument,
 } from "@shadow-edge/shared-types";
 import { api } from "./api";
 
@@ -1488,6 +1490,18 @@ function DeepZoomLayer({
 }
 
 export function SessionMapModal({ campaignId, open, onClose }: Props) {
+  const [savedMaps, setSavedMaps] = useState<SessionMapDocument[]>([]);
+  const [mapSaveNotice, setMapSaveNotice] = useState("");
+  const savedMapRef = useRef<SessionMapDocument | null>(null);
+  const savedMapBodyRef = useRef("");
+  const mapGenerationRef = useRef(0);
+  const mapSaveQueue = useRef<Promise<void>>(Promise.resolve());
+  const pendingMapSave = useRef<(() => void) | null>(null);
+  const closeMap = useCallback(() => {
+    pendingMapSave.current?.();
+    pendingMapSave.current = null;
+    void mapSaveQueue.current.finally(onClose);
+  }, [onClose]);
   const [imageUrl, setImageUrl] = useState("");
   const [roofUrl, setRoofUrl] = useState("");
   const [roofMask, setRoofMask] = useState<RoofMaskData | null>(null);
@@ -1556,6 +1570,70 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
   // zones must never leak into this mode: they are not map geometry and the
   // roof renderer does not consume them.
   const pairedVTT = Boolean(roofUrl && roofMask);
+  useEffect(() => {
+    if (!open) return;
+    let current = true;
+    void api.listSessionMaps(campaignId).then((maps) => { if (current) setSavedMaps(maps ?? []); })
+      .catch(() => { if (current) setMapSaveNotice("Не удалось прочитать библиотеку карт."); });
+    return () => { current = false; };
+  }, [campaignId, open]);
+
+  useEffect(() => {
+    mapGenerationRef.current += 1;
+    savedMapRef.current = null;
+    savedMapBodyRef.current = "";
+    setImageUrl(""); setLevels([]); setWalls([]); setRoofUrl(""); setRoofMask(null);
+    setRoofZones([]); setSavedMaps([]); setMapSaveNotice("");
+  }, [campaignId]);
+
+  const openSavedMap = (map: SessionMapDocument | null) => {
+    mapGenerationRef.current += 1;
+    savedMapRef.current = map;
+    savedMapBodyRef.current = "";
+    setActiveLevel(0); setRegions([]); setToken(null); setViewport({zoom:1,x:0,y:0});
+    if (!map) { setImageUrl(""); setLevels([]); setWalls([]); setRoofUrl(""); setRoofMask(null); setRoofZones([]); return; }
+    const level = map.levels[0];
+    savedMapBodyRef.current = JSON.stringify({title:map.title,levels:map.levels.map(l=>({id:l.id,name:l.name,imageUrl:l.imageUrl,roofUrl:l.roofUrl ?? "",walls:l.walls,grid:l.grid ?? {type:"none",size:0.08,color:"#ffffff",opacity:0.35},roofZones:l.roofZones ?? []}))});
+    setTitle(map.title); setImageUrl(level.imageUrl); setRoofUrl(level.roofUrl ?? "");
+    setRoofMask(null); setDeepZoom(null); setMediaType("image");
+    setWalls(level.walls); setRoofZones(level.roofZones ?? []);
+    setGrid(level.grid ?? {type:"none",size:0.08,color:"#ffffff",opacity:0.35});
+    setLevels(map.levels.map((l) => ({id:l.id,name:l.name,imageUrl:l.imageUrl,roofUrl:l.roofUrl ?? "",roofMask:null,deepZoom:null,walls:l.walls,grid:l.grid ?? {type:"none",size:0.08,color:"#ffffff",opacity:0.35},roofZones:l.roofZones ?? []})));
+    setMapSaveNotice("Карта открыта из библиотеки.");
+  };
+
+  useEffect(() => {
+    if (!open || !imageUrl || busy || !["image","tiles"].includes(mediaType) || !imageUrl.startsWith("/uploads/")) return;
+    const generation = mapGenerationRef.current;
+    const sourceLevels = levels.length ? levels.map((l,i) => i===activeLevel ? {...l,imageUrl,roofUrl,walls,grid,roofZones} : l)
+      : [{id:"level-1",name:"Этаж 1",imageUrl,roofUrl,walls,grid,roofZones}];
+    const body = JSON.stringify({title,levels:sourceLevels.map(l=>({id:l.id,name:l.name,imageUrl:l.imageUrl,roofUrl:l.roofUrl,walls:l.walls,grid:l.grid,roofZones:l.roofZones}))});
+    if (savedMapBodyRef.current === body) return;
+    let started = false;
+    const save = () => {
+      if (started) return;
+      started = true;
+      mapSaveQueue.current = mapSaveQueue.current.catch(() => {}).then(async () => {
+        if (generation !== mapGenerationRef.current || savedMapBodyRef.current === body) return;
+        setMapSaveNotice("Сохранение карты…");
+        try {
+          const persistedLevels = await Promise.all(sourceLevels.map(async (l) => {
+            const size = await new Promise<{width:number;height:number}>((resolve,reject) => { const img = new Image(); img.onload=()=>resolve({width:img.naturalWidth,height:img.naturalHeight}); img.onerror=()=>reject(new Error("Не удалось прочитать размеры фона.")); img.src=l.imageUrl; });
+            return {id:l.id,name:l.name,imageUrl:l.imageUrl,roofUrl:l.roofUrl,walls:l.walls,grid:l.grid,gridDistance:savedMapRef.current?.levels.find(level=>level.id===l.id)?.gridDistance ?? 0,roofZones:l.roofZones,...size};
+          }));
+          if (generation !== mapGenerationRef.current) return;
+          const existing = savedMapRef.current;
+          const saved = await api.saveSessionMap(campaignId,{id:existing?.id ?? "",revision:existing?.revision ?? 0,title,levels:persistedLevels});
+          if (generation !== mapGenerationRef.current) return;
+          savedMapRef.current=saved; savedMapBodyRef.current=body;
+          setSavedMaps((maps) => [...maps.filter(m=>m.id!==saved.id),saved]); setMapSaveNotice("Карта сохранена на сайте.");
+        } catch (error) { if (generation === mapGenerationRef.current) setMapSaveNotice(error instanceof Error ? error.message : "Карта не сохранена."); }
+      });
+    };
+    pendingMapSave.current = save;
+    const timer = window.setTimeout(save, 800);
+    return () => { window.clearTimeout(timer); if (pendingMapSave.current===save) pendingMapSave.current=null; };
+  }, [open,campaignId,imageUrl,roofUrl,title,levels,activeLevel,walls,grid,roofZones,busy,mediaType]);
   const visionCellSize = grid.type === "none" ? 0.01 : grid.size;
   const roofZonesToRender = pairedVTT
     ? []
@@ -1599,7 +1677,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
 
   useEffect(() => {
     if (!open) return;
-    const close = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const close = (e: KeyboardEvent) => e.key === "Escape" && closeMap();
     document.addEventListener("keydown", close);
     const old = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -1607,7 +1685,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
       document.removeEventListener("keydown", close);
       document.body.style.overflow = old;
     };
-  }, [onClose, open]);
+  }, [closeMap, open]);
   if (!open || typeof document === "undefined") return null;
 
   const publish = (
@@ -2271,7 +2349,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
     <div
       className="session-map-backdrop"
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) closeMap();
         else setRegionMenu(null);
       }}
     >
@@ -2285,7 +2363,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
           <button
             aria-label="Закрыть"
             className="ghost"
-            onClick={onClose}
+            onClick={closeMap}
             type="button"
           >
             ✕
@@ -2608,6 +2686,13 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
             )}
           </div>
           <aside className="session-map-controls">
+            <label>Сохранённые карты
+              <select value={savedMapRef.current?.id ?? ""} onChange={(event) => openSavedMap(savedMaps.find(m=>m.id===event.target.value) ?? null)}>
+                <option value="">Новая карта</option>
+                {savedMaps.map(map=><option key={map.id} value={map.id}>{map.title}</option>)}
+              </select>
+            </label>
+            <p role="status">{mapSaveNotice}</p>
             <label>
               Ссылка на карту или YouTube
               <div className="session-map-url-row">

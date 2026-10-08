@@ -1,4 +1,6 @@
 import type { WorldMapDocument } from "./world-maps";
+import type { FoundryActor, SessionMapDocument } from "./foundry";
+export type { FoundryActor, FoundryAbility, SessionMapDocument } from "./foundry";
 export type { WorldMapDocument, WorldMapLabel } from "./world-maps";
 
 export type ModuleId =
@@ -82,6 +84,8 @@ export interface PlayerFacingCard {
 }
 
 export interface KnowledgeEntityBase {
+	/** External sheet; never treated as validated wizard choices. */
+	foundryCharacter?: FoundryActor;
   id: string;
   /** Optimistic-concurrency revision. Older persisted records may omit it. */
   revision?: number;
@@ -1190,6 +1194,8 @@ export interface RegisterInput {
 }
 
 export interface ApiClient {
+	listSessionMaps(campaignId: string): Promise<SessionMapDocument[]>;
+	saveSessionMap(campaignId: string, map: SessionMapDocument): Promise<SessionMapDocument>;
   getSession(): Promise<AuthSessionResult>;
   getOAuthProviders(): Promise<OAuthProviderStatus[]>;
   startOAuth(provider: "google" | "discord", link?: boolean, replace?: boolean): Promise<{ url: string }>;

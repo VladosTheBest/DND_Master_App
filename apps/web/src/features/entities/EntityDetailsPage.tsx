@@ -456,6 +456,18 @@ export function EntityDetailsRenderer({
 
       {preparedCombatSection}
 
+      {activeEntity.foundryCharacter ? (
+        <section className="panel" aria-label="Импортированный лист Foundry">
+          <h2>Лист Foundry</h2>
+          <p>Импортированные постоянные параметры. Выборы нашего конструктора не восстановлены; текущее состояние боя остаётся в Foundry.</p>
+          <p>HP: {activeEntity.foundryCharacter.maxHp} · КД: {activeEntity.foundryCharacter.armorClass} · Скорость: {activeEntity.foundryCharacter.speed}</p>
+          <p>{Object.entries(activeEntity.foundryCharacter.abilities).map(([name,value]) => `${name.toUpperCase()}: ${value}`).join(" · ")}</p>
+          {activeEntity.foundryCharacter.items.map((item,index) => (
+            <details key={`${item.id}-${index}`}><summary>{item.name}</summary><RichParagraphs content={item.description} entityByTitle={entityByTitle} onMentionClick={onOpenPreview} /></details>
+          ))}
+        </section>
+      ) : null}
+
       {activeEntity.kind === "location" ? (
         <div id="location-shops">
         <CollapsibleSection

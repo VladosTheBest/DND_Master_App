@@ -286,6 +286,14 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
       method: "POST"
     });
   },
+  async listSessionMaps(campaignId) {
+    return requestJson<import("@shadow-edge/shared-types").SessionMapDocument[]>(`${baseUrl}/api/campaigns/${encodeURIComponent(campaignId)}/session-maps`);
+  },
+  async saveSessionMap(campaignId, map) {
+    return requestJson<import("@shadow-edge/shared-types").SessionMapDocument>(`${baseUrl}/api/campaigns/${encodeURIComponent(campaignId)}/session-maps${map.id ? `/${encodeURIComponent(map.id)}` : ""}`, {
+      method: map.id ? "PUT" : "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(map)
+    });
+  },
   async uploadImage(campaignId, file) {
     const formData = new FormData();
     formData.set("file", file);

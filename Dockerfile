@@ -8,6 +8,7 @@ COPY packages/api-client/package.json packages/api-client/package.json
 COPY packages/design-tokens/package.json packages/design-tokens/package.json
 COPY packages/mcp-server/package.json packages/mcp-server/package.json
 COPY packages/shared-types/package.json packages/shared-types/package.json
+COPY packages/foundry-module/package.json packages/foundry-module/package.json
 
 RUN npm ci
 

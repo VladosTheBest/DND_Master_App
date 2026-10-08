@@ -17,6 +17,7 @@ type cloudRecord struct {
 }
 
 var cloudCollections = []struct{ Field, Table string }{
+	{"foundryConnections", "foundry_connections"}, {"foundryReceipts", "foundry_receipts"},
 	{"users", "accounts"}, {"campaigns", "campaigns"},
 	{"importedSessions", "game_sessions"}, {"aiProposals", "ai_proposals"},
 	{"proposalAudits", "proposal_audits"}, {"surveyInvites", "survey_invites"},
@@ -34,7 +35,7 @@ var cloudChildren = []struct{ Field, Table string }{
 	{"combatPlaylist", "playlist_tracks"},
 }
 
-var cloudTables = []string{"accounts", "oauth_identities", "subscriptions", "campaigns", "entities", "world_events", "shops", "session_preparations", "playlist_tracks", "game_sessions", "transcripts", "session_analyses", "ai_proposals", "proposal_audits", "survey_invites", "survey_responses", "character_invites", "character_sheets", "subscription_audits", "feedback", "ai_chat_turns"}
+var cloudTables = []string{"foundry_connections", "foundry_receipts", "accounts", "oauth_identities", "subscriptions", "campaigns", "entities", "world_events", "shops", "session_preparations", "playlist_tracks", "game_sessions", "transcripts", "session_analyses", "ai_proposals", "proposal_audits", "survey_invites", "survey_responses", "character_invites", "character_sheets", "subscription_audits", "feedback", "ai_chat_turns"}
 
 func rawString(object map[string]json.RawMessage, key string) string {
 	var result string

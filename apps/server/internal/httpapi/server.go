@@ -27,6 +27,7 @@ type Options struct {
 }
 
 type server struct {
+	foundry             *foundryManager
 	mapGenerationOwners sync.Map
 	cloud               *cloudDatabase
 	assets              *cloudAssets
@@ -37,6 +38,7 @@ type server struct {
 	shares              *initiativeShareManager
 	auth                *authManager
 	web                 http.Handler
+	webDir              string
 	uploads             http.Handler
 	uploadDir           string
 	surveys             *surveyManager
@@ -126,6 +128,7 @@ func NewServer(options Options) (http.Handler, error) {
 		shares:    newInitiativeShareManager(store, options.PublicBaseURL),
 		auth:      auth,
 		web:       webHandler,
+		webDir:    options.WebDir,
 		uploads:   uploadHandler,
 		uploadDir: options.UploadDir,
 		proposals: newProposalService(store, options.UploadDir),
@@ -134,6 +137,7 @@ func NewServer(options Options) (http.Handler, error) {
 	srv.proposals.assets = assets
 	srv.surveys = newSurveyManager(store, options.PublicBaseURL)
 	srv.characters = newCharacterManager(store, options.PublicBaseURL)
+	srv.foundry = newFoundryManager(srv)
 	srv.aiJobs, err = newAIJobManagerWithCloud(store.path+".ai-jobs.json", cloud, options.ImportLegacyJSON)
 	if err != nil {
 		return nil, err
@@ -141,6 +145,9 @@ func NewServer(options Options) (http.Handler, error) {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", srv.handleHealth)
+	mux.HandleFunc("/foundry/connect", srv.foundry.connectPage)
+	mux.HandleFunc("/foundry/module.json", srv.foundry.distribution)
+	mux.HandleFunc("/foundry/shadow-edge-gm.zip", srv.foundry.distribution)
 	mux.HandleFunc("/display/", srv.shares.handlePublicDisplayPage)
 	mux.HandleFunc("/api/display-meta/", srv.shares.handlePublicDisplayMeta)
 	mux.HandleFunc("/api/display/", srv.shares.handlePublicDisplayAPI)
@@ -193,6 +200,10 @@ func NewServer(options Options) (http.Handler, error) {
 			}
 		}
 		applyCORSHeaders(writer, request)
+		if strings.HasPrefix(request.URL.Path, "/api/integrations/foundry/") {
+			srv.foundry.handle(writer, request)
+			return
+		}
 		if request.Method == http.MethodOptions {
 			writer.WriteHeader(http.StatusNoContent)
 			return
@@ -248,6 +259,7 @@ func requiresTrustedMutationOrigin(auth *authManager, request *http.Request) boo
 
 func isServerManagedPath(path string) bool {
 	return path == "/healthz" ||
+		strings.HasPrefix(path, "/foundry/") ||
 		strings.HasPrefix(path, "/api/") ||
 		strings.HasPrefix(path, "/initiative/") ||
 		strings.HasPrefix(path, "/survey/") ||
@@ -382,6 +394,8 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 	}
 
 	switch {
+	case (len(segments) == 2 || len(segments) == 3) && segments[1] == "session-maps":
+		srv.handleSessionMaps(writer, request, user, campaign, segments)
 	case (len(segments) == 2 || len(segments) == 3) && segments[1] == "world-maps":
 		action := ""
 		if len(segments) == 3 {

@@ -144,21 +144,22 @@ type npcStatBlock struct {
 }
 
 type knowledgeEntity struct {
-	ID            string             `json:"id"`
-	Revision      int                `json:"revision"`
-	Kind          string             `json:"kind"`
-	Title         string             `json:"title"`
-	Subtitle      string             `json:"subtitle"`
-	Summary       string             `json:"summary"`
-	Content       string             `json:"content"`
-	PlayerContent string             `json:"playerContent,omitempty"`
-	PlayerCards   []playerFacingCard `json:"playerCards,omitempty"`
-	Tags          []string           `json:"tags"`
-	QuickFacts    []quickFact        `json:"quickFacts"`
-	Related       []relatedEntity    `json:"related"`
-	Art           *heroArt           `json:"art,omitempty"`
-	Playlist      []playlistTrack    `json:"playlist,omitempty"`
-	Gallery       []galleryImage     `json:"gallery,omitempty"`
+	FoundryCharacter *foundryActor      `json:"foundryCharacter,omitempty"`
+	ID               string             `json:"id"`
+	Revision         int                `json:"revision"`
+	Kind             string             `json:"kind"`
+	Title            string             `json:"title"`
+	Subtitle         string             `json:"subtitle"`
+	Summary          string             `json:"summary"`
+	Content          string             `json:"content"`
+	PlayerContent    string             `json:"playerContent,omitempty"`
+	PlayerCards      []playerFacingCard `json:"playerCards,omitempty"`
+	Tags             []string           `json:"tags"`
+	QuickFacts       []quickFact        `json:"quickFacts"`
+	Related          []relatedEntity    `json:"related"`
+	Art              *heroArt           `json:"art,omitempty"`
+	Playlist         []playlistTrack    `json:"playlist,omitempty"`
+	Gallery          []galleryImage     `json:"gallery,omitempty"`
 
 	Category        string                `json:"category,omitempty"`
 	Region          string                `json:"region,omitempty"`
@@ -303,9 +304,10 @@ type userAccount struct {
 }
 
 type campaignData struct {
-	ReadyCampaign *readyCampaignInfo `json:"readyCampaign,omitempty"`
-	WorldMaps     []worldMapDocument `json:"worldMaps,omitempty"`
-	ID            string             `json:"id"`
+	SessionMaps   []sessionMapDocument `json:"sessionMaps,omitempty"`
+	ReadyCampaign *readyCampaignInfo   `json:"readyCampaign,omitempty"`
+	WorldMaps     []worldMapDocument   `json:"worldMaps,omitempty"`
+	ID            string               `json:"id"`
 	// Revision tracks authoring changes used by proposal conflict detection.
 	// Ephemeral live-combat state is persisted but deliberately does not make
 	// an otherwise independent content proposal stale.
@@ -355,6 +357,8 @@ type searchResult struct {
 }
 
 type storageState struct {
+	FoundryConnections []foundryConnection    `json:"foundryConnections,omitempty"`
+	FoundryReceipts    []foundryReceipt       `json:"foundryReceipts,omitempty"`
 	AIChatTurns        []aiChatTurn           `json:"aiChatTurns,omitempty"`
 	Feedback           []feedbackEntry        `json:"feedback,omitempty"`
 	SubscriptionAudits []subscriptionAudit    `json:"subscriptionAudits,omitempty"`

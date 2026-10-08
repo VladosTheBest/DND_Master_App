@@ -1,0 +1,1 @@
+{"name":"@shadow-edge/foundry-module","version":"0.1.0","private":true,"type":"module","scripts":{"test":"node --test tests/core.test.mjs tests/adapter.test.mjs tests/boot.test.mjs","test:runtime":"node tests/runtime-smoke.cjs","build":"node scripts/build.mjs"}}
