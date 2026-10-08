@@ -1,3 +1,4 @@
+import {roundTokenAsset,updatePlacedTokenArt} from './token-art.mjs';
 import {showAnimationLibrary} from './animation-library.mjs';
 import {MODULE,clone,equal,mergeThree,validBaseURL,authoringActor,exportEntity,exportJournal,sceneLevel,plainText} from "./core.mjs";
 import {loadState,saveState} from "./storage.mjs";
@@ -125,18 +126,20 @@ async function refreshCampaign(progress,mediaFailures){
       await importMedia(state,snapshot.title,record,mediaFailures,progress);
       progress.stage(`Данные и способности · ${record.title}`);
       const presentationHash=JSON.stringify([record.data.art,record.data.gallery]);
-      if(doc && entry?.record.hash===record.hash&&entry.adapterVersion===11&&entry.presentationHash===presentationHash&&!entry.mediaPending)continue;
+      if(doc && entry?.record.hash===record.hash&&entry.adapterVersion===12&&entry.presentationHash===presentationHash&&!entry.mediaPending)continue;
       const localChanged=doc&&entry?.authoring&&!equal(actorKind?authoringActor(doc):sceneKind?sceneAuthoring(record,doc):exportJournal(entry.record.data,doc),entry.authoring);
       if(actorKind&&doc&&game.combats.some(c=>c.started&&c.combatants.some(x=>x.actorId===doc.id))){deferred.push(record.title);continue}
       let mediaPending=false;const plan=actorKind?await actorPlan(record,snapshot.spells??[]):null;
       const projection=plan?.projection??(sceneKind?scenePlan(record,level):journalPlan(record));
       projection.flags[MODULE]={...projection.flags[MODULE],campaignId:state.campaignId,site:state.base};
-      if(projection.img){const url=projection.img;try{progress.stage(`Портрет · ${record.title}`);projection.img=await localAsset(state,url,"Портреты")}catch(error){mediaPending=true;mediaFailures.push({url,title:record.title,message:error.message});projection.img=doc?.img??"icons/svg/mystery-man.svg"}if(actorKind)projection.prototypeToken.texture={src:projection.img}}
+      const previousTokenArt=new Set([doc?.img,doc?.prototypeToken?.texture?.src,entry?.projection?.prototypeToken?.texture?.src].filter(Boolean));
+      if(projection.img){const url=projection.img;try{progress.stage(`Портрет · ${record.title}`);projection.img=await localAsset(state,url,"Портреты")}catch(error){mediaPending=true;mediaFailures.push({url,title:record.title,message:error.message});projection.img=doc?.img??"icons/svg/mystery-man.svg"}if(actorKind){try{progress.stage(`Круглый токен · ${record.title}`);projection.prototypeToken.texture={src:await roundTokenAsset(state,projection.img)}}catch(error){mediaPending=true;mediaFailures.push({url,title:record.title,message:error.message});projection.prototypeToken.texture={src:doc?.prototypeToken?.texture?.src??projection.img}}}}
       if(projection.background?.src){const url=projection.background.src;try{progress.stage(`Карта · ${record.title}`);projection.background.src=await localAsset(state,url,"Карты")}catch(error){mediaPending=true;mediaFailures.push({url,title:record.title,message:error.message});if(doc)projection.background.src=doc.background.src;else projection.background.src=""}}
       projection.folder=destination;
       if(doc)await updateProjection(doc,projection,entry?.projection);
       else{projection.folder=destination;const creation=clone(projection);if(actorKind){creation.system.attributes.hp.value=creation.system.attributes.hp.max;for(const slot of Object.values(creation.system.spells??{}))if(Number.isInteger(slot.override)&&slot.override>=0)slot.value=slot.override}doc=await (actorKind?Actor:sceneKind?Scene:JournalEntry).create(creation)}
-      const saved={...entry,uuid:doc.uuid,record:clone(record),projection:clone(projection),adapterVersion:11,presentationHash,mediaPending};
+      if(actorKind)try{await updatePlacedTokenArt(doc,previousTokenArt)}catch(error){mediaPending=true;mediaFailures.push({url:projection.img,title:record.title,message:`Токены на сценах: ${error.message}`})}
+      const saved={...entry,uuid:doc.uuid,record:clone(record),projection:clone(projection),adapterVersion:12,presentationHash,mediaPending};
       if(plan)await importItems(doc,plan.items,saved);
       if(record.kind==="world-map")await importMapLabels(doc,record.data.labels,saved,(name,fields)=>DialogV2().confirm({window:{title:`Конфликт подписи: ${name}`},content:`<p>Изменены: ${safeHTML(fields.join(", "))}. Применить версию сайта?</p>`}));
       saved.authoring=localChanged?entry.authoring:actorKind?authoringActor(doc):sceneKind?sceneAuthoring(record,doc):exportJournal(record.data,doc);
