@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 test("loading the module and opening a world make no API requests or sync timers",async()=>{
   const once=new Map(),hooks=new Map();let requests=0,timers=0;
   globalThis.Hooks={once:(name,callback)=>once.set(name,callback),on:(name,callback)=>hooks.set(name,callback)};
-  globalThis.game={user:{isGM:true},settings:{register:()=>{}}};
+  globalThis.game={user:{isGM:true},settings:{register:()=>{}},socket:{on:()=>{}}};
   globalThis.document={createElement:()=>({}),body:{append:()=>{}}};
   const fetch=globalThis.fetch,interval=globalThis.setInterval;
   globalThis.fetch=()=>{requests++;throw Error("Unexpected automatic request")};

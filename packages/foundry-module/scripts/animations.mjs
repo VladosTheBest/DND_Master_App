@@ -1,48 +1,58 @@
-import {MODULE,activityValues} from "./core.mjs";
-export const effects={"fire-bolt":{file:"jb2a.fire_bolt.orange",mode:"projectile"},"ray-of-frost":{file:"jb2a.ray_of_frost.blue",mode:"projectile"},"magic-missile":{file:"jb2a.magic_missile.purple",mode:"projectile"},"cure-wounds":{file:"jb2a.healing_generic.200px.green",mode:"target"},"healing-word":{file:"jb2a.healing_generic.200px.green",mode:"target"},fireball:{file:"jb2a.fireball.explosion.orange",mode:"burst"},"burning-hands":{file:"jb2a.burning_hands.01.orange",mode:"cone"},"lightning-bolt":{file:"jb2a.lightning_bolt.narrow.blue",mode:"ray"},bless:{file:"jb2a.bless.200px.intro.yellow",mode:"target"},shield:{file:"jb2a.shield.01.intro.blue",mode:"self"}};
-export function midiAnimationMode(){const m=game.modules.get("midi-qol");return Boolean(m?.active&&(Number.parseInt(game.system.version,10)<6||m.version?.startsWith("14.6.")))}
+import {MODULE,activityValues} from './core.mjs';
+import {profiles,renderEffect,validEffect,clearEffects} from './native-effects.mjs';
+export const effects=Object.fromEntries(Object.entries(profiles).map(([key,[mode]])=>[key,{key,mode}]));
+export function midiAnimationMode(){const m=game.modules.get('midi-qol');return Boolean(m?.active&&(Number.parseInt(game.system.version,10)<6||m.version?.startsWith('14.6.')))}
+export function weaponProfile(item){
+ const name=[item.system?.type?.baseItem,item.system?.identifier,item.name].filter(Boolean).join(' ').toLowerCase();
+ for(const [key,re] of [['crossbow',/crossbow|арбалет/],['bow',/\bbow\b|longbow|shortbow|лук/],['axe',/axe|топор|секир/],['hammer',/hammer|maul|mace|club|молот|булав|дубин/],['dagger',/dagger|knife|кинжал|нож/],['spear',/spear|pike|halberd|glaive|копь|пик[а-и]|алебард|глеф/],['claw',/claw|bite|когт|укус/],['sword',/sword|rapier|scimitar|меч|рапир|сабл/]])if(re.test(name))return effects[key];
+ return null;
+}
 export function animationProfile(item,activity){
-  if(!item?.flags?.[MODULE])return null;
-  const spell=item.flags[MODULE].spellId?.replace(/-(2014|2024)$/,"");if(effects[spell])return effects[spell];
-  activity??=activityValues(item.system?.activities)[0];
-  if(activity?.type==="heal")return effects["cure-wounds"];
-  if(activity?.type==="attack")return activity.attack?.type?.value==="ranged"?{file:"jb2a.arrow.physical.white",mode:"projectile"}:{file:"jb2a.impact.004.blue",mode:"target"};
-  if(["save","damage"].includes(activity?.type))return {file:"jb2a.impact.004.blue",mode:"target"};
-  return null;
+ if(!item?.flags?.[MODULE])return null;
+ const spell=item.flags[MODULE].spellId?.replace(/-(2014|2024)$/,'');if(effects[spell])return effects[spell];
+ activity??=activityValues(item.system?.activities)[0];
+ if(activity?.type==='heal')return effects['cure-wounds'];
+ if(activity?.type==='attack'){const weapon=weaponProfile(item),ranged=activity.attack?.type?.value==='ranged';return ranged&&weapon?.mode==='melee'?effects.thrown:weapon??(ranged?effects.thrown:effects.sword)}
+ if(['save','damage'].includes(activity?.type))return effects.impact;
+ return null;
 }
-export function animationStatus(){
-  if(!game.modules.get("sequencer")?.active||!globalThis.Sequence)return "Включите Sequencer для анимаций.";
-  if(!game.modules.get("JB2A_DnD5e")?.active&&!game.modules.get("jb2a_patreon")?.active)return "Включите JB2A Free для анимаций.";
-  return `Анимации готовы · ${midiAnimationMode()?"Midi-QOL":"обычные способности dnd5e"}. Выделите свой токен и отметьте цель.`;
+export function animationStatus(){return `Встроенные анимации готовы · ${midiAnimationMode()?'Midi-QOL':'обычные способности dnd5e'}. Выделите свой токен и отметьте цель.`}
+const seen=new Set();
+function receive(p){if(!validEffect(p)||seen.has(p.id))return false;seen.add(p.id);if(seen.size>500)seen.delete(seen.values().next().value);return renderEffect(p)}
+export async function receiveAnimation(p){
+ if(!validEffect(p)||p.sceneId!==canvas.scene?.id)return false;
+ const user=game.users.get(p.userId),actor=await fromUuid(p.actorUuid);
+ if(!user||!actor||(!user.isGM&&!actor.testUserPermission(user,'OWNER')))return false;
+ return receive(p);
 }
-const tokenObject=t=>t?.object??t;
 export async function playAnimation({item,activity,source,targets=[],template,id}){
-  const profile=animationProfile(item,activity);source=tokenObject(source);targets=targets.map(tokenObject).filter(t=>t?.center);template=tokenObject(template);
-  if(!profile||!source?.center||!globalThis.Sequence||!globalThis.Sequencer)return false;
-  if(!Sequencer.Database.entryExists(profile.file)){ui.notifications.warn(`Нет файла анимации ${profile.file}. Проверьте JB2A.`);return false}
-  if(profile.mode==="self")targets=[source];
-  if(!targets.length&&!template&&profile.mode==="target"&&activity?.type==="heal")targets=[source];
-  if(!targets.length&&!template&&profile.mode!=="self")return false;
-  const sequence=new Sequence({moduleName:MODULE});
-  const effect=()=>sequence.effect().file(profile.file).name(`${MODULE}:${id}`);
-  if(template&&["burst","cone","ray"].includes(profile.mode)){
-    const d=template.document??template,origin={x:d.x,y:d.y},length=(d.distance??activity?.target?.template?.size??20)*canvas.grid.size/canvas.scene.grid.distance;
-    if(profile.mode==="burst")effect().atLocation(origin).size(length*2);
-    else{const radians=(d.direction??0)*Math.PI/180,end={x:origin.x+Math.cos(radians)*length,y:origin.y+Math.sin(radians)*length};if(profile.mode==="ray")effect().atLocation(origin).stretchTo(end);else effect().atLocation(origin).size(length).anchor({x:0,y:.5}).rotate(d.direction??0)}
-  }else for(const target of targets){const directional=["projectile","ray","cone"].includes(profile.mode),same=source.center.x===target.center.x&&source.center.y===target.center.y;const e=effect().atLocation(directional&&!same?source:target);if(directional&&!same)e.stretchTo(target);else{if(directional)e.file("jb2a.impact.004.blue");e.scaleToObject(profile.mode==="burst"?3:1.5)}}
-  await sequence.play();return true;
+ const profile=animationProfile(item,activity);source=source?.object??source;template=template?.object??template;
+ if(!profile||!source?.center||!item.actor?.uuid||!canvas.ready)return false;
+ const point=t=>({x:t.center.x,y:t.center.y,tokenId:t.id??t.document?.id});
+ targets=targets.map(t=>t?.object??t).filter(t=>t?.center).slice(0,20);
+ if(profile.mode==='self'||(!targets.length&&!template&&activity?.type==='heal'))targets=[source];
+ if(!targets.length&&!template)return false;
+ const p={key:profile.key,id:String(id??foundry.utils.randomID()),sceneId:canvas.scene.id,userId:game.user.id,actorUuid:item.actor.uuid,source:point(source),targets:targets.map(point),size:Math.min(1000,Math.max(10,canvas.grid.size))};
+ if(template&&['burst','cone','ray'].includes(profile.mode)){const d=template.document??template;p.template={x:d.x,y:d.y,length:(d.distance??20)*canvas.grid.size/canvas.scene.grid.distance,direction:d.direction??0}}
+ if(!validEffect(p))return false;
+ const played=receive(p);
+ // Hidden tokens stay local to the GM; do not publish even their coordinates.
+ if(played&&!source.document?.hidden){const publicTargets=p.targets.filter(t=>!canvas.tokens.get(t.tokenId)?.document.hidden);if(publicTargets.length||p.template)game.socket.emit(`module.${MODULE}`,{...p,targets:publicTargets})}
+ return played;
 }
 let registered=false;
 export function registerAnimations(){
-  if(registered)return;registered=true;const played=new Set();
-  const play=async data=>{if(!data.id||played.has(data.id))return;played.add(data.id);if(played.size>500)played.delete(played.values().next().value);try{await playAnimation(data)}catch{ui.notifications.warn("Не удалось воспроизвести анимацию. Способность остаётся доступной.")}};
-  Hooks.on("dnd5e.postUseActivity",(activity,config,results)=>{
-    if(midiAnimationMode()||!results?.message)return;
-    const actor=activity.item?.actor,source=actor?.token?.object??actor?.getActiveTokens()?.find(t=>t.controlled)??actor?.getActiveTokens()?.[0];
-    void play({item:activity.item,activity,source,targets:Array.from(game.user.targets??[]),template:results.templates?.[0],id:results.message.uuid??results.message.id});
-  });
-  Hooks.on("midi-qol.RollComplete",workflow=>{
-    if(!midiAnimationMode()||(workflow.userId??workflow.user?.id)!==game.user.id)return;
-    void (async()=>{const template=workflow.templateUuid?await fromUuid(workflow.templateUuid):null;await play({item:workflow.item,activity:workflow.activity,source:workflow.token,targets:Array.from(workflow.targets??[]),template,id:workflow.uuid??workflow.id})})().catch(()=>ui.notifications.warn("Не удалось воспроизвести анимацию Midi-QOL."));
-  });
+ if(registered)return;registered=true;
+ game.socket.on(`module.${MODULE}`,p=>{void receiveAnimation(p).catch(()=>{})});
+ Hooks.on('canvasTearDown',clearEffects);
+ const play=data=>void playAnimation(data).catch(()=>ui.notifications.warn('Не удалось воспроизвести анимацию. Способность остаётся доступной.'));
+ Hooks.on('dnd5e.postUseActivity',(activity,config,results)=>{
+  if(midiAnimationMode()||!results?.message)return;
+  const actor=activity.item?.actor,source=actor?.token?.object??actor?.getActiveTokens()?.find(t=>t.controlled)??actor?.getActiveTokens()?.[0];
+  play({item:activity.item,activity,source,targets:Array.from(game.user.targets??[]),template:results.templates?.[0],id:results.message.uuid??results.message.id});
+ });
+ Hooks.on('midi-qol.RollComplete',workflow=>{
+  if(!midiAnimationMode()||(workflow.userId??workflow.user?.id)!==game.user.id)return;
+  void (async()=>{const template=workflow.templateUuid?await fromUuid(workflow.templateUuid):null;await playAnimation({item:workflow.item,activity:workflow.activity,source:workflow.token,targets:Array.from(workflow.targets??[]),template,id:workflow.uuid??workflow.id})})().catch(()=>ui.notifications.warn('Не удалось воспроизвести анимацию Midi-QOL.'));
+ });
 }
