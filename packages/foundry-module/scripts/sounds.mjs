@@ -8,22 +8,22 @@ export const soundProfiles={
   'fire-bolt':{noise:0.7,tone:240,fall:90,hit:0.62},'ray-of-frost':{noise:0.3,tone:1400,fall:650,hit:0.62,chime:true},
   'magic-missile':{noise:0.12,tone:600,fall:1100,hit:0.62,chime:true},
   'cure-wounds':{noise:0.03,tone:523,fall:659,chime:true},'healing-word':{noise:0.03,tone:659,fall:784,chime:true},
-  fireball:{noise:0.95,tone:75,fall:32,hit:0.03},'burning-hands':{noise:0.9,tone:140,fall:55,hit:0.05},
-  'lightning-bolt':{noise:0.9,tone:1800,fall:80,hit:0.1},bless:{noise:0.02,tone:784,fall:1047,chime:true},
+  fireball:{noise:0.95,tone:75,fall:32,hit:0.18},'burning-hands':{noise:0.9,tone:140,fall:55,hit:0.15},
+  'lightning-bolt':{noise:0.9,tone:1800,fall:80,hit:0.15},bless:{noise:0.02,tone:784,fall:1047,chime:true},
   shield:{noise:0.08,tone:392,fall:523,chime:true}
 };
 export function soundSamples(key,sampleRate=48000){
   if(!Object.hasOwn(soundProfiles,key)||!Number.isFinite(sampleRate)||sampleRate<8000||sampleRate>192000)return null;
-  const p=soundProfiles[key],samples=new Float32Array(Math.ceil(sampleRate*1.04));
+  const p=soundProfiles[key],duration=2.6,samples=new Float32Array(Math.ceil(sampleRate*duration));
   let seed=Array.from(key).reduce((v,c)=>(v*31+c.charCodeAt(0))>>>0,123),phase=0,low=0;
   for(let i=0;i<samples.length;i++){
-    const t=i/sampleRate,u=t/1.04;seed=(Math.imul(seed,1664525)+1013904223)>>>0;
+    const t=i/sampleRate,u=t/duration;seed=(Math.imul(seed,1664525)+1013904223)>>>0;
     const noise=seed/2147483648-1;low+=0.13*(noise-low);
     const envelope=Math.min(1,t/0.015)*Math.pow(1-u,p.chime?1.4:3);
     phase+=2*Math.PI*(p.tone+(p.fall-p.tone)*u)/sampleRate;
     const tonal=p.chime?(Math.sin(phase)+0.4*Math.sin(phase*1.5)+0.2*Math.sin(phase*2)):Math.sin(phase)*Math.exp(-t*9);
-    const hit=p.hit===undefined?0:Math.max(0,t-p.hit);
-    const impact=t>=p.hit?(Math.sin(2*Math.PI*65*hit)*0.5+low)*Math.exp(-hit*22):0;
+    const hit=p.hit===undefined?0:Math.max(0,t-p.hit*duration);
+    const impact=u>=p.hit?(Math.sin(2*Math.PI*65*hit)*0.5+low)*Math.exp(-hit*22):0;
     samples[i]=(p.noise*(p.tone<300?low:noise)*envelope+tonal*envelope*0.24+impact*0.35)*0.28;
   }
   return samples;

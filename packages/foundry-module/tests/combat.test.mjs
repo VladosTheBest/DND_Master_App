@@ -1,7 +1,9 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {attackHits,areaTargets} from '../scripts/combat.mjs';
 import {effectDuration} from '../scripts/native-effects.mjs';
-test('area effects include a longer fade before combat resumes',()=>{assert.equal(effectDuration({key:'fireball'}),2800);assert.equal(effectDuration({key:'lightning-bolt',template:{}}),2800);assert.equal(effectDuration({key:'sword'}),1100)});
+import {shieldEffectActive} from '../scripts/sustained-effects.mjs';
+test('shield visuals require an active actual shield effect, not equipped armor',()=>{const effect={name:'Barrier',flags:{'shadow-edge-gm':{visual:'shield'}},duration:{expired:false}};assert(shieldEffectActive(effect));for(const update of [{disabled:true},{isSuppressed:true},{duration:{expired:true}},{active:false}])assert.equal(shieldEffectActive({...effect,...update}),false);assert.equal(shieldEffectActive({name:'Shield',system:{changes:[{key:'system.attributes.ac.bonus',value:2}]}}),false)});
+test('all effects last 2-3 seconds and areas finish before combat resumes',()=>{assert.equal(effectDuration({key:'fireball'}),2800);assert.equal(effectDuration({key:'lightning-bolt',template:{}}),2800);assert.equal(effectDuration({key:'sword'}),2600)});
 test('natural one misses, natural twenty hits, and other attacks compare with AC',()=>{const r=(n,total)=>({total,dice:[{faces:20,results:[{result:n,active:true}]}]});assert.equal(attackHits(r(1,100),10),false);assert.equal(attackHits(r(20,20),100),true);assert.equal(attackHits(r(11,16),16),true);assert.equal(attackHits(r(10,15),16),false)});
 test('Fireball selects intersecting token footprints, excludes outside and actorless tokens',()=>{const token=(id,x,y,w=1,actor={})=>({uuid:id,x,y,width:w,height:1,actor});const scene={grid:{size:100,distance:5},tokens:[token('center',0,0),token('edge',200,0),token('outside',400,400),token('large',-250,0,2),token('no-actor',0,0,1,null)]};assert.deepEqual(areaTargets(scene,{t:'circle',x:50,y:50,distance:10}),['center','edge','large'])});
 

@@ -13,12 +13,14 @@ export const profiles = {
 };
 export function validEffect(p){
   const point=v=>v&&Number.isFinite(v.x)&&Number.isFinite(v.y)&&Math.abs(v.x)<100000&&Math.abs(v.y)<100000;
-  return Boolean(p&&Object.hasOwn(profiles,p.key)&&typeof p.id==='string'&&p.id.length<=200&&typeof p.sceneId==='string'&&typeof p.userId==='string'&&typeof p.actorUuid==='string'&&p.actorUuid.length<200&&point(p.source)&&Array.isArray(p.targets)&&p.targets.length<=20&&p.targets.every(point)&&Number.isFinite(p.size)&&p.size>=10&&p.size<=1000&&(!p.template||(point(p.template)&&Number.isFinite(p.template.length)&&p.template.length>0&&p.template.length<=10000&&Number.isFinite(p.template.direction))));
+  return Boolean(p&&Object.hasOwn(profiles,p.key)&&(p.loop===undefined||typeof p.loop==='boolean')&&(!p.loop||['cure-wounds','healing-word'].includes(p.key))&&typeof p.id==='string'&&p.id.length<=200&&typeof p.sceneId==='string'&&typeof p.userId==='string'&&typeof p.actorUuid==='string'&&p.actorUuid.length<200&&point(p.source)&&Array.isArray(p.targets)&&p.targets.length<=20&&p.targets.every(point)&&Number.isFinite(p.size)&&p.size>=10&&p.size<=1000&&(!p.template||(point(p.template)&&Number.isFinite(p.template.length)&&p.template.length>0&&p.template.length<=10000&&Number.isFinite(p.template.direction))));
 }
 const active=new Set();
 const completions=new Map();
-export const effectDuration=p=>p.template||profiles[p.key]?.[0]==='burst'?2800:1100;
+const endings=new Map();
+export const effectDuration=p=>p.template||profiles[p.key]?.[0]==='burst'?2800:2600;
 export const effectFinished=id=>completions.get(id)??Promise.resolve();
+export const endEffect=id=>endings.get(id)?.();
 export function clearEffects(){for(const stop of [...active])stop()}
 let cloudTexture;
 function softCloudTexture(){
@@ -29,18 +31,42 @@ function softCloudTexture(){
  for(let y=0;y<128;y++)for(let x=0;x<128;x++){const r=Math.hypot((x-64)/64,(y-64)/64),n=.55*noise(x/19,y/19)+.3*noise(x/9,y/9)+.15*noise(x/4,y/4),i=(y*128+x)*4;data.data[i]=data.data[i+1]=data.data[i+2]=255;data.data[i+3]=Math.round(255*Math.max(0,1-r)**1.3*(.45+.75*n))}
  ctx.putImageData(data,0,0);cloudTexture=PIXI.Texture.from(image);return cloudTexture;
 }
+let bubbleTexture;
+function shieldTexture(){
+ if(bubbleTexture)return bubbleTexture;
+ const image=document.createElement('canvas');image.width=image.height=192;const ctx=image.getContext('2d');
+ const sphere=ctx.createRadialGradient(96,96,12,96,96,94);sphere.addColorStop(0,'rgba(70,150,255,0.03)');sphere.addColorStop(.65,'rgba(45,145,255,0.07)');sphere.addColorStop(.88,'rgba(60,170,255,0.28)');sphere.addColorStop(.96,'rgba(140,225,255,0.55)');sphere.addColorStop(1,'rgba(40,140,255,0)');ctx.fillStyle=sphere;ctx.fillRect(0,0,192,192);
+ const light=ctx.createRadialGradient(66,51,0,66,51,40);light.addColorStop(0,'rgba(220,250,255,0.42)');light.addColorStop(1,'rgba(150,230,255,0)');ctx.fillStyle=light;ctx.fillRect(0,0,192,192);bubbleTexture=PIXI.Texture.from(image);return bubbleTexture;
+}
+export function renderShieldAura(token,id,isActive){
+ if(!canvas.ready||active.size>=40)return null;
+ const layer=new PIXI.Container(),sphere=new PIXI.Sprite(shieldTexture()),g=new PIXI.Graphics();layer.name=`shadow-edge-shield:${id}`;sphere.anchor.set(.5);layer.addChild(sphere,g);canvas.interface.addChild(layer);
+ let frame,stopped=false;const start=performance.now();
+ const stop=()=>{if(stopped)return;stopped=true;cancelAnimationFrame(frame);active.delete(stop);layer.parent?.removeChild(layer);layer.destroy({children:true});Hooks.callAll('shadow-edge-gm.shieldEnd',{id})};active.add(stop);
+ const draw=()=>{
+  if(!canvas.ready||!token.actor||token.destroyed||!isActive()){stop();return}
+  const t=(performance.now()-start)/1000,r=Math.max(token.w,token.h)*.72,pulse=1+Math.sin(t*2)*.015;
+  layer.visible=game.user.isGM||Boolean(token.visible&&!token.document.hidden);layer.position.set(token.center.x,token.center.y);
+  sphere.width=r*2*pulse;sphere.height=r*2.12*pulse;sphere.alpha=.82+Math.sin(t*2)*.12;
+  g.clear();g.lineStyle(2,0x7edfff,.45+Math.sin(t*2)*.12);g.drawEllipse(0,0,r*pulse,r*1.04*pulse);
+  g.lineStyle(3,0xd6f8ff,.5);g.arc(-r*.12,-r*.1,r*.85,3.6,4.6);
+  for(let j=0;j<8;j++){const theta=t*.3+j*Math.PI/4,x=Math.cos(theta)*r*.96,y=Math.sin(theta)*r*1.04;g.beginFill(0xb8f1ff,.35+.2*Math.sin(t*3+j));g.drawCircle(x,y,2.5);g.endFill()}
+  Hooks.callAll('shadow-edge-gm.shieldFrame',{id,graphics:g,center:{x:token.center.x,y:token.center.y}});frame=requestAnimationFrame(draw);
+ };draw();Hooks.callAll('shadow-edge-gm.shieldStart',{id,graphics:g});return {stop,graphics:g};
+}
 export function renderEffect(p){
-  if(!validEffect(p)||!canvas.ready||canvas.scene.id!==p.sceneId||active.size>=40)return false;
+  if(!validEffect(p)||!canvas.ready||canvas.scene.id!==p.sceneId||active.size>=40||completions.has(p.id))return false;
   const sourceToken=canvas.tokens.get(p.source.tokenId);
   if(!game.user.isGM&&(!sourceToken?.visible||sourceToken.document.hidden))return false;
   const targets=p.targets.filter(t=>game.user.isGM||(!canvas.tokens.get(t.tokenId)?.document.hidden&&canvas.tokens.get(t.tokenId)?.visible));
   if(!targets.length&&!p.template)return false;
-  const [mode,color]=profiles[p.key],g=new PIXI.Graphics(),layer=new PIXI.Container(),sprites=[];layer.addChild(g);canvas.interface.addChild(layer);let spriteIndex=0;
-  let frame,finish;const start=performance.now(),duration=effectDuration(p);
+  const [mode,color]=profiles[p.key],g=new PIXI.Graphics(),layer=new PIXI.Container(),sprites=[];layer.name=`shadow-edge-effect:${p.id}`;layer.addChild(g);canvas.interface.addChild(layer);let spriteIndex=0;
+  let frame,finish,ending=null;const start=performance.now(),duration=effectDuration(p);
+  endings.set(p.id,()=>{ending??=performance.now()});
   completions.set(p.id,new Promise(resolve=>{finish=resolve}));
   const stopSound=playEffectSound(p.key,p.id);
-  const stop=()=>{cancelAnimationFrame(frame);stopSound?.();active.delete(stop);layer.parent?.removeChild(layer);layer.destroy({children:true});completions.delete(p.id);finish();Hooks.callAll('shadow-edge-gm.animationEnd',{id:p.id,key:p.key})};active.add(stop);
-  Hooks.callAll('shadow-edge-gm.animationStart',{id:p.id,key:p.key,graphics:g,duration});
+  const stop=()=>{cancelAnimationFrame(frame);stopSound?.();active.delete(stop);layer.parent?.removeChild(layer);layer.destroy({children:true});completions.delete(p.id);endings.delete(p.id);finish();Hooks.callAll('shadow-edge-gm.animationEnd',{id:p.id,key:p.key})};active.add(stop);
+  Hooks.callAll('shadow-edge-gm.animationStart',{id:p.id,key:p.key,graphics:g,duration,source:p.source,loop:Boolean(p.loop)});
   const line=(a,b,width,c=color,alpha=1)=>{g.lineStyle(width,c,alpha);g.moveTo(a.x,a.y);g.lineTo(b.x,b.y)};
   const circle=(x,y,r,c=color,alpha=1)=>{g.beginFill(c,alpha);g.drawCircle(x,y,r);g.endFill()};
   const glow=(x,y,r,c,alpha)=>{let sprite=sprites[spriteIndex++];if(!sprite){sprite=new PIXI.Sprite(softCloudTexture());sprite.anchor.set(.5);sprite.blendMode=PIXI.BLEND_MODES.ADD;layer.addChildAt(sprite,layer.children.length-1);sprites.push(sprite)}sprite.visible=true;sprite.position.set(x,y);sprite.width=r*2;sprite.height=r*2.1;sprite.rotation=spriteIndex*2.399;sprite.tint=c;sprite.alpha=alpha};
@@ -50,7 +76,8 @@ export function renderEffect(p){
     const fade=1-Math.max(0,(t-.62)/.38),ease=v=>1-(1-Math.min(1,Math.max(0,v)))**3;
     g.blendMode=PIXI.BLEND_MODES.ADD;
     if(mode==='cone'||mode==='ray'){
-      const angle=(o.direction??0)*Math.PI/180,progress=ease(t/.22),length=radius*progress;
+      if(t<.22){const travel=Math.min(1,t/.18),x=p.source.x+(o.x-p.source.x)*travel,y=p.source.y+(o.y-p.source.y)*travel;glow(p.source.x,p.source.y,s*.55,color,(1-travel)*.7);glow(x,y,s*.35,color,.8)}
+      const angle=(o.direction??0)*Math.PI/180,progress=ease((t-.15)/.22),length=radius*progress;
       const point=(along,side)=>({x:o.x+Math.cos(angle)*along-Math.sin(angle)*side,y:o.y+Math.sin(angle)*along+Math.cos(angle)*side});
       if(mode==='ray'){
         for(let strand=0;strand<5;strand++){let last=point(0,0);for(let j=1;j<=24;j++){const v=point(length*j/24,j===24?0:Math.sin(j*19+strand*3+t*75)*s*(.10+strand*.035));line(last,v,s*(strand===0?.07:.025),strand===0?0xeaffff:0x548fff,fade);last=v}}
@@ -73,29 +100,37 @@ export function renderEffect(p){
     for(let j=0;j<52;j++){const angle=j*2.399,dist=r*(.6+explode*.55),x=o.x+Math.cos(angle)*dist,y=o.y+Math.sin(angle)*dist-explode*s*.45;circle(x,y,s*(.015+.025*(j%5)/5),hot,fade);if(j%3===0)line({x,y},{x:x-Math.cos(angle)*s*.1,y:y-Math.sin(angle)*s*.1},s*.012,warm,fade*.7)}
   };
   const draw=()=>{
-    const t=Math.min((performance.now()-start)/duration,1),fade=Math.sin(Math.PI*t),s=p.size;
-    if(!canvas.ready||canvas.scene.id!==p.sceneId||t>=1){stop();return}
+    const elapsed=performance.now()-start,t=p.loop?(elapsed/duration)%1:Math.min(elapsed/duration,1),fade=p.loop?Math.min(1,elapsed/350):Math.min(1,t/.12,Math.max(0,(1-t)/.23)),s=p.size;
+    if(!canvas.ready||canvas.scene.id!==p.sceneId||(!p.loop&&t>=1)||(p.loop&&elapsed>120000)||(ending!==null&&performance.now()-ending>=600)){stop();return}
+    layer.alpha=ending===null?1:Math.max(0,1-(performance.now()-ending)/600);
+    const source=canvas.tokens.get(p.source.tokenId);if(p.source.tokenId&&!source){stop();return}if(source?.center)Object.assign(p.source,source.center);
+    layer.visible=game.user.isGM||Boolean(source?.visible&&!source.document.hidden);
+    for(const target of targets){const token=canvas.tokens.get(target.tokenId);if(token?.center)Object.assign(target,token.center)}
     g.clear();
     spriteIndex=0;for(const sprite of sprites)sprite.visible=false;
     if(p.template||mode==='burst'){cinematic(t,s);Hooks.callAll('shadow-edge-gm.animationFrame',{id:p.id,key:p.key,graphics:g});frame=requestAnimationFrame(draw);return}
     const dest=p.template?[{x:p.template.x,y:p.template.y}]:targets;
     for(const target of dest){
+      const targetToken=canvas.tokens.get(target.tokenId);if(!p.template&&!game.user.isGM&&(!targetToken?.visible||targetToken.document.hidden))continue;
       let a=p.source,b=target;
       if(p.template&&['ray','cone'].includes(mode)){a=p.template;const r=p.template.direction*Math.PI/180;b={x:a.x+Math.cos(r)*p.template.length,y:a.y+Math.sin(r)*p.template.length}}
       const angle=Math.atan2(b.y-a.y,b.x-a.x),point=(x,y,origin=b)=>({x:origin.x+Math.cos(angle)*x-Math.sin(angle)*y,y:origin.y+Math.sin(angle)*x+Math.cos(angle)*y});
       if(mode==='projectile'){
         const missiles=p.key==='magic-missile'?3:1;
         for(let n=0;n<missiles;n++){
-          const u=Math.min(t*1.45,1),arc=Math.sin(u*Math.PI)*(n-1)*s*.6;
+          const u=Math.min(t/.58,1),arc=Math.sin(u*Math.PI)*(n-1)*s*.85;
           const head={x:a.x+(b.x-a.x)*u-Math.sin(angle)*arc,y:a.y+(b.y-a.y)*u+Math.cos(angle)*arc};
-          for(let j=1;j<9;j++)circle(head.x-Math.cos(angle)*j*s*.06,head.y-Math.sin(angle)*j*s*.06,s*.07*(1-j/10),color,fade*(1-j/10));
-          if(['bow','crossbow','thrown'].includes(p.key)){line(point(-s*.38,0,head),head,s*.025,0xf3e6cf,fade);line(head,point(-s*.1,s*.07,head),s*.03,color,fade);line(head,point(-s*.1,-s*.07,head),s*.03,color,fade)}
-          else circle(head.x,head.y,s*.095,color,fade);
+          const flight=Math.max(0,1-(t-.58)/.12);
+          for(let j=1;j<14;j++)glow(head.x-Math.cos(angle)*j*s*.08,head.y-Math.sin(angle)*j*s*.08,s*.13*(1-j/15),color,fade*flight*(1-j/15));
+          glow(a.x,a.y,s*.5,color,Math.max(0,1-t/.3)*.65);
+          if(['bow','crossbow','thrown'].includes(p.key)){line(point(-s*.6,0,head),head,s*.045,0xf3e6cf,fade*flight);line(head,point(-s*.16,s*.11,head),s*.05,color,fade*flight);line(head,point(-s*.16,-s*.11,head),s*.05,color,fade*flight)}
+          else {glow(head.x,head.y,s*.25,color,fade*flight);glow(head.x,head.y,s*.12,0xffffff,fade*flight);for(let j=0;j<5;j++)circle(head.x+Math.sin(j*11+t*25)*s*.13,head.y+Math.cos(j*11+t*25)*s*.13,s*.022,0xffffff,fade*flight)}
         }
       }else if(mode==='melee'){
-        const swing=angle-1.5+t*3,origin={x:b.x-Math.cos(angle)*s*.35,y:b.y-Math.sin(angle)*s*.35};
+        const approach=Math.min(1,t/.35),swing=angle-1.6+Math.max(0,t-.35)*4,origin={x:a.x+(b.x-a.x)*approach*.7,y:a.y+(b.y-a.y)*approach*.7};
         const w=(r,v)=>({x:origin.x+Math.cos(swing)*r-Math.sin(swing)*v,y:origin.y+Math.sin(swing)*r+Math.cos(swing)*v});
-        g.lineStyle(s*.07,color,fade*.6);g.arc(origin.x,origin.y,s*.62,swing-.8,swing);
+        for(let j=0;j<5;j++){g.lineStyle(s*(.10-j*.015),color,fade*(.3-j*.04));g.arc(origin.x,origin.y,s*(.7+j*.05),swing-1.2,swing)}
+        glow(origin.x,origin.y,s*.4,color,fade*.3);
         if(p.key==='claw'){for(let n=-1;n<=1;n++)line(w(s*.15,n*s*.13),w(s*.8,n*s*.13),s*.035,color,fade)}
         else {line(w(-s*.18,0),w(s*.52,0),s*.055,0xa48664,fade);
           g.beginFill(color,fade);const pts=p.key==='axe'?[w(s*.25,-s*.24),w(s*.62,-s*.2),w(s*.62,s*.2),w(s*.4,s*.08)]:p.key==='hammer'?[w(s*.4,-s*.2),w(s*.65,-s*.2),w(s*.65,s*.2),w(s*.4,s*.2)]:[w(s*.05,-s*.065),w(s*(p.key==='dagger'?.48:.85),0),w(s*.05,s*.065)];g.drawPolygon(pts.flatMap(v=>[v.x,v.y]));g.endFill();}
@@ -103,12 +138,16 @@ export function renderEffect(p){
         if(mode==='ray'){let last=a;for(let j=1;j<=16;j++){const v=point((Math.hypot(b.x-a.x,b.y-a.y)*j/16),(j===16?0:Math.sin(j*13+t*40)*s*.13),a);line(last,v,s*.05,color,fade);last=v}}
         else{g.beginFill(color,fade*.3);g.drawPolygon([a.x,a.y,...Object.values(point(0,-Math.hypot(b.x-a.x,b.y-a.y)*.4)),...Object.values(point(0,Math.hypot(b.x-a.x,b.y-a.y)*.4))]);g.endFill()}
       }
-      const radius=mode==='burst'?(p.template?.length??s*1.5):s*.48;
-      if(['burst','target','self'].includes(mode)||t>.6){g.lineStyle(s*.025,color,fade);g.drawCircle(b.x,b.y,radius*(.5+t*.5));
-        for(let j=0;j<12;j++){const r=j*2.399+t*.6,dist=radius*(.2+t*.9);circle(b.x+Math.cos(r)*dist,b.y+Math.sin(r)*dist,s*.035,color,fade)}
-        if(p.key==='shield'){g.lineStyle(s*.045,color,fade);g.drawPolygon(Array.from({length:6},(_,j)=>[b.x+Math.cos(j*Math.PI/3)*radius,b.y+Math.sin(j*Math.PI/3)*radius]).flat())}
-        if(['cure-wounds','healing-word','bless'].includes(p.key)){line({x:b.x-s*.15,y:b.y-t*s*.3},{x:b.x+s*.15,y:b.y-t*s*.3},s*.05,color,fade);line({x:b.x,y:b.y-t*s*.3-s*.15},{x:b.x,y:b.y-t*s*.3+s*.15},s*.05,color,fade)}
+      if(['target','self'].includes(mode)){
+        const healing=['cure-wounds','healing-word'].includes(p.key),flow=p.loop?t:Math.min(1,t/.5);
+        for(let j=0;j<36;j++){const u=(flow+j/36)%1;if(u>Math.min(1,elapsed/(duration*.48)))continue;const arc=Math.sin(u*Math.PI)*Math.sin(j*2.399+t*4)*s*.24,x=a.x+(b.x-a.x)*u-Math.sin(angle)*arc,y=a.y+(b.y-a.y)*u+Math.cos(angle)*arc;glow(x,y,s*.23,color,fade*.6);if(j%5===0)circle(x,y,s*.028,0xffffff,fade)}
+        glow(a.x,a.y,s*.65,color,fade*.35);
+        const arrival=Math.min(1,Math.max(0,((p.loop?elapsed/duration:t)-.32)/.18));glow(b.x,b.y,s*.95,color,fade*arrival*.65);
+        for(let j=0;j<18;j++){const theta=j*2.399+t*5,r=s*(.25+(j%5)*.08),x=b.x+Math.cos(theta)*r,y=b.y+Math.sin(theta)*r-(healing?((t+j/18)%1)*s*.6:0);glow(x,y,s*.09,color,fade*arrival*.7);if(healing&&j%5===0){line({x:x-s*.06,y},{x:x+s*.06,y},s*.025,0xdcfff1,fade*arrival);line({x,y:y-s*.06},{x,y:y+s*.06},s*.025,0xdcfff1,fade*arrival)}}
+        if(p.key==='shield'){g.lineStyle(s*.035,0x99ddff,fade);g.drawCircle(b.x,b.y,s*.65);g.lineStyle(s*.015,0xffffff,fade*.6);g.arc(b.x-s*.12,b.y-s*.10,s*.52,3.6,4.8)}
+        if(p.key==='bless'){for(let j=0;j<2;j++){g.lineStyle(s*.023,0xffdc6b,fade*arrival*.75);g.drawEllipse(b.x,b.y-s*.25+j*s*.45,s*.58,s*.18)}for(let j=0;j<6;j++){const theta=j*Math.PI/3+t*2;line({x:b.x+Math.cos(theta)*s*.38,y:b.y+Math.sin(theta)*s*.38},{x:b.x+Math.cos(theta)*s*.52,y:b.y+Math.sin(theta)*s*.52},s*.025,0xfff4ba,fade*arrival)}}
       }
+      if(t>.56&&['projectile','melee'].includes(mode)){const impact=Math.max(0,1-(t-.56)/.44);glow(b.x,b.y,s*(.45+(t-.56)),color,impact*.8);g.lineStyle(s*.03,color,impact);g.drawCircle(b.x,b.y,s*(.1+(t-.56)*1.5));for(let j=0;j<16;j++){const theta=j*2.399,r=(t-.56)*s*2;circle(b.x+Math.cos(theta)*r,b.y+Math.sin(theta)*r,s*.035,color,impact)}}
     }
     Hooks.callAll('shadow-edge-gm.animationFrame',{id:p.id,key:p.key,graphics:g});
     frame=requestAnimationFrame(draw);

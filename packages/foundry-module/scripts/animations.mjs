@@ -25,14 +25,14 @@ export async function receiveAnimation(p){
  if(!user||!actor||(!user.isGM&&!actor.testUserPermission(user,'OWNER')))return false;
  return receive(p);
 }
-export async function playAnimation({item,activity,source,targets=[],template,id,waitForEnd=false}){
+export async function playAnimation({item,activity,source,targets=[],template,id,waitForEnd=false,loop=false}){
  const profile=animationProfile(item,activity);source=source?.object??source;template=template?.object??template;
  if(!profile||!source?.center||!item.actor?.uuid||!canvas.ready)return false;
  const point=t=>({x:t.center.x,y:t.center.y,tokenId:t.id??t.document?.id});
  targets=targets.map(t=>t?.object??t).filter(t=>t?.center).slice(0,20);
  if(profile.mode==='self'||(!targets.length&&!template&&activity?.type==='heal'))targets=[source];
  if(!targets.length&&!template)return false;
- const p={key:profile.key,id:String(id??foundry.utils.randomID()),sceneId:canvas.scene.id,userId:game.user.id,actorUuid:item.actor.uuid,source:point(source),targets:targets.map(point),size:Math.min(1000,Math.max(10,canvas.grid.size))};
+ const p={key:profile.key,id:String(id??foundry.utils.randomID()),sceneId:canvas.scene.id,userId:game.user.id,actorUuid:item.actor.uuid,source:point(source),targets:targets.map(point),size:Math.min(1000,Math.max(10,canvas.grid.size)),loop};
  if(template){const d=template.document??template,s=d.shapes?.[0];p.template=s?{x:s.x,y:s.y,length:s.radius??s.length??20*canvas.grid.size/canvas.scene.grid.distance,direction:s.rotation??0}:{x:d.x,y:d.y,length:(d.distance??20)*canvas.grid.size/canvas.scene.grid.distance,direction:d.direction??0}}
  if(!validEffect(p))return false;
  const played=receive(p);
@@ -53,7 +53,7 @@ export function registerAnimations(){
   // Managed areas are captured, removed and animated by the authoritative GM before resolving combat.
   if(results.templates?.length&&results.message.flags?.[MODULE]?.combatOrigin)return;
   const actor=activity.item?.actor,source=actor?.token?.object??actor?.getActiveTokens()?.find(t=>t.controlled)??actor?.getActiveTokens()?.[0];
-  play({item:activity.item,activity,source,targets:Array.from(game.user.targets??[]),template:results.templates?.[0],id:results.message.uuid??results.message.id});
+  play({item:activity.item,activity,source,targets:Array.from(game.user.targets??[]),template:results.templates?.[0],id:results.message.uuid??results.message.id,loop:Boolean(results.message.flags?.[MODULE]?.healCast)});
  });
  Hooks.on('midi-qol.RollComplete',workflow=>{
   if(!midiAnimationMode()||(workflow.userId??workflow.user?.id)!==game.user.id)return;
