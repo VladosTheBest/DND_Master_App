@@ -1,6 +1,7 @@
 import {MODULE,clone,scalarNumber,authoringActor,sceneLevel,damageType} from "./core.mjs";
 import {abilityActivity} from "./mechanics.mjs";
 import {areaProfiles} from './area-profiles.mjs';
+import {itemIcon,isWeaponAbility,lootItems} from './presentation.mjs';
 
 export const supportedSpells=new Set(["fire-bolt","ray-of-frost","magic-missile","cure-wounds","healing-word","burning-hands","fireball","lightning-bolt","bless","shield"]);
 for(const [id,p]of Object.entries(areaProfiles))if(!['oil','acid','alchemists-fire'].includes(id))supportedSpells.add(id);
@@ -30,7 +31,7 @@ export async function compendiumItem(name,edition,type="spell"){
 }
 export function basicAbility(v,index=0){
   const a=abilityActivity(v,index),m=v.foundry??v.mechanics;
-  return {name:v.name??"Способность",type:["feat","weapon","spell"].includes(v.type)?v.type:"feat",system:{description:{value:safeHTML(v.description)},activities:a?{[a._id]:a}:{},range:{value:m?.range??v.range??null,units:"ft"},identifier:`shadow-edge-${index}`},flags:{autoanimations:{isEnabled:false},[MODULE]:{abilityIndex:index,spellId:v.spellId||undefined,coverage:a?"partial":"manual",reason:a?"Базовая механика настроена; сложные условия и эффекты требуют проверки.":"Неоднозначный статблок: автоматический расчёт не назначен."}}};
+  return {name:v.name??"Способность",img:itemIcon(v),type:["feat","weapon","spell"].includes(v.type)?v.type:isWeaponAbility(v)&&a?.type==='attack'?"weapon":"feat",system:{description:{value:safeHTML(v.description)},activities:a?{[a._id]:a}:{},range:{value:m?.range??v.range??null,units:"ft"},identifier:`shadow-edge-${index}`},flags:{autoanimations:{isEnabled:false},[MODULE]:{abilityIndex:index,spellId:v.spellId||undefined,coverage:a?"partial":"manual",reason:a?"Базовая механика настроена; сложные условия и эффекты требуют проверки.":"Неоднозначный статблок: автоматический расчёт не назначен."}}};
 }
 async function spellItems(record,catalog){
   let selected=[];const d=record.data;
@@ -42,7 +43,7 @@ async function spellItems(record,catalog){
     let item=await compendiumItem(s.name,spellEdition);
     const configured=Boolean(item&&supportedSpells.has(spellKey(id)));
     item??={type:"spell",system:{level:s.level,description:{value:safeHTML(s.description)},activities:{}}};
-    item.name=s.name;item.flags??={};item.flags[MODULE]={spellId:id,coverage:configured?"partial":"manual",reason:configured?"Механика взята из SRD системы; требуется проверка сложных эффектов в целевой связке.":"Вне проверяемого набора или нет совпадения в SRD."};
+    item.name=s.name;item.img??=itemIcon({...s,spellId:id,type:'spell'});item.flags??={};item.flags[MODULE]={spellId:id,coverage:configured?"partial":"manual",reason:configured?"Механика взята из SRD системы; требуется проверка сложных эффектов в целевой связке.":"Вне проверяемого набора или нет совпадения в SRD."};
     if(record.kind==='character'){
       const always=s.level===0||selection?.always.includes(id),prepared=always||(selection?.prepared??current?.preparedSpellIds??current?.spellIds??[]).includes(id);
       if(Number.parseInt(game.system.version,10)>=6){item.system.method=d.draft.classId==='warlock'?'pact':'spell';item.system.prepared=always?2:prepared?1:0;item.system.sourceItem=d.draft.classId}
@@ -57,7 +58,7 @@ export async function actorPlan(record,catalog){
   const abilityValues=native?s.abilities:external?s.abilities:s.abilityScores??{};
   const hp=native?s.maxHp:external?s.maxHp:scalarNumber(s.hitPoints),ac=native?s.armorClass:external?s.armorClass:scalarNumber(s.armorClass),speed=native?s.speed:external?s.speed:scalarNumber(s.speed);
   const projection={name:native?d.draft.name:d.title,type:native||record.kind==="player"?"character":"npc",system:{abilities:Object.fromEntries(["str","dex","con","int","wis","cha"].map(k=>[k,{value:abilityValues[k]??10}])),attributes:{ac:{calc:"flat",flat:ac??10},hp:{max:hp??1},movement:{walk:speed??30}},details:{biography:{value:safeHTML(d.playerContent??""),public:safeHTML(d.playerContent??"")}}},prototypeToken:{name:native?d.draft.name:d.title,actorLink:native||record.kind==="player",disposition:native||record.kind==="player"?1:-1},flags:{[MODULE]:{sourceKey:record.key,kind:record.kind,edition:d.draft?.edition??external?.edition??"2014"}}};
-  if(d.art?.url)projection.img=d.art.url;
+  projection.img=d.art?.url??(record.kind==='monster'?'icons/svg/skull.svg':native||record.kind==='player'?'icons/svg/mystery-man.svg':'icons/svg/cowled.svg');
   // dnd5e 6 stores AC calculations as a set; calc is now a derived field.
   if(Number.parseInt(globalThis.game?.system?.version??"5",10)>=6)projection.system.attributes.ac={calcs:["flat"],flat:ac??10};
   if(!native&&!external){for(const [id,save]of Object.entries(npcSaveBonuses(s.savingThrows,abilityValues,Number.parseInt(game.system.version,10)>=6)))Object.assign(projection.system.abilities[id],save);const dr=plainDamageTraits(s.resistances),di=plainDamageTraits(s.immunities);if(dr.length||di.length)projection.system.traits={...(dr.length?{dr:{value:dr}}:{}),...(di.length?{di:{value:di}}:{})}}
@@ -65,7 +66,7 @@ export async function actorPlan(record,catalog){
   if(native){
     const classNames={barbarian:"Barbarian",bard:"Bard",cleric:"Cleric",druid:"Druid",fighter:"Fighter",monk:"Monk",paladin:"Paladin",ranger:"Ranger",rogue:"Rogue",sorcerer:"Sorcerer",warlock:"Warlock",wizard:"Wizard",artificer:"Artificer"};
     const item=await compendiumItem(classNames[d.draft.classId]??d.draft.classId,d.draft.edition,"class")??{name:classNames[d.draft.classId]??d.draft.classId,type:"class",system:{identifier:d.draft.classId}};
-    item.system.levels=d.draft.targetLevel;item.system.advancement=[];item.flags??={};item.flags[MODULE]={sourceClass:true};items.push(item);
+    item.img??='icons/svg/book.svg';item.system.levels=d.draft.targetLevel;item.system.advancement=[];item.flags??={};item.flags[MODULE]={sourceClass:true};items.push(item);
     projection.system.source={rules:d.draft.edition};
     projection.system.details.spellLevel=d.draft.targetLevel;
     for(const save of s.savingThrows??[])if(projection.system.abilities[save.ability])projection.system.abilities[save.ability].proficient=save.proficient?1:0;
@@ -80,6 +81,7 @@ export async function actorPlan(record,catalog){
     if(external)items=(external.items??[]).map((v,i)=>basicAbility({...v,toHit:String(v.attackBonus)},i));
   }
   items.push(...await spellItems(record,catalog));
+  items.push(...lootItems(record).map(i=>({...i,system:{...i.system,description:{value:safeHTML(i.system.description.value)}}})));
   return {projection,items};
 }
 export function journalPlan(record){

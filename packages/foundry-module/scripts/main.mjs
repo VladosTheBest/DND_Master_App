@@ -1,6 +1,7 @@
 import {MODULE,clone,equal,mergeThree,validBaseURL,authoringActor,exportEntity,exportJournal,sceneLevel,plainText} from "./core.mjs";
 import {loadState,saveState} from "./storage.mjs";
 import {completeConnection} from "./connection.mjs";
+import {category,folderPath,managedFolder,mediaEntries} from "./presentation.mjs";
 import {actorPlan,journalPlan,scenePlan,persistentProjection,safeHTML} from "./adapter.mjs";
 import {registerAnimations,animationStatus} from "./animations.mjs";
 import {registerCombat} from "./combat.mjs";
@@ -40,17 +41,18 @@ async function beginConnection(){
 }
 async function finishConnection(){const state=await completeConnection(await loadState(),request);await saveState(state);ui.notifications.info(`Подключено: ${state.title}. Нажмите «Обновить с сайта».`);return state}
 async function connected(){const s=await loadState();if(s.campaignId)return s;if(s.pairing)return finishConnection();throw Error("Сначала подключите кампанию.")}
-async function folder(type,title){let f=game.folders.find(f=>f.type===type&&f.name===title);if(!f)f=await Folder.create({name:title,type,ownership:{default:0}});return f.id}
 const tracked=(doc,state)=>doc.flags?.[MODULE]?.campaignId===state.campaignId && doc.flags?.[MODULE]?.site===state.base;
 function findDocument(entry){return entry?.uuid?fromUuid(entry.uuid):null}
-async function localAsset(state,url){
-  if(!url)return "";const cached=state.assets?.[url];if(cached)return cached;
+async function localAsset(state,url,bucket="Медиа"){
+  if(!url)return "";if(url.startsWith("icons/")||url.startsWith("systems/dnd5e/icons/"))return url;
+  if(/^https?:/.test(url)){const parsed=new URL(url);if(parsed.origin!==new URL(state.base).origin)return "";url=parsed.pathname}
+  const cached=state.assetBuckets?.[`${bucket}:${url}`]??state.assets?.[url];if(cached&&decodeURI(cached).includes(`/${bucket}/`))return cached;
   if(!url.startsWith("/uploads/")&&!url.startsWith("/api/campaign-templates/"))return "";
   const response=await fetch(`${state.base}/api/integrations/foundry/v1/assets?url=${encodeURIComponent(url)}`,{headers:{Authorization:`Bearer ${state.token}`},credentials:"omit",signal:AbortSignal.timeout(60000)});if(!response.ok)throw Error("Не удалось получить изображение кампании.");
   const blob=await response.blob(),digest=await crypto.subtle.digest("SHA-256",await blob.arrayBuffer());const name=Array.from(new Uint8Array(digest),v=>v.toString(16).padStart(2,"0")).join("")+({"image/png":".png","image/jpeg":".jpg","image/webp":".webp","video/webm":".webm","video/mp4":".mp4"}[blob.type]??".bin");
-  const root="shadow-edge-gm",path=`${root}/${state.campaignId}`;const Picker=foundry.applications.apps.FilePicker.implementation;
-  for(const dir of [root,path]){try{await Picker.createDirectory("data",dir)}catch{await Picker.browse("data",dir)}}
-  const result=await Picker.upload("data",path,new File([blob],name,{type:blob.type}),{}, {notify:false});state.assets??={};state.assets[url]=result.path;return result.path;
+  const root="shadow-edge-gm",campaignPath=`${root}/${state.campaignId}`,path=`${campaignPath}/${bucket}`;const Picker=foundry.applications.apps.FilePicker.implementation;
+  for(const dir of [root,campaignPath,path]){try{await Picker.createDirectory("data",dir)}catch{await Picker.browse("data",dir)}}
+  const result=await Picker.upload("data",path,new File([blob],name,{type:blob.type}),{}, {notify:false});state.assets??={};state.assets[url]=result.path;state.assetBuckets??={};state.assetBuckets[`${bucket}:${url}`]=result.path;return result.path;
 }
 async function updateProjection(doc,projection,previous){
   const local=persistentProjection(doc,previous??projection),result=mergeThree(previous??projection,local,projection);
@@ -64,15 +66,30 @@ async function importItems(actor,items,state){
   const previous=state.itemBaselines??{};const next={...previous};
   for(let index=0;index<items.length;index++){
     const source=clone(items[index]);if(source.system?.uses)delete source.system.uses.spent;for(const activity of Object.values(source.system?.activities??{}))if(activity.uses)delete activity.uses.spent;
-    const key=source.flags?.[MODULE]?.spellId??(source.flags?.[MODULE]?.sourceClass?"class":`ability-${index}`);
-    let existing=actor.items.find(i=>i.flags?.[MODULE]?.importKey===key);source.flags??={};source.flags[MODULE]={...source.flags[MODULE],importKey:key};
-    if(existing){const template=clone(source);delete template._id;const local=persistentProjection(existing,template);const baseline=previous[key];if(!baseline || !equal(local,baseline)){ui.notifications.warn(`Сохранена местная способность: ${existing.name}.`);continue};const spent=existing.system.uses?.spent;await existing.update(template);if(spent!==undefined)await existing.update({"system.uses.spent":spent})}else{[existing]=await actor.createEmbeddedDocuments("Item",[source])}
+    const key=source.flags?.[MODULE]?.inventoryKey??source.flags?.[MODULE]?.spellId??(source.flags?.[MODULE]?.sourceClass?"class":`ability-${index}`);
+    let existing=actor.items.find(i=>i.flags?.[MODULE]?.importKey===key);if(!existing&&source.flags?.[MODULE]?.inventoryKey&&previous[key])continue;source.flags??={};source.flags[MODULE]={...source.flags[MODULE],importKey:key};
+    if(existing){const template=clone(source);delete template._id;const baseline=previous[key];const local=persistentProjection(existing,baseline??template);if(!baseline || !equal(local,baseline)){if(source.img&&(!existing.img||existing.img==="icons/svg/item-bag.svg"))await existing.update({img:source.img});ui.notifications.warn(`Сохранена местная способность: ${existing.name}.`);continue};const spent=existing.system.uses?.spent;if(existing.type!==template.type){template.flags={...clone(existing.flags),...template.flags};const [replacement]=await actor.createEmbeddedDocuments("Item",[template]);try{await existing.delete()}catch(error){await replacement.delete();throw error}existing=replacement}else await existing.update(template);if(spent!==undefined)await existing.update({"system.uses.spent":spent})}else{[existing]=await actor.createEmbeddedDocuments("Item",[source])}
     next[key]=persistentProjection(existing,source);
   }state.itemBaselines=next;
 }
+async function importMedia(state,title,record,failures){
+  const entries=mediaEntries(record);if(!entries.length)return;
+  const folder=await managedFolder(state,title,"JournalEntry",[`Галерея · ${category(record.kind)}`,record.title]);
+  for(const entry of entries){
+    let src;try{src=await localAsset(state,entry.url,record.kind.includes("map")?"Карты":"Галерея")}catch{failures.push(entry.title);continue}if(!src){failures.push(entry.title);continue}
+    const key=`${record.key}:${entry.url}`;
+    let doc=game.journal.find(j=>tracked(j,state)&&j.flags?.[MODULE]?.mediaKey===key);
+    const data={name:entry.title,folder,ownership:{default:0},pages:[{name:entry.title,type:"image",src,image:{caption:entry.caption}}],flags:{[MODULE]:{site:state.base,campaignId:state.campaignId,managedMedia:true,mediaKey:key}}};
+    if(!doc)await JournalEntry.create(data);
+    else{if(doc.folder?.id!==folder)await doc.update({folder});const page=doc.pages.contents[0];if(page&&(page.src!==src||page.image.caption!==entry.caption))await page.update({src,"image.caption":entry.caption})}
+  }
+}
 export async function refresh(){
   const state=await connected(),snapshot=await request(state,"v1/snapshot");if(snapshot.schemaVersion!==1)throw Error("Версия API не поддерживается.");
-  const deferred=[];const nativePlayers=new Set(snapshot.records.filter(r=>r.kind==="character").map(r=>r.data.playerId));
+  const deferred=[],mediaFailures=[];
+  const players=new Map(snapshot.records.filter(r=>r.kind==="player").map(r=>[r.id,r]));
+  for(const r of snapshot.records)if(r.kind==="character"){const player=players.get(r.data.playerId);if(player)r.data={...r.data,art:player.data.art,gallery:player.data.gallery}}
+  const nativePlayers=new Set(snapshot.records.filter(r=>r.kind==="character").map(r=>r.data.playerId));
   for(const record of snapshot.records){
     if(record.kind==="player"&&nativePlayers.has(record.id)&&!record.data.foundryCharacter)continue;
     // An external sheet overrides the imported wizard sheet, but never rewrites wizard choices.
@@ -85,36 +102,43 @@ export async function refresh(){
       const overridden=record.data.foundryCharacter?Object.values(state.records).find(e=>e.record.kind==="character"&&e.record.data.playerId===record.id):null;
       const entry=state.records[key]??overridden;let doc=await findDocument(entry);
       if(!doc){const collection=actorKind?game.actors:sceneKind?game.scenes:game.journal;doc=collection.find(d=>tracked(d,state)&&d.flags?.[MODULE]?.sourceKey===record.key&&(!level||d.flags[MODULE].levelId===level.id));if(!doc)doc=collection.find(d=>snapshot.aliases?.[d.uuid]===record.id&&(!level||!d.flags?.[MODULE]?.levelId||d.flags[MODULE].levelId===level.id))}
-      if(doc && entry?.record.hash===record.hash&&entry.adapterVersion===8)continue;
+      const type=actorKind?"Actor":sceneKind?"Scene":"JournalEntry";
+      const destination=await managedFolder(state,snapshot.title,type,folderPath(record,snapshot.records,type));
+      if(doc&&(doc.folder?.id??null)!==destination)await doc.update({folder:destination});
+      await importMedia(state,snapshot.title,record,mediaFailures);
+      const presentationHash=JSON.stringify([record.data.art,record.data.gallery]);
+      if(doc && entry?.record.hash===record.hash&&entry.adapterVersion===9&&entry.presentationHash===presentationHash&&!entry.mediaPending)continue;
       const localChanged=doc&&entry?.authoring&&!equal(actorKind?authoringActor(doc):sceneKind?sceneAuthoring(record,doc):exportJournal(entry.record.data,doc),entry.authoring);
       if(actorKind&&doc&&game.combats.some(c=>c.started&&c.combatants.some(x=>x.actorId===doc.id))){deferred.push(record.title);continue}
-      let plan=actorKind?await actorPlan(record,snapshot.spells??[]):null;
+      let mediaPending=false;const plan=actorKind?await actorPlan(record,snapshot.spells??[]):null;
       const projection=plan?.projection??(sceneKind?scenePlan(record,level):journalPlan(record));
       projection.flags[MODULE]={...projection.flags[MODULE],campaignId:state.campaignId,site:state.base};
-      if(projection.img){projection.img=await localAsset(state,projection.img)||"icons/svg/mystery-man.svg";if(actorKind)projection.prototypeToken.texture={src:projection.img}}
-      if(projection.background?.src)projection.background.src=await localAsset(state,projection.background.src)||projection.background.src;
+      if(projection.img){try{projection.img=await localAsset(state,projection.img,"Портреты")||"icons/svg/mystery-man.svg"}catch{mediaPending=true;mediaFailures.push(record.title);projection.img=doc?.img??"icons/svg/mystery-man.svg"}if(actorKind)projection.prototypeToken.texture={src:projection.img}}
+      if(projection.background?.src)try{projection.background.src=await localAsset(state,projection.background.src,"Карты")||projection.background.src}catch{mediaPending=true;mediaFailures.push(record.title);if(doc)projection.background.src=doc.background.src;else projection.background.src=""}
+      projection.folder=destination;
       if(doc)await updateProjection(doc,projection,entry?.projection);
-      else{projection.folder=await folder(actorKind?"Actor":sceneKind?"Scene":"JournalEntry",`Shadow Edge · ${snapshot.title}`);const creation=clone(projection);if(actorKind){creation.system.attributes.hp.value=creation.system.attributes.hp.max;for(const slot of Object.values(creation.system.spells??{}))if(Number.isInteger(slot.override)&&slot.override>=0)slot.value=slot.override}doc=await (actorKind?Actor:sceneKind?Scene:JournalEntry).create(creation)}
-      const saved={...entry,uuid:doc.uuid,record:clone(record),projection:clone(projection),adapterVersion:8};
+      else{projection.folder=destination;const creation=clone(projection);if(actorKind){creation.system.attributes.hp.value=creation.system.attributes.hp.max;for(const slot of Object.values(creation.system.spells??{}))if(Number.isInteger(slot.override)&&slot.override>=0)slot.value=slot.override}doc=await (actorKind?Actor:sceneKind?Scene:JournalEntry).create(creation)}
+      const saved={...entry,uuid:doc.uuid,record:clone(record),projection:clone(projection),adapterVersion:9,presentationHash,mediaPending};
       if(plan)await importItems(doc,plan.items,saved);
       if(record.kind==="world-map")await importMapLabels(doc,record.data.labels,saved,(name,fields)=>DialogV2().confirm({window:{title:`Конфликт подписи: ${name}`},content:`<p>Изменены: ${safeHTML(fields.join(", "))}. Применить версию сайта?</p>`}));
       saved.authoring=localChanged?entry.authoring:actorKind?authoringActor(doc):sceneKind?sceneAuthoring(record,doc):exportJournal(record.data,doc);
       state.records[key]=saved;await saveState(state);
       // GM text never lives on an Actor owned by a player.
-      if(actorKind&&(record.data.content||entry?.notesText!==undefined)){let notes=game.journal.find(j=>tracked(j,state)&&j.flags?.[MODULE]?.gmFor===doc.id);const changed=notes&&entry?.notesText!==undefined&&entry.notesText!==plainText(Array.from(notes.pages)[0]?.text?.content);const data={name:`GM · ${record.title}`,ownership:{default:0},pages:[{name:"Заметки мастера",type:"text",text:{content:safeHTML(record.data.content),format:1}}],flags:{[MODULE]:{campaignId:state.campaignId,site:state.base,gmFor:doc.id}}};if(!notes){notes=await JournalEntry.create(data)}else if(!changed){const page=Array.from(notes.pages)[0];if(page)await page.update({"text.content":safeHTML(record.data.content)})}saved.notesText=changed?entry.notesText:plainText(Array.from(notes.pages)[0]?.text?.content);await saveState(state)}
+      if(actorKind&&(record.data.content||entry?.notesText!==undefined)){let notes=game.journal.find(j=>tracked(j,state)&&j.flags?.[MODULE]?.gmFor===doc.id);const changed=notes&&entry?.notesText!==undefined&&entry.notesText!==plainText(Array.from(notes.pages)[0]?.text?.content);const data={folder:await managedFolder(state,snapshot.title,"JournalEntry",["Заметки мастера",category(record.kind)]),name:`GM · ${record.title}`,ownership:{default:0},pages:[{name:"Заметки мастера",type:"text",text:{content:safeHTML(record.data.content),format:1}}],flags:{[MODULE]:{campaignId:state.campaignId,site:state.base,gmFor:doc.id}}};if(!notes){notes=await JournalEntry.create(data)}else{if(notes.folder?.id!==data.folder)await notes.update({folder:data.folder});if(!changed){const page=Array.from(notes.pages)[0];if(page)await page.update({"text.content":safeHTML(record.data.content)})}}saved.notesText=changed?entry.notesText:plainText(Array.from(notes.pages)[0]?.text?.content);await saveState(state)}
     }
   }
   for(const [key,entry] of Object.entries(state.records)){if(!snapshot.records.some(r=>r.key===entry.record.key)){entry.archived=true}}
-  await saveState(state);ui.notifications.info(`Обновление завершено.${deferred.length?` Отложено до конца боя: ${deferred.join(", ")}.`:""}`);
+  await saveState(state);if(mediaFailures.length)ui.notifications.warn(`Не удалось загрузить часть изображений (${new Set(mediaFailures).size}). Остальные материалы импортированы; повторите обновление после восстановления доступа к медиа.`);ui.notifications.info(`Обновление завершено.${deferred.length?` Отложено до конца боя: ${deferred.join(", ")}.`:""}`);
 }
 async function uploadAsset(state,path){
-  if(!path)return "";const known=Object.entries(state.assets??{}).find(([,local])=>local===path);if(known)return known[0];
+  if(!path)return "";const known=Object.entries(state.assets??{}).find(([,local])=>local===path);if(known)return known[0];const bucket=Object.entries(state.assetBuckets??{}).find(([,local])=>local===path);if(bucket)return bucket[0].slice(bucket[0].indexOf(":")+1);
   const u=new URL(path,window.location.origin);if(u.origin!==window.location.origin)throw Error("Для экспорта загрузите внешнее изображение в хранилище Foundry.");
   const response=await fetch(u,{credentials:"same-origin",signal:AbortSignal.timeout(60000)});if(!response.ok)throw Error("Не удалось прочитать медиа Foundry.");const blob=await response.blob();const form=new FormData();form.set("file",new File([blob],u.pathname.split("/").at(-1)||"map.png",{type:blob.type}));const result=await request(state,"v1/assets",{method:"POST",body:form});state.assets??={};state.assets[result.url]=path;await saveState(state);return result.url;
 }
 export async function exportSite(){
   const state=await connected(),candidates=[];const byUUID=new Map(Object.values(state.records).map(e=>[e.uuid,e]));
   for(const collection of [game.actors,game.scenes,game.journal])for(const doc of collection){
+    if(doc.flags?.[MODULE]?.managedMedia)continue;
     if(doc.flags?.[MODULE]?.gmFor)continue;
     if(doc.flags?.[MODULE]?.demo)continue;
     if(doc.flags?.[MODULE]?.campaignId && !tracked(doc,state))continue;

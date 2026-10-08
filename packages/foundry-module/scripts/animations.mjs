@@ -14,7 +14,7 @@ export function animationProfile(item,activity){
  const spell=item.flags[MODULE].spellId?.replace(/-(2014|2024)$/,'');if(effects[spell])return effects[spell];
  activity??=activityValues(item.system?.activities)[0];
  if(activity?.type==='heal')return effects['cure-wounds'];
- if(activity?.type==='attack'){const weapon=weaponProfile(item),ranged=activity.attack?.type?.value==='ranged';return ranged&&weapon?.mode==='melee'?effects.thrown:weapon??(ranged?effects.thrown:effects.sword)}
+ if(activity?.type==='attack'){const weapon=weaponProfile(item),ranged=activity.attack?.type?.value==='ranged';if(ranged){const thrown=/метан|брос|throw|javelin/u.test(item.name?.toLowerCase()??'');return thrown?effects.thrown:weapon?.key==='crossbow'?effects.crossbow:effects.bow}return weapon??effects.sword}
  if(['save','damage'].includes(activity?.type))return effects.impact;
  return null;
 }
