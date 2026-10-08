@@ -161,6 +161,18 @@ func (m *aiJobManager) start(owner, key string, job aiJob, work func(context.Con
 	m.mu.Lock()
 	count, total := 0, 0
 	for _, existing := range m.jobs {
+		if job.Kind == "foundry-scene" && existing.OwnerID == owner && existing.Kind == job.Kind {
+			if existing.Key == key {
+				result := existing.aiJob
+				m.mu.Unlock()
+				return result, nil
+			}
+			i, j := strings.LastIndex(existing.Key, ":"), strings.LastIndex(key, ":")
+			if i > 0 && j > 0 && existing.Key[:i] == key[:j] {
+				m.mu.Unlock()
+				return aiJob{}, fmt.Errorf("Запрос изменён: создайте новый вариант сцены.")
+			}
+		}
 		if activeAIJob(existing.aiJob) {
 			total++
 			if existing.OwnerID == owner {

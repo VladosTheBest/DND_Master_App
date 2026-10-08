@@ -251,6 +251,8 @@ func (m *foundryManager) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch {
+	case action == "v1/scenes/ai" || strings.HasPrefix(action, "v1/scenes/ai/"):
+		m.sceneAI(w, r, c, strings.TrimPrefix(strings.TrimPrefix(action, "v1/scenes/ai"), "/"))
 	case strings.HasPrefix(action, "v1/actors/ai/") && r.Method == http.MethodPost:
 		m.actorAI(w, r, c, strings.TrimPrefix(action, "v1/actors/ai/"))
 	case action == "v1/snapshot" && r.Method == http.MethodGet:

@@ -176,12 +176,15 @@ func mapPlanSchema() map[string]any {
 }
 
 func (g openAIGenerator) generateWorldMap(ctx context.Context, prompt string, reference []byte) (mapGenerationResult, error) {
+	return g.generatePlannedMap(ctx, prompt, reference, mapPlanInstructions)
+}
+func (g openAIGenerator) generatePlannedMap(ctx context.Context, prompt string, reference []byte, instructions string) (mapGenerationResult, error) {
 	reportAIJobStage(ctx, "Планирую географию и подписи")
 	content := []map[string]any{{"type": "text", "text": prompt}}
 	if len(reference) > 0 {
 		content = append(content, map[string]any{"type": "image_url", "image_url": map[string]any{"url": "data:" + http.DetectContentType(reference) + ";base64," + base64.StdEncoding.EncodeToString(reference)}})
 	}
-	planBody, _ := json.Marshal(map[string]any{"model": g.config.model, "messages": []map[string]any{{"role": "system", "content": mapPlanInstructions}, {"role": "user", "content": content}}, "response_format": map[string]any{"type": "json_schema", "json_schema": map[string]any{"name": "world_map_plan", "strict": true, "schema": mapPlanSchema()}}})
+	planBody, _ := json.Marshal(map[string]any{"model": g.config.model, "messages": []map[string]any{{"role": "system", "content": instructions}, {"role": "user", "content": content}}, "response_format": map[string]any{"type": "json_schema", "json_schema": map[string]any{"name": "world_map_plan", "strict": true, "schema": mapPlanSchema()}}})
 	raw, err := g.mapAPIRequest(ctx, "/chat/completions", "application/json", planBody, 2<<20)
 	if err != nil {
 		return mapGenerationResult{}, err
@@ -209,6 +212,9 @@ func (g openAIGenerator) generateWorldMap(ctx context.Context, prompt string, re
 	}
 	coordinates, _ := json.Marshal(plan.Labels)
 	imagePrompt := mapRenderInstructions + "\n" + plan.ImagePrompt + "\nNO TEXT OR LETTERING AT ALL. Reserve uncluttered space for these externally rendered labels at normalized coordinates, but DO NOT paint them: " + string(coordinates)
+	if instructions == foundryScenePlanInstructions {
+		imagePrompt = "Strict orthographic top-down tactical battlemap. NO GRID, NO TOKENS, NO ROOFS, NO TEXT.\n" + imagePrompt
+	}
 	reportAIJobStage(ctx, "Рисую фон карты без надписей")
 	endpoint, contentType := "/images/generations", "application/json"
 	body, _ := json.Marshal(map[string]any{"model": model, "prompt": imagePrompt, "n": 1, "size": "1536x1024", "quality": "medium", "output_format": "png"})
