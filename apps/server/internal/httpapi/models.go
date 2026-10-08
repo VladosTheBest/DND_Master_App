@@ -145,6 +145,7 @@ type npcStatBlock struct {
 }
 
 type knowledgeEntity struct {
+	FoundryAI        *foundryAIProfile  `json:"foundryAI,omitempty"`
 	FoundryCharacter *foundryActor      `json:"foundryCharacter,omitempty"`
 	ID               string             `json:"id"`
 	Revision         int                `json:"revision"`

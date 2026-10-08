@@ -2,6 +2,8 @@ import {MODULE,clone,equal,mergeThree,validBaseURL,authoringActor,exportEntity,e
 import {loadState,saveState} from "./storage.mjs";
 import {completeConnection} from "./connection.mjs";
 import {importProgress} from "./import-progress.mjs";
+import {aiProjectionBaseline} from "./actor-ai-profile.mjs";
+import {createActorAI} from "./actor-ai-ui.mjs";
 import {category,folderPath,managedFolder,mediaEntries} from "./presentation.mjs";
 import {actorPlan,journalPlan,scenePlan,persistentProjection,safeHTML} from "./adapter.mjs";
 import {registerAnimations,animationStatus} from "./animations.mjs";
@@ -19,7 +21,7 @@ async function run(task){if(busy)return;busy=true;try{exchangeGM();await task()}
 async function request(state,path,options={}){
   const headers=new Headers(options.headers);if(state.token)headers.set("Authorization",`Bearer ${state.token}`);
   if(options.body&&!(options.body instanceof FormData))headers.set("Content-Type","application/json");
-  const response=await fetch(`${state.base}/api/integrations/foundry/${path}`,{...options,headers,credentials:"omit",signal:AbortSignal.timeout(60000)});
+  const response=await fetch(`${state.base}/api/integrations/foundry/${path}`,{...options,headers,credentials:"omit",signal:options.signal??AbortSignal.timeout(60000)});
   if(!response.ok){let data;try{data=await response.json()}catch{}throw Object.assign(Error(data?.error?.message??`HTTP ${response.status}`),{status:response.status,code:data?.error?.code})}return response.json().then(b=>b.data);
 }
 // DialogV2.wait resolves on submit before its closing animation ends.
@@ -57,6 +59,7 @@ async function localAsset(state,url,bucket="Медиа"){
   const result=await Picker.upload("data",path,new File([blob],name,{type:mime}),{}, {notify:false});if(!result?.path)throw Error("Foundry не сохранил файл: проверьте права записи в папку данных.");state.assets??={};state.assets[url]=result.path;state.assetBuckets??={};state.assetBuckets[`${bucket}:${url}`]=result.path;return result.path;
 }
 async function updateProjection(doc,projection,previous){
+  if(doc.documentName==='Actor'&&projection.flags?.[MODULE]?.aiProfileId)previous=aiProjectionBaseline(previous,projection);
   const local=persistentProjection(doc,previous??projection),result=mergeThree(previous??projection,local,projection);
   if(result.conflicts.length){const remote=await DialogV2().confirm({window:{title:`Конфликт: ${doc.name}`},content:`<p>Изменены с обеих сторон: ${safeHTML(result.conflicts.join(", "))}</p><p>Применить версию сайта? «Нет» сохраняет местные значения конфликтующих полей.</p>`});if(remote)result.value=projection}
   // Applying authoring data must not reset combat resources.
@@ -64,13 +67,13 @@ async function updateProjection(doc,projection,previous){
   if(doc.documentName==='Scene'&&result.value.walls)result.value.walls.push(...doc.walls.filter(w=>w.flags?.[MODULE]?.areaRegion).map(w=>w.toObject()));
   await doc.update(result.value);return persistentProjection(doc,projection);
 }
-async function importItems(actor,items,state){
+export async function importItems(actor,items,state){
   const previous=state.itemBaselines??{};const next={...previous};
   for(let index=0;index<items.length;index++){
     const source=clone(items[index]);if(source.system?.uses)delete source.system.uses.spent;for(const activity of Object.values(source.system?.activities??{}))if(activity.uses)delete activity.uses.spent;
     const key=source.flags?.[MODULE]?.inventoryKey??source.flags?.[MODULE]?.spellId??(source.flags?.[MODULE]?.sourceClass?"class":`ability-${index}`);
-    let existing=actor.items.find(i=>i.flags?.[MODULE]?.importKey===key);if(!existing&&source.flags?.[MODULE]?.inventoryKey&&previous[key])continue;source.flags??={};source.flags[MODULE]={...source.flags[MODULE],importKey:key};
-    if(existing){const template=clone(source);delete template._id;const baseline=previous[key];const local=persistentProjection(existing,baseline??template);if(!baseline || !equal(local,baseline)){if(source.img&&(!existing.img||existing.img==="icons/svg/item-bag.svg"))await existing.update({img:source.img});ui.notifications.warn(`Сохранена местная способность: ${existing.name}.`);continue};const spent=existing.system.uses?.spent;if(existing.type!==template.type){template.flags={...clone(existing.flags),...template.flags};const [replacement]=await actor.createEmbeddedDocuments("Item",[template]);try{await existing.delete()}catch(error){await replacement.delete();throw error}existing=replacement}else await existing.update(template);if(spent!==undefined)await existing.update({"system.uses.spent":spent})}else{[existing]=await actor.createEmbeddedDocuments("Item",[source])}
+    let existing=actor.items.find(i=>i.flags?.[MODULE]?.importKey===key);if(!existing&&(source.flags?.[MODULE]?.inventoryKey||source.flags?.[MODULE]?.aiAdded)&&previous[key])continue;source.flags??={};source.flags[MODULE]={...source.flags[MODULE],importKey:key};
+    if(existing){const template=clone(source);delete template._id;const baseline=previous[key];const local=persistentProjection(existing,baseline??template);if(!baseline || !equal(local,baseline)){if(source.img&&(!existing.img||existing.img==="icons/svg/item-bag.svg"))await existing.update({img:source.img});ui.notifications.warn(`Сохранена местная способность: ${existing.name}.`);continue};const spent=existing.system.uses?.spent;if(existing.type!==template.type){template.flags={...clone(existing.flags),...template.flags};const [replacement]=await actor.createEmbeddedDocuments("Item",[template]);try{await existing.delete()}catch(error){await replacement.delete();throw error}existing=replacement}else {for(const id of Object.keys(existing.system.activities??{}))if(!template.system?.activities?.[id])template[`system.activities.-=${id}`]=null;await existing.update(template);}if(spent!==undefined)await existing.update({"system.uses.spent":spent})}else{[existing]=await actor.createEmbeddedDocuments("Item",[source])}
     next[key]=persistentProjection(existing,source);
   }state.itemBaselines=next;
 }
@@ -104,6 +107,7 @@ async function refreshCampaign(progress,mediaFailures){
     // An external sheet overrides the imported wizard sheet, but never rewrites wizard choices.
     if(record.kind==="character"&&snapshot.records.some(r=>r.id===record.data.playerId&&r.data.foundryCharacter))continue;
     const actorKind=["character","player","npc","monster"].includes(record.kind);
+    if(record.data.foundryAI?.stale)ui.notifications.warn(`AI-профиль устарел: ${record.title}. Запустите AI заново после изменения исходных данных.`);
     const sceneKind=["session-map","world-map"].includes(record.kind);
     const levels=record.kind==="session-map"?record.data.levels:[null];
     for(const level of levels){
@@ -119,7 +123,7 @@ async function refreshCampaign(progress,mediaFailures){
       await importMedia(state,snapshot.title,record,mediaFailures,progress);
       progress.stage(`Данные и способности · ${record.title}`);
       const presentationHash=JSON.stringify([record.data.art,record.data.gallery]);
-      if(doc && entry?.record.hash===record.hash&&entry.adapterVersion===10&&entry.presentationHash===presentationHash&&!entry.mediaPending)continue;
+      if(doc && entry?.record.hash===record.hash&&entry.adapterVersion===11&&entry.presentationHash===presentationHash&&!entry.mediaPending)continue;
       const localChanged=doc&&entry?.authoring&&!equal(actorKind?authoringActor(doc):sceneKind?sceneAuthoring(record,doc):exportJournal(entry.record.data,doc),entry.authoring);
       if(actorKind&&doc&&game.combats.some(c=>c.started&&c.combatants.some(x=>x.actorId===doc.id))){deferred.push(record.title);continue}
       let mediaPending=false;const plan=actorKind?await actorPlan(record,snapshot.spells??[]):null;
@@ -130,7 +134,7 @@ async function refreshCampaign(progress,mediaFailures){
       projection.folder=destination;
       if(doc)await updateProjection(doc,projection,entry?.projection);
       else{projection.folder=destination;const creation=clone(projection);if(actorKind){creation.system.attributes.hp.value=creation.system.attributes.hp.max;for(const slot of Object.values(creation.system.spells??{}))if(Number.isInteger(slot.override)&&slot.override>=0)slot.value=slot.override}doc=await (actorKind?Actor:sceneKind?Scene:JournalEntry).create(creation)}
-      const saved={...entry,uuid:doc.uuid,record:clone(record),projection:clone(projection),adapterVersion:10,presentationHash,mediaPending};
+      const saved={...entry,uuid:doc.uuid,record:clone(record),projection:clone(projection),adapterVersion:11,presentationHash,mediaPending};
       if(plan)await importItems(doc,plan.items,saved);
       if(record.kind==="world-map")await importMapLabels(doc,record.data.labels,saved,(name,fields)=>DialogV2().confirm({window:{title:`Конфликт подписи: ${name}`},content:`<p>Изменены: ${safeHTML(fields.join(", "))}. Применить версию сайта?</p>`}));
       saved.authoring=localChanged?entry.authoring:actorKind?authoringActor(doc):sceneKind?sceneAuthoring(record,doc):exportJournal(record.data,doc);
@@ -195,6 +199,9 @@ async function configureAutomation(){
   const old=clone(game.settings.get("midi-qol","ConfigSettings"));if(!game.settings.get(MODULE,"automationBackup"))await game.settings.set(MODULE,"automationBackup",old);
   await game.settings.set("midi-qol","ConfigSettings",{...old,autoRollAttack:true,gmAutoAttack:true,autoRollDamage:"always",gmAutoDamage:"always",autoCheckHit:"all",autoCheckSaves:"all",autoApplyDamage:"yes",consumeResource:"both",gmConsumeResource:"both",autoItemEffects:"applyRemove",concentrationAutomation:true});ui.notifications.info("Профиль автоматизации сохранён.");
 }
-async function panel(){const state=await loadState();const abilities=game.actors.filter(a=>tracked(a,state)).flatMap(a=>a.items.contents).filter(i=>i.flags?.[MODULE]?.coverage);const manual=abilities.filter(i=>i.flags[MODULE].coverage==="manual").length;const action=await waitClosed({window:{title:"Shadow Edge GM"},content:`<div class="shadow-edge-panel"><p>${safeHTML(state.title??(state.pairing?"Ожидается завершение подключения":"Кампания не подключена"))}</p><p>Обмен выполняется только по кнопкам.</p><p>${safeHTML(animationStatus())}</p><p>Способности: ${abilities.length-manual} с частичной настройкой, ${manual} для ручного расчёта. Сложные условия и эффекты требуют проверки мастером.</p></div>`,buttons:[{action:"connect",label:state.pairing||state.campaignId?"Новое подключение":"Подключить",callback:async()=>{await run(beginConnection);return "connect"}},...(state.pairing?[{action:"finish",label:"Завершить подключение",callback:async()=>{await run(finishConnection);return "finish"}}]:[]),{action:"refresh",label:"Обновить с сайта",callback:async()=>{await run(refresh);return "refresh"}},{action:"export",label:"Экспортировать на сайт",callback:()=>run(exportSite)},{action:"demo",label:"Тестовая сцена анимаций",callback:()=>run(createDemoScene)},{action:"setup",label:"Дополнительно: Midi-QOL",callback:()=>run(configureAutomation)},{action:"restore",label:"Восстановить настройки",callback:()=>run(async()=>{const backup=game.settings.get(MODULE,"automationBackup");if(backup){await game.settings.set("midi-qol","ConfigSettings",backup);await game.settings.set(MODULE,"automationBackup",null)}})},{action:"disconnect",label:"Отключить в браузере",callback:()=>run(async()=>saveState({records:{}}))}]});if(["connect","finish","refresh"].includes(action))return panel()}
+async function panel(){const state=await loadState();const abilities=game.actors.filter(a=>tracked(a,state)).flatMap(a=>a.items.contents).filter(i=>i.flags?.[MODULE]?.coverage);const manual=abilities.filter(i=>i.flags[MODULE].coverage==="manual").length;const action=await waitClosed({window:{title:"Shadow Edge GM"},content:`<div class="shadow-edge-panel"><p>${safeHTML(state.title??(state.pairing?"Ожидается завершение подключения":"Кампания не подключена"))}</p><p>Обмен выполняется только по кнопкам.</p><p>${safeHTML(animationStatus())}</p><p>Способности: ${abilities.length-manual} с частичной настройкой, ${manual} для ручного расчёта. Сложные условия и эффекты требуют проверки мастером.</p></div>`,buttons:[{action:"connect",label:state.pairing||state.campaignId?"Новое подключение":"Подключить",callback:async()=>{await run(beginConnection);return "connect"}},...(state.pairing?[{action:"finish",label:"Завершить подключение",callback:async()=>{await run(finishConnection);return "finish"}}]:[]),{action:"refresh",label:"Обновить с сайта",callback:async()=>{await run(refresh);return "refresh"}},{action:"export",label:"Экспортировать на сайт",callback:()=>run(exportSite)},{action:"ai",label:"AI: настроить НПС и монстров",callback:()=>"ai"},{action:"demo",label:"Тестовая сцена анимаций",callback:()=>run(createDemoScene)},{action:"setup",label:"Дополнительно: Midi-QOL",callback:()=>run(configureAutomation)},{action:"restore",label:"Восстановить настройки",callback:()=>run(async()=>{const backup=game.settings.get(MODULE,"automationBackup");if(backup){await game.settings.set("midi-qol","ConfigSettings",backup);await game.settings.set(MODULE,"automationBackup",null)}})},{action:"disconnect",label:"Отключить в браузере",callback:()=>run(async()=>saveState({records:{}}))}]});if(action==="ai")await run(()=>actorAI.launch());if(["connect","finish","refresh","ai"].includes(action))return panel()}
 Hooks.once("init",()=>{game.settings.register(MODULE,"automationBackup",{scope:"world",config:false,type:Object,default:null});registerCombat();registerSustainedEffects();registerPersistentAreas()});
 Hooks.once("ready",()=>{registerAnimations();registerCombat();if(!game.user.isGM)return;const button=document.createElement("button");button.className="shadow-edge-launch";button.textContent="Shadow Edge GM";button.onclick=()=>panel().catch(e=>ui.notifications.error(e.message));document.body.append(button)});
+
+const actorAI=createActorAI({connected,request,saveState,importItems,waitClosed});
+Hooks.on("renderApplicationV2",(app)=>{const actor=app.actor??app.document;if(!game.user?.isGM||actor?.documentName!=="Actor"||!["npc","monster"].includes(actor.flags?.[MODULE]?.kind))return;const root=app.element instanceof HTMLElement?app.element:app.element?.[0];const header=root?.querySelector(".window-header");if(!header||header.querySelector(".shadow-edge-actor-ai"))return;const button=document.createElement("button");button.type="button";button.className="shadow-edge-actor-ai";button.textContent="AI";button.title="Настроить существующее или дополнить по описанию";button.onclick=event=>{event.preventDefault();event.stopPropagation();run(()=>actorAI.launch(actor))};header.prepend(button)});

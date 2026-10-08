@@ -922,6 +922,7 @@ func (store *campaignStore) updateEntity(campaignID string, entityID string, inp
 		entity := materializeEntity(input)
 		entity.ID = existing.ID
 		entity.FoundryCharacter = existing.FoundryCharacter
+		entity.FoundryAI = existing.FoundryAI
 		entity.Revision = existing.Revision + 1
 		(*entities)[entityIndex] = entity
 

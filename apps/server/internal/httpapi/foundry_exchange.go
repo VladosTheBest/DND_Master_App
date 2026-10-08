@@ -222,6 +222,7 @@ func normalizeFoundryChange(v foundryChange, old foundryRecord, c foundryConnect
 		}
 		var previous knowledgeEntity
 		_ = json.Unmarshal(old.Data, &previous)
+		e.FoundryAI = previous.FoundryAI
 		if err := validateProposalEntityMedia(e, &previous, c.OwnerID, c.CampaignID); err != nil {
 			return nil, "", err
 		}

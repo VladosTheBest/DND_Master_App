@@ -133,11 +133,14 @@ type foundryPairing struct {
 	Expires                        time.Time
 }
 type foundryManager struct {
-	srv      *server
-	mu       sync.Mutex
-	pairings map[string]*foundryPairing
-	attempts map[string][]time.Time
-	previews map[string]foundryPreview
+	srv        *server
+	mu         sync.Mutex
+	pairings   map[string]*foundryPairing
+	attempts   map[string][]time.Time
+	previews   map[string]foundryPreview
+	aiPending  map[string]foundryAIPending
+	aiRunning  map[string]bool
+	aiAttempts map[string][]time.Time
 }
 type foundryPreview struct {
 	Digest  string
@@ -145,7 +148,7 @@ type foundryPreview struct {
 }
 
 func newFoundryManager(s *server) *foundryManager {
-	return &foundryManager{srv: s, pairings: map[string]*foundryPairing{}, attempts: map[string][]time.Time{}, previews: map[string]foundryPreview{}}
+	return &foundryManager{srv: s, pairings: map[string]*foundryPairing{}, attempts: map[string][]time.Time{}, previews: map[string]foundryPreview{}, aiPending: map[string]foundryAIPending{}, aiRunning: map[string]bool{}, aiAttempts: map[string][]time.Time{}}
 }
 func foundryHash(v any) string {
 	b, _ := json.Marshal(v)
@@ -248,6 +251,8 @@ func (m *foundryManager) handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch {
+	case strings.HasPrefix(action, "v1/actors/ai/") && r.Method == http.MethodPost:
+		m.actorAI(w, r, c, strings.TrimPrefix(action, "v1/actors/ai/"))
 	case action == "v1/snapshot" && r.Method == http.MethodGet:
 		m.srv.store.mu.RLock()
 		records, title := foundryRecords(m.srv.store.data, c.CampaignID)
@@ -444,6 +449,11 @@ func foundryRecords(state storageState, campaignID string) ([]foundryRecord, str
 		}
 		title = c.Title
 		for _, e := range campaignEntities(c) {
+			if e.FoundryAI != nil {
+				profile := *e.FoundryAI
+				profile.Stale = profile.SourceHash != foundryAISourceHash(e)
+				e.FoundryAI = &profile
+			}
 			add(e.Kind, e.ID, e.Title, e)
 		}
 		for _, v := range c.Events {
@@ -494,6 +504,11 @@ func foundrySpells(records []foundryRecord) []characterSpell {
 		} else if r.Kind == "npc" || r.Kind == "monster" {
 			var e knowledgeEntity
 			_ = json.Unmarshal(r.Data, &e)
+			if e.FoundryAI != nil && !e.FoundryAI.Stale {
+				for _, spell := range e.FoundryAI.Spells {
+					ids[spell.ID] = true
+				}
+			}
 			if e.StatBlock != nil && e.StatBlock.Spellcasting != nil {
 				names = append(names, e.StatBlock.Spellcasting.Spells...)
 			}

@@ -2,6 +2,7 @@ import {MODULE,clone,scalarNumber,authoringActor,sceneLevel,damageType} from "./
 import {abilityActivity} from "./mechanics.mjs";
 import {areaProfiles} from './area-profiles.mjs';
 import {itemIcon,isWeaponAbility,lootItems} from './presentation.mjs';
+import {activeAI,withAIProfile,aiActorSystem,aiExtraItems} from './actor-ai-profile.mjs';
 
 export const supportedSpells=new Set(["fire-bolt","ray-of-frost","magic-missile","cure-wounds","healing-word","burning-hands","fireball","lightning-bolt","bless","shield"]);
 for(const [id,p]of Object.entries(areaProfiles))if(!['oil','acid','alchemists-fire'].includes(id))supportedSpells.add(id);
@@ -31,15 +32,16 @@ export async function compendiumItem(name,edition,type="spell"){
 }
 export function basicAbility(v,index=0){
   const a=abilityActivity(v,index),m=v.foundry??v.mechanics;
-  const daily=String(v.name??'').match(/\((\d+)\s*\/\s*день\)/iu);if(a&&daily)a.consumption.targets=[{type:'itemUses',target:'',value:'1'}];
-  return {name:v.name??"Способность",img:itemIcon(v),type:["feat","weapon","spell"].includes(v.type)?v.type:isWeaponAbility(v)&&a?.type==='attack'?"weapon":"feat",system:{description:{value:safeHTML(v.description)},activities:a?{[a._id]:a}:{},...(a&&daily?{uses:{max:daily[1],spent:0,recovery:[{period:'day',type:'recoverAll'}]}}:{}),range:{value:m?.range??v.range??a?.range?.value??null,units:"ft"},identifier:`shadow-edge-${index}`},flags:{autoanimations:{isEnabled:false},[MODULE]:{abilityIndex:index,spellId:v.spellId||undefined,coverage:a?"partial":"manual",reason:a?"Базовая механика настроена; сложные условия и эффекты требуют проверки.":"Неоднозначный статблок: автоматический расчёт не назначен."}}};
+  const daily=v.dailyUses>0?[null,String(v.dailyUses)]:String(v.name??'').match(/\((\d+)\s*\/\s*день\)/iu);if(a&&daily)a.consumption.targets=[{type:'itemUses',target:'',value:'1'}];
+  return {name:v.name??"Способность",img:itemIcon(v),type:["feat","weapon","spell"].includes(v.type)?v.type:isWeaponAbility(v)&&a?.type==='attack'?"weapon":"feat",system:{description:{value:safeHTML(v.description)},activities:a?{[a._id]:a}:{},...(a&&daily?{uses:{max:daily[1],spent:0,recovery:[{period:'day',type:'recoverAll'}]}}:{}),range:{value:m?.range??v.range??a?.range?.value??null,units:"ft"},identifier:`shadow-edge-${index}`},flags:{autoanimations:{isEnabled:false},[MODULE]:{abilityIndex:index,aiAnimation:v.animation||undefined,spellId:v.spellId||undefined,coverage:a?"partial":"manual",reason:a?"Базовая механика настроена; сложные условия и эффекты требуют проверки.":"Неоднозначный статблок: автоматический расчёт не назначен."}}};
 }
 async function spellItems(record,catalog){
   let selected=[];const d=record.data;
   const current=d.draft?.levels?.at(-1),selection=d.spellSelection;
   if(record.kind==="character")selected=[...new Set(selection?[...selection.known,...selection.cantrips]:[...(current?.spellIds??[]),...(current?.cantripIds??[]),...(current?.preparedSpellIds??[])])];
-  else selected=catalog.filter(s=>(d.statBlock?.spellcasting?.spells??[]).some(n=>[s.name,englishName(s.name),s.name.split(" · ")[0]].includes(n))).map(s=>s.id);
-  const edition=d.draft?.edition??"2014",items=[];
+  else selected=catalog.filter(s=>(!activeAI(record)||s.id.endsWith("-"+activeAI(record).edition))&&(d.statBlock?.spellcasting?.spells??[]).some(n=>[s.name,englishName(s.name),s.name.split(" · ")[0]].includes(n))).map(s=>s.id);
+  const ai=activeAI(record),originalSelected=new Set(selected);if(ai)selected=[...new Set([...selected,...ai.spells.map(s=>s.id)])];
+  const edition=d.draft?.edition??ai?.edition??"2014",items=[];
   for(const id of selected){const s=catalog.find(s=>s.id===id);if(!s)continue;const spellEdition=id.endsWith("-2024")?"2024":id.endsWith("-2014")?"2014":edition;
     let item=await compendiumItem(s.name,spellEdition);
     const configured=Boolean(item&&supportedSpells.has(spellKey(id)));
@@ -50,11 +52,13 @@ async function spellItems(record,catalog){
       if(Number.parseInt(game.system.version,10)>=6){item.system.method=d.draft.classId==='warlock'?'pact':'spell';item.system.prepared=always?2:prepared?1:0;item.system.sourceItem=d.draft.classId}
       else item.system.preparation={mode:always?'always':d.draft.classId==='warlock'?'pact':'prepared',prepared};
     }
+    else if(ai){const choice=ai.spells.find(s=>s.id===id);if(choice){if(Number.parseInt(game.system.version,10)>=6){item.system.method=choice.method;item.system.prepared=2}else item.system.preparation={mode:choice.method==='innate'?'innate':'prepared',prepared:true};if(choice.method==='innate'){if(choice.dailyUses>0)item.system.uses={max:String(choice.dailyUses),recovery:[{period:'day',type:'recoverAll'}]};for(const a of Object.values(item.system.activities??{})){a.consumption??={};a.consumption.spellSlot=false;a.consumption.targets=choice.dailyUses>0?[{type:'itemUses',target:'',value:'1'}]:[]}}item.flags[MODULE]={...item.flags[MODULE],aiAdded:!originalSelected.has(id),aiProfileId:ai.id};const dc=scalarNumber(d.statBlock?.spellcasting?.saveDc);if(dc)for(const a of Object.values(item.system.activities??{}))if(a.type==='save')a.save.dc={calculation:'',formula:String(dc)}}}
     // Our built-in hook owns imported spell animations.
     item.flags.autoanimations={isEnabled:false};items.push(item);
   }return items;
 }
 export async function actorPlan(record,catalog){
+  record=withAIProfile(record);
   const d=record.data,native=record.kind==="character",external=d.foundryCharacter,s=native?d.stats:external??d.statBlock??{};
   const abilityValues=native?s.abilities:external?s.abilities:s.abilityScores??{};
   const hp=native?s.maxHp:external?s.maxHp:scalarNumber(s.hitPoints),ac=native?s.armorClass:external?s.armorClass:scalarNumber(s.armorClass),speed=native?s.speed:external?s.speed:scalarNumber(s.speed);
@@ -83,6 +87,7 @@ export async function actorPlan(record,catalog){
   }
   items.push(...await spellItems(record,catalog));
   items.push(...lootItems(record).map(i=>({...i,system:{...i.system,description:{value:safeHTML(i.system.description.value)}}})));
+  const ai=activeAI(record);if(ai){const extra=aiActorSystem(record);for(const [key,value]of Object.entries(extra))projection.system[key]={...projection.system[key],...value};projection.flags[MODULE].aiProfileId=ai.id;projection.flags[MODULE].edition=ai.edition;for(const item of items)if(item.flags?.[MODULE]?.abilityIndex!==undefined)item.flags[MODULE].aiConfigured=true;items.push(...aiExtraItems(record,basicAbility,itemIcon,safeHTML,items.length))}
   return {projection,items};
 }
 export function journalPlan(record){

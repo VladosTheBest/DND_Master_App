@@ -10,6 +10,7 @@ export function weaponProfile(item){
 }
 export function animationProfile(item,activity){
  if(!item?.flags?.[MODULE])return null;
+ if(effects[item.flags[MODULE].aiAnimation])return effects[item.flags[MODULE].aiAnimation];
  const area=areaProfile(item);if(area)return effects[area.key];
  const spell=item.flags[MODULE].spellId?.replace(/-(2014|2024)$/,'');if(effects[spell])return effects[spell];
  activity??=activityValues(item.system?.activities)[0];
