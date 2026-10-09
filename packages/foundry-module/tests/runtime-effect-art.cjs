@@ -23,9 +23,9 @@ const assert=require('node:assert/strict'),{chromium}=require(process.env.PLAYWR
   await page.evaluate(async()=>{const {renderEffect}=await import('/modules/shadow-edge-gm/scripts/native-effects.mjs');const actor=game.actors.contents[0];for(const [i,key]of ['meteor-strike','ice-lance','arcane-sigil','holy-smite'].entries())renderEffect({key,id:'art-magic-'+i,sceneId:canvas.scene.id,userId:game.user.id,actorUuid:actor.uuid,source:{x:350+(i%2)*500,y:300+Math.floor(i/2)*300},targets:[{x:600+(i%2)*500,y:300+Math.floor(i/2)*300}],size:150});await new Promise(r=>setTimeout(r,1050))});
   await page.screenshot({path:'tmp/foundry-art-magic.png'});await page.evaluate(async()=>{const {clearEffects}=await import('/modules/shadow-edge-gm/scripts/native-effects.mjs');clearEffects()});
   await page.evaluate(async()=>{const {showAnimationLibrary}=await import('/modules/shadow-edge-gm/scripts/animation-library.mjs');artTest.hp=game.actors.map(a=>[a.id,a.system.attributes.hp.value]);artTest.dialog=showAnimationLibrary(config=>foundry.applications.api.DialogV2.wait(config));});
-  assert.equal(await page.locator('select[name=effect] option').count(),56);await page.locator('select[name=effect]').selectOption('arcane-sigil');await page.locator('button[data-action=preview]').click();await page.locator('select[name=effect]').waitFor();await page.locator('button[data-action=close]').last().click();
+  assert.equal(await page.locator('select[name=effect] option').count(),85);await page.locator('select[name=effect]').selectOption('arcane-sigil');await page.locator('button[data-action=preview]').click();await page.locator('select[name=effect]').waitFor();await page.locator('button[data-action=close]').last().click();
   const unchanged=await page.evaluate(()=>JSON.stringify(artTest.hp)===JSON.stringify(game.actors.map(a=>[a.id,a.system.attributes.hp.value])));assert(unchanged);
   await page.evaluate(()=>Hooks.off('shadow-edge-gm.animationStart',artTest.hook));
-  console.log('Native texture frames, blood on hit only, animated textured vines and 56-option harmless preview: PASS');
+  console.log('Native texture frames, blood on hit only, animated textured vines and 85-option harmless preview: PASS');
  }finally{await browser.close()}
 })().catch(error=>{console.error(error);process.exit(1)});

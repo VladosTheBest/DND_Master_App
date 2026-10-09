@@ -1,5 +1,6 @@
 import {makeArtSprites} from './effect-art.mjs';
 import {animationCatalog} from './animation-catalog.mjs';
+import {drawSignature} from './signature-effects.mjs';
 const clamp=x=>Math.max(0,Math.min(1,x)),ease=x=>1-(1-clamp(x))**3;
 export function makeRichPainter(layer,g,p){
  const art=makeArtSprites(layer),spec=animationCatalog.find(a=>a.key===p.key);
@@ -11,12 +12,13 @@ export function makeRichPainter(layer,g,p){
   const style=spec?.style??({'fire-bolt':'flame','ray-of-frost':'ice',bless:'radiant'}[p.key]??''),weapon=spec?.weapon??(['sword','axe','hammer','dagger','spear','claw'].includes(p.key)?p.key:null),angle=Math.atan2(b.y-a.y,b.x-a.x);
   const point=(x,y,o=b)=>({x:o.x+Math.cos(angle)*x-Math.sin(angle)*y,y:o.y+Math.sin(angle)*x+Math.cos(angle)*y});
   const impact=clamp((t-.46)/.54),arrival=ease((t-.28)/.22);
+  if(drawSignature({g,art,style,weapon,a,b,t,s,fade,color}))return true;
   if(weapon){
    const wind=ease(t/.28),swing=ease((t-.28)/.24),theta=angle-1.5*wind+2.1*swing,reach=clamp(t/.45)*.65;
    const origin={x:a.x+(b.x-a.x)*reach,y:a.y+(b.y-a.y)*reach};
    for(let j=0;j<9;j++){g.lineStyle(s*(.075-j*.006),style==='flame'?0xff752c:color,Math.sin(swing*Math.PI)*fade*(.3-j*.028));g.arc(origin.x,origin.y,s*(.84+j*.02),theta-.9,theta)}
    const weaponAlpha=fade*(1-clamp((t-.7)/.24));
-   if(['sword','axe','hammer','dagger'].includes(weapon))art.draw(weapon,origin.x,origin.y,s*(weapon==='dagger'?.9:1.5),theta,weaponAlpha,.12);
+   if(['sword','axe','hammer','dagger','spear'].includes(weapon))art.draw(weapon,origin.x,origin.y,s*(weapon==='dagger'?.9:1.5),theta,weaponAlpha,.12);
    else if(weapon==='claw'){for(let j=-1;j<=1;j++){const q=point(-s*.4,j*s*.16),r=point(s*.45,j*s*.16);line(q,r,s*.04,0xffeee7,Math.sin(swing*Math.PI)*fade)}}
    else {const q=point(-s*.6,0,origin),r=point(s*.7,0,origin);line(q,r,s*.045,0x806042,weaponAlpha);g.beginFill(0xe4f2ff,weaponAlpha);const tip=point(s,0,origin),l=point(s*.65,s*.11,origin),v=point(s*.65,-s*.11,origin);g.drawPolygon([tip.x,tip.y,l.x,l.y,v.x,v.y]);g.endFill()}
    if(impact>0){

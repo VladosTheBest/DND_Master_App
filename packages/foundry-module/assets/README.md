@@ -26,3 +26,12 @@ Final prompt specifications:
 - **Area vines:** one continuous square top-down carpet of emerald vines, woody roots, ivory thorns and leaves. Uniform edge-to-edge coverage through the center and corners, narrow transparent gaps, no wreath or large central hole, no ground, characters, text or repeated clusters. Detailed painted fantasy VFX.
 - **Area web:** one continuous square field of silver/ivory cobweb silk with curved strands, connected off-center hubs, braided anchor threads and small dew pearls. True transparent gaps; no spiders, ground, text, frame or separate stamps. Premium top-down fantasy VFX.
 - **Area darkness:** one continuous square field of almost-black volumetric smoke, charcoal folds with muted indigo/amethyst highlights, detail throughout the square. No vortex, stars, bright neon, symbols, ground, text or repeated particles. Opaque top-down cinematic smoke.
+
+
+## Foundation 0.14.0
+
+Created with the built-in imagegen tool, true transparency, copied unchanged. Animation and atlas frames are applied in PIXI at runtime.
+
+- `wall-fire.png`: wide 3:1 top-down continuous ribbon of roaring orange/scarlet/golden fire; white-hot seam, turbulent interwoven tongues curling out along both long edges, feathered transparent tips, extends through left/right edges. Detailed painterly plasma, no ground, tiles, text or separate fireballs. A 65×9 plane bends along a wall or ring; mirrored ring UVs remove the endpoint seam.
+- `bite.png`: square isolated open predatory reptilian bite. Two separate semicircular rows of curved ivory fangs on dark scaled jaw rims, upper teeth down and lower teeth up, transparent middle and separation at horizontal midline. Intricate enamel, root shading and highlights; no head, tongue, body or blood. GPU half-frames close together; confirmed hits add the existing blood texture.
+- `creature-weapons.png`: square transparent four-quadrant premium fantasy atlas. Top-left detailed horizontal steel flanged mace, top-right wooden spear with polished steel leaf tip, bottom-left glossy purple curved tentacle with pale suckers, bottom-right green scaled reptile tail with bony spines. Handles/bases left and tips right, padding, dimensional painterly shading; no labels, ground, dividers or glow. Runtime frames share one GPU texture.

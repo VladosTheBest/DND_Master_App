@@ -18,8 +18,8 @@ export function abilityActivity(v,index=0){
   const inferred=v.foundry||v.mechanics?null:inferredSave(v),m=v.foundry??v.mechanics??inferred,kind=m?.kind??"attack",bonus=attackBonus(v.toHit??v.attackBonus);
   // A source damage summary can truncate later types. Only an explicit save sentence supplies a fallback.
   const fullDamage=inferred&&String(v.description??'').match(/получая\s+(.+?)\s+(?:при\s+провал|или\s+половин)/iu)?.[1];
-  const parts=damageParts(fullDamage??v.damage,kind,m?.damageType||v.damageType);
-  if(!kinds.has(kind)||!parts?.length||kind==='heal'&&parts.length!==1||kind==="attack"&&bonus===null)return null;
+  const noDamage=kind==='save'&&!String(fullDamage??v.damage??'').trim(),parts=noDamage?[]:damageParts(fullDamage??v.damage,kind,m?.damageType||v.damageType);
+  if(!kinds.has(kind)||!noDamage&&!parts?.length||kind==='heal'&&parts.length!==1||kind==="attack"&&bonus===null)return null;
   if(m?.range!==undefined&&(!Number.isInteger(m.range)||m.range<0||m.range>10000))return null;
   if(kind==="save"&&(!["str","dex","con","int","wis","cha"].includes(m?.saveAbility??v.saveAbility)||!Number.isInteger(m?.saveDc??v.saveDc)||(m?.saveDc??v.saveDc)<1||(m?.saveDc??v.saveDc)>100))return null;
   const id=`segmact${String(index).padStart(9,"0")}`,part=parts[0];

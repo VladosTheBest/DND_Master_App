@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {basicAbility} from "../scripts/adapter.mjs";
 import {authoringActor} from "../scripts/core.mjs";
 const activity=item=>Object.values(item.system.activities)[0];
+test('control spells have native saves without invented damage',()=>{const a=activity(basicAbility({name:'Binding gaze',type:'spell',foundry:{kind:'save',saveAbility:'wis',saveDc:16},damage:''}));assert.equal(a.type,'save');assert.equal(a.save.dc.formula,'16');assert.deepEqual(a.damage.parts,[]);assert.equal(activity(basicAbility({foundry:{kind:'save',saveAbility:'wis'},damage:''})),undefined)});
 test('real Fiend Warlock wording preserves printed bonus and both damage types',()=>{
  const sword=basicAbility({name:'Скимитар',toHit:'+6 к попаданию',damage:'6 (1к6 + 3) рубящего урона плюс 14 (4к6) урона огнём.'});const a=activity(sword);assert.equal(sword.type,'weapon');assert.equal(a.attack.bonus,'6');assert.deepEqual(a.damage.parts.map(p=>[p.custom.formula,p.types[0]]),[['1d6+3','slashing'],['4d6','fire']]);
  const mace=activity(basicAbility({name:'Булава',toHit:'+3 к попаданию',damage:'Дробящий урон 3 (1к6) плюс урон огнём 10 (3к6).'}));assert.deepEqual(mace.damage.parts.map(p=>p.types[0]),['bludgeoning','fire']);

@@ -1,5 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {attackHits,areaTargets} from '../scripts/combat.mjs';
+import {attackHits,areaTargets,activityHasDamage} from '../scripts/combat.mjs';
+test('save-only controls do not expose a damage operation, weapon base damage still does',()=>{assert.equal(activityHasDamage({damage:{parts:[]}}),false);assert.equal(activityHasDamage({damage:{parts:[{}]}}),true);assert.equal(activityHasDamage({damage:{parts:[],includeBase:true},item:{system:{damage:{base:{number:1}}}}}),true)});
 import {effectDuration} from '../scripts/native-effects.mjs';
 import {shieldEffectActive} from '../scripts/sustained-effects.mjs';
 test('shield visuals require an active actual shield effect, not equipped armor',()=>{const effect={name:'Barrier',flags:{'shadow-edge-gm':{visual:'shield'}},duration:{expired:false}};assert(shieldEffectActive(effect));for(const update of [{disabled:true},{isSuppressed:true},{duration:{expired:true}},{active:false}])assert.equal(shieldEffectActive({...effect,...update}),false);assert.equal(shieldEffectActive({name:'Shield',system:{changes:[{key:'system.attributes.ac.bonus',value:2}]}}),false)});

@@ -1,4 +1,5 @@
 import {artTexture} from './effect-art.mjs';
+import {animationCatalog} from './animation-catalog.mjs';
 import {MODULE,activityValues} from './core.mjs';
 import {profiles,renderEffect,validEffect,clearEffects,effectFinished} from './native-effects.mjs';
 import {areaProfile,zoneGeometry} from './area-profiles.mjs';
@@ -6,7 +7,7 @@ export const effects=Object.fromEntries(Object.entries(profiles).map(([key,[mode
 export function midiAnimationMode(){const m=game.modules.get('midi-qol');return Boolean(m?.active&&(Number.parseInt(game.system.version,10)<6||m.version?.startsWith('14.6.')))}
 export function weaponProfile(item){
  const name=[item.system?.type?.baseItem,item.system?.identifier,item.name].filter(Boolean).join(' ').toLowerCase();
- for(const [key,re] of [['crossbow',/crossbow|арбалет/],['bow',/\bbow\b|longbow|shortbow|лук/],['axe',/axe|топор|секир/],['hammer',/hammer|maul|mace|club|молот|булав|дубин/],['dagger',/dagger|knife|кинжал|нож/],['spear',/spear|pike|halberd|glaive|копь|пик[а-и]|алебард|глеф/],['claw',/claw|bite|когт|укус/],['sword',/sword|rapier|scimitar|меч|рапир|сабл/]])if(re.test(name))return effects[key];
+ for(const [key,re] of [['crossbow',/crossbow|арбалет/],['bow',/\bbow\b|longbow|shortbow|лук/],['axe',/axe|топор|секир/],['mace',/mace|club|булав|дубин/],['staff',/staff|посох/],['hammer',/hammer|maul|молот/],['dagger',/dagger|knife|кинжал|нож/],['spear',/spear|pike|halberd|glaive|копь|пик[а-и]|алебард|глеф/],['bite',/bite|укус/],['claw',/claw|когт/],['tail',/tail|хвост/],['tentacle',/tentacle|щупальц/],['horn',/horn|gore|рог[ао]?\b|рогами/],['sting',/sting|жало|жалом/],['slam',/slam|fist|кулак|размашист/],['sword',/sword|rapier|scimitar|меч|рапир|сабл|скимитар/]])if(re.test(name))return effects[key];
  return null;
 }
 export function animationProfile(item,activity){
@@ -14,12 +15,15 @@ export function animationProfile(item,activity){
  if(effects[item.flags[MODULE].aiAnimation])return effects[item.flags[MODULE].aiAnimation];
  const area=areaProfile(item);if(area)return effects[area.key];
  const spell=item.flags[MODULE].spellId?.replace(/-(2014|2024)$/,'');if(effects[spell])return effects[spell];
+ const name=String(item.name??'').toLowerCase().trim();
+ const named=animationCatalog.find(p=>p.aliases?.some(a=>name===a.toLowerCase()||name.split(' · ').includes(a.toLowerCase())));if(named)return effects[named.key];
  activity??=activityValues(item.system?.activities)[0];
  if(activity?.type==='heal')return effects['cure-wounds'];
- if(activity?.type==='attack'){const weapon=weaponProfile(item),ranged=activity.attack?.type?.value==='ranged';if(ranged){const thrown=/метан|брос|throw|javelin/u.test(item.name?.toLowerCase()??'');return thrown?effects.thrown:weapon?.key==='crossbow'?effects.crossbow:effects.bow}return weapon??effects.sword}
+ if(activity?.type==='attack'){const weapon=weaponProfile(item),ranged=activity.attack?.type?.value==='ranged';if(item.type==='spell'||activity.attack?.type?.classification==='spell')return damageAnimation(activity);if(ranged){const thrown=/метан|брос|throw|javelin/u.test(name);return thrown?effects.thrown:weapon?.key==='crossbow'?effects.crossbow:effects.bow}return weapon??effects.slam}
  if(['save','damage'].includes(activity?.type)){const types=activity.damage?.parts?.flatMap(p=>Array.from(p.types??[]))??[];if(types.includes('fire'))return activity.target?.template?.type==='circle'?effects.fireball:effects['fire-bolt'];return effects.impact}
  return null;
 }
+function damageAnimation(activity){const types=activity.damage?.parts?.flatMap(p=>Array.from(p.types??[]))??[],key={fire:'fire-bolt',cold:'ray-of-frost',lightning:'chain-lightning',radiant:'guiding-bolt',necrotic:'necrotic-bolt',poison:'poison-bolt',acid:'acid-splash',psychic:'mind-pulse'}[types[0]];return effects[key]??effects['eldritch-blast']}
 export function animationStatus(){return `Встроенные анимации готовы · ${midiAnimationMode()?'Midi-QOL':'обычные способности dnd5e'}. Выделите свой токен и отметьте цель.`}
 const seen=new Set();
 function receive(p){if(!validEffect(p)||seen.has(p.id))return false;seen.add(p.id);if(seen.size>500)seen.delete(seen.values().next().value);return renderEffect(p)}
@@ -50,7 +54,7 @@ export function registerAnimations(){
  if(registered)return;registered=true;
  game.socket.on(`module.${MODULE}`,p=>{void receiveAnimation(p).catch(()=>{})});
  Hooks.on('canvasTearDown',clearEffects);
- Hooks.on('canvasReady',()=>{for(const name of ['weapons','vines','blood-slash','magic'])artTexture(name)});
+ Hooks.on('canvasReady',()=>{for(const name of ['weapons','vines','blood-slash','magic','bite','wall-fire','creature-weapons'])artTexture(name)});
  const play=data=>void playAnimation(data).catch(()=>ui.notifications.warn('Не удалось воспроизвести анимацию. Способность остаётся доступной.'));
  Hooks.on('dnd5e.postUseActivity',(activity,config,results)=>{
   if(midiAnimationMode()||!results?.message)return;

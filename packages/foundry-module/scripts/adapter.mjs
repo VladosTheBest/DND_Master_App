@@ -1,10 +1,11 @@
 import {MODULE,clone,scalarNumber,authoringActor,sceneLevel,damageType} from "./core.mjs";
 import {abilityActivity} from "./mechanics.mjs";
 import {areaProfiles} from './area-profiles.mjs';
+import {animationCatalog} from './animation-catalog.mjs';
 import {itemIcon,isWeaponAbility,lootItems} from './presentation.mjs';
 import {activeAI,withAIProfile,aiActorSystem,aiExtraItems} from './actor-ai-profile.mjs';
 
-export const supportedSpells=new Set(["fire-bolt","ray-of-frost","magic-missile","cure-wounds","healing-word","burning-hands","fireball","lightning-bolt","bless","shield"]);
+export const supportedSpells=new Set(animationCatalog.filter(p=>p.foundation).map(p=>p.key));
 for(const [id,p]of Object.entries(areaProfiles))if(!['oil','acid','alchemists-fire'].includes(id))supportedSpells.add(id);
 export const englishName=name=>String(name).split(" · ").at(-1).trim();
 export function spellKey(id){return String(id).replace(/-(2014|2024)$/,"")}

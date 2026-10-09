@@ -83,7 +83,7 @@ export function renderEffect(p){
         for(let j=0;j<10;j++){const v=point(length*(j+.5)/10,0);glow(v.x,v.y,s*.55,0x62bfff,fade*.65)}
         glow(point(length,0).x,point(length,0).y,s*.8,0xffffff,fade*.6);
       }else{
-        for(let j=0;j<48;j++){const along=length*(.12+(j%12)/14),width=along*.40,side=Math.sin(j*2.399+t*9)*width,v=point(along,side),r=s*.18+along*.10;glow(v.x,v.y,r*2.2,p.color?color:0xff3808,fade*.68);glow(v.x,v.y,r,p.color?color:0xffd33c,fade*.8)}
+        const cold=p.key==='cone-of-cold';for(let j=0;j<48;j++){const along=length*(.12+(j%12)/14),width=along*.40,side=Math.sin(j*2.399+t*9)*width,v=point(along,side),r=s*.18+along*.10;glow(v.x,v.y,r*2.2,p.color?color:cold?0x65bfe8:0xff3808,fade*.68);glow(v.x,v.y,r,p.color?color:cold?0xd5faff:0xffd33c,fade*.8);if(cold){line(v,{x:v.x-s*.06,y:v.y-s*.14},s*.023,0xf2ffff,fade)}}
       }
       return;
     }
@@ -114,6 +114,7 @@ export function renderEffect(p){
     for(const target of dest){
       const targetToken=canvas.tokens.get(target.tokenId);if(!p.template&&!game.user.isGM&&(!targetToken?.visible||targetToken.document.hidden))continue;
       let a=p.source,b=target;
+      if(p.key==='chain-lightning'&&dest.indexOf(target)>0)a=dest[dest.indexOf(target)-1];
       if(p.template&&['ray','cone'].includes(mode)&&!rich.handlesTemplate){a=p.template;const r=p.template.direction*Math.PI/180;b={x:a.x+Math.cos(r)*p.template.length,y:a.y+Math.sin(r)*p.template.length}}
       const angle=Math.atan2(b.y-a.y,b.x-a.x),point=(x,y,origin=b)=>({x:origin.x+Math.cos(angle)*x-Math.sin(angle)*y,y:origin.y+Math.sin(angle)*x+Math.cos(angle)*y});
       if(rich.draw(a,b,t,s,fade))continue;

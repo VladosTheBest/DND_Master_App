@@ -3,6 +3,7 @@ import {safeHTML} from './adapter.mjs';
 import {midiAnimationMode,playAnimation} from './animations.mjs';
 import {areaProfile} from './area-profiles.mjs';
 const key='combat',requestKey='combatRequest';
+export function activityHasDamage(a){return Boolean(a?.damage?.parts?.length||a?.damage?.includeBase&&a?.item?.system?.damage?.base&&(a.item.system.damage.base.number||a.item.system.damage.base.custom?.enabled))}
 export function combatEnabled(activity){return Number.parseInt(game.system.version,10)>=6&&!midiAnimationMode()&&!areaProfile(activity?.item)?.persistent&&activity?.item?.flags?.[MODULE]?.coverage==='partial'&&!activity.item.flags[MODULE].spellId?.startsWith('magic-missile')&&['attack','save','damage'].includes(activity.type)}
 export function attackHits(roll,ac){const die=roll.dice?.find(d=>d.faces===20)?.results?.find(r=>r.active!==false&&!r.discarded)?.result;return die!==1&&(roll.isCritical||die===20||roll.total>=ac)}
 export function areaTargets(scene,template){
@@ -34,7 +35,7 @@ export async function startCombat(origin){
  let targets=template?areaTargets(scene,template):origin.system.targets.map(t=>t.token).filter(Boolean);
  targets=[...new Set(targets)].slice(0,50);if(!targets.length&&!template){await origin.setFlag(MODULE,'combatStopped',true);ui.notifications.warn('Нет целей для способности.');return}
  if(activity.type==='attack'&&targets.length!==1)throw Error('Для одной атаки выберите ровно одну цель.');
- const w={origin:origin.uuid,ownerId:author.id,activityUuid:activity.uuid,sceneId:scene.id,sourceTokenUuid:source.uuid,scaling:Math.max(0,Math.min(20,Number(origin.system.scaling)||0)),type:activity.type,rows:[],damageStatus:'pending',phase:template?'animation':'resolve'};
+ const w={origin:origin.uuid,ownerId:author.id,activityUuid:activity.uuid,sceneId:scene.id,sourceTokenUuid:source.uuid,scaling:Math.max(0,Math.min(20,Number(origin.system.scaling)||0)),type:activity.type,hasDamage:activityHasDamage(activity),rows:[],damageStatus:'pending',phase:template?'animation':'resolve'};
  for(const uuid of targets){const t=await fromUuid(uuid);if(t?.parent?.id===scene.id&&t.actor&&!w.rows.some(r=>r.actorUuid===t.actor.uuid))w.rows.push({tokenUuid:uuid,actorUuid:t.actor.uuid,save:null,applied:false})}
  if(!w.rows.length)w.notice='В области нет целей для способности.';
  const a=await activityFor(w);w.name=a.item.name;w.dc=a.save?.dc?.value??null;w.ability=Array.from(a.save?.ability??[])[0];w.onSave=a.damage?.onSave??'none';
@@ -93,7 +94,7 @@ export async function processCombatRequest(request){
  }else{
   if(!owns(user,a.actor)||w.type==='attack'&&!w.hit)return;
   await request.setFlag(MODULE,'processed',true);
-  if(w.damageStatus==='rolling')return;
+  if(w.damageStatus==='rolling'||w.hasDamage===false||!activityHasDamage(a))return;
   if(!w.damage){w.damageStatus='rolling';await write(card,w);try{const rolls=await a.rollDamage({isCritical:w.critical,...w.attackOptions},{configure:false},{data:{whisper:card.whisper.map(u=>u.id??u),blind:card.blind}});if(!rolls?.length){w.damageStatus='pending';await write(card,w);return}w.damage=rolls.map(r=>({value:r.total,type:r.options.type,properties:Array.from(r.options.properties??[])}));w.damageStatus='rolled';await write(card,w)}catch(e){w.damageStatus='pending';await write(card,w);throw e}}
   await applyRows(card,w);
  }
@@ -108,7 +109,8 @@ function renderCard(message,html){
  const status=document.createElement('p');status.textContent=w.notice??(w.type==='attack'?(w.attack===undefined?'Бросок попадания…':`${w.attack} · ${w.hit?'Попадание'+(w.critical?' · Критический удар':''):'Промах'}`):w.type==='save'?`Спасбросок ${CONFIG.DND5E.abilities[w.ability]?.label??w.ability} · СЛ ${w.dc}`:'Урон без броска попадания');container.append(status);
  const button=(label,action,targetUuid)=>{const b=document.createElement('button');b.textContent=label;b.dataset.segmAction=action;b.onclick=async()=>{b.disabled=true;try{if(!gm())throw Error('Нужен активный мастер.');await ChatMessage.create({content:'Shadow Edge · запрос броска',whisper:[gm().id],flags:{[MODULE]:{[requestKey]:{workflowUuid:message.uuid,action,targetUuid}}}})}catch(e){ui.notifications.error(e.message);b.disabled=false}};return b};
  for(const row of w.rows){const token=fromUuidSync(row.tokenUuid);if(!token||!game.user.isGM&&token.hidden)continue;const p=document.createElement('p');p.textContent=`${token.name}: ${row.applied?'урон применён':row.save!==null?`${row.save} · ${row.save>=w.dc?'успех':'провал'}`:w.type==='save'?'ожидает спасбросок':'ожидает урон'}`;if(w.type==='save'&&row.save===null&&owns(game.user,token.actor))p.append(button('Спасбросок','save',row.tokenUuid));container.append(p)}
- const a=fromUuidSync(w.activityUuid);if(owns(game.user,a?.actor)&&w.damageStatus!=='miss'&&w.damageStatus!=='blocked'&&w.damageStatus!=='rolling'&&(w.type!=='attack'||w.hit)&&w.rows.some(r=>!r.applied))container.append(button(w.damage?'Применить оставшийся урон':'Бросить урон','damage'));
+ const a=fromUuidSync(w.activityUuid);if(w.hasDamage!==false&&owns(game.user,a?.actor)&&w.damageStatus!=='miss'&&w.damageStatus!=='blocked'&&w.damageStatus!=='rolling'&&(w.type!=='attack'||w.hit)&&w.rows.some(r=>!r.applied))container.append(button(w.damage?'Применить оставшийся урон':'Бросить урон','damage'));
+ if(w.hasDamage===false){const p=document.createElement('p');p.textContent='Спасброски рассчитаны по характеристикам целей. Состояние, повторные спасброски и особые условия примените по описанию способности.';container.append(p)}
  if(w.damage){const p=document.createElement('p');p.textContent=`Урон: ${w.damage.map(d=>`${d.value} ${d.type??''}`).join(' + ')}`;container.append(p)}
 }
 const choosingAttacks=new Set();

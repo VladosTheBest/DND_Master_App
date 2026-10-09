@@ -11,9 +11,12 @@ import (
 var foundryAnimationCatalogJSON []byte
 
 type foundryAnimationDefinition struct {
-	Key         string `json:"key"`
-	Label       string `json:"label"`
-	Description string `json:"description"`
+	Key         string   `json:"key"`
+	Label       string   `json:"label"`
+	Description string   `json:"description"`
+	Aliases     []string `json:"aliases,omitempty"`
+	Foundation  bool     `json:"foundation,omitempty"`
+	SpellLevel  int      `json:"spellLevel"`
 }
 
 var foundryAnimationCatalog = func() []foundryAnimationDefinition {
