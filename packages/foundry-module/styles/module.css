@@ -2,3 +2,5 @@
 
 .shadow-edge-shield-applied effect-application { display: none !important; }
 .shadow-edge-import-progress{position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:10000;width:min(520px,90vw);padding:18px;background:#211c2c;color:#fff;border:1px solid #b69ccc;border-radius:10px;box-shadow:0 12px 40px #0008;display:grid;gap:10px}.shadow-edge-import-progress progress{width:100%;height:18px;accent-color:#a97feb}.shadow-edge-import-progress details{max-height:240px;overflow:auto}.shadow-edge-import-progress button{color:#fff;background:#4b3767}
+
+.shadow-edge-ai-form{display:grid;gap:12px;min-width:min(560px,75vw)}.shadow-edge-ai-form>label{display:grid;gap:6px}.shadow-edge-ai-form textarea,.shadow-edge-ai-form select{width:100%;box-sizing:border-box}.shadow-edge-ai-form textarea{min-height:120px;resize:vertical}.shadow-edge-ai-form .shadow-edge-ai-check{display:flex;align-items:center;gap:8px}.shadow-edge-ai-form .shadow-edge-ai-check input{flex:0 0 auto}.shadow-edge-ai-form p{margin:0}.shadow-edge-ai-form .hint{font-size:.9em;opacity:.8}
