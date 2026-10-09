@@ -26,3 +26,10 @@ test('spent uses do not cause a false conflict and are not replenished by import
  const {actor,item}=setup(),baseline=source();baseline.system.uses.spent=0;item.system.uses.spent=2;
  const incoming=source();incoming.name='New site name';assert.deepEqual(await importItems(actor,[incoming],{itemBaselines:{'ability-0':baseline}}),[]);assert.equal(item.name,'New site name');assert.equal(item.system.uses.spent,2);
 });
+
+test('explicit AI apply repairs old imports without baseline but protects changes after preview',async()=>{
+ const {actor,item}=setup();item.name='Legacy';const expected=clone(item.toObject()),incoming=source();incoming.name='Configured';
+ const canReplace=current=>JSON.stringify(current.toObject())===JSON.stringify(expected);
+ assert.deepEqual(await importItems(actor,[incoming],{},{canReplace}),[]);assert.equal(item.name,'Configured');
+ item.name='Concurrent edit';const report=await importItems(actor,[incoming],{},{canReplace});assert.equal(item.name,'Concurrent edit');assert.equal(report.length,1);assert.match(report[0].reason,/AI-/);
+});

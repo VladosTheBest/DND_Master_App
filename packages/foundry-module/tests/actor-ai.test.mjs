@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {withAIProfile,aiActorSystem,aiExtraItems} from '../scripts/actor-ai-profile.mjs';
-import {aiItemTemplate,aiRestorableFields} from '../scripts/actor-ai-ui.mjs';
+import {aiItemTemplate,aiRestorableFields,aiReceiptAfter} from '../scripts/actor-ai-ui.mjs';
 import {actorPlan,basicAbility,safeHTML} from '../scripts/adapter.mjs';
 const profile=()=>({id:'profile',mode:'enrich',edition:'2024',abilities:[],spells:[],skills:[],loot:[],casterLevel:5,castingAbility:'int'});
 const record=()=>({key:'monster:test',kind:'monster',data:{title:'Test',statBlock:{actions:[{name:'Bow',toHit:'+5',damage:'1d8+3 piercing'}]},foundryAI:profile()}});
@@ -13,3 +13,5 @@ test('AI import keeps spell editions separate and native limited innate consumpt
 
 
 test('existing magical feature becomes a colored innate spell with two damage types',async()=>{const old=globalThis.game;try{globalThis.game={system:{version:'6.0.6'},packs:new Map()};const r=record();r.data.statBlock.actions=[{name:'Адский огонь',description:'Зелёный огонь',foundry:{kind:'manual'}}];r.data.foundryAI.abilities=[{section:'actions',index:0,name:'Адский огонь',itemType:'spell',spellLevel:0,damage:'3d10 fire plus 2d10 necrotic',animation:'fireball',animationColor:'#55ff44',radius:10,mechanics:{kind:'save',saveAbility:'dex',saveDc:15,saveDamage:'half',range:120,damageType:'fire'}}];const plan=await actorPlan(r,[]),item=plan.items[0],a=Object.values(item.system.activities)[0];assert.equal(item.type,'spell');assert.equal(item.system.method,'innate');assert.equal(a.save.dc.formula,'15');assert.equal(a.target.template.size,10);assert.deepEqual(a.damage.parts.map(p=>p.types[0]),['fire','necrotic']);assert.equal(item.flags['shadow-edge-gm'].aiAnimationColor,'#55ff44');assert.equal(r.data.statBlock.actions[0].foundry.kind,'manual')}finally{globalThis.game=old}});
+
+test('reapplying a profile does not claim later manual fields for undo',()=>{assert.deepEqual(aiReceiptAfter({skill:1,slot:4},{skill:2,slot:4},{skill:2,slot:5}),{skill:1,slot:5})});
