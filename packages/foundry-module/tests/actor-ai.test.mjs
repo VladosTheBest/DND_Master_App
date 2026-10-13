@@ -15,3 +15,21 @@ test('AI import keeps spell editions separate and native limited innate consumpt
 test('existing magical feature becomes a colored innate spell with two damage types',async()=>{const old=globalThis.game;try{globalThis.game={system:{version:'6.0.6'},packs:new Map()};const r=record();r.data.statBlock.actions=[{name:'Адский огонь',description:'Зелёный огонь',foundry:{kind:'manual'}}];r.data.foundryAI.abilities=[{section:'actions',index:0,name:'Адский огонь',itemType:'spell',spellLevel:0,damage:'3d10 fire plus 2d10 necrotic',animation:'fireball',animationColor:'#55ff44',radius:10,mechanics:{kind:'save',saveAbility:'dex',saveDc:15,saveDamage:'half',range:120,damageType:'fire'}}];const plan=await actorPlan(r,[]),item=plan.items[0],a=Object.values(item.system.activities)[0];assert.equal(item.type,'spell');assert.equal(item.system.method,'innate');assert.equal(a.save.dc.formula,'15');assert.equal(a.target.template.size,10);assert.deepEqual(a.damage.parts.map(p=>p.types[0]),['fire','necrotic']);assert.equal(item.flags['shadow-edge-gm'].aiAnimationColor,'#55ff44');assert.equal(r.data.statBlock.actions[0].foundry.kind,'manual')}finally{globalThis.game=old}});
 
 test('reapplying a profile does not claim later manual fields for undo',()=>{assert.deepEqual(aiReceiptAfter({skill:1,slot:4},{skill:2,slot:4},{skill:2,slot:5}),{skill:1,slot:5})});
+
+test('combined source text becomes separate weapon activities without a bogus wrapper roll',async()=>{
+ const old=globalThis.game;
+ try {
+ globalThis.game={system:{version:'6.0.6'},packs:new Map()};
+ const r=record(),description='Когти. +11 к попаданию. 2d6+7 slashing.';
+ r.data.statBlock.actions=[{name:'Действия из источника',description,damage:'7d8 radiant',foundry:{kind:'save',saveDc:16,saveAbility:'wis'}}];
+ r.data.foundryAI.abilities=[{section:'actions',index:-1,name:'Когти',description,toHit:'+11',damage:'2d6+7 slashing',itemType:'weapon',mechanics:{kind:'attack',attackMode:'melee',range:5}}];
+ const first=await actorPlan(r,[]),second=await actorPlan(r,[]);
+ const weapon=first.items.find(i=>i.name==='Когти');
+ assert.equal(weapon.type,'weapon');
+ assert.equal(Object.values(weapon.system.activities)[0].type,'attack');
+ const source=first.items.find(i=>i.name==='Действия из источника');
+ assert.equal(Object.keys(source.system.activities??{}).length,0);
+ assert.equal(r.data.statBlock.actions[0].damage,'7d8 radiant');
+ assert.deepEqual(first.items.map(i=>i.flags['shadow-edge-gm'].inventoryKey),second.items.map(i=>i.flags['shadow-edge-gm'].inventoryKey));
+ }finally{globalThis.game=old}
+});

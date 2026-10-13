@@ -306,10 +306,11 @@ type userAccount struct {
 }
 
 type campaignData struct {
-	SessionMaps   []sessionMapDocument `json:"sessionMaps,omitempty"`
-	ReadyCampaign *readyCampaignInfo   `json:"readyCampaign,omitempty"`
-	WorldMaps     []worldMapDocument   `json:"worldMaps,omitempty"`
-	ID            string               `json:"id"`
+	FoundryActorProfiles map[string]*foundryAIProfile `json:"foundryActorProfiles,omitempty"`
+	SessionMaps          []sessionMapDocument         `json:"sessionMaps,omitempty"`
+	ReadyCampaign        *readyCampaignInfo           `json:"readyCampaign,omitempty"`
+	WorldMaps            []worldMapDocument           `json:"worldMaps,omitempty"`
+	ID                   string                       `json:"id"`
 	// Revision tracks authoring changes used by proposal conflict detection.
 	// Ephemeral live-combat state is persisted but deliberately does not make
 	// an otherwise independent content proposal stale.

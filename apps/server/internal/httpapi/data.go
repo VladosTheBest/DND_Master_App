@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"encoding/json"
 	"strconv"
 	"strings"
 )
@@ -31,6 +32,11 @@ func starterCampaign() campaignData {
 }
 
 func ensureCampaignShape(campaign campaignData) campaignData {
+	if campaign.FoundryActorProfiles != nil {
+		raw, _ := json.Marshal(campaign.FoundryActorProfiles)
+		campaign.FoundryActorProfiles = nil
+		_ = json.Unmarshal(raw, &campaign.FoundryActorProfiles)
+	}
 	if campaign.ReadyCampaign != nil {
 		info := *campaign.ReadyCampaign
 		campaign.ReadyCampaign = &info

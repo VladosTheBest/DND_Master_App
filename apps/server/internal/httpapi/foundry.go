@@ -451,6 +451,9 @@ func foundryRecords(state storageState, campaignID string) ([]foundryRecord, str
 		}
 		title = c.Title
 		for _, e := range campaignEntities(c) {
+			if c.ReadyCampaign != nil {
+				e.FoundryAI = c.FoundryActorProfiles[e.Kind+":"+e.ID]
+			}
 			if e.FoundryAI != nil {
 				profile := *e.FoundryAI
 				profile.Stale = profile.SourceHash != foundryAISourceHash(e)
