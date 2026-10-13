@@ -159,24 +159,3 @@ func foundryAIKeepSourceSpells(p *foundryAIProfile, e knowledgeEntity) {
 	}
 	p.Spells = kept
 }
-
-// Extracted configure items must cite an exact named passage, not invented prose.
-func foundryAIExtractedSource(e knowledgeEntity, a foundryAIAbility) (statBlockEntry, bool) {
-	text := strings.Join(strings.Fields(a.Description), " ")
-	name := strings.TrimSpace(a.Name)
-	if len([]rune(name)) < 2 || !strings.HasPrefix(text, name+".") && !strings.HasPrefix(text, name+" (") && !strings.HasPrefix(text, name+":") {
-		return statBlockEntry{}, false
-	}
-	sources := []string{e.Content, e.PlayerContent, e.Summary}
-	for _, entries := range foundryAISections(e.StatBlock) {
-		for _, entry := range entries {
-			sources = append(sources, entry.Description)
-		}
-	}
-	for _, source := range sources {
-		if strings.Contains(strings.Join(strings.Fields(source), " "), text) && len(text) > len(name)+2 {
-			return statBlockEntry{Name: name, Description: text}, true
-		}
-	}
-	return statBlockEntry{}, false
-}

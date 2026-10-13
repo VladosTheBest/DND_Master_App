@@ -88,12 +88,21 @@ func TestFoundryAIRepairsInvalidModelFormulaOnce(t *testing.T) {
 	if result["profile"] == nil || g.calls != 2 || !strings.Contains(g.payload, "validationError") {
 		t.Fatal("bounded repair failed")
 	}
-	// An unrepairable model response stays an explicit failure and never loops.
+	// An unrepairable formula becomes a visible manual feature, never an executable formula.
 	base.calls = 0
 	base.profile.Abilities[0].Damage = "1d8 + @mod"
 	m.srv.generator = base
 	response := foundryCall(t, m, "POST", "v1/actors/ai/preview", map[string]any{"recordKey": "monster:ai-test", "mode": "configure", "edition": "2014"})
-	if response.Code != 502 || base.calls != 2 {
-		t.Fatal("invalid profile accepted or unbounded repair")
+	if response.Code != 200 || base.calls != 2 {
+		t.Fatal("manual fallback failed or unbounded repair")
+	}
+	var body struct {
+		Data struct {
+			Profile foundryAIProfile `json:"profile"`
+		} `json:"data"`
+	}
+	json.Unmarshal(response.Body.Bytes(), &body)
+	if len(body.Data.Profile.Abilities) != 1 || body.Data.Profile.Abilities[0].Mechanics.Kind != "manual" || body.Data.Profile.Abilities[0].Damage != "" || len(body.Data.Profile.Notes) == 0 {
+		t.Fatal("unsafe or silent fallback")
 	}
 }

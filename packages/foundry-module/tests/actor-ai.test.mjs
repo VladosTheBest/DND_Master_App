@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {withAIProfile,aiActorSystem,aiExtraItems} from '../scripts/actor-ai-profile.mjs';
-import {aiItemTemplate,aiRestorableFields,aiReceiptAfter} from '../scripts/actor-ai-ui.mjs';
+import {aiItemTemplate,aiRestorableFields,aiReceiptAfter,aiHasConfiguration,aiStopsBatch} from '../scripts/actor-ai-ui.mjs';
 import {actorPlan,basicAbility,safeHTML} from '../scripts/adapter.mjs';
 const profile=()=>({id:'profile',mode:'enrich',edition:'2024',abilities:[],spells:[],skills:[],loot:[],casterLevel:5,castingAbility:'int'});
 const record=()=>({key:'monster:test',kind:'monster',data:{title:'Test',statBlock:{actions:[{name:'Bow',toHit:'+5',damage:'1d8+3 piercing'}]},foundryAI:profile()}});
@@ -32,4 +32,31 @@ test('combined source text becomes separate weapon activities without a bogus wr
  assert.equal(r.data.statBlock.actions[0].damage,'7d8 radiant');
  assert.deepEqual(first.items.map(i=>i.flags['shadow-edge-gm'].inventoryKey),second.items.map(i=>i.flags['shadow-edge-gm'].inventoryKey));
  }finally{globalThis.game=old}
+});
+
+test('formatted source wrappers stay manual after extraction and manual fallback has no damage',async()=>{
+ const old=globalThis.game;
+ try {
+ globalThis.game={system:{version:'6.0.6'},packs:new Map()};
+ const r=record();
+ r.data.statBlock.actions=[{name:'Статблок из источника',description:'<p><b>Дыхание.</b> Дракон испу- скает луч.</p>',damage:'7d8 radiant',foundry:{kind:'save',saveDc:16,saveAbility:'wis'}}];
+ r.data.foundryAI.abilities=[{section:'actions',index:-1,name:'Дыхание',description:'Дыхание. Дракон испускает луч.',damage:'7d8 radiant',itemType:'spell',mechanics:{kind:'save',saveDc:16,saveAbility:'dex'}}];
+ let plan=await actorPlan(r,[]);
+ assert.equal(Object.keys(plan.items.find(i=>i.name==='Статблок из источника').system.activities??{}).length,0);
+ assert.equal(Object.values(plan.items.find(i=>i.name==='Дыхание').system.activities)[0].type,'save');
+ r.data.statBlock.actions=[{name:'Ray',damage:'7d8 radiant',toHit:'+99'}];
+ r.data.foundryAI.abilities=[{section:'actions',index:0,name:'Ray',mechanics:{kind:'manual'},damage:'',toHit:'',itemType:'feat'}];
+ plan=await actorPlan(r,[]);
+ assert.equal(Object.keys(plan.items[0].system.activities??{}).length,0);
+ assert.equal(r.data.statBlock.actions[0].damage,'7d8 radiant');
+ }finally{globalThis.game=old}
+});
+test('batch distinguishes no-data profiles and stops on account-wide errors only',()=>{
+ assert.equal(aiHasConfiguration({abilities:[],spells:[],skills:[],loot:[]}),false);
+ assert.equal(aiHasConfiguration({abilities:[{name:'Статблок из источника',mechanics:{kind:'manual'}}]}),false);
+ assert.equal(aiHasConfiguration({skills:[{id:'prc',proficient:1}]}),true);
+ assert.equal(aiHasConfiguration({abilities:[{mechanics:{kind:'manual'}}]}),true);
+ for(const code of ['ai_limit','ai_busy','subscription_required','ai_unavailable'])assert.equal(aiStopsBatch({code}),true);
+ assert.equal(aiStopsBatch({status:401}),true);
+ assert.equal(aiStopsBatch({code:'invalid_ai_profile',status:502}),false);
 });

@@ -92,7 +92,8 @@ func TestFoundryAIExtractCombinedDragonActions(t *testing.T) {
 		t.Fatal("invented damage accepted")
 	}
 	p.Abilities[0].Damage = "2d6+7 slashing"
-	p.Abilities[0].Description += " Придуманная способность."
+	p.Abilities[0].Name = "Придуманная способность"
+	p.Abilities[0].Description = "Несуществующая атака, не описанная в источнике."
 	if validateFoundryAIProfile(&p, e) == nil {
 		t.Fatal("invented excerpt accepted")
 	}
