@@ -30,3 +30,10 @@ test('Sequencer resolves installed files only and safely falls back',async()=>{
  let fallback=0;assert.equal(playSequencerEffect(p,()=>fallback++),true);await sequencerFinished(p.id);assert.equal(fallback,1);
  delete globalThis.Sequence;delete globalThis.Sequencer;
 });
+
+test('installed catalog is bounded and selected database names resolve before defaults',async()=>{
+ const {sequencerCatalog,sequencerFile}=await import('../scripts/sequencer-effects.mjs');globalThis.game={settings:{get:()=>true},modules:new Map([['sequencer',{active:true}]])};globalThis.Sequence=class {};
+ globalThis.Sequencer={Database:{getPathsUnder:()=>['bite','tail','../unsafe','bite'],getAllFileEntries:key=>key==='jb2a.tail'?['modules/JB2A/tail.webm']:[]}};
+ assert.deepEqual(sequencerCatalog(),['jb2a.bite','jb2a.tail']);assert.equal(sequencerFile('slam','jb2a.tail'),'modules/JB2A/tail.webm');assert.equal(validEffect({...payload(),sequencerAnimation:'https://bad.invalid/file.webm'}),false);
+ delete globalThis.Sequence;delete globalThis.Sequencer;
+});

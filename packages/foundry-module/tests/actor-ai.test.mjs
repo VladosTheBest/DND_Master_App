@@ -64,3 +64,13 @@ test('batch distinguishes no-data profiles and stops on account-wide errors only
 test('server null collections import an actor without catalog spells',async()=>{
  const old=globalThis.game;try{globalThis.game={system:{version:'6.0.6'},packs:new Map()};const r=record();Object.assign(r.data.foundryAI,{spells:null,skills:null,loot:null,notes:null});const plan=await actorPlan(r,[]);assert.equal(plan.items[0].name,'Bow');}finally{globalThis.game=old}
 });
+
+test('fixed damage natural attacks create real Activities and preserve AI database choice',()=>{
+ const i=basicAbility({name:'Укус',type:'weapon',toHit:'+2',damage:'1 piercing',foundry:{kind:'attack',range:5},sequencerAnimation:'jb2a.bite'}),a=Object.values(i.system.activities)[0];
+ assert.equal(a.type,'attack');assert.equal(a.attack.bonus,'2');assert.equal(a.damage.parts[0].custom.formula,'1');assert.equal(i.flags['shadow-edge-gm'].sequencerAnimation,'jb2a.bite');
+});
+
+test('portrait option preserves existing portraits without requesting generation',async()=>{
+ const {missingPortrait,createActorPortrait}=await import('../scripts/actor-portrait.mjs');assert.equal(missingPortrait('icons/svg/skull.svg'),true);assert.equal(missingPortrait('portraits/seal.webp'),false);
+ const result=await createActorPortrait({actor:{img:'portraits/seal.webp'},request:()=>assert.fail('must not request')});assert.match(result,/уже есть/);
+});

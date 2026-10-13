@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -150,5 +151,110 @@ func TestFoundryAIBatchAboveSixtyAndHardLimit(t *testing.T) {
 	w := foundryCall(t, m, "POST", "v1/actors/ai/preview", map[string]any{"recordKey": "monster:ai-test", "mode": "configure", "edition": "2014"})
 	if w.Code != 429 || g.calls != 1 {
 		t.Fatal("hard quota bypass")
+	}
+}
+
+func TestFoundryAISealAttackRecovery(t *testing.T) {
+	c, err := readReadyCampaign("icewind-dale-rus")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var seal knowledgeEntity
+	for _, e := range campaignEntities(c) {
+		if e.Title == "Тюлень" {
+			seal = e
+		}
+	}
+	p := foundryAIProfile{Mode: "configure", Edition: "2014", Abilities: []foundryAIAbility{
+		{Name: "Укус", Section: "actions", Index: -1, ToHit: "+4", Damage: "1d4+2 bludgeoning", Mechanics: foundryMechanics{Kind: "attack"}},
+		{Name: "Хвост", Section: "actions", Index: -1, ToHit: "+2", Damage: "1 piercing", Mechanics: foundryMechanics{Kind: "manual"}},
+	}}
+	prepareFoundryAIProfile(&p, seal)
+	if err := validateFoundryAIProfile(&p, seal); err != nil {
+		t.Fatal(err)
+	}
+	if p.Abilities[0].ToHit != "+2" || p.Abilities[0].Damage != "1 piercing" || p.Abilities[1].ToHit != "+4" || p.Abilities[1].Damage != "1d4+2 bludgeoning" {
+		t.Fatalf("source not recovered: %+v", p.Abilities)
+	}
+	for _, a := range p.Abilities {
+		if a.Mechanics.Kind != "attack" || a.ItemType != "weapon" {
+			t.Fatal("not an attack")
+		}
+	}
+	if _, ok := foundryAITextAttack(statBlockEntry{Description: "Melee Weapon Attack: +4 to hit. Hit: 1d6 piercing if the target fails a saving throw."}); ok {
+		t.Fatal("conditional damage guessed")
+	}
+}
+
+func TestFoundryAIInstalledAnimationScope(t *testing.T) {
+	m, _, g := aiFixture(t)
+	g.profile.Abilities[0].SequencerAnimation = "jb2a.bite"
+	input := map[string]any{"recordKey": "monster:ai-test", "mode": "configure", "edition": "2014", "animationOptions": []string{"jb2a.bite", "jb2a.tail"}}
+	w := foundryCall(t, m, "POST", "v1/actors/ai/preview", input)
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"sequencerAnimation":"jb2a.bite"`) {
+		t.Fatal(w.Body.String())
+	}
+	if !strings.Contains(g.payload, "installedSequencerAnimations") {
+		t.Fatal("catalog not sent")
+	}
+	input["animationOptions"] = []string{"https://bad.invalid/code.js"}
+	if foundryCall(t, m, "POST", "v1/actors/ai/preview", input).Code != 400 {
+		t.Fatal("arbitrary path accepted")
+	}
+}
+
+func TestFoundryAIAnimationSchemaProviderBudget(t *testing.T) {
+	options := make([]string, 256)
+	for i := range options {
+		options[i] = fmt.Sprintf("jb2a.effect%d", i)
+	}
+	for _, edition := range []string{"2014", "2024"} {
+		schema := foundryAISchemaForOptions(edition, options)
+		b, _ := json.Marshal(schema)
+		var decoded any
+		json.Unmarshal(b, &decoded)
+		count := 0
+		var visit func(any)
+		visit = func(v any) {
+			switch x := v.(type) {
+			case map[string]any:
+				if values, ok := x["enum"].([]any); ok {
+					count += len(values)
+				}
+				for _, value := range x {
+					visit(value)
+				}
+			case []any:
+				for _, value := range x {
+					visit(value)
+				}
+			}
+		}
+		visit(decoded)
+		if count > 1000 {
+			t.Fatalf("%s: %d enum values exceed provider limit", edition, count)
+		}
+		props := schema["properties"].(map[string]any)
+		for _, key := range []string{"abilities", "spells"} {
+			ref := props[key].(map[string]any)["items"].(map[string]any)["properties"].(map[string]any)["sequencerAnimation"].(map[string]any)["$ref"]
+			if ref != "#/$defs/sequencerAnimation" {
+				t.Fatal("catalog is not shared")
+			}
+		}
+	}
+}
+
+func TestFoundryAIPassiveWaterBreathingIsNotSpell(t *testing.T) {
+	p := foundryAIProfile{Mode: "configure", Edition: "2014", Spells: []foundryAISpell{{ID: "water-breathing-2014", Method: "innate"}}}
+	e := knowledgeEntity{Content: "Подводное дыхание. Существо может дышать только под водой."}
+	foundryAIKeepSourceSpells(&p, e)
+	if len(p.Spells) != 0 {
+		t.Fatal("biological trait became spell")
+	}
+	e.Content = "Использование заклинаний. Может сотворять заклинание Подводное дыхание."
+	p.Spells = []foundryAISpell{{ID: "water-breathing-2014", Method: "innate"}}
+	foundryAIKeepSourceSpells(&p, e)
+	if len(p.Spells) != 1 {
+		t.Fatal("explicit spell removed")
 	}
 }

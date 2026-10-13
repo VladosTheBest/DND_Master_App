@@ -161,7 +161,7 @@ func (m *aiJobManager) start(owner, key string, job aiJob, work func(context.Con
 	m.mu.Lock()
 	count, total := 0, 0
 	for _, existing := range m.jobs {
-		if job.Kind == "foundry-scene" && existing.OwnerID == owner && existing.Kind == job.Kind {
+		if (job.Kind == "foundry-scene" || job.Kind == "foundry-portrait") && existing.OwnerID == owner && existing.Kind == job.Kind {
 			if existing.Key == key {
 				result := existing.aiJob
 				m.mu.Unlock()

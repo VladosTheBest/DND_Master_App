@@ -136,6 +136,8 @@ func foundryAIKeepSourceSpells(p *foundryAIProfile, e knowledgeEntity) {
 	}
 	evidence, _ := json.Marshal([]any{e.StatBlock, e.Content, e.PlayerContent, e.Summary})
 	text := strings.ToLower(string(evidence))
+	plain := foundryAIText(strings.Join(foundryAITexts(e), " "))
+	casting := regexp.MustCompile(`(?i)заклинани|колдовств|сотворя|spellcasting|\bcast\b|\bcasts\b|\bspells?\b`).MatchString(plain)
 	kept := make([]foundryAISpell, 0, len(p.Spells))
 	for _, choice := range p.Spells {
 		name, matched := choice.ID, false
@@ -146,6 +148,11 @@ func foundryAIKeepSourceSpells(p *foundryAIProfile, e knowledgeEntity) {
 			name = spell.Name
 			for _, alias := range strings.Split(name, " · ") {
 				if strings.Contains(text, strings.ToLower(strings.TrimSpace(alias))) {
+					// A same-named biological trait (e.g. Water Breathing) is not a spell.
+					heading := regexp.MustCompile(`(?i)(?:^|[^\p{L}])` + regexp.QuoteMeta(foundryAIText(alias)) + `\s*[.:]`)
+					if !casting && heading.MatchString(plain) {
+						continue
+					}
 					matched = true
 				}
 			}

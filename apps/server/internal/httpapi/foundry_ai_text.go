@@ -123,6 +123,9 @@ func prepareFoundryAIProfile(p *foundryAIProfile, e knowledgeEntity) {
 			}
 		}
 		if matched >= 0 {
+			if p.Mode == "configure" && !strings.Contains(strings.ToLower(a.Name), "из источника") {
+				foundryAIRecoverAttack(a, entries[matched])
+			}
 			if strings.Contains(strings.ToLower(a.Name), "из источника") {
 				a.Mechanics = foundryMechanics{Kind: "manual"}
 				a.Damage = ""
@@ -140,6 +143,9 @@ func prepareFoundryAIProfile(p *foundryAIProfile, e knowledgeEntity) {
 		if old, ok := foundryAIExtractedSource(e, *a); ok {
 			a.Index = -1
 			a.Description = old.Description
+			if p.Mode == "configure" {
+				foundryAIRecoverAttack(a, old)
+			}
 			// Line width is not a circular radius; recharge is not uses per day.
 			if aiLineWidth.MatchString(old.Description) && !aiRadius.MatchString(old.Description) {
 				a.Radius = 0

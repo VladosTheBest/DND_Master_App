@@ -7,10 +7,15 @@ const pending=new Map();
 export function sequencerReady(){
  try{return Boolean(game.settings.get(MODULE,'sequencerAnimations')!==false&&game.modules.get('sequencer')?.active&&globalThis.Sequence&&globalThis.Sequencer?.Database)}catch{return false}
 }
-export function sequencerFile(key){
+export const validSequencerPath=path=>typeof path==='string'&&path.length<=180&&/^jb2a\.[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+){0,8}$/.test(path);
+export function sequencerCatalog(){
+ if(!sequencerReady())return [];
+ try{return [...new Set(Sequencer.Database.getPathsUnder('jb2a').map(p=>p.startsWith('jb2a.')?p:`jb2a.${p}`).filter(validSequencerPath))].sort().slice(0,256)}catch{return []}
+}
+export function sequencerFile(key,selected){
  if(!sequencerReady())return null;
- for(const prefix of prefixes[key]??[]){
-  let files;try{files=Sequencer.Database.getAllFileEntries(`jb2a.${prefix}`)}catch{continue}
+ for(const path of [...(validSequencerPath(selected)?[selected]:[]),...(prefixes[key]??[]).map(p=>`jb2a.${p}`)]){
+  let files;try{files=Sequencer.Database.getAllFileEntries(path)}catch{continue}
   if(!Array.isArray(files))continue;
   const file=files.find(f=>typeof f==='string'&&/^modules\/[^?#]+\.webm$/i.test(f)&&!f.split('/').includes('..')&&!/loop|outro/i.test(f));
   if(file)return file;
@@ -21,7 +26,7 @@ export const sequencerFinished=id=>pending.get(id)??Promise.resolve();
 export function playSequencerEffect(p,fallback){
  // Regions and sustained loops keep their authoritative native lifecycle.
  if(pending.size>=40||p.template||p.loop||!p.targets.length||profiles[p.key]?.[0]==='zone'||p.targets.some(t=>t.hit===false))return false;
- const file=sequencerFile(p.key);if(!file)return false;
+ const file=sequencerFile(p.key,p.sequencerAnimation);if(!file)return false;
  let stopSound;
  try{
   const sequence=new Sequence();let lastEffect;

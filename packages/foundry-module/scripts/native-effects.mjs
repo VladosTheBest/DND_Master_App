@@ -7,6 +7,7 @@ import {makeRichPainter} from './rich-effects.mjs';
 export const profiles=Object.fromEntries(animationCatalog.map(p=>[p.key,[p.mode,p.color]]));
 for(const [key,p] of Object.entries(areaProfiles))profiles[key]=[['acid','alchemists-fire'].includes(key)?'projectile':'zone',p.color];
 export function validEffect(p){
+  if(p?.sequencerAnimation!==undefined&&(typeof p.sequencerAnimation!=='string'||p.sequencerAnimation.length>180||!/^jb2a\.[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+){0,8}$/.test(p.sequencerAnimation)))return false;
   if(p?.color!==undefined&&(typeof p.color!=='string'||!/^#[0-9a-f]{6}$/i.test(p.color)))return false;
   if(p?.template?.shapes&&!validZoneShapes(p.template.shapes))return false;
   const point=v=>v&&Number.isFinite(v.x)&&Number.isFinite(v.y)&&Math.abs(v.x)<100000&&Math.abs(v.y)<100000;
