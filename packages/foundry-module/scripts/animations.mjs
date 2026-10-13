@@ -1,9 +1,10 @@
+import {animationTemplate,animationTheme} from './area-geometry.mjs';
 import {playSequencerEffect,sequencerFinished,sequencerReady} from './sequencer-effects.mjs';
 import {artTexture} from './effect-art.mjs';
 import {animationCatalog} from './animation-catalog.mjs';
 import {MODULE,activityValues} from './core.mjs';
 import {profiles,renderEffect,validEffect,clearEffects,effectFinished} from './native-effects.mjs';
-import {areaProfile,zoneGeometry} from './area-profiles.mjs';
+import {areaProfile} from './area-profiles.mjs';
 export const effects=Object.fromEntries(Object.entries(profiles).map(([key,[mode]])=>[key,{key,mode}]));
 export function midiAnimationMode(){const m=game.modules.get('midi-qol');return Boolean(m?.active&&(Number.parseInt(game.system.version,10)<6||m.version?.startsWith('14.6.')))}
 export function weaponProfile(item){
@@ -41,8 +42,8 @@ export async function playAnimation({item,activity,source,targets=[],template,id
  targets=targets.map(t=>t?.object??t).filter(t=>t?.center).slice(0,20);
  if(profile.mode==='self'||(!targets.length&&!template&&activity?.type==='heal'))targets=[source];
  if(!targets.length&&!template)return false;
- const p={key:profile.key,sequencerAnimation:item.flags[MODULE].sequencerAnimation||undefined,color:item.flags[MODULE].aiAnimationColor||undefined,id:String(id??foundry.utils.randomID()),sceneId:canvas.scene.id,userId:game.user.id,actorUuid:item.actor.uuid,source:point(source),targets:targets.map(t=>({...point(t),hit:hitTargets?hitTargets.some(h=>(h.id??h.document?.id)===(t.id??t.document?.id)):hit})),size:Math.min(1000,Math.max(10,canvas.grid.size)),loop};
- if(template){const d=template.document??template,s=d.shapes?.[0],bounds=d.shapes&&zoneGeometry(d.shapes);p.template=bounds&&profile.mode==='zone'?{x:bounds.cx,y:bounds.cy,length:Math.max(bounds.width,bounds.height)/2,direction:0,shapes:d.shapes.map(s=>({...s}))}:s?{x:s.x,y:s.y,length:s.radius??s.length??20*canvas.grid.size/canvas.scene.grid.distance,direction:s.rotation??0}:{x:d.x,y:d.y,length:(d.distance??20)*canvas.grid.size/canvas.scene.grid.distance,direction:d.direction??0}}
+ const p={key:profile.key,theme:animationTheme(item,activity),sequencerAnimation:item.flags[MODULE].sequencerAnimation||undefined,color:item.flags[MODULE].aiAnimationColor||undefined,id:String(id??foundry.utils.randomID()),sceneId:canvas.scene.id,userId:game.user.id,actorUuid:item.actor.uuid,source:point(source),targets:targets.map(t=>({...point(t),hit:hitTargets?hitTargets.some(h=>(h.id??h.document?.id)===(t.id??t.document?.id)):hit})),size:Math.min(1000,Math.max(10,canvas.grid.size)),loop};
+ if(template)p.template=animationTemplate(template,canvas.scene);
  if(!validEffect(p))return false;
  const played=receive(p);
  // Hidden tokens stay local to the GM; do not publish even their coordinates.

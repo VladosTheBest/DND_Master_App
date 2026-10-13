@@ -1,12 +1,13 @@
 // Bundled original artwork, procedural textures and vectors; no external module dependency.
 import {playEffectSound} from './sounds.mjs';
 import {areaProfiles,validZoneShapes} from './area-profiles.mjs';
-import {makeZonePainter} from './area-effects.mjs';
+import {makeZonePainter,drawShape} from './area-effects.mjs';
 import {animationCatalog} from './animation-catalog.mjs';
 import {makeRichPainter} from './rich-effects.mjs';
 export const profiles=Object.fromEntries(animationCatalog.map(p=>[p.key,[p.mode,p.color]]));
 for(const [key,p] of Object.entries(areaProfiles))profiles[key]=[['acid','alchemists-fire'].includes(key)?'projectile':'zone',p.color];
 export function validEffect(p){
+  if(p?.theme!==undefined&&! ['','cold','fire'].includes(p.theme))return false;
   if(p?.sequencerAnimation!==undefined&&(typeof p.sequencerAnimation!=='string'||p.sequencerAnimation.length>180||!/^jb2a\.[a-zA-Z0-9_-]+(?:\.[a-zA-Z0-9_-]+){0,8}$/.test(p.sequencerAnimation)))return false;
   if(p?.color!==undefined&&(typeof p.color!=='string'||!/^#[0-9a-f]{6}$/i.test(p.color)))return false;
   if(p?.template?.shapes&&!validZoneShapes(p.template.shapes))return false;
@@ -54,11 +55,13 @@ export function renderShieldAura(token,id,isActive){
 }
 export function renderEffect(p){
   if(!validEffect(p)||!canvas.ready||canvas.scene.id!==p.sceneId||active.size>=40||completions.has(p.id))return false;
+  if(p.theme==='cold'&&!/cold|frost|ice|snow/.test(p.key))p={...p,key:p.template?'cone-of-cold':'ray-of-frost'};
   const sourceToken=canvas.tokens.get(p.source.tokenId);
   if(!game.user.isGM&&(!sourceToken?.visible||sourceToken.document.hidden))return false;
   const targets=p.targets.filter(t=>game.user.isGM||(!canvas.tokens.get(t.tokenId)?.document.hidden&&canvas.tokens.get(t.tokenId)?.visible));
   if(!targets.length&&!p.template)return false;
-  const [mode,baseColor]=profiles[p.key],color=p.color?Number.parseInt(p.color.slice(1),16):baseColor,g=new PIXI.Graphics(),layer=new PIXI.Container(),sprites=[];layer.name=`shadow-edge-effect:${p.id}`;layer.addChild(g);canvas.interface.addChild(layer);let spriteIndex=0;
+  const [mode,profileColor]=profiles[p.key],baseColor=p.theme==='cold'?0x8adbff:p.theme==='fire'?0xff7020:profileColor,color=p.color?Number.parseInt(p.color.slice(1),16):baseColor,g=new PIXI.Graphics(),layer=new PIXI.Container(),sprites=[];layer.name=`shadow-edge-effect:${p.id}`;layer.addChild(g);canvas.interface.addChild(layer);let spriteIndex=0;
+  if(p.template?.shapes){const mask=new PIXI.Graphics();mask.beginFill(0xffffff);for(const shape of p.template.shapes.filter(s=>!s.hole))drawShape(mask,shape);for(const shape of p.template.shapes.filter(s=>s.hole)){mask.beginHole();drawShape(mask,shape);mask.endHole()}mask.endFill();layer.addChild(mask);layer.mask=mask;}
   const zone=mode==='zone'?makeZonePainter(layer,p.key,p.template?.shapes??[{type:'circle',x:p.template?.x??targets[0]?.x,y:p.template?.y??targets[0]?.y,radius:p.template?.length??p.size}],p.size):null;
   const rich=makeRichPainter(layer,g,p);
   let frame,finish,ending=null;const start=performance.now(),duration=effectDuration(p);
@@ -71,7 +74,7 @@ export function renderEffect(p){
   const circle=(x,y,r,c=color,alpha=1)=>{g.beginFill(c,alpha);g.drawCircle(x,y,r);g.endFill()};
   const glow=(x,y,r,c,alpha)=>{let sprite=sprites[spriteIndex++];if(!sprite){sprite=new PIXI.Sprite(softCloudTexture());sprite.anchor.set(.5);sprite.blendMode=PIXI.BLEND_MODES.ADD;layer.addChildAt(sprite,layer.children.length-1);sprites.push(sprite)}sprite.visible=true;sprite.position.set(x,y);sprite.width=r*2;sprite.height=r*2.1;sprite.rotation=spriteIndex*2.399;sprite.tint=c;sprite.alpha=alpha};
   const cinematic=(t,s)=>{
-    const mode=profiles[p.key][0],o=p.template??targets[0],radius=p.template?.length??s*1.5;
+    const mode=p.template?.shapes?'burst':profiles[p.key][0],o=p.template??targets[0],radius=p.template?.length??s*1.5;
     if(!o)return;
     const fade=1-Math.max(0,(t-.62)/.38),ease=v=>1-(1-Math.min(1,Math.max(0,v)))**3;
     g.blendMode=PIXI.BLEND_MODES.ADD;
@@ -84,15 +87,15 @@ export function renderEffect(p){
         for(let j=0;j<10;j++){const v=point(length*(j+.5)/10,0);glow(v.x,v.y,s*.55,0x62bfff,fade*.65)}
         glow(point(length,0).x,point(length,0).y,s*.8,0xffffff,fade*.6);
       }else{
-        const cold=p.key==='cone-of-cold';for(let j=0;j<48;j++){const along=length*(.12+(j%12)/14),width=along*.40,side=Math.sin(j*2.399+t*9)*width,v=point(along,side),r=s*.18+along*.10;glow(v.x,v.y,r*2.2,p.color?color:cold?0x65bfe8:0xff3808,fade*.68);glow(v.x,v.y,r,p.color?color:cold?0xd5faff:0xffd33c,fade*.8);if(cold){line(v,{x:v.x-s*.06,y:v.y-s*.14},s*.023,0xf2ffff,fade)}}
+        const cold=p.theme==='cold'||p.key==='cone-of-cold';for(let j=0;j<48;j++){const along=length*(.12+(j%12)/14),width=along*.40,side=Math.sin(j*2.399+t*9)*width,v=point(along,side),r=s*.18+along*.10;glow(v.x,v.y,r*2.2,p.color?color:cold?0x65bfe8:0xff3808,fade*.68);glow(v.x,v.y,r,p.color?color:cold?0xd5faff:0xffd33c,fade*.8);if(cold){line(v,{x:v.x-s*.06,y:v.y-s*.14},s*.023,0xf2ffff,fade)}}
       }
       return;
     }
-    const fire=p.key==='fireball',warm=fire&&!p.color?0xff590c:color,hot=p.color?0xffffff:fire?0xffd658:0xddeeff;
+    const fire=p.theme!=='cold'&&(p.theme==='fire'||p.key==='fireball'),warm=fire&&!p.color?0xff590c:color,hot=p.color?0xffffff:fire?0xffd658:0xddeeff;
     const travel=Math.min(1,t/.18),explode=Math.max(0,(t-.18)/.82),expansion=ease(explode/.35),r=radius*expansion;
     if(t<.21){const x=p.source.x+(o.x-p.source.x)*travel,y=p.source.y+(o.y-p.source.y)*travel;for(let j=12;j>=0;j--)glow(x-(o.x-p.source.x)*j*.012,y-(o.y-p.source.y)*j*.012,s*(.22-j*.01),warm,.7);glow(x,y,s*.5,hot,.9)}
     if(!explode)return;
-    rich.burst(o.x,o.y,r,t,fade*(1-explode*.6));
+    if(p.theme!=='cold')rich.burst(o.x,o.y,r,t,fade*(1-explode*.6));
     glow(o.x,o.y,r*1.25,warm,fade*.95);
     for(let j=0;j<32;j++){const angle=j*2.399+Math.sin(j*7+explode*4)*.22,spread=Math.sqrt((j+.5)/32)*r*.78,x=o.x+Math.cos(angle)*spread,y=o.y+Math.sin(angle)*spread,r1=r*(.15+.10*(1+Math.sin(j*9+explode*11))/2);glow(x,y,r1*2.1,warm,fade*.82);glow(x,y,r1,hot,fade*.85)}
     glow(o.x,o.y,r*.7,hot,fade*.85);
@@ -110,7 +113,7 @@ export function renderEffect(p){
     g.clear();
     rich.reset();spriteIndex=0;for(const sprite of sprites)sprite.visible=false;
     if(zone){const u=Math.min(1,t/.4),x=p.source.x+(zone.bounds.cx-p.source.x)*u,y=p.source.y+(zone.bounds.cy-p.source.y)*u;glow(x,y,s*.35,color,Math.max(0,1-t/.5));zone.draw(t*2.8,Math.min(1,Math.max(0,(t-.25)/.2))*fade);Hooks.callAll('shadow-edge-gm.animationFrame',{id:p.id,key:p.key,graphics:zone.graphics});frame=requestAnimationFrame(draw);return}
-    if((p.template||mode==='burst')&&!rich.handlesTemplate){cinematic(t,s);Hooks.callAll('shadow-edge-gm.animationFrame',{id:p.id,key:p.key,graphics:g});frame=requestAnimationFrame(draw);return}
+    if(p.template||mode==='burst'&&!rich.handlesTemplate){cinematic(t,s);Hooks.callAll('shadow-edge-gm.animationFrame',{id:p.id,key:p.key,graphics:g});frame=requestAnimationFrame(draw);return}
     const dest=p.template?[{x:p.template.x,y:p.template.y}]:targets;
     for(const target of dest){
       const targetToken=canvas.tokens.get(target.tokenId);if(!p.template&&!game.user.isGM&&(!targetToken?.visible||targetToken.document.hidden))continue;

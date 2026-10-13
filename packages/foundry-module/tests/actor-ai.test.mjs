@@ -70,6 +70,16 @@ test('fixed damage natural attacks create real Activities and preserve AI databa
  assert.equal(a.type,'attack');assert.equal(a.attack.bonus,'2');assert.equal(a.damage.parts[0].custom.formula,'1');assert.equal(i.flags['shadow-edge-gm'].sequencerAnimation,'jb2a.bite');
 });
 
+test('localized spell text replaces SRD English while preserving native Activities',async()=>{
+ const old=globalThis.game;globalThis.game={system:{version:'6.0.6'},packs:new Map()};
+ try{const catalog=[{id:'cone-of-cold-2014',name:'Конус холода · Cone of Cold',level:5,description:'Each creature makes a Constitution saving throw.',descriptionRu:'Все существа совершают спасбросок Телосложения.'}];
+ const r={key:'monster:lang',kind:'monster',data:{title:'Mage',foundryAI:{id:'p',edition:'2014',language:'ru',spells:[{id:'cone-of-cold-2014',method:'innate'}]}}};
+ let plan=await actorPlan(r,catalog),spell=plan.items.find(i=>i.type==='spell');assert.equal(spell.name,'Конус холода');assert.match(spell.system.description.value,/Телосложения/);assert.doesNotMatch(spell.system.description.value,/Constitution/);
+ r.data.foundryAI.language='en';spell=(await actorPlan(r,catalog)).items.find(i=>i.type==='spell');assert.equal(spell.name,'Cone of Cold');assert.match(spell.system.description.value,/Constitution/);
+ const a=basicAbility({name:'Укус',displayName:'Bite',description:'Рукопашная атака.',displayDescription:'Melee attack.',toHit:'+2',damage:'1 piercing'});assert.equal(a.name,'Bite');assert.match(a.system.description.value,/Melee/);assert.equal(Object.values(a.system.activities)[0].attack.bonus,'2');
+ }finally{globalThis.game=old}
+});
+
 test('portrait option preserves existing portraits without requesting generation',async()=>{
  const {missingPortrait,createActorPortrait}=await import('../scripts/actor-portrait.mjs');assert.equal(missingPortrait('icons/svg/skull.svg'),true);assert.equal(missingPortrait('portraits/seal.webp'),false);
  const old=globalThis.game;globalThis.game={scenes:{contents:[]}};

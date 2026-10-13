@@ -1,13 +1,21 @@
+import {shapeOverlapsToken} from './area-geometry.mjs';
+import {promptAreaSaves} from './save-prompts.mjs';
 import {MODULE,clone} from './core.mjs';
 import {safeHTML} from './adapter.mjs';
 import {midiAnimationMode,playAnimation} from './animations.mjs';
 import {areaProfile} from './area-profiles.mjs';
 const key='combat',requestKey='combatRequest';
 export function activityHasDamage(a){return Boolean(a?.damage?.parts?.length||a?.damage?.includeBase&&a?.item?.system?.damage?.base&&(a.item.system.damage.base.number||a.item.system.damage.base.custom?.enabled))}
-export function combatEnabled(activity){return Number.parseInt(game.system.version,10)>=6&&!midiAnimationMode()&&!areaProfile(activity?.item)?.persistent&&activity?.item?.flags?.[MODULE]?.coverage==='partial'&&!activity.item.flags[MODULE].spellId?.startsWith('magic-missile')&&['attack','save','damage'].includes(activity.type)}
+export function combatEnabled(activity,allowPersistent=false){return Number.parseInt(game.system.version,10)>=6&&!midiAnimationMode()&&(allowPersistent||!areaProfile(activity?.item)?.persistent)&&activity?.item?.flags?.[MODULE]?.coverage==='partial'&&!activity.item.flags[MODULE].spellId?.startsWith('magic-missile')&&['attack','save','damage'].includes(activity.type)}
 export function attackHits(roll,ac){const die=roll.dice?.find(d=>d.faces===20)?.results?.find(r=>r.active!==false&&!r.discarded)?.result;return die!==1&&(roll.isCritical||die===20||roll.total>=ac)}
 export function areaTargets(scene,template){
- if(template.shapes?.length){const size=scene.grid.size;return scene.tokens.filter(t=>t.actor&&template.shapes.some(s=>{const cx=t.x+t.width*size/2,cy=t.y+t.height*size/2,point={x:s.type==='circle'?Math.max(t.x,Math.min(s.x,t.x+t.width*size)):cx,y:s.type==='circle'?Math.max(t.y,Math.min(s.y,t.y+t.height*size)):cy,elevation:t.elevation??0};return template.testPoint?.(point)??(s.type==='circle'&&(point.x-s.x)**2+(point.y-s.y)**2<=s.radius**2)})).map(t=>t.uuid)}
+ if(template.shapes?.length){const size=scene.grid.size;return scene.tokens.filter(t=>{
+  if(!t.actor)return false;
+  const elevation=t.elevation??0,bounds=template.elevation;
+  if(bounds&&(elevation<bounds.bottom||elevation>bounds.top||elevation===bounds.top&&!bounds.topInclusive))return false;
+  if(template.polygonTree?.intersectPolygon){const x=t.x,y=t.y,w=t.width*size,h=t.height*size;return template.polygonTree.intersectPolygon(new PIXI.Polygon([x,y,x+w,y,x+w,y+h,x,y+h])).polygons.length>0}
+  return template.shapes.some(s=>!s.hole&&shapeOverlapsToken(s,t,size));
+ }).map(t=>t.uuid)}
  const size=scene.grid.size,length=template.distance*size/scene.grid.distance;
  return scene.tokens.filter(t=>{if(!t.actor)return false;const x=t.x+t.width*size/2-template.x,y=t.y+t.height*size/2-template.y;
   if(template.t==='circle'){const dx=Math.max(0,Math.abs(x)-t.width*size/2),dy=Math.max(0,Math.abs(y)-t.height*size/2);return dx*dx+dy*dy<=length*length}
@@ -26,7 +34,7 @@ export async function startCombat(origin){
  if(origin.flags[MODULE].combatReady.cancelled){await origin.setFlag(MODULE,'combatStopped',true);return}
  if(game.messages.some(m=>m.flags?.[MODULE]?.[key]?.origin===origin.uuid))return;
  const data=origin.flags[MODULE].combatOrigin,activity=await fromUuid(data?.activityUuid),author=origin.author;
- if(!combatEnabled(activity)||!owns(author,activity.actor)||origin.speaker?.actor!==activity.actor.id)return;
+ if(!combatEnabled(activity,Boolean(origin.flags[MODULE].areaStarted))||!owns(author,activity.actor)||origin.speaker?.actor!==activity.actor.id)return;
  const scene=game.scenes.get(data.sceneId),source=await fromUuid(data.sourceTokenUuid);
  if(!scene||source?.parent?.id!==scene.id||source.actor?.uuid!==activity.actor.uuid)return;
  const ready=origin.flags[MODULE].combatReady,template=ready.templateUuid?await fromUuid(ready.templateUuid):null;
@@ -35,7 +43,8 @@ export async function startCombat(origin){
  let targets=template?areaTargets(scene,template):origin.system.targets.map(t=>t.token).filter(Boolean);
  targets=[...new Set(targets)].slice(0,50);if(!targets.length&&!template){await origin.setFlag(MODULE,'combatStopped',true);ui.notifications.warn('Нет целей для способности.');return}
  if(activity.type==='attack'&&targets.length!==1)throw Error('Для одной атаки выберите ровно одну цель.');
- const w={origin:origin.uuid,ownerId:author.id,activityUuid:activity.uuid,sceneId:scene.id,sourceTokenUuid:source.uuid,scaling:Math.max(0,Math.min(20,Number(origin.system.scaling)||0)),type:activity.type,hasDamage:activityHasDamage(activity),rows:[],damageStatus:'pending',phase:template?'animation':'resolve'};
+ const persistent=Boolean(template?.flags?.[MODULE]?.area?.originUuid===origin.uuid);
+ const w={area:Boolean(template),origin:origin.uuid,ownerId:author.id,activityUuid:activity.uuid,sceneId:scene.id,sourceTokenUuid:source.uuid,scaling:Math.max(0,Math.min(20,Number(origin.system.scaling)||0)),type:activity.type,hasDamage:activityHasDamage(activity),rows:[],damageStatus:'pending',phase:template&&!persistent?'animation':'resolve'};
  for(const uuid of targets){const t=await fromUuid(uuid);if(t?.parent?.id===scene.id&&t.actor&&!w.rows.some(r=>r.actorUuid===t.actor.uuid))w.rows.push({tokenUuid:uuid,actorUuid:t.actor.uuid,save:null,applied:false})}
  if(!w.rows.length)w.notice='В области нет целей для способности.';
  const a=await activityFor(w);w.name=a.item.name;w.dc=a.save?.dc?.value??null;w.ability=Array.from(a.save?.ability??[])[0];w.onSave=a.damage?.onSave??'none';
@@ -43,7 +52,7 @@ export async function startCombat(origin){
  const attack=w.type==='attack'&&ready.attackMessageUuid?await fromUuid(ready.attackMessageUuid):null,privacy=attack??origin;
  const card=await ChatMessage.create({content:safeHTML(w.name),speaker:ChatMessage.getSpeaker({actor:a.actor,token:source}),whisper:privacy.whisper.map(u=>u.id??u),blind:privacy.blind,flags:{[MODULE]:{[key]:w}}});
  await origin.setFlag(MODULE,'combatStarted',card.uuid);
- if(template){
+ if(template&&!persistent){
   // Snapshot geometry/targets before deleting only this use's template; unrelated regions are untouched.
   const geometry=template.toObject();
   try{await template.delete();await playAnimation({item:a.item,activity:a,source:source.object,targets:w.rows.map(r=>fromUuidSync(r.tokenUuid)?.object).filter(Boolean),template:geometry,id:origin.uuid,waitForEnd:true})}
@@ -145,4 +154,5 @@ export function registerCombat(){
  Hooks.on('updateChatMessage',message=>{if(coordinator&&message.flags?.[MODULE]?.combatReady)enqueue(()=>startCombat(message))});
  Hooks.on('createChatMessage',message=>{if(controlsCombat()&&message.flags?.[MODULE]?.[requestKey])handleRequest(message)});
  Hooks.on('renderChatMessageHTML',renderCard);
+ Hooks.on('createChatMessage',promptAreaSaves);Hooks.on('updateChatMessage',promptAreaSaves);
 }

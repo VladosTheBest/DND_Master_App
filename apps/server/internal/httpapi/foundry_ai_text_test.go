@@ -258,3 +258,17 @@ func TestFoundryAIPassiveWaterBreathingIsNotSpell(t *testing.T) {
 		t.Fatal("explicit spell removed")
 	}
 }
+
+func TestFoundryAILanguageProfile(t *testing.T) {
+	for _, language := range []string{"ru", "en"} {
+		m, _, g := aiFixture(t)
+		w := foundryCall(t, m, "POST", "v1/actors/ai/preview", map[string]any{"recordKey": "monster:ai-test", "mode": "configure", "edition": "2014", "language": language})
+		if w.Code != 200 || !strings.Contains(w.Body.String(), `"language":"`+language+`"`) || !strings.Contains(g.payload, `"language":"`+language+`"`) {
+			t.Fatal(w.Body.String())
+		}
+	}
+	m, _, _ := aiFixture(t)
+	if foundryCall(t, m, "POST", "v1/actors/ai/preview", map[string]any{"language": "invalid"}).Code != 400 {
+		t.Fatal("invalid language accepted")
+	}
+}

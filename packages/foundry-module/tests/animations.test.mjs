@@ -37,3 +37,16 @@ test('installed catalog is bounded and selected database names resolve before de
  assert.deepEqual(sequencerCatalog(),['jb2a.bite','jb2a.tail']);assert.equal(sequencerFile('slam','jb2a.tail'),'modules/JB2A/tail.webm');assert.equal(validEffect({...payload(),sequencerAnimation:'https://bad.invalid/file.webm'}),false);
  delete globalThis.Sequence;delete globalThis.Sequencer;
 });
+
+test('area geometry uses full dimensions and cold rejects a fire-only selection',async()=>{
+ const {animationTemplate,animationTheme}=await import('../scripts/area-geometry.mjs');
+ const p=animationTemplate({shapes:[{type:'rectangle',x:100,y:200,width:1200,height:300}]},{grid:{size:100,distance:5}});
+ assert.deepEqual([p.x,p.y,p.length],[700,350,600]);assert.equal(p.shapes[0].width,1200);
+ assert.equal(animationTheme({name:'Снежная буря',system:{}},{}),'cold');
+ const {sequencerFile,playSequencerEffect,sequencerFinished}=await import('../scripts/sequencer-effects.mjs');
+ globalThis.game={settings:{get:()=>true},modules:new Map([['sequencer',{active:true}]])};globalThis.Sequencer={Database:{getAllFileEntries:path=>path==='jb2a.fireball'?['modules/JB2A/Fireball.webm']:['modules/JB2A/IceStorm.webm']}};
+ let dimensions;globalThis.Sequence=class {effect(){return this}file(){return this}name(){return this}duration(){return this}fadeIn(){return this}fadeOut(){return this}volume(){return this}atLocation(){return this}size(v){dimensions=v;return this}waitUntilFinished(){return this}play(){return Promise.resolve()}};
+ assert.match(sequencerFile('fireball','jb2a.fireball','cold'),/IceStorm/);
+ assert(playSequencerEffect({...payload(),id:'area-size',key:'ice-storm',theme:'cold',template:p,targets:[]},()=>assert.fail()));await sequencerFinished('area-size');assert.deepEqual(dimensions,{width:1200,height:300});
+ delete globalThis.Sequence;delete globalThis.Sequencer;
+});

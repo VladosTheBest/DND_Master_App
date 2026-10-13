@@ -41,6 +41,7 @@ async function prepareArea(origin){
  await region.update({name:a.item.name,visibility:CONST.REGION_VISIBILITY.LAYER,displayMeasurements:false,'flags.core.-=MeasuredTemplate':null,[`flags.${MODULE}.area`]:state});
  if(profile.terrain&&!region.behaviors.some(b=>b.type==='dnd5e.difficultTerrain'))await region.createEmbeddedDocuments('RegionBehavior',[{name:'Труднопроходимая область',type:'dnd5e.difficultTerrain',system:{magical:profile.key!=='oil',types:[],ignoredDispositions:[]}}]);
  await syncObscurity(region,state);await origin.setFlag(MODULE,'areaStarted',region.uuid);scheduleVisuals();
+ if(a.type==='save'){await origin.setFlag(MODULE,'combatOrigin',{...data,areaExpected:true});await origin.setFlag(MODULE,'combatReady',{templateUuid:region.uuid})}
 }
 async function cleanupAreas(){if(!controlsCombat())return;for(const scene of game.scenes)for(const region of [...scene.regions]){const state=region.flags?.[MODULE]?.area;if(state&&(areaExpired(state,game.time.worldTime,state.concentrationUuid?fromUuidSync(state.concentrationUuid):null)||!fromUuidSync(state.actorUuid)))await deleteArea(region)}}
 export function registerPersistentAreas(){
