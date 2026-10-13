@@ -10,6 +10,8 @@ var aiTextTags = regexp.MustCompile(`<[^>]*>`)
 var aiTextLink = regexp.MustCompile(`\[([^\]]+)\]\([^)]*\)`)
 var aiTextHyphen = regexp.MustCompile(`([\p{Ll}])[-\x{00ad}]\s+([\p{Ll}])`)
 var aiTextHeading = regexp.MustCompile(`[.!?]\s+([\p{Lu}][\p{L}-]*(?:\s+[\p{L}-]+){0,5}(?:\s*\([^)]{1,80}\))?)[.:]\s+`)
+var aiLineWidth = regexp.MustCompile(`(?i)(?:лини[а-яё]*.{0,50}шириной|line.{0,30}is)[^\d]{0,10}(\d+)`)
+var aiRecharge = regexp.MustCompile(`(?i)(?:перезарядка|recharge)\s*[5-6](?:\s*-\s*6)?`)
 
 // Canonicalize presentation only. Numeric evidence still comes from the source.
 func foundryAIText(s string) string {
@@ -36,12 +38,6 @@ func foundryAIExtractedSource(e knowledgeEntity, a foundryAIAbility) (statBlockE
 	name, description := foundryAIText(a.Name), foundryAIText(a.Description)
 	if len([]rune(name)) < 2 || strings.EqualFold(name, foundryAIText(e.Title)) {
 		return statBlockEntry{}, false
-	}
-	for _, raw := range foundryAITexts(e) {
-		text := foundryAIText(raw)
-		if len([]rune(description)) >= 16 && strings.Contains(strings.ToLower(text), strings.ToLower(description)) {
-			return statBlockEntry{Name: name, Description: description}, true
-		}
 	}
 	// Descriptions may be paraphrased. Locate a named ability heading and validate
 	// against its original passage, never against AI's rewritten mechanics.
@@ -72,6 +68,14 @@ func foundryAIExtractedSource(e knowledgeEntity, a foundryAIAbility) (statBlockE
 			continue
 		}
 		return statBlockEntry{Name: name, Description: passage}, true
+	}
+	// A model may quote only the attack sentence, omitting Hit and damage.
+	// Prefer the entire named passage above; exact excerpts are a fallback only.
+	for _, raw := range foundryAITexts(e) {
+		text := foundryAIText(raw)
+		if len([]rune(description)) >= 16 && strings.Contains(strings.ToLower(text), strings.ToLower(description)) {
+			return statBlockEntry{Name: name, Description: description}, true
+		}
 	}
 	return statBlockEntry{}, false
 }
@@ -136,6 +140,13 @@ func prepareFoundryAIProfile(p *foundryAIProfile, e knowledgeEntity) {
 		if old, ok := foundryAIExtractedSource(e, *a); ok {
 			a.Index = -1
 			a.Description = old.Description
+			// Line width is not a circular radius; recharge is not uses per day.
+			if aiLineWidth.MatchString(old.Description) && !aiRadius.MatchString(old.Description) {
+				a.Radius = 0
+			}
+			if aiRecharge.MatchString(old.Description) && !aiDaily.MatchString(old.Description) {
+				a.DailyUses = 0
+			}
 		} else if a.Index >= 0 && a.Index < len(entries) && strings.Contains(strings.ToLower(entries[a.Index].Name), "из источника") {
 			a.Index = -1
 		}
@@ -172,7 +183,8 @@ func salvageFoundryAIProfile(p *foundryAIProfile, e knowledgeEntity) {
 	for _, a := range original.Abilities {
 		candidate := *p
 		candidate.Abilities = append(append([]foundryAIAbility{}, p.Abilities...), a)
-		if validate(&candidate) {
+		reason := validateFoundryAIProfile(&candidate, e)
+		if reason == nil {
 			*p = candidate
 			continue
 		}
@@ -200,7 +212,7 @@ func salvageFoundryAIProfile(p *foundryAIProfile, e knowledgeEntity) {
 			candidate.Abilities = append(append([]foundryAIAbility{}, p.Abilities...), a)
 			if validate(&candidate) {
 				*p = candidate
-				foundryAINote(p, a.Name+": описание сохранено; неподтвержденная механика требует проверки мастером.")
+				foundryAINote(p, a.Name+": описание сохранено; механика требует проверки мастером. "+reason.Error())
 				continue
 			}
 		}

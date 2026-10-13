@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {basicAbility} from "../scripts/adapter.mjs";
+import {abilityActivity} from "../scripts/mechanics.mjs";
 import {authoringActor} from "../scripts/core.mjs";
 const activity=item=>Object.values(item.system.activities)[0];
 test('control spells have native saves without invented damage',()=>{const a=activity(basicAbility({name:'Binding gaze',type:'spell',foundry:{kind:'save',saveAbility:'wis',saveDc:16},damage:''}));assert.equal(a.type,'save');assert.equal(a.save.dc.formula,'16');assert.deepEqual(a.damage.parts,[]);assert.equal(activity(basicAbility({foundry:{kind:'save',saveAbility:'wis'},damage:''})),undefined)});
@@ -29,3 +30,9 @@ test("derived attacks and resource-consuming actions cannot silently become free
  item.system.activities.a.consumption={};item.system.activities.a.damage.parts=[{scaling:{mode:"whole"}}];assert.equal(authoringActor({items:[item]}).items[0].mechanics.kind,"manual");
 });
 test("Foundry activity collections are read through contents, not enumerable properties",()=>{const item=basicAbility({name:"Breath",damage:"2d6 fire",foundry:{kind:"save",saveAbility:"dex",saveDc:14}});item.system.activities={contents:Object.values(item.system.activities)};const dto=authoringActor({items:[item]}).items[0];assert.equal(dto.mechanics.kind,"save");assert.equal(dto.damage,"2d6");assert.equal(dto.saveDc,14)});
+
+test('explicit breath line dimensions become a native template',()=>{
+ const v={name:'Radiant breath',description:'Дракон испускает энергетический луч линией длиной в 120 футов и шириной 5 футов.',damage:'7d8 radiant',foundry:{kind:'save',saveAbility:'dex',saveDc:16,saveDamage:'half'}};
+ const a=abilityActivity(v);assert.deepEqual(a.target.template,{type:'line',size:120,width:5,units:'ft'});assert.equal(a.damage.onSave,'half');
+ assert.equal(abilityActivity({...v,description:'A beam of unknown size'}).target.template,undefined);
+});

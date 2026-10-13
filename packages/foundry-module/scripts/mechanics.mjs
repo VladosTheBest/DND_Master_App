@@ -26,6 +26,9 @@ export function abilityActivity(v,index=0){
   const a={_id:id,type:kind,target:{affects:{type:"creature",count:"1"}},activation:{type:["action","bonus","reaction"].includes(m?.activation)?m.activation:"action",value:1},consumption:{spellSlot:false,targets:[]}};
   if((m?.range??v.range)!==undefined)a.range={override:true,value:m?.range??v.range,units:"ft"};
   if(m?.radius)a.target={affects:{type:'creature',count:''},template:{type:'circle',size:m.radius,units:'ft'},prompt:true};
+  // Explicit source dimensions survive even though the AI contract only has radius.
+  const line=String(v.description??'').match(/лини[а-яё]*\s+длиной\s+(?:в\s+)?(\d+)\s*(?:фут[а-яё]*|фт\.?)\s+и\s+шириной\s+(\d+)\s*(?:фут[а-яё]*|фт\.?)|(?:a\s+)?(\d+)[ -]foot[ -]line\s+that\s+is\s+(\d+)\s+feet\s+wide/iu);
+  if(kind==='save'&&line){const length=Number(line[1]??line[3]),width=Number(line[2]??line[4]);if(length>0&&length<=10000&&width>0&&width<=length)a.target={affects:{type:'creature',count:''},template:{type:'line',size:length,width,units:'ft'},prompt:true};}
   if(kind==="attack")a.attack={flat:true,bonus:String(bonus),type:{value:inferAttackMode(v),classification:v.type==="spell"?"spell":"weapon"}};
   if(kind==="save")a.save={ability:[m?.saveAbility??v.saveAbility],dc:{calculation:"",formula:String(m?.saveDc??v.saveDc)}};
   if(kind==="heal")a.healing=part;else a.damage={includeBase:false,parts,...(kind==="save"?{onSave:m?.saveDamage==="half"?"half":"none"}:{})};

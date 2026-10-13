@@ -36,7 +36,7 @@ export async function importItems(actor,items,state,{canReplace}={}){
    const spent=existing.system.uses?.spent;
    const activitySpent=Object.fromEntries(Object.entries(existing.toObject().system?.activities??{}).filter(([,a])=>a.uses?.spent!==undefined).map(([id,a])=>[id,a.uses.spent]));
    if(existing.type!==template.type){template.flags={...clone(existing.flags),...template.flags};const [replacement]=await actor.createEmbeddedDocuments('Item',[template]);try{await existing.delete()}catch(error){await replacement.delete();throw error}existing=replacement}
-   else{for(const id of Object.keys(existing.system.activities??{}))if(!template.system?.activities?.[id])template[`system.activities.-=${id}`]=null;await existing.update(template)}
+   else{for(const id of Object.keys(existing.toObject().system?.activities??{}))if(!template.system?.activities?.[id])template[`system.activities.-=${id}`]=null;await existing.update(template)}
    if(spent!==undefined)await existing.update({'system.uses.spent':spent});
    const usage=Object.fromEntries(Object.entries(activitySpent).filter(([id])=>template.system?.activities?.[id]).map(([id,value])=>[`system.activities.${id}.uses.spent`,value]));if(Object.keys(usage).length)await existing.update(usage);
   }else{[existing]=await actor.createEmbeddedDocuments('Item',[source])}

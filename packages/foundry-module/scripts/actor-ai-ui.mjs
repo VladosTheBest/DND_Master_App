@@ -23,7 +23,7 @@ async function restoreReceipt(actor,receipt){
     if(!before){await existing.delete();continue}
     const spent=existing.system.uses?.spent,data=clone(before);
     if(existing.type!==data.type){const [replacement]=await actor.createEmbeddedDocuments('Item',[data]);try{await existing.delete()}catch(error){await replacement.delete();throw error}if(spent!==undefined)await replacement.update({'system.uses.spent':spent})}
-    else {for(const id of Object.keys(existing.system.activities??{}))if(!data.system?.activities?.[id])data[`system.activities.-=${id}`]=null;await existing.update(data);if(spent!==undefined)await existing.update({'system.uses.spent':spent})}
+    else {for(const id of Object.keys(existing.toObject().system?.activities??{}))if(!data.system?.activities?.[id])data[`system.activities.-=${id}`]=null;await existing.update(data);if(spent!==undefined)await existing.update({'system.uses.spent':spent})}
   }
   for(const [key,before]of Object.entries(receipt.beforeItems))if(receipt.deletedKeys?.includes(key)&&!receipt.afterItems?.[key]&&!actor.items.some(i=>i.flags?.[MODULE]?.importKey===key))await actor.createEmbeddedDocuments('Item',[clone(before)]);
   const update=aiRestorableFields(receipt.beforeFields,receipt.afterFields??{},fields(actor));if(Object.keys(update).length)await actor.update(update);

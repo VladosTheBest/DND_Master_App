@@ -33,3 +33,12 @@ test('explicit AI apply repairs old imports without baseline but protects change
  assert.deepEqual(await importItems(actor,[incoming],{},{canReplace}),[]);assert.equal(item.name,'Configured');
  item.name='Concurrent edit';const report=await importItems(actor,[incoming],{},{canReplace});assert.equal(item.name,'Concurrent edit');assert.equal(report.length,1);assert.match(report[0].reason,/AI-/);
 });
+
+test('replacement removes serialized activities from native Collections',async()=>{
+ const {actor,item}=setup(),incoming=source();incoming.system.activities={};
+ item.system.activities=new Map([['old-save',{type:'save'}]]);
+ item.toObject=()=>({...source(),system:{...source().system,activities:{'old-save':{type:'save'}}}});
+ const writes=[];item.update=async data=>{writes.push(data)};
+ await importItems(actor,[incoming],{},{canReplace:()=>true});
+ assert.equal(writes[0]['system.activities.-=old-save'],null);
+});

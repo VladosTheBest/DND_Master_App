@@ -11,6 +11,13 @@ export function inferAttackMode(v){
 }
 export function itemIcon(v){
   const text=`${v.spellId??''} ${v.name??''} ${v.damageType??''} ${v.damage??''}`.toLowerCase();
+  if(/когт|claw/u.test(text))return 'icons/creatures/claws/claw-curved-jagged-gray.webp';
+  if(/хвост|tail/u.test(text))return 'icons/creatures/abilities/tail-strike-bone-orange.webp';
+  if(/укус|bite/u.test(text))return 'icons/creatures/abilities/mouth-teeth-sharp.webp';
+  if(/крыл|wing/u.test(text))return 'icons/creatures/reptiles/dragon-winged-blue.webp';
+  if(/присутствие|очарован|charm|presence/u.test(text))return 'icons/magic/perception/eye-ringed-glow-angry-large-teal.webp';
+  if(/сопротивление магии|неизменяемая форма|magic resistance|immutable form/u.test(text))return 'icons/svg/mage-shield.svg';
+  if(/radiant|излучени/u.test(text))return 'icons/magic/light/beam-strike-orange-gold.webp';
   if(/выстрел|дальн|лук|арбалет|bow|crossbow|arrow/u.test(text))return 'icons/weapons/bows/bow-recurve-black.webp';
   if(/меч|sword|рапир|rapier/u.test(text))return 'icons/weapons/swords/greatsword-blue.webp';
   if(/топор|axe|секир/u.test(text))return 'icons/weapons/axes/axe-battle-black.webp';

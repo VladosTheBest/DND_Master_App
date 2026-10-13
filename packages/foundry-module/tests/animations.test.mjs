@@ -12,3 +12,21 @@ test('socket input is bounded and checks actor permission',async()=>{assert(vali
 
 
 test('AI and renderer share a complete catalog with packaged transparent art',async()=>{const {readFile}=await import('node:fs/promises'),{animationCatalog}=await import('../scripts/animation-catalog.mjs');const server=JSON.parse(await readFile(new URL('../../../apps/server/internal/httpapi/foundry_animation_catalog.json',import.meta.url),'utf8'));assert.deepEqual(animationCatalog,server);assert.deepEqual(animationCatalog.map(p=>p.key).sort(),Object.keys(profiles).sort());for(const name of ['weapons','vines','blood-slash','magic']){const data=await readFile(new URL('../assets/'+name+'.png',import.meta.url));assert.equal(data.toString('hex',0,8),'89504e470d0a1a0a');assert.equal(data[25],6)}assert.equal(validEffect({...payload(),targets:[{x:20,y:20,hit:'yes'}]}),false)});
+
+test('Sequencer resolves installed files only and safely falls back',async()=>{
+ const {sequencerFile,playSequencerEffect,sequencerFinished}=await import('../scripts/sequencer-effects.mjs');
+ let enabled=true,files=['https://bad.invalid/a.webm','modules/JB2A/../bad.webm','modules/JB2A/Loop.webm','modules/JB2A/claws.webm'],calls=[];
+ globalThis.game={settings:{get:()=>enabled},modules:new Map([['sequencer',{active:true}]]),audio:{}};
+ globalThis.Sequencer={Database:{getAllFileEntries:()=>files}};
+ globalThis.Sequence=class {effect(){return this}file(v){calls.push(v);return this}name(){return this}duration(){return this}fadeIn(){return this}fadeOut(){return this}volume(){return this}atLocation(){return this}stretchTo(){return this}size(){return this}tint(){return this}waitUntilFinished(){calls.push("wait");return this}play(options){calls.push(options);return Promise.resolve()}};
+ assert.equal(sequencerFile('claw'),'modules/JB2A/claws.webm');assert.equal(sequencerFile('unknown'),null);
+ const p={...payload(),key:'claw',id:'seq-test',targets:[{x:20,y:20,hit:true}]};
+ assert.equal(playSequencerEffect(p,()=>assert.fail('fallback')),true);await sequencerFinished(p.id);assert.deepEqual(calls,['modules/JB2A/claws.webm','wait',{local:true}]);
+ assert.equal(playSequencerEffect({...p,template:{}},()=>{}),false);assert.equal(playSequencerEffect({...p,targets:[{x:20,y:20,hit:false}]},()=>{}),false);
+ enabled=false;assert.equal(sequencerFile('claw'),null);enabled=true;
+ files=[];assert.equal(playSequencerEffect(p,()=>{}),false);
+ Sequencer.Database.getAllFileEntries=()=>{throw Error('not ready')};assert.equal(playSequencerEffect(p,()=>{}),false);
+ Sequencer.Database.getAllFileEntries=()=>['modules/JB2A/claws.webm'];Sequence.prototype.play=()=>Promise.reject(Error('decode failed'));
+ let fallback=0;assert.equal(playSequencerEffect(p,()=>fallback++),true);await sequencerFinished(p.id);assert.equal(fallback,1);
+ delete globalThis.Sequence;delete globalThis.Sequencer;
+});

@@ -7,6 +7,38 @@ import (
 	"time"
 )
 
+func TestFoundryAIShortQuotedAttackKeepsCompleteSource(t *testing.T) {
+	campaign, err := readReadyCampaign("icewind-dale-rus")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var dragon knowledgeEntity
+	for _, e := range campaignEntities(campaign) {
+		if e.Title == "Чардалиновый дракон" {
+			dragon = e
+		}
+	}
+	p := foundryAIProfile{Mode: "configure", Edition: "2014", Abilities: []foundryAIAbility{
+		{Name: "Когти", Section: "actions", Index: -1, Description: "Рукопашная атака оружием: +11 к попаданию, досягаемость 5 фт., одна цель.", ToHit: "+11", Damage: "2d6+7 slashing", ItemType: "weapon", Mechanics: foundryMechanics{Kind: "attack", Range: 5}},
+		{Name: "Зловещее присутствие", Section: "actions", Index: -1, Radius: 30, Mechanics: foundryMechanics{Kind: "save", SaveAbility: "wis", SaveDC: 16, Range: 30}},
+		{Name: "Дыхание излучением", Section: "actions", Index: -1, Radius: 5, DailyUses: 5, Damage: "7d8 radiant", Mechanics: foundryMechanics{Kind: "save", SaveAbility: "dex", SaveDC: 16, Range: 120}},
+	}}
+	prepareFoundryAIProfile(&p, dragon)
+	if p.Abilities[2].Radius != 0 || p.Abilities[2].DailyUses != 0 {
+		t.Fatal("line width/recharge mistaken for circle/daily uses")
+	}
+	if err := validateFoundryAIProfile(&p, dragon); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(p.Abilities[0].Description, "Попадание") || strings.Contains(p.Abilities[0].Description, "Хвост") {
+		t.Fatal("wrong passage boundary")
+	}
+	p.Abilities[0].Damage = "9d12 slashing"
+	if validateFoundryAIProfile(&p, dragon) == nil {
+		t.Fatal("invented damage accepted")
+	}
+}
+
 func TestFoundryAIRealFrostmaidenTextFormats(t *testing.T) {
 	campaign, err := readReadyCampaign("icewind-dale-rus")
 	if err != nil {

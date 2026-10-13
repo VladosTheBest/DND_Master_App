@@ -60,3 +60,7 @@ test('batch distinguishes no-data profiles and stops on account-wide errors only
  assert.equal(aiStopsBatch({status:401}),true);
  assert.equal(aiStopsBatch({code:'invalid_ai_profile',status:502}),false);
 });
+
+test('server null collections import an actor without catalog spells',async()=>{
+ const old=globalThis.game;try{globalThis.game={system:{version:'6.0.6'},packs:new Map()};const r=record();Object.assign(r.data.foundryAI,{spells:null,skills:null,loot:null,notes:null});const plan=await actorPlan(r,[]);assert.equal(plan.items[0].name,'Bow');}finally{globalThis.game=old}
+});

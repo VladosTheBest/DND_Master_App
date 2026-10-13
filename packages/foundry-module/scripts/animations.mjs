@@ -1,3 +1,4 @@
+import {playSequencerEffect,sequencerFinished,sequencerReady} from './sequencer-effects.mjs';
 import {artTexture} from './effect-art.mjs';
 import {animationCatalog} from './animation-catalog.mjs';
 import {MODULE,activityValues} from './core.mjs';
@@ -24,9 +25,9 @@ export function animationProfile(item,activity){
  return null;
 }
 function damageAnimation(activity){const types=activity.damage?.parts?.flatMap(p=>Array.from(p.types??[]))??[],key={fire:'fire-bolt',cold:'ray-of-frost',lightning:'chain-lightning',radiant:'guiding-bolt',necrotic:'necrotic-bolt',poison:'poison-bolt',acid:'acid-splash',psychic:'mind-pulse'}[types[0]];return effects[key]??effects['eldritch-blast']}
-export function animationStatus(){return `Встроенные анимации готовы · ${midiAnimationMode()?'Midi-QOL':'обычные способности dnd5e'}. Выделите свой токен и отметьте цель.`}
+export function animationStatus(){return `${sequencerReady()?'Sequencer/JB2A + встроенные эффекты':'Встроенные анимации готовы'} · ${midiAnimationMode()?'Midi-QOL':'обычные способности dnd5e'}. Выделите свой токен и отметьте цель.`}
 const seen=new Set();
-function receive(p){if(!validEffect(p)||seen.has(p.id))return false;seen.add(p.id);if(seen.size>500)seen.delete(seen.values().next().value);return renderEffect(p)}
+function receive(p){if(!validEffect(p)||seen.has(p.id))return false;seen.add(p.id);if(seen.size>500)seen.delete(seen.values().next().value);return playSequencerEffect(p,()=>renderEffect(p))||renderEffect(p)}
 export async function receiveAnimation(p){
  if(!validEffect(p)||p.sceneId!==canvas.scene?.id)return false;
  const user=game.users.get(p.userId),actor=await fromUuid(p.actorUuid);
@@ -46,7 +47,7 @@ export async function playAnimation({item,activity,source,targets=[],template,id
  const played=receive(p);
  // Hidden tokens stay local to the GM; do not publish even their coordinates.
  if(played&&!localOnly&&!source.document?.hidden){const publicTargets=p.targets.filter(t=>!canvas.tokens.get(t.tokenId)?.document.hidden);if(publicTargets.length||p.template)game.socket.emit(`module.${MODULE}`,{...p,targets:publicTargets})}
- if(played&&waitForEnd)await effectFinished(p.id);
+ if(played&&waitForEnd){await sequencerFinished(p.id);await effectFinished(p.id)}
  return played;
 }
 let registered=false;
