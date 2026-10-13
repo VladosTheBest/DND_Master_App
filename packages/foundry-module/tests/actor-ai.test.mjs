@@ -72,5 +72,6 @@ test('fixed damage natural attacks create real Activities and preserve AI databa
 
 test('portrait option preserves existing portraits without requesting generation',async()=>{
  const {missingPortrait,createActorPortrait}=await import('../scripts/actor-portrait.mjs');assert.equal(missingPortrait('icons/svg/skull.svg'),true);assert.equal(missingPortrait('portraits/seal.webp'),false);
- const result=await createActorPortrait({actor:{img:'portraits/seal.webp'},request:()=>assert.fail('must not request')});assert.match(result,/уже есть/);
+ const old=globalThis.game;globalThis.game={scenes:{contents:[]}};
+ try{const result=await createActorPortrait({state:{},saveState:async()=>{},actor:{img:'portraits/seal.webp',prototypeToken:{texture:{src:'custom.webp'}}},request:()=>assert.fail('must not request')});assert.match(result,/уже есть/)}finally{globalThis.game=old}
 });
