@@ -1986,9 +1986,21 @@
   gap: 12px;
   cursor: pointer;
   font-weight: 600;
+  padding: 16px;
+  border: 1px solid var(--ch-line, #786687);
+  border-radius: 12px;
+  background: #b790d40a;
+  line-height: 1.5;
 }
-.ch-toggle input {
+.ch-public .ch-toggle input,
+.ch-campaign .ch-toggle input {
   appearance: none;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  min-height: 26px;
+  min-width: 44px;
+  max-width: 44px;
   width: 44px;
   height: 26px;
   flex-shrink: 0;
@@ -2007,15 +2019,20 @@
   background: #c4b7cf;
   transition: transform 0.15s;
 }
-.ch-toggle input:checked {
+.ch-public .ch-toggle input:checked,
+.ch-campaign .ch-toggle input:checked {
   background: #70508b;
   border-color: #e4c78e;
 }
 .ch-toggle input:checked::before {
-  transform: translateX(18px);
+  transform: translateX(16px);
   background: #eed5a1;
 }
 .ch-toggle input:focus-visible {
   outline: 2px solid #eed5a1;
   outline-offset: 4px;
+}
+
+@media (max-width: 600px) {
+  .ch-feature-choice .ch-choices { grid-template-columns: minmax(0, 1fr); }
 }

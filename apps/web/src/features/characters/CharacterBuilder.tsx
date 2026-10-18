@@ -1242,10 +1242,9 @@ export function CharacterBuilder({
                       onChange={(event) =>
                         patchBase({
                           freeAbilityBonuses: event.target.checked,
-                          abilityBonuses: {
-                            ...emptyBonuses(),
-                            ...species?.bonuses2014,
-                          },
+                          abilityBonuses: event.target.checked
+                            ? draft.abilityBonuses
+                            : { ...emptyBonuses(), ...species?.bonuses2014 },
                         })
                       }
                     />

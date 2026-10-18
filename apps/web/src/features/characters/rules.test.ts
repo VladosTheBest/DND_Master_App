@@ -30,7 +30,7 @@ import {
   type Edition,
 } from "./rules";
 import { adjustAbility } from "./ability-controls";
-import { SKILL_HELP } from "./choice-help";
+import { SKILL_HELP, choiceExplanation } from "./choice-help";
 import { SUBCLASS_EXTENSIONS } from "./subclasses";
 import {
   RANDOM_EFFECT_TABLES,
@@ -1926,4 +1926,21 @@ for (const edition of ["2014", "2024"] as const) {
   assert(bonusIssues().length > 0, "Racial bonuses cannot stack into +3");
   d.edition = "2024";
   assert(bonusIssues().length > 0, "The 2014 house rule cannot bypass 2024 backgrounds");
+}
+
+{
+  for (const edition of ["2014", "2024"] as const) {
+    for (const id of ["black", "blue", "brass", "bronze", "copper", "gold", "green", "red", "silver", "white"]) {
+      const help = choiceExplanation("ancestry", id, "Предок", "", edition, "sorcerer", { speciesId: "dragonborn", level: 1 });
+      assert(help.includes(edition === "2014" ? "2d6 урона" : "1d10 урона"), "Dragonborn sorcerers must still see their racial breath weapon");
+      assert(help.includes("8 + бонус мастерства + модификатор Телосложения") && help.includes("половина урона"), "Breath help includes its save and success effect");
+      const line = ["black", "blue", "brass", "bronze", "copper"].includes(id);
+      assert(help.includes(edition === "2024" || !line ? "конус 15 футов" : "линия 30 × 5 футов"), "Ancestry area matches edition");
+      assert(help.includes(edition === "2014" && ["green", "silver", "white"].includes(id) ? "спасбросок Телосложения" : "спасбросок Ловкости"), "Ancestry saving throw matches edition");
+      assert(help.includes(edition === "2014" ? "после короткого или долгого отдыха" : "после долгого отдыха"), "Breath recovery is explicit");
+    }
+  }
+  assert(choiceExplanation("ancestry", "gold", "Золотой", "", "2014", "fighter", { speciesId: "dragonborn", level: 16 }).includes("5d6 урона"), "2014 breath scales to current target level");
+  assert(choiceExplanation("ancestry", "gold", "Золотой", "", "2024", "fighter", { speciesId: "dragonborn", level: 17 }).includes("4d10 урона"), "2024 breath scales independently");
+  assert(!choiceExplanation("ancestry", "gold", "Золотой", "", "2014", "sorcerer", { speciesId: "human", level: 6 }).includes("Дыхание:"), "Draconic sorcerer ancestry does not grant a racial breath weapon");
 }

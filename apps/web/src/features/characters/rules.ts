@@ -1199,6 +1199,7 @@ export function getFeatureChoices(
             option.description,
             draft.edition,
             c,
+            { speciesId: draft.speciesId, level: draft.targetLevel },
           ),
         })),
       });
