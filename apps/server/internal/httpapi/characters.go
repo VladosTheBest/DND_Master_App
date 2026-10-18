@@ -30,24 +30,25 @@ type characterEquipmentItem struct {
 	Type          string `json:"type"`
 }
 type characterDraft struct {
-	Gold           int                      `json:"gold,omitempty"`
-	Equipment      []characterEquipmentItem `json:"equipment,omitempty"`
-	Portrait       string                   `json:"portrait,omitempty"`
-	LandTerrain    string                   `json:"landTerrain,omitempty"`
-	Name           string                   `json:"name"`
-	PlayerName     string                   `json:"playerName"`
-	Edition        string                   `json:"edition"`
-	ClassID        string                   `json:"classId"`
-	SpeciesID      string                   `json:"speciesId"`
-	BackgroundID   string                   `json:"backgroundId"`
-	TargetLevel    int                      `json:"targetLevel"`
-	AbilityMethod  string                   `json:"abilityMethod"`
-	Abilities      map[string]int           `json:"abilities"`
-	AbilityBonuses map[string]int           `json:"abilityBonuses"`
-	SkillIDs       []string                 `json:"skillIds"`
-	Levels         []characterLevelChoice   `json:"levels"`
-	Notes          string                   `json:"notes"`
-	Personality    *characterPersonality    `json:"personality,omitempty"`
+	Gold               int                      `json:"gold,omitempty"`
+	Equipment          []characterEquipmentItem `json:"equipment,omitempty"`
+	Portrait           string                   `json:"portrait,omitempty"`
+	LandTerrain        string                   `json:"landTerrain,omitempty"`
+	Name               string                   `json:"name"`
+	PlayerName         string                   `json:"playerName"`
+	Edition            string                   `json:"edition"`
+	ClassID            string                   `json:"classId"`
+	SpeciesID          string                   `json:"speciesId"`
+	BackgroundID       string                   `json:"backgroundId"`
+	TargetLevel        int                      `json:"targetLevel"`
+	AbilityMethod      string                   `json:"abilityMethod"`
+	Abilities          map[string]int           `json:"abilities"`
+	FreeAbilityBonuses bool                     `json:"freeAbilityBonuses,omitempty"`
+	AbilityBonuses     map[string]int           `json:"abilityBonuses"`
+	SkillIDs           []string                 `json:"skillIds"`
+	Levels             []characterLevelChoice   `json:"levels"`
+	Notes              string                   `json:"notes"`
+	Personality        *characterPersonality    `json:"personality,omitempty"`
 }
 type characterPersonality struct {
 	Backstory  string `json:"backstory,omitempty"`

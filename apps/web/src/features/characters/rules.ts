@@ -83,6 +83,7 @@ export interface CharacterDraft {
   abilityMethod: "standard" | "point-buy";
   abilities: Record<Ability, number>;
   abilityBonuses: Record<Ability, number>;
+  freeAbilityBonuses?: boolean;
   skillIds: string[];
   levels: LevelChoice[];
   notes: string;
@@ -3375,6 +3376,21 @@ export function validateDraft(
       "ability-method",
       "Выберите стандартный набор или покупку очков.",
     );
+  if (
+    draft.freeAbilityBonuses !== undefined &&
+    typeof draft.freeAbilityBonuses !== "boolean"
+  )
+    issue(
+      "abilities",
+      "bonus-option",
+      "Некорректный переключатель расовых бонусов.",
+    );
+  if (draft.freeAbilityBonuses && is24)
+    issue(
+      "abilities",
+      "bonus-option-edition",
+      "Свободные расовые бонусы доступны только в редакции 2014.",
+    );
   const bonuses = ABILITIES.map((a) => draft.abilityBonuses[a]);
   if (bonuses.some((b) => !Number.isInteger(b) || b < 0 || b > 2))
     issue(
@@ -3398,6 +3414,20 @@ export function validateDraft(
         "abilities",
         "background-bonuses",
         "Предыстория даёт +2 и +1 к двум разрешённым характеристикам или +1 ко всем трём.",
+      );
+  } else if (species && draft.freeAbilityBonuses === true) {
+    const expected = [
+      ...Object.values(species.bonuses2014),
+      ...Array(species.flexibleBonuses2014 || 0).fill(1),
+    ]
+      .filter(Boolean)
+      .sort()
+      .join(",");
+    if (bonuses.filter(Boolean).sort().join(",") !== expected)
+      issue(
+        "abilities",
+        "species-bonuses",
+        "Распределите бонусы расы по разным характеристикам, сохранив размер каждого бонуса.",
       );
   } else if (species) {
     const extra = ABILITIES.map(

@@ -235,6 +235,37 @@ try {
     "magic-initiate-wizard",
   ])
     fixture("2024", "fighter", 1, "human", "soldier", feat);
+  // Exercise relocated bonuses for every 2014 species through the Go parity suite.
+  for (const source of data.validationFixtures.filter(
+    (f) =>
+      f.draft.edition === "2014" &&
+      f.draft.classId === "fighter" &&
+      f.draft.targetLevel === 5 &&
+      f.name,
+  )) {
+    const draft = structuredClone(source.draft);
+    draft.freeAbilityBonuses = true;
+    draft.abilityBonuses = Object.fromEntries(
+      r.ABILITIES.map((ability, index) => [
+        ability,
+        source.draft.abilityBonuses[r.ABILITIES[(index + 2) % 6]],
+      ]),
+    );
+    const issues = r.validateDraft(draft);
+    if (issues.length)
+      throw new Error(
+        `Invalid relocated bonus fixture: ${JSON.stringify(issues)}`,
+      );
+    const stats = r.deriveCharacter(draft);
+    data.validationFixtures.push({
+      ...source,
+      name: `${source.name}-free-bonuses`,
+      draft,
+      stats: Object.fromEntries(
+        Object.keys(source.stats).map((key) => [key, stats[key]]),
+      ),
+    });
+  }
   const output = new URL(
     "../apps/server/internal/httpapi/character_catalog.json",
     import.meta.url,

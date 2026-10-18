@@ -1979,3 +1979,43 @@
 .ch-equipment-row { flex-wrap:wrap; }
 .ch-equipment-row label { display:flex; align-items:center; gap:6px; font-size:12px; }
 .ch-equipment-row select { max-width:100%; }
+
+.ch-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.ch-toggle input {
+  appearance: none;
+  width: 44px;
+  height: 26px;
+  flex-shrink: 0;
+  border: 1px solid #786687;
+  border-radius: 20px;
+  background: #211a2b;
+  cursor: pointer;
+}
+.ch-toggle input::before {
+  content: "";
+  display: block;
+  width: 18px;
+  height: 18px;
+  margin: 3px;
+  border-radius: 50%;
+  background: #c4b7cf;
+  transition: transform 0.15s;
+}
+.ch-toggle input:checked {
+  background: #70508b;
+  border-color: #e4c78e;
+}
+.ch-toggle input:checked::before {
+  transform: translateX(18px);
+  background: #eed5a1;
+}
+.ch-toggle input:focus-visible {
+  outline: 2px solid #eed5a1;
+  outline-offset: 4px;
+}

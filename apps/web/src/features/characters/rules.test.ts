@@ -1909,3 +1909,21 @@ for (const edition of ["2014", "2024"] as const) {
   d.levels[9].featureChoices!["companion-modifications"] = alternatives.slice(0,2).map(o=>o.id);
   equal(validateDraft(d), [], "Recreating a companion can replace all modifications");
 }
+
+// Optional racial bonus relocation must preserve the original bonus packages.
+{
+  const d = build("2014", "cleric", 1);
+  d.speciesId = "dragonborn";
+  d.abilityBonuses = { str: 0, dex: 0, con: 1, int: 0, wis: 2, cha: 0 };
+  const bonusIssues = () => validateDraft(d).filter(i => i.step === "abilities");
+  assert(bonusIssues().length > 0, "Fixed racial bonuses remain the default");
+  d.freeAbilityBonuses = true;
+  assert(bonusIssues().length === 0, "GM option allows dragonborn wisdom +2 and constitution +1");
+  equal(finalAbilities(d).wis, d.abilities.wis + 2, "Relocated bonus participates in derived scores");
+  d.abilityBonuses = { str: 0, dex: 1, con: 1, int: 0, wis: 1, cha: 0 };
+  assert(bonusIssues().length > 0, "+2/+1 cannot become three +1 bonuses");
+  d.abilityBonuses.wis = 3;
+  assert(bonusIssues().length > 0, "Racial bonuses cannot stack into +3");
+  d.edition = "2024";
+  assert(bonusIssues().length > 0, "The 2014 house rule cannot bypass 2024 backgrounds");
+}

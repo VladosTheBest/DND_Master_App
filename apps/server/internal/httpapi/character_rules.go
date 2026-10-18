@@ -320,12 +320,33 @@ func validateCharacterAbilities(d characterDraft, species characterSpecies, back
 		return nil, err
 	}
 	if d.Edition == "2024" {
+		if d.FreeAbilityBonuses {
+			return nil, fmt.Errorf("свободные расовые бонусы доступны только в редакции 2014")
+		}
 		if sum != 3 {
 			return nil, fmt.Errorf("предыстория даёт +2/+1 либо +1/+1/+1")
 		}
 		for ability, v := range d.AbilityBonuses {
 			if v > 0 && !characterHas(background.Abilities2024, ability) {
 				return nil, fmt.Errorf("предыстория не повышает выбранную характеристику")
+			}
+		}
+	} else if d.FreeAbilityBonuses {
+		expected, actual := map[int]int{}, map[int]int{}
+		for _, value := range species.Bonuses2014 {
+			if value > 0 {
+				expected[value]++
+			}
+		}
+		expected[1] += species.FlexibleBonuses2014
+		for _, value := range d.AbilityBonuses {
+			if value > 0 {
+				actual[value]++
+			}
+		}
+		for value := 1; value <= 2; value++ {
+			if actual[value] != expected[value] {
+				return nil, fmt.Errorf("сохраните размер каждого расового бонуса и распределите их по разным характеристикам")
 			}
 		}
 	} else {

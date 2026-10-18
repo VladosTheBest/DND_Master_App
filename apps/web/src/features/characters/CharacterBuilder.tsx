@@ -79,7 +79,12 @@ export function isUsableDraft(value: unknown): value is CharacterDraft {
       ))
   )
     return false;
-  if (draft.landTerrain !== undefined && (typeof draft.landTerrain !== "string" || !LAND_TERRAINS_2024.some(terrain => terrain.id === draft.landTerrain))) return false;
+  if (
+    draft.landTerrain !== undefined &&
+    (typeof draft.landTerrain !== "string" ||
+      !LAND_TERRAINS_2024.some((terrain) => terrain.id === draft.landTerrain))
+  )
+    return false;
   if (
     !["2014", "2024"].includes(draft.edition) ||
     !["standard", "point-buy"].includes(draft.abilityMethod)
@@ -103,6 +108,8 @@ export function isUsableDraft(value: unknown): value is CharacterDraft {
   )
     return false;
   if (
+    (draft.freeAbilityBonuses !== undefined &&
+      typeof draft.freeAbilityBonuses !== "boolean") ||
     !draft.abilities ||
     !draft.abilityBonuses ||
     !ABILITIES.every(
@@ -1227,39 +1234,49 @@ export function CharacterBuilder({
               ) : (
                 <div className="ch-bonus-section">
                   <h2>Бонусы расы</h2>
+                  <label className="ch-toggle">
+                    <input
+                      type="checkbox"
+                      role="switch"
+                      checked={draft.freeAbilityBonuses === true}
+                      onChange={(event) =>
+                        patchBase({
+                          freeAbilityBonuses: event.target.checked,
+                          abilityBonuses: {
+                            ...emptyBonuses(),
+                            ...species?.bonuses2014,
+                          },
+                        })
+                      }
+                    />
+                    Свободное улучшение характеристик
+                  </label>
                   <p>
-                    {Object.entries(species?.bonuses2014 || {})
-                      .map(
-                        ([id, value]) =>
-                          `${ABILITY_LABELS[id as Ability]} +${value}`,
-                      )
-                      .join(" · ") || "Нет фиксированных бонусов"}
-                    . Они уже учтены в итоговых значениях.
+                    С разрешения мастера: переносите расовые бонусы на любые
+                    разные характеристики, сохраняя размер каждого бонуса.
                   </p>
-                  {!!species?.flexibleBonuses2014 && (
+                  {draft.freeAbilityBonuses && (
                     <>
                       <p>
-                        Добавьте +1 к {species.flexibleBonuses2014} разным
-                        характеристикам, кроме Харизмы.
+                        Распределите:{" "}
+                        {[
+                          ...Object.values(species?.bonuses2014 || {}),
+                          ...Array(species?.flexibleBonuses2014 || 0).fill(1),
+                        ]
+                          .filter(Boolean)
+                          .map((value) => `+${value}`)
+                          .join(" · ")}
+                        . Бонусы уже учтены в итоговых значениях.
                       </p>
                       <div className="ch-inline-fields">
-                        {ABILITIES.filter((id) => id !== "cha").map((id) => (
+                        {ABILITIES.map((id) => (
                           <label key={id}>
                             {ABILITY_LABELS[id]}
                             <NumberStepper
                               label={`Бонус расы: ${ABILITY_LABELS[id]}`}
                               value={draft.abilityBonuses[id]}
-                              max={1}
+                              max={2}
                               bonus
-                              canIncrease={
-                                ABILITIES.filter(
-                                  (ability) => ability !== "cha",
-                                ).reduce(
-                                  (sum, ability) =>
-                                    sum + draft.abilityBonuses[ability],
-                                  0,
-                                ) < (species.flexibleBonuses2014 || 0)
-                              }
                               onChange={(value) =>
                                 patchBase({
                                   abilityBonuses: {
@@ -1272,6 +1289,59 @@ export function CharacterBuilder({
                           </label>
                         ))}
                       </div>
+                    </>
+                  )}
+                  {!draft.freeAbilityBonuses && (
+                    <>
+                      <p>
+                        {Object.entries(species?.bonuses2014 || {})
+                          .map(
+                            ([id, value]) =>
+                              `${ABILITY_LABELS[id as Ability]} +${value}`,
+                          )
+                          .join(" · ") || "Нет фиксированных бонусов"}
+                        . Они уже учтены в итоговых значениях.
+                      </p>
+                      {!!species?.flexibleBonuses2014 && (
+                        <>
+                          <p>
+                            Добавьте +1 к {species.flexibleBonuses2014} разным
+                            характеристикам, кроме Харизмы.
+                          </p>
+                          <div className="ch-inline-fields">
+                            {ABILITIES.filter((id) => id !== "cha").map(
+                              (id) => (
+                                <label key={id}>
+                                  {ABILITY_LABELS[id]}
+                                  <NumberStepper
+                                    label={`Бонус расы: ${ABILITY_LABELS[id]}`}
+                                    value={draft.abilityBonuses[id]}
+                                    max={1}
+                                    bonus
+                                    canIncrease={
+                                      ABILITIES.filter(
+                                        (ability) => ability !== "cha",
+                                      ).reduce(
+                                        (sum, ability) =>
+                                          sum + draft.abilityBonuses[ability],
+                                        0,
+                                      ) < (species.flexibleBonuses2014 || 0)
+                                    }
+                                    onChange={(value) =>
+                                      patchBase({
+                                        abilityBonuses: {
+                                          ...draft.abilityBonuses,
+                                          [id]: value,
+                                        },
+                                      })
+                                    }
+                                  />
+                                </label>
+                              ),
+                            )}
+                          </div>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -1442,11 +1512,32 @@ export function CharacterBuilder({
                     ))}
                   </div>
                   {(() => {
-                    const sourceInfo = SUBCLASS_EXTENSIONS.find(s =>
-                      s.classId === draft.classId && s.id === levelChoice.subclassId && s.editions.includes(draft.edition));
-                    const chosenCompanion = draft.edition === "2014" && draft.classId === "ranger" && levelChoice.subclassId === "beast-master"
-                      ? getLevelOptions(draft, 3).features.find(f => f.name === "Спутник следопыта / Ranger’s Companion") : undefined;
-                    const info = sourceInfo && chosenCompanion ? {...sourceInfo, source:chosenCompanion.source ?? sourceInfo.source, features:sourceInfo.features.map(f => f.level === 3 ? chosenCompanion : f)} : sourceInfo;
+                    const sourceInfo = SUBCLASS_EXTENSIONS.find(
+                      (s) =>
+                        s.classId === draft.classId &&
+                        s.id === levelChoice.subclassId &&
+                        s.editions.includes(draft.edition),
+                    );
+                    const chosenCompanion =
+                      draft.edition === "2014" &&
+                      draft.classId === "ranger" &&
+                      levelChoice.subclassId === "beast-master"
+                        ? getLevelOptions(draft, 3).features.find(
+                            (f) =>
+                              f.name ===
+                              "Спутник следопыта / Ranger’s Companion",
+                          )
+                        : undefined;
+                    const info =
+                      sourceInfo && chosenCompanion
+                        ? {
+                            ...sourceInfo,
+                            source: chosenCompanion.source ?? sourceInfo.source,
+                            features: sourceInfo.features.map((f) =>
+                              f.level === 3 ? chosenCompanion : f,
+                            ),
+                          }
+                        : sourceInfo;
                     return info ? (
                       <div className="ch-rule-callout">
                         <a
@@ -1467,7 +1558,12 @@ export function CharacterBuilder({
                               {f.level} уровень · {f.name}
                             </summary>
                             <p>{f.description}</p>
-                            {f.originalDescription && <details><summary>English</summary><p>{f.originalDescription}</p></details>}
+                            {f.originalDescription && (
+                              <details>
+                                <summary>English</summary>
+                                <p>{f.originalDescription}</p>
+                              </details>
+                            )}
                             <RandomEffectTable id={f.randomTableId} />
                             <FeatureReferences feature={f} />
                           </details>
@@ -1679,8 +1775,20 @@ export function CharacterBuilder({
                   <p>Круг Земли позволяет менять местность после каждого долгого отдыха. Заклинания круга и сопротивление обновятся в листе. Если новое заклинание уже выбрано вручную, уточните подготовку на последнем уровне.</p>
                   <label className="ch-notes-field">
                     Текущая местность
-                    <select value={currentLandTerrain(draft)?.id} onChange={event => setDraft(value => ({ ...value, landTerrain: event.target.value }))}>
-                      {LAND_TERRAINS_2024.map(terrain => <option key={terrain.id} value={terrain.id}>{terrain.ru} / {terrain.en}</option>)}
+                    <select
+                      value={currentLandTerrain(draft)?.id}
+                      onChange={(event) =>
+                        setDraft((value) => ({
+                          ...value,
+                          landTerrain: event.target.value,
+                        }))
+                      }
+                    >
+                      {LAND_TERRAINS_2024.map((terrain) => (
+                        <option key={terrain.id} value={terrain.id}>
+                          {terrain.ru} / {terrain.en}
+                        </option>
+                      ))}
                     </select>
                   </label>
                 </section>
@@ -1926,7 +2034,8 @@ function FeatureChoiceGroup({
           <p>{group.description}</p>
         </div>
         <span className="ch-selection-count" aria-live="polite">
-          {selected.length} / {group.optional ? `до ${group.count}` : group.count}
+          {selected.length} /{" "}
+          {group.optional ? `до ${group.count}` : group.count}
         </span>
       </div>
       {group.options.length > 12 && (
