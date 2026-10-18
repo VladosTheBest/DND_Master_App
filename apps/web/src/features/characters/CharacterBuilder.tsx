@@ -1,3 +1,5 @@
+import { CharacterEquipment } from "./CharacterEquipment";
+import { CharacterPortrait } from "./CharacterPortrait";
 import { spellMetadata } from "./spell-metadata";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { RandomEffectTable } from "./RandomEffectTable";
@@ -51,6 +53,29 @@ export function isUsableDraft(value: unknown): value is CharacterDraft {
   if (!value || typeof value !== "object") return false;
   const draft = value as CharacterDraft;
   if (!isPersonality(draft.personality)) return false;
+  if (
+    draft.portrait !== undefined &&
+    (typeof draft.portrait !== "string" ||
+      !/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(draft.portrait) ||
+      draft.portrait.length > 900000)
+  )
+    return false;
+  if (
+    draft.equipment !== undefined &&
+    (!Array.isArray(draft.equipment) ||
+      draft.equipment.length > 100 ||
+      draft.equipment.some(
+        (v) =>
+          !v ||
+          typeof v.name !== "string" ||
+          v.name.length > 120 ||
+          !["weapon", "equipment", "loot"].includes(v.type) ||
+          !Number.isInteger(v.quantity) ||
+          v.quantity < 1 ||
+          v.quantity > 999,
+      ))
+  )
+    return false;
   if (draft.landTerrain !== undefined && (typeof draft.landTerrain !== "string" || !LAND_TERRAINS_2024.some(terrain => terrain.id === draft.landTerrain))) return false;
   if (
     !["2014", "2024"].includes(draft.edition) ||
@@ -1707,6 +1732,18 @@ export function CharacterBuilder({
                   }
                 />
               </label>
+              <CharacterEquipment
+                draft={draft}
+                onChange={(equipment) =>
+                  setDraft((value) => ({ ...value, equipment }))
+                }
+              />
+              <CharacterPortrait
+                draft={draft}
+                onChange={(portrait) =>
+                  setDraft((value) => ({ ...value, portrait }))
+                }
+              />
               <CharacterSheet draft={draft} />
             </>
           )}

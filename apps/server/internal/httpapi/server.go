@@ -172,6 +172,7 @@ func NewServer(options Options) (http.Handler, error) {
 	mux.HandleFunc("/api/campaign-templates", srv.handleReadyCampaigns)
 	mux.HandleFunc("/api/campaign-templates/", srv.handleReadyCampaigns)
 	mux.HandleFunc("/api/campaigns/", srv.handleCampaignByPath)
+	mux.HandleFunc("/api/characters/portrait", srv.handleCharacterPortrait)
 	mux.HandleFunc("/api/ai/proposals", srv.handleAIProposals)
 	mux.HandleFunc("/api/ai/proposals/", srv.handleAIProposals)
 	mux.HandleFunc("/api/ai/codex/status", srv.handleCodexStatus)

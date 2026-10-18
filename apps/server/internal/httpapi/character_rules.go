@@ -363,6 +363,17 @@ func validateAndDeriveCharacter(d characterDraft) (characterStats, error) {
 	if d.TargetLevel < 1 || d.TargetLevel > 20 {
 		return empty, fmt.Errorf("уровень должен быть от 1 до 20")
 	}
+	if err := validateCharacterPortrait(d.Portrait); err != nil {
+		return characterStats{}, err
+	}
+	if len(d.Equipment) > 100 {
+		return empty, fmt.Errorf("до 100 предметов")
+	}
+	for _, item := range d.Equipment {
+		if strings.TrimSpace(item.Name) == "" || utf8.RuneCountInString(item.Name) > 120 || item.Quantity < 1 || item.Quantity > 999 || (item.Type != "weapon" && item.Type != "equipment" && item.Type != "loot") {
+			return empty, fmt.Errorf("некорректное снаряжение")
+		}
+	}
 	if d.Personality != nil {
 		p := d.Personality
 		if utf8.RuneCountInString(p.Backstory) > 3000 {

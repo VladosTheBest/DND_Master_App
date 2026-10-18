@@ -67,6 +67,8 @@ export interface LevelChoice {
   featureChoices?: Record<string, string[]>;
 }
 export interface CharacterDraft {
+  portrait?: string;
+  equipment?: { name: string; quantity: number; type: "weapon" | "equipment" | "loot" }[];
   /** Current 2024 Circle of the Land choice after the latest Long Rest. */
   landTerrain?: string;
   name: string;

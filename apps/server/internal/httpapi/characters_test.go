@@ -419,7 +419,7 @@ func TestCharacterWritesRejectInvalidInputAndOversizedJSON(t *testing.T) {
 		t.Fatalf("level mismatch err=%v", err)
 	}
 	manager := newCharacterManager(store, "")
-	for _, body := range []string{`{"notes":"` + strings.Repeat("x", 65*1024) + `"}`, `{} {}`, `{"maxHp":999}`, `null`} {
+	for _, body := range []string{`{"notes":"` + strings.Repeat("x", 2*1024*1024+1) + `"}`, `{} {}`, `{"maxHp":999}`, `null`} {
 		request := httptest.NewRequest("POST", "/api/character-invites/"+invite.Token, strings.NewReader(body))
 		recorder := httptest.NewRecorder()
 		manager.handlePublicInvite(recorder, request)

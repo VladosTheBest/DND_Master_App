@@ -18,22 +18,29 @@ import (
 var errCharacterNotFound = errors.New("Ссылка или персонаж не найдены.")
 var errCharacterInvalid = errors.New("Неверный персонаж")
 
+type characterEquipmentItem struct {
+	Name     string `json:"name"`
+	Quantity int    `json:"quantity"`
+	Type     string `json:"type"`
+}
 type characterDraft struct {
-	LandTerrain    string                 `json:"landTerrain,omitempty"`
-	Name           string                 `json:"name"`
-	PlayerName     string                 `json:"playerName"`
-	Edition        string                 `json:"edition"`
-	ClassID        string                 `json:"classId"`
-	SpeciesID      string                 `json:"speciesId"`
-	BackgroundID   string                 `json:"backgroundId"`
-	TargetLevel    int                    `json:"targetLevel"`
-	AbilityMethod  string                 `json:"abilityMethod"`
-	Abilities      map[string]int         `json:"abilities"`
-	AbilityBonuses map[string]int         `json:"abilityBonuses"`
-	SkillIDs       []string               `json:"skillIds"`
-	Levels         []characterLevelChoice `json:"levels"`
-	Notes          string                 `json:"notes"`
-	Personality    *characterPersonality  `json:"personality,omitempty"`
+	Equipment      []characterEquipmentItem `json:"equipment,omitempty"`
+	Portrait       string                   `json:"portrait,omitempty"`
+	LandTerrain    string                   `json:"landTerrain,omitempty"`
+	Name           string                   `json:"name"`
+	PlayerName     string                   `json:"playerName"`
+	Edition        string                   `json:"edition"`
+	ClassID        string                   `json:"classId"`
+	SpeciesID      string                   `json:"speciesId"`
+	BackgroundID   string                   `json:"backgroundId"`
+	TargetLevel    int                      `json:"targetLevel"`
+	AbilityMethod  string                   `json:"abilityMethod"`
+	Abilities      map[string]int           `json:"abilities"`
+	AbilityBonuses map[string]int           `json:"abilityBonuses"`
+	SkillIDs       []string                 `json:"skillIds"`
+	Levels         []characterLevelChoice   `json:"levels"`
+	Notes          string                   `json:"notes"`
+	Personality    *characterPersonality    `json:"personality,omitempty"`
 }
 type characterPersonality struct {
 	Backstory  string `json:"backstory,omitempty"`
@@ -94,14 +101,15 @@ type createdCharacterSheet struct {
 	EditToken string `json:"editToken"`
 }
 type characterManager struct {
-	store    *campaignStore
-	baseURL  string
-	mu       sync.Mutex
-	attempts map[string]time.Time
+	store           *campaignStore
+	baseURL         string
+	mu              sync.Mutex
+	attempts        map[string]time.Time
+	portraitFlights map[string]bool
 }
 
 func newCharacterManager(store *campaignStore, baseURL string) *characterManager {
-	return &characterManager{store: store, baseURL: strings.TrimRight(baseURL, "/"), attempts: map[string]time.Time{}}
+	return &characterManager{store: store, baseURL: strings.TrimRight(baseURL, "/"), attempts: map[string]time.Time{}, portraitFlights: map[string]bool{}}
 }
 func characterHeaders(w http.ResponseWriter) {
 	w.Header().Set("Cache-Control", "no-store, max-age=0")
@@ -109,11 +117,11 @@ func characterHeaders(w http.ResponseWriter) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 }
 func readCharacterJSON(w http.ResponseWriter, r *http.Request, target any) error {
-	r.Body = http.MaxBytesReader(w, r.Body, 64*1024)
+	r.Body = http.MaxBytesReader(w, r.Body, 2*1024*1024)
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
-		return fmt.Errorf("Некорректный JSON или превышен размер 64 КБ: %w", err)
+		return fmt.Errorf("Некорректный JSON или превышен размер 2 МБ: %w", err)
 	}
 	if err := decoder.Decode(&struct{}{}); err != io.EOF {
 		return fmt.Errorf("Ожидается один JSON-объект")

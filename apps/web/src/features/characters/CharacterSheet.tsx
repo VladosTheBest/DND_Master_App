@@ -1,3 +1,4 @@
+import { downloadFoundryCharacter } from "./character-foundry";
 import { spellMetadata } from "./spell-metadata";
 import { RandomEffectTable } from "./RandomEffectTable";
 import { RulesLibrary } from "./RulesLibrary";
@@ -402,14 +403,34 @@ export function CharacterSheet({
     setPdfFile(null);
   }, [draft]);
   const pdfInFlight = useRef(false);
-  async function downloadPdf() {
+  async function downloadPdf(share = false) {
     if (pdfInFlight.current) return;
     pdfInFlight.current = true;
     setPdfBusy(true);
     setPdfError("");
     try {
-      const { downloadCharacterPdf } = await import("./character-pdf");
-      setPdfFile(await downloadCharacterPdf(draft));
+      const { downloadCharacterPdf, characterPdfFile } = await import(
+        "./character-pdf"
+      );
+      if (share) {
+        const file = await characterPdfFile(draft);
+        if (navigator.canShare?.({ files: [file] })) {
+          try {
+            await navigator.share({
+              files: [file],
+              title: draft.name || "Персонаж",
+            });
+          } catch (e) {
+            if (!(e instanceof DOMException && e.name === "AbortError"))
+              throw e;
+          }
+        } else {
+          setPdfFile(await downloadCharacterPdf(draft));
+          setPdfError(
+            "Отправка файлов недоступна в этом браузере. PDF скачан — прикрепите его к сообщению.",
+          );
+        }
+      } else setPdfFile(await downloadCharacterPdf(draft));
     } catch (error) {
       setPdfError(
         error instanceof Error
@@ -486,8 +507,15 @@ export function CharacterSheet({
           )}
           {currentLandTerrain(draft) && (
             <p className="chsheet-subclass">
-              Местность / Land: {currentLandTerrain(draft)?.ru} / {currentLandTerrain(draft)?.en}
-              {draft.targetLevel >= 10 && <> · Сопротивление / Resistance: {currentLandTerrain(draft)?.resistance}</>}
+              Местность / Land: {currentLandTerrain(draft)?.ru} /{" "}
+              {currentLandTerrain(draft)?.en}
+              {draft.targetLevel >= 10 && (
+                <>
+                  {" "}
+                  · Сопротивление / Resistance:{" "}
+                  {currentLandTerrain(draft)?.resistance}
+                </>
+              )}
             </p>
           )}
         </div>
@@ -501,6 +529,21 @@ export function CharacterSheet({
         <button
           type="button"
           className="chsheet-button"
+          disabled={pdfBusy}
+          onClick={() => void downloadPdf(true)}
+        >
+          Поделиться PDF
+        </button>
+        <button
+          type="button"
+          className="chsheet-button"
+          onClick={() => downloadFoundryCharacter(draft)}
+        >
+          Экспорт в Foundry
+        </button>
+        <button
+          type="button"
+          className="chsheet-button"
           onClick={downloadCharacter}
         >
           <SheetIcon name="download" size={14} />
@@ -509,7 +552,7 @@ export function CharacterSheet({
         <button
           type="button"
           className="chsheet-button"
-          onClick={downloadPdf}
+          onClick={() => void downloadPdf()}
           disabled={pdfBusy}
         >
           <SheetIcon name="print" size={14} />
@@ -540,6 +583,19 @@ export function CharacterSheet({
         )}
       </div>
 
+      <p className="chsheet-pdf-ready">
+        Foundry 14 / D&D5e 6.0.6: ZIP содержит персонажа и макрос импорта.
+        Макрос создаёт героя с механикой совпавших заклинаний и оружия из
+        компендиума нужной редакции. Инструкция внутри архива; несовпавшие
+        записи и сложные эффекты требуют проверки.
+      </p>
+      {draft.portrait && (
+        <img
+          src={draft.portrait}
+          alt={`Портрет: ${characterName}`}
+          style={{ width: 220, maxWidth: "100%", borderRadius: 16 }}
+        />
+      )}
       {pdfError && (
         <p role="alert" className="chsheet-pdf-error">
           {pdfError}
