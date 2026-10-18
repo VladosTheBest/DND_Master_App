@@ -1,3 +1,4 @@
+import { editionFeatureDescription } from "./feature-help-editions";
 import type { Edition } from "./rules-data";
 import { FEATURE_REFERENCE } from "./feature-reference";
 import { DRUID_FEATURE_RU, WILD_SHAPE_RU } from "./druid-feature-translations";
@@ -563,6 +564,8 @@ export function featureDescription(
   if (classId === "warlock" && /^(Mystic Arcanum|Таинственный арканум)/.test(key)) return WARLOCK_FEATURE_RU[edition]["Mystic Arcanum"];
   if (classId === "warlock" && WARLOCK_FEATURE_RU[edition][key]) return WARLOCK_FEATURE_RU[edition][key];
   if (classId === "druid" && DRUID_FEATURE_RU[edition][key]) return DRUID_FEATURE_RU[edition][key];
+  const specific = editionFeatureDescription(edition, classId, key);
+  if (specific) return specific;
   if (key.endsWith(" Subclass"))
     return "На этом уровне открывается специализация класса. Выберите подкласс: его особенности описаны в карточке, а новые способности будут появляться на следующих шагах развития.";
   if (key === "Rage") {

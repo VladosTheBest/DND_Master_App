@@ -1,3 +1,5 @@
+import { deriveCombatSheet } from "./character-combat";
+import { resolveCombatEquipment } from "./combat-equipment";
 import { equipmentEnglish } from "./starting-equipment";
 import { zipSync, strToU8 } from "fflate";
 import { ABILITIES, deriveCharacter, type CharacterDraft } from "./rules";
@@ -28,6 +30,7 @@ const skillKeys: Record<string, string> = {
 /** Native Actor import for Foundry 14 / dnd5e 6.0.x. No campaign tokens or edit links. */
 export function characterFoundryActor(draft: CharacterDraft) {
   const c = deriveCharacter(draft);
+  const combat = deriveCombatSheet(draft, c);
   const description = (text: string) => ({ value: html(text) });
   const features = [
     ...c.features,
@@ -68,8 +71,8 @@ export function characterFoundryActor(draft: CharacterDraft) {
       ),
       attributes: {
         hp: { value: c.maxHp, max: c.maxHp },
-        ac: { calcs: ["flat"], flat: c.armorClass },
-        movement: { walk: c.speed, units: "ft" },
+        ac: { calcs: ["flat"], flat: combat.armorClass },
+        movement: { walk: combat.speed, units: "ft" },
         ...(caster ? { spellcasting: caster } : {}),
       },
       details: {
@@ -167,11 +170,25 @@ export function characterFoundryActor(draft: CharacterDraft) {
         : []),
       ...(draft.equipment || []).map((item) => ({
         name: item.name,
-        flags: { "shadow-edge": { englishName: equipmentEnglish[item.name] } },
+        flags: {
+          "shadow-edge": {
+            attackAbility: item.attackAbility,
+            twoHanded: item.twoHanded,
+            proficient: item.proficient,
+            englishName:
+              equipmentEnglish[
+                resolveCombatEquipment(item, draft.edition)?.name || item.name
+              ],
+          },
+        },
         type: item.type,
         system: {
           quantity: item.quantity,
-          equipped: false,
+          equipped: item.equipped ?? false,
+          magicalBonus: item.magicBonus || 0,
+          ...(item.proficient !== undefined
+            ? { proficient: item.proficient ? 1 : 0 }
+            : {}),
           description: description(
             "Предмет из листа персонажа. Механика определяется по компендиуму системы при импорте макросом.",
           ),
@@ -282,7 +299,14 @@ for (let i = 0; i < data.items.length; i++) {
   }
   if (["class", "subclass"].includes(item.type)) replacement.system.advancement = [];
   if (item.type === "spell") { replacement.system.method = item.system.method; replacement.system.prepared = item.system.prepared; replacement.system.sourceItem = item.system.sourceItem; }
-  if (item.system.quantity) replacement.system.quantity = item.system.quantity;
+  if (item.system.quantity) { replacement.system.quantity = item.system.quantity; replacement.system.equipped = item.system.equipped; replacement.system.magicalBonus = item.system.magicalBonus; }
+  const overrides = item.flags?.["shadow-edge"];
+  if (replacement.type === "weapon") {
+   if (typeof overrides?.proficient === "boolean") replacement.system.proficient = overrides.proficient ? 1 : 0;
+   if (overrides?.attackAbility) for(const activity of Object.values(replacement.system.activities || {})) {
+    if(activity.type === "attack") { activity.attack ||= {}; activity.attack.ability = overrides.attackAbility; }
+   }
+  }
   replacement.flags = { ...replacement.flags, ...item.flags };
   break;
  }

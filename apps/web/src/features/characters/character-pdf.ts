@@ -1,3 +1,4 @@
+import { deriveCombatSheet } from "./character-combat";
 import { equipmentDisplayName } from "./starting-equipment";
 import { jsPDF } from "jspdf";
 import { personalityEntries } from "./personality";
@@ -18,6 +19,7 @@ import {
   type CharacterDraft,
 } from "./rules";
 
+const ruName = (name: string) => name.replace(/\s*[·/]\s*[A-Za-z][\s\S]*$/, "");
 const sign = (n: number) => (n >= 0 ? `+${n}` : `${n}`);
 const clean = (s: string) =>
   s.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
@@ -29,6 +31,7 @@ export function createCharacterPdf(
   boldFontBase64 = fontBase64,
 ) {
   const c = deriveCharacter(draft);
+  const combat = deriveCombatSheet(draft, c);
   const pdf = new jsPDF({
     unit: "mm",
     format: "a4",
@@ -152,9 +155,9 @@ export function createCharacterPdf(
     y += 3;
   };
   const lineAdvance = (line: ReturnType<typeof richLines>[number]) =>
-    line.length ? 5.4 : 2.5;
+    line.length ? 4.8 : 2.5;
   const narrativeHeight = (text: string, textWidth: number) =>
-    21 +
+    18 +
     richLines(text, textWidth, 10).reduce(
       (sum, line) => sum + lineAdvance(line),
       0,
@@ -167,12 +170,12 @@ export function createCharacterPdf(
   ) => {
     const lines = richLines(text, cardWidth - 14, 10);
     const fullHeight = narrativeHeight(text, cardWidth - 14);
-    if (fullHeight <= bottom - 35) room(fullHeight);
+    if (fullHeight <= 55) room(fullHeight);
     let offset = 0;
     while (offset < lines.length) {
       room(34);
       let count = 0,
-        height = 21;
+        height = 18;
       while (
         offset + count < lines.length &&
         y + height + lineAdvance(lines[offset + count]) <= bottom
@@ -193,7 +196,7 @@ export function createCharacterPdf(
         x + 7,
         y + 10,
       );
-      let baseline = y + 20;
+      let baseline = y + 18;
       lines.slice(offset, offset + count).forEach((line) => {
         drawLine(line, x + 7, baseline, 10, "#eee8f5");
         baseline += lineAdvance(line);
@@ -204,30 +207,30 @@ export function createCharacterPdf(
     }
   };
   const section = (title: string) => {
-    room(22);
-    y += 4;
+    room(46);
+    y += 2;
     pdf.setDrawColor("#a18a60");
     pdf.line(left, y, left + width, y);
-    y += 7;
-    paragraph(title, 16, "#e7c27e");
+    y += 6;
+    paragraph(title, 14, "#e7c27e");
   };
   const entry = (title: string, description: string) => {
-    room(18);
+    room(24);
     pdf.setFillColor("#241c32");
     pdf.roundedRect(left - 2, y - 4, width + 4, 8, 1, 1, "F");
-    paragraph(title, 10, "#b898e8");
+    paragraph(ruName(title), 10, "#b898e8");
     paragraph(description);
   };
   const scoreGrid = (
     values: { name: string; bonus: number; proficient: boolean }[],
   ) => {
-    for (let i = 0; i < values.length; i += 2) {
-      room(9);
-      values.slice(i, i + 2).forEach((s, column) => {
-        const x = left + column * 91;
+    for (let i = 0; i < values.length; i += 3) {
+      room(8);
+      values.slice(i, i + 3).forEach((s, column) => {
+        const x = left + column * 60;
         pdf.setFillColor(s.proficient ? "#30243f" : "#1c1826");
-        pdf.roundedRect(x, y, 87, 7.5, 2, 2, "F");
-        pdf.setFontSize(9);
+        pdf.roundedRect(x, y, 58, 7, 2, 2, "F");
+        pdf.setFontSize(7.5);
         pdf.setTextColor("#eee8f5");
         pdf.text(s.name, x + 7, y + 5);
         if (s.proficient) {
@@ -236,10 +239,10 @@ export function createCharacterPdf(
         }
         pdf.setFont("Character", "bold");
         pdf.setTextColor("#e7c27e");
-        pdf.text(sign(s.bonus), x + 82, y + 5, { align: "right" });
+        pdf.text(sign(s.bonus), x + 54, y + 5, { align: "right" });
         pdf.setFont("Character", "normal");
       });
-      y += 9;
+      y += 8;
     }
   };
   paragraph(draft.name || "Новый персонаж", 32, "#b898e8");
@@ -275,9 +278,9 @@ export function createCharacterPdf(
   }
   const metrics = [
     ["ЗДОРОВЬЕ", String(c.maxHp)],
-    ["КД БЕЗ ДОСПЕХА", String(c.armorClass)],
+    ["КЛАСС ДОСПЕХА", String(combat.armorClass)],
     ["ИНИЦИАТИВА", sign(c.initiative)],
-    ["СКОРОСТЬ", `${c.speed} фт.`],
+    ["СКОРОСТЬ", `${combat.speed} фт.`],
   ];
   metrics.forEach(([label, value], i) => {
     const x = left + i * 45;
@@ -314,13 +317,76 @@ export function createCharacterPdf(
   }
   y += 30;
   paragraph(
-    `Хиты: ${c.maxHp} · КД без доспехов: ${c.armorClass} · Инициатива: ${sign(c.initiative)} · Скорость: ${c.speed} фт.`,
+    `Хиты: ${c.maxHp} · КД: ${combat.armorClass} · Инициатива: ${sign(c.initiative)} · Скорость: ${combat.speed} фт.`,
   );
   paragraph(
     `Бонус мастерства: ${sign(c.proficiencyBonus)} · Кости хитов: ${c.hitDice} · Пассивная внимательность: ${c.passivePerception}`,
   );
+
+  paragraph(
+    `Защита: ${combat.armorLabel} · Атак действием Атака: ${combat.attacksPerAction}`,
+    9,
+  );
+  for (const attack of combat.attacks) {
+    entry(
+      `${ruName(attack.name)}  ·  ${attack.hit}  ·  урон ${attack.damage}`,
+      attack.details,
+    );
+  }
+  section("Ресурсы и восстановление");
+  for (let index = 0; index < combat.resources.length; index += 2) {
+    const row = combat.resources.slice(index, index + 2);
+    const rows = row.map((r) => ({
+      r,
+      heading: richLines(
+        `**${ruName(r.name)} · ${r.manual ? "учёт" : (r.maximum ?? "∞")}**`,
+        77,
+        8,
+      ),
+      lines: richLines(r.recovery + (r.details ? "\n" + r.details : ""), 77, 8),
+    }));
+    const height =
+      22 +
+      Math.max(...rows.map((v) => v.lines.length + v.heading.length - 1)) * 4;
+    room(height + 4);
+    rows.forEach(({ r, lines, heading }, column) => {
+      const x = left + column * 91;
+      pdf.setFillColor("#211b2d");
+      pdf.roundedRect(x, y, 87, height, 2, 2, "F");
+      const extra = (heading.length - 1) * 4;
+      heading.forEach((line, i) =>
+        drawLine(line, x + 5, y + 7 + i * 4, 8, "#e7c27e"),
+      );
+      if (r.maximum !== null && r.maximum <= 12) {
+        pdf.setDrawColor("#b898e8");
+        for (let i = 0; i < r.maximum; i++)
+          pdf.roundedRect(x + 5 + i * 5, y + 10 + extra, 3, 3, 0.4, 0.4);
+      } else {
+        pdf.setFontSize(8);
+        pdf.setTextColor("#b0a5be");
+        pdf.text(
+          r.maximum === null
+            ? r.manual
+              ? "Осталось: ______"
+              : "Без ограничения"
+            : "Осталось: ______",
+          x + 5,
+          y + 13 + extra,
+        );
+      }
+      lines.forEach((line, i) =>
+        drawLine(line, x + 5, y + 20 + extra + i * 4, 8, "#b0a5be"),
+      );
+    });
+    y += height + 4;
+  }
+  if (combat.effects.length) {
+    section("Условия и усиления");
+    combat.effects.forEach((e) => paragraph(`**${e.name}.** ${e.text}`, 8.5));
+  }
   section("Спасброски");
   scoreGrid(c.savingThrows);
+  room(75);
   section("Навыки");
   scoreGrid(c.skills);
   paragraph(
@@ -328,8 +394,7 @@ export function createCharacterPdf(
     7.5,
     "#b0a5be",
   );
-  page();
-  section("Способности · происхождение и черты");
+  section("Способности");
   const terrain = currentLandTerrain(draft);
   if (terrain)
     paragraph(
@@ -337,7 +402,6 @@ export function createCharacterPdf(
     );
   c.traits.forEach((t) => paragraph(t));
   c.feats.forEach((f) => entry(f.name, f.description));
-  section("Развитие по уровням");
   const {
     spellIds: referenceSpellIds,
     creatureIds: referenceCreatureIds,
@@ -345,11 +409,9 @@ export function createCharacterPdf(
   } = collectRuleDependencies([
     ...c.features,
     {
-      spellReferenceIds: [
-        ...c.selectedCantrips,
-        ...c.selectedSpells,
-        ...c.preparedSpells,
-      ].map((spell) => spell.id),
+      spellReferenceIds: [...c.selectedCantrips, ...c.preparedSpells].map(
+        (spell) => spell.id,
+      ),
     },
   ]);
   const appendRandomTable = (table: RandomEffectTable) => {
@@ -366,11 +428,57 @@ export function createCharacterPdf(
     }
     paragraph(`Источник: ${table.sourceUrl}`);
   };
-  c.features.forEach((f) => {
-    entry(`${f.level} уровень · ${f.name}`, f.description);
-    const table = randomEffectTable(f.randomTableId);
-    if (table) appendRandomTable(table);
-  });
+  const features = [
+    ...new Map(c.features.map((f) => [f.ruleName || f.id, f])).values(),
+  ];
+  const completeChoices = new Set<string>();
+  if (combat.attacks.some((a) => a.name === "Драконье дыхание"))
+    completeChoices.add("ancestry");
+  if (combat.effects.some((e) => e.name === "Божественный гнев"))
+    completeChoices.add("zealot-damage");
+  const shownFeatures = features.filter(
+    (f) =>
+      ![...completeChoices].some((key) =>
+        f.id.startsWith(`choice-${f.level}-${key}-`),
+      ),
+  );
+  const represented = new Set(combat.effects.map((e) => e.name));
+  const choices = shownFeatures.filter(
+    (f) =>
+      f.id.startsWith("choice-") &&
+      !f.randomTableId &&
+      !f.creatureReferenceIds?.length &&
+      !f.spellReferenceIds?.length &&
+      !f.itemReferenceIds?.length &&
+      f.description.length < 170,
+  );
+  const choiceIds = new Set(choices.map((f) => f.id));
+  if (choices.length)
+    paragraph(
+      choices.map((f) => `**${f.name}.** ${f.description}`).join("\n"),
+      9,
+    );
+  shownFeatures
+    .filter(
+      (f) =>
+        !c.selectedCantrips
+          .concat(c.selectedSpells, c.preparedSpells)
+          .some((s) => s.name === f.name) &&
+        !choiceIds.has(f.id) &&
+        !represented.has(f.name) &&
+        ![
+          "Ability Score Improvement",
+          "Extra Attack",
+          "Two Extra Attacks",
+          "Three Extra Attacks",
+        ].includes(f.ruleName || "") &&
+        !f.ruleName?.endsWith(" Subclass"),
+    )
+    .forEach((f) => {
+      entry(f.name, f.description);
+      const table = randomEffectTable(f.randomTableId);
+      if (table) appendRandomTable(table);
+    });
   if (referenceCreatureIds.size) {
     section("Существа и формы: справочник");
     for (const id of referenceCreatureIds) {
@@ -407,7 +515,6 @@ export function createCharacterPdf(
     ...new Map(
       [
         ...c.selectedCantrips,
-        ...c.selectedSpells,
         ...c.preparedSpells,
         ...SPELLS.filter((s) => referenceSpellIds.has(s.id)),
       ].map((s) => [s.id, s]),
@@ -436,7 +543,7 @@ export function createCharacterPdf(
     for (const s of spells) {
       const metadata = spellMetadata(s);
       entry(
-        `${s.name} · ${s.level ? `${s.level} круг` : "заговор"}${prepared.has(s.id) ? " · подготовлено" : ""}`,
+        `${ruName(s.name)} · ${s.level ? `${s.level} круг` : "заговор"}${prepared.has(s.id) ? " · подготовлено" : ""}`,
         `${s.school} · ${metadata.castingTime}\nДистанция: ${metadata.range} · Длительность: ${metadata.duration}${s.concentration ? " · Концентрация" : ""}${s.ritual ? " · Ритуал" : ""}${metadata.components ? `\nКомпоненты: ${metadata.components}` : ""}\n${s.descriptionRu || s.summary || ""}`,
       );
       const spellTable = randomEffectTable(s.randomTableId);
@@ -447,14 +554,27 @@ export function createCharacterPdf(
       }
     }
   }
+  if (draft.equipment?.length || draft.gold !== undefined) {
+    section("Снаряжение");
+    if (draft.gold !== undefined) paragraph(`Золото: **${draft.gold} зм.**`);
+    paragraph(
+      (draft.equipment || [])
+        .map(
+          (item) =>
+            `${equipmentDisplayName(item.name)} × ${item.quantity}${item.equipped ? " (надето / в руках)" : ""}`,
+        )
+        .join(" · "),
+      9,
+    );
+  }
   if (personalityEntries(draft.personality).length) {
-    page();
+    if (bottom - y < 45) page();
     section("Личность и история");
     const fields = personalityEntries(draft.personality);
     for (let i = 0; i < fields.length; i++) {
       const field = fields[i],
         next = fields[i + 1];
-      const short = (text: string) => richLines(text, 72, 10).length <= 28;
+      const short = (text: string) => richLines(text, 72, 10).length <= 13;
       if (
         field.id !== "backstory" &&
         next &&
@@ -478,18 +598,11 @@ export function createCharacterPdf(
       } else narrativeCard(field.label, field.text);
     }
   }
-  if (draft.equipment?.length || draft.gold !== undefined) {
-    section("Снаряжение");
-    if (draft.gold !== undefined) paragraph(`Золото: **${draft.gold} зм.**`);
-    draft.equipment?.forEach((item) =>
-      paragraph(`${equipmentDisplayName(item.name)} × ${item.quantity}`),
-    );
-  }
   if (draft.notes) {
     section("Заметки");
     paragraph(draft.notes);
   }
-  const relevantWarnings = c.warnings.filter(
+  const relevantWarnings = [...combat.warnings, ...c.warnings].filter(
     (w) =>
       !w.startsWith("КД рассчитан без доспехов") &&
       !w.startsWith("Один класс, фиксированный прирост хитов"),

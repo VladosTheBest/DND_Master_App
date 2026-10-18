@@ -373,6 +373,9 @@ func validateAndDeriveCharacter(d characterDraft) (characterStats, error) {
 		return empty, fmt.Errorf("до 100 предметов")
 	}
 	for _, item := range d.Equipment {
+		if item.MagicBonus < 0 || item.MagicBonus > 3 || (item.BaseItem != "" && !strings.Contains("|battleaxe|blowgun|breastplate|chain|chain-shirt|club|dagger|dart|flail|glaive|greataxe|greatclub|greatsword|halberd|half-plate|hand-crossbow|handaxe|heavy-crossbow|hide|javelin|lance|leather|light-crossbow|light-hammer|longbow|longsword|mace|maul|morningstar|musket|net|padded|pike|pistol|plate|quarterstaff|rapier|ring|scale|scimitar|shield|shortbow|shortsword|sickle|sling|spear|splint|studded|trident|war-pick|warhammer|whip|", "|"+item.BaseItem+"|")) || (item.AttackAbility != "" && !strings.Contains("|str|dex|con|int|wis|cha|", "|"+item.AttackAbility+"|")) {
+			return empty, fmt.Errorf("некорректные боевые настройки предмета")
+		}
 		if strings.TrimSpace(item.Name) == "" || utf8.RuneCountInString(item.Name) > 120 || item.Quantity < 1 || item.Quantity > 999 || (item.Type != "weapon" && item.Type != "equipment" && item.Type != "loot") {
 			return empty, fmt.Errorf("некорректное снаряжение")
 		}

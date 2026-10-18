@@ -1285,7 +1285,7 @@ for (const edition of ["2014", "2024"] as const) RANDOM_EFFECT_TABLES.push({
  name:{ru:"Экспериментальный эликсир",en:"Experimental Elixir"},
  sourceUrl:edition === "2014" ? "https://dnd.su/class/137-artificer/#specialist.alchemist" : "https://next.dnd.su/class/artificer#subclass.alchemist",
  checkedAt:"2026-09-29",
- note:{ru:"Самостоятельное изложение механики. Неофициальный перевод. Эликсиры не требуют концентрации; усиления 2024 зависят от уровня изобретателя.",en:"Independently worded mechanical reference. Elixirs do not require Concentration; 2024 improvements use Artificer level."},
+ note:{ru:edition === "2014" ? "Эликсиры не требуют концентрации." : "Эликсиры не требуют концентрации; усиления зависят от уровня изобретателя.",en:edition === "2014" ? "Elixirs do not require Concentration." : "Elixirs do not require Concentration; improvements use Artificer level."},
  rows:[
  row(1,1,edition === "2014" ? "Лечение: восстановите 2к4 + Интеллект изобретателя хитов." : "Лечение: восстановите 2к8 + Интеллект изобретателя хитов; 3к8 с уровня 9, 4к8 с уровня 15.",edition === "2014" ? "Healing: regain 2d4 + the Artificer's Intelligence modifier hit points." : "Healing: regain 2d8 + the Artificer's Intelligence modifier hit points; 3d8 at level 9 and 4d8 at level 15."),
  row(2,2,edition === "2014" ? "Стремительность: скорость ходьбы +10 фт. на 1 час." : "Проворность: Скорость +10 фт. на 1 час; +15 фт. с уровня 9, +20 фт. с уровня 15.",edition === "2014" ? "Swiftness: walking speed increases by 10 feet for 1 hour." : "Swiftness: Speed increases by 10 feet for 1 hour; 15 feet at level 9 and 20 feet at level 15."),

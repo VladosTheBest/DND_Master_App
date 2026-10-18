@@ -1,3 +1,4 @@
+import { deriveCombatSheet } from "./character-combat";
 import { downloadFoundryCharacter } from "./character-foundry";
 import { spellMetadata } from "./spell-metadata";
 import { RandomEffectTable } from "./RandomEffectTable";
@@ -298,6 +299,10 @@ export function CharacterSheet({
   const character: DerivedCharacter = useMemo(
     () => deriveCharacter(draft),
     [draft],
+  );
+  const combat = useMemo(
+    () => deriveCombatSheet(draft, character),
+    [draft, character],
   );
   const [activePane, setActivePane] = useState<
     "features" | "spells" | "progression"
@@ -639,14 +644,11 @@ export function CharacterSheet({
             <small>Максимум хитов</small>
           </div>
         </div>
-        <div
-          className="chsheet-metric"
-          title="Класс доспеха без снаряжения; выбранный доспех и щит учитываются отдельно"
-        >
+        <div className="chsheet-metric" title={combat.armorLabel}>
           <SheetIcon name="shield" />
           <div>
-            <strong>{character.armorClass}</strong>
-            <small>КД без доспеха</small>
+            <strong>{combat.armorClass}</strong>
+            <small>Класс доспеха</small>
           </div>
         </div>
         <div className="chsheet-metric">
@@ -660,7 +662,7 @@ export function CharacterSheet({
           <SheetIcon name="boots" />
           <div>
             <strong>
-              {character.speed}
+              {combat.speed}
               <span
                 style={{ font: '11px "Segoe UI", sans-serif', marginLeft: 4 }}
               >
@@ -679,6 +681,47 @@ export function CharacterSheet({
         </div>
       </section>
 
+      <section
+        className="chsheet-panel chsheet-combat"
+        aria-label="Атаки и ресурсы"
+      >
+        <h2 className="chsheet-section-title">
+          Атаки · {combat.attacksPerAction} за действие Атака
+        </h2>
+        <div className="chsheet-combat-grid">
+          {combat.attacks.map((a, i) => (
+            <article key={i}>
+              <strong>{a.name}</strong>
+              <p>
+                <b>{a.hit}</b> · {a.damage}
+              </p>
+              <small>{a.details}</small>
+            </article>
+          ))}
+        </div>
+        <h2 className="chsheet-section-title">Ресурсы и восстановление</h2>
+        <div className="chsheet-combat-grid">
+          {combat.resources.map((r, i) => (
+            <article key={i}>
+              <strong>
+                {r.name} · {r.manual ? "по описанию" : (r.maximum ?? "∞")}
+              </strong>
+              <p>{r.recovery}</p>
+              <small>{r.details}</small>
+            </article>
+          ))}
+        </div>
+        {combat.effects.map((e, i) => (
+          <p key={i}>
+            <strong>{e.name}.</strong> {e.text}
+          </p>
+        ))}
+        {combat.warnings.map((w, i) => (
+          <p className="ch-warning" key={i}>
+            {w}
+          </p>
+        ))}
+      </section>
       <div className="chsheet-body">
         <aside className="chsheet-sidebar" aria-label="Спасброски и навыки">
           <section className="chsheet-panel">
@@ -1228,8 +1271,8 @@ export function CharacterSheet({
           {draft.edition === "2014" ? "SRD 5.1" : "SRD 5.2.1"}
           {draft.playerName.trim() ? ` · Игрок: ${draft.playerName}` : ""}
           <br />
-          КД указан без снаряжения. Хиты: максимум кости на 1-м уровне, затем
-          фиксированный прирост класса.
+          КД учитывает отмеченный доспех и щит. Хиты: максимум кости на 1-м
+          уровне, затем фиксированный прирост класса.
           <br />
           Материалы{" "}
           <a

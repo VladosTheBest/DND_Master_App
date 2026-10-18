@@ -27,7 +27,8 @@ func TestCharacterPortraitValidationAndPersistence(t *testing.T) {
 	d := characterTestDraft(t)
 	d.Portrait = portrait
 	d.Gold = 123
-	d.Equipment = []characterEquipmentItem{{Name: "Longsword", Type: "weapon", Quantity: 1}}
+	equipped, proficient := true, false
+	d.Equipment = []characterEquipmentItem{{Name: "Longsword", Type: "weapon", Quantity: 1, BaseItem: "longsword", Equipped: &equipped, TwoHanded: &equipped, MagicBonus: 2, AttackAbility: "cha", Proficient: &proficient}}
 	store, campaign := newCharacterTestStore(t)
 	invite, err := store.setCharacterInvite("owner", campaign.ID, characterInviteInput{Edition: "any", Level: 1})
 	if err != nil {
@@ -44,6 +45,27 @@ func TestCharacterPortraitValidationAndPersistence(t *testing.T) {
 	if got.Draft.Gold != 123 || got.Draft.Portrait != portrait || len(got.Draft.Equipment) != 1 || got.Draft.Equipment[0].Name != "Longsword" {
 		t.Fatal("portrait or inventory lost")
 	}
+	item := got.Draft.Equipment[0]
+	if item.BaseItem != "longsword" || item.Equipped == nil || !*item.Equipped || item.TwoHanded == nil || !*item.TwoHanded || item.Proficient == nil || *item.Proficient || item.MagicBonus != 2 || item.AttackAbility != "cha" {
+		t.Fatal("combat equipment settings lost")
+	}
+	for _, bonus := range []int{-1, 4} {
+		d.Equipment[0].MagicBonus = bonus
+		if _, err := validateAndDeriveCharacter(d); err == nil {
+			t.Fatal("invalid magic bonus accepted")
+		}
+	}
+	d.Equipment[0].MagicBonus = 0
+	d.Equipment[0].AttackAbility = "other"
+	if _, err := validateAndDeriveCharacter(d); err == nil {
+		t.Fatal("invalid attack ability accepted")
+	}
+	d.Equipment[0].AttackAbility = "cha"
+	d.Equipment[0].BaseItem = "unknown"
+	if _, err := validateAndDeriveCharacter(d); err == nil {
+		t.Fatal("unknown base item accepted")
+	}
+	d.Equipment[0].BaseItem = "longsword"
 	for _, gold := range []int{-1, 1000001} {
 		d.Gold = gold
 		if _, err := validateAndDeriveCharacter(d); err == nil {

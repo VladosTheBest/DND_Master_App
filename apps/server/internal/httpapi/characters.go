@@ -19,9 +19,15 @@ var errCharacterNotFound = errors.New("Ссылка или персонаж не
 var errCharacterInvalid = errors.New("Неверный персонаж")
 
 type characterEquipmentItem struct {
-	Name     string `json:"name"`
-	Quantity int    `json:"quantity"`
-	Type     string `json:"type"`
+	BaseItem      string `json:"baseItem,omitempty"`
+	Equipped      *bool  `json:"equipped,omitempty"`
+	TwoHanded     *bool  `json:"twoHanded,omitempty"`
+	MagicBonus    int    `json:"magicBonus,omitempty"`
+	AttackAbility string `json:"attackAbility,omitempty"`
+	Proficient    *bool  `json:"proficient,omitempty"`
+	Name          string `json:"name"`
+	Quantity      int    `json:"quantity"`
+	Type          string `json:"type"`
 }
 type characterDraft struct {
 	Gold           int                      `json:"gold,omitempty"`

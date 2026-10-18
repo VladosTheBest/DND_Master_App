@@ -1,3 +1,4 @@
+import { isEquipmentCombatSettings } from "./combat-equipment";
 import { CharacterEquipment } from "./CharacterEquipment";
 import { CharacterPortrait } from "./CharacterPortrait";
 import { spellMetadata } from "./spell-metadata";
@@ -71,6 +72,7 @@ export function isUsableDraft(value: unknown): value is CharacterDraft {
           typeof v.name !== "string" ||
           v.name.length > 120 ||
           !["weapon", "equipment", "loot"].includes(v.type) ||
+          !isEquipmentCombatSettings(v) ||
           !Number.isInteger(v.quantity) ||
           v.quantity < 1 ||
           v.quantity > 999,

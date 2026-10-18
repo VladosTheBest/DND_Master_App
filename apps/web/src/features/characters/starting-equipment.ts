@@ -370,6 +370,15 @@ export const EQUIPMENT_NAMES = Array.from(
 // Canonical compendium aliases remain metadata; visible inventory/PDF names stay Russian.
 export const equipmentEnglish: Record<string, string> = {
   ...weaponEnglish,
+  "Стёганый доспех": "Padded Armor",
+  "Шкурный доспех": "Hide Armor",
+  Кираса: "Breastplate",
+  Полулаты: "Half Plate Armor",
+  "Колечный доспех": "Ring Mail",
+  "Наборный доспех": "Splint Armor",
+  Латы: "Plate Armor",
+  Мушкет: "Musket",
+  Пистолет: "Pistol",
   "Кожаный доспех": "Leather Armor",
   Кольчуга: "Chain Mail",
   "Кольчужная рубаха": "Chain Shirt",

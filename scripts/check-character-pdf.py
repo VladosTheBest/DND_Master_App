@@ -9,8 +9,11 @@ for filename in paths:
     text = "\n".join(page.get_text() for page in document)
     assert "Справочник состояний" not in text
     assert "English:" not in text
+    if "2014" in Path(filename).name: assert "2024" not in text
+    if "2024" in Path(filename).name: assert "2014" not in text
     assert "**" not in text
-    assert "Религия" in document[1].get_text() and "Выживание" in document[1].get_text(), "Skills must fit on the combat page"
+    assert any("Религия" in page.get_text() and "Выживание" in page.get_text() for page in document), "Skills must stay together"
+    assert "Ресурсы и восстановление" in text and "Безоружный удар" in text
     bold_narrative = []
     for page in document:
         for block in page.get_text("dict")["blocks"]:

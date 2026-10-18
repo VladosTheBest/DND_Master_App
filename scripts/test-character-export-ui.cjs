@@ -111,6 +111,14 @@ const { chromium } = require(
       .click();
     await page.getByRole("textbox", {name:"Предмет",exact:true}).fill("Длинный меч");
     await page.getByRole("button", {name:"Добавить предмет",exact:true}).click();
+    await page.getByLabel("Базовый предмет: Longsword", {exact:true}).selectOption("longsword");
+    await page.getByLabel("Магический бонус: Longsword", {exact:true}).selectOption("2");
+    await page.getByLabel("Владение: Longsword", {exact:true}).selectOption("true");
+    await page.getByLabel("Характеристика атаки: Longsword", {exact:true}).selectOption("cha");
+    const swordRow = page.locator(".ch-equipment-row").filter({has:page.getByLabel("Базовый предмет: Longsword", {exact:true})});
+    await swordRow.getByRole("checkbox",{name:"Надето / в руках",exact:true}).check();
+    await swordRow.getByRole("checkbox",{name:"Хват двумя руками",exact:true}).check();
+    assert(await page.getByRole("region",{name:"Атаки и ресурсы"}).isVisible());
     await page.locator("input[type=file]").setInputFiles({
       name: "portrait.jpg",
       mimeType: "image/jpeg",
@@ -165,6 +173,8 @@ const { chromium } = require(
         (i) => i.type === "weapon" && i.name === "Longsword",
       ),
     );
+    const sword=result.actor.items.find(i=>i.name === "Longsword");
+    assert.equal(sword.system.equipped,true);assert.equal(sword.system.magicalBonus,2);
     assert(result.macro.command.includes("Actor.create(data)"));
     await fs.writeFile(
       "tmp/character-export-qa/character-book.pdf",
@@ -277,6 +287,8 @@ const { chromium } = require(
       execution.items.find((i) => i.name === "Longsword").system.activities
         .attack,
     );
+    assert.equal(execution.items.find(i=>i.name === "Longsword").system.magicalBonus,2);
+    assert.equal(execution.items.find(i=>i.name === "Longsword").system.equipped,true);
     assert(execution.items.find(i => i.name === "Длинный меч").system.activities.attack, "Russian standard equipment resolves through canonical aliases");
     await page.evaluate(() => {
       Object.defineProperty(navigator, "canShare", {

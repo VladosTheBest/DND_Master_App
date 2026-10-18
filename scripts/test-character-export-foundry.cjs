@@ -75,6 +75,7 @@ const { chromium } = require(
               (i) => i.system.activities.size > 0,
             ).length,
             weapons: weapons.length,
+            configuredWeapons: weapons.filter(i=>i.flags["shadow-edge"]?.attackAbility).map(i=>({name:i.name,magic:i.system.magicalBonus,equipped:i.system.equipped,proficient:i.system.proficiencyMultiplier,abilities:[...i.system.activities.values()].filter(a=>a.type === "attack").map(a=>a.attack.ability)})),
             weaponProficiencies: weapons.map(i => i.system.proficiencyMultiplier),
               weaponActivities: weapons.reduce(
               (n, i) => n + i.system.activities.size,
@@ -96,6 +97,9 @@ const { chromium } = require(
       if (row.kind === "macro") {
         assert(row.classLevels > 0);
         if (row.spells) assert(row.spellsWithActivities > 0);
+        for(const weapon of row.configuredWeapons || []) {
+          assert.equal(Number(weapon.magic),2); assert.equal(weapon.equipped,true); assert.equal(weapon.proficient,1); assert(weapon.abilities.length && weapon.abilities.every(a=>a === "cha"));
+        }
         if (row.weapons) {
           assert(row.weaponActivities > 0);
           assert(row.weaponProficiencies.every(p => p === 1));

@@ -1,3 +1,4 @@
+import type { EquipmentCombatSettings } from "./combat-equipment";
 import { ARTIFICER_PREPARED_2024, ARTISAN_TOOL_OPTIONS } from "./artificer-rules";
 import { BEAST_FORMS_2024 } from "./beast-forms-2024";
 import { BEAST_FORMS_2014 } from "./beast-forms-2014";
@@ -69,7 +70,7 @@ export interface LevelChoice {
 export interface CharacterDraft {
   portrait?: string;
   gold?: number;
-  equipment?: { name: string; quantity: number; type: "weapon" | "equipment" | "loot" }[];
+  equipment?: ({ name: string; quantity: number; type: "weapon" | "equipment" | "loot" } & EquipmentCombatSettings)[];
   /** Current 2024 Circle of the Land choice after the latest Long Rest. */
   landTerrain?: string;
   name: string;
@@ -94,6 +95,7 @@ export interface ValidationIssue {
   code: string;
 }
 export interface FeatureGain {
+  ruleName?: string;
   id: string;
   name: string;
   description: string;
@@ -767,6 +769,7 @@ export function getLevelOptions(
           ...f,
           ...(draft.classId === "druid" && f.name === "Wild Companion" ? { spellReferenceIds: ["find-familiar-2024"] } : {}),
           id: `${draft.classId}-${n}-${i}`,
+          ruleName: f.name,
           name: FEATURE_NAMES[f.name] ?? featureTitle(f.name),
           description: featureDescription(
             draft.edition,
@@ -786,6 +789,7 @@ export function getLevelOptions(
         .filter(Boolean)
         .map((name, i) => ({
           id: `${draft.classId}-${n}-${i}`,
+          ruleName: name,
           name: FEATURE_NAMES[name] ?? name,
           description: featureDescription(
             draft.edition,
@@ -3044,7 +3048,7 @@ export function deriveCharacter(
   const features = Array.from(
     { length: n },
     (_, i) => getLevelOptions(draft, i + 1).features,
-  ).flat();
+  ).flat().map(f => f.ruleName ? {...f, description: featureDescription(draft.edition, draft.classId, f.ruleName, n)} : f);
   for (const step of draft.levels.filter((v) => v.level <= n))
     for (const group of getFeatureChoices(draft, step.level))
       for (const id of step.featureChoices?.[group.id] ?? []) {
@@ -3081,7 +3085,7 @@ export function deriveCharacter(
             id: `choice-${step.level}-${group.id}-${id}`,
             name: option.name,
             description:
-              SPELLS.find((s) => s.id === option.id)?.summary ||
+              SPELLS.find((s) => s.id === option.id)?.descriptionRu ||
               companionRu + option.description,
             originalDescription: companion ? companionEn + (option.originalDescription ?? "") : option.originalDescription,
             spellReferenceIds: option.spellReferenceIds,

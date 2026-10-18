@@ -1,3 +1,8 @@
+import {
+  combatEquipmentCatalog,
+  resolveCombatEquipment,
+  type EquipmentCombatSettings,
+} from "./combat-equipment";
 import { useState } from "react";
 import type { CharacterDraft } from "./rules";
 import {
@@ -11,7 +16,7 @@ import {
   equipmentItems,
   EQUIPMENT_NAMES,
 } from "./starting-equipment";
-export interface CharacterEquipmentItem {
+export interface CharacterEquipmentItem extends EquipmentCombatSettings {
   name: string;
   quantity: number;
   type: "weapon" | "equipment" | "loot";
@@ -23,6 +28,27 @@ export function CharacterEquipment({
   draft: CharacterDraft;
   onChange: (equipment: CharacterEquipmentItem[], gold?: number) => void;
 }) {
+  const updateCombat = (index: number, patch: EquipmentCombatSettings) =>
+    onChange(
+      (draft.equipment || []).map((item, i) =>
+        i === index
+          ? {
+              ...item,
+              ...patch,
+              ...(patch.baseItem
+                ? {
+                    type:
+                      combatEquipmentCatalog(draft.edition).find(
+                        (v) => v.id === patch.baseItem,
+                      )?.kind === "weapon"
+                        ? ("weapon" as const)
+                        : ("equipment" as const),
+                  }
+                : {}),
+            }
+          : item,
+      ),
+    );
   const [name, setName] = useState("");
   const [type, setType] = useState<CharacterEquipmentItem["type"]>("weapon");
   const [startMode, setStartMode] = useState("package");
@@ -95,7 +121,9 @@ export function CharacterEquipment({
       <h2>Снаряжение и атаки</h2>
       <p>
         Выберите стартовый набор или золото, затем дополните инвентарь. Доспехи
-        в этом списке не меняют КД автоматически.
+        и щит влияют на КД, когда отмечены как надетые. Для авторского предмета
+        выберите базовый тип. Характеристику и владение можно уточнить для
+        особенностей подкласса.
       </p>
       <details className="ch-equipment-start">
         <summary>Стартовое снаряжение · {draft.edition}</summary>
@@ -348,6 +376,119 @@ export function CharacterEquipment({
       {(draft.equipment || []).map((item, i) => (
         <div key={i} className="ch-equipment-row">
           <span>{item.name} × </span>
+          <label>
+            Базовый предмет
+            <select
+              aria-label={`Базовый предмет: ${item.name}`}
+              value={resolveCombatEquipment(item, draft.edition)?.id || ""}
+              onChange={(e) =>
+                updateCombat(i, { baseItem: e.target.value || undefined })
+              }
+            >
+              <option value="">Авторский / без расчёта</option>
+              {combatEquipmentCatalog(draft.edition).map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {resolveCombatEquipment(item, draft.edition) && (
+            <>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={item.equipped ?? false}
+                  onChange={(e) =>
+                    updateCombat(i, { equipped: e.target.checked })
+                  }
+                />
+                Надето / в руках
+              </label>
+              <label>
+                Магический бонус{" "}
+                <select
+                  aria-label={`Магический бонус: ${item.name}`}
+                  value={item.magicBonus || 0}
+                  onChange={(e) =>
+                    updateCombat(i, { magicBonus: Number(e.target.value) })
+                  }
+                >
+                  {[0, 1, 2, 3].map((v) => (
+                    <option key={v} value={v}>
+                      +{v}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {resolveCombatEquipment(item, draft.edition)?.versatile && (
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={item.twoHanded ?? false}
+                    onChange={(e) =>
+                      updateCombat(i, { twoHanded: e.target.checked })
+                    }
+                  />
+                  Хват двумя руками
+                </label>
+              )}
+              <label>
+                Владение{" "}
+                <select
+                  aria-label={`Владение: ${item.name}`}
+                  value={
+                    item.proficient === undefined
+                      ? "auto"
+                      : String(item.proficient)
+                  }
+                  onChange={(e) =>
+                    updateCombat(i, {
+                      proficient:
+                        e.target.value === "auto"
+                          ? undefined
+                          : e.target.value === "true",
+                    })
+                  }
+                >
+                  <option value="auto">По классу</option>
+                  <option value="true">Есть</option>
+                  <option value="false">Нет</option>
+                </select>
+              </label>
+              {resolveCombatEquipment(item, draft.edition)?.kind ===
+                "weapon" && (
+                <label>
+                  Характеристика атаки{" "}
+                  <select
+                    aria-label={`Характеристика атаки: ${item.name}`}
+                    value={item.attackAbility || ""}
+                    onChange={(e) =>
+                      updateCombat(i, {
+                        attackAbility: (e.target.value ||
+                          undefined) as EquipmentCombatSettings["attackAbility"],
+                      })
+                    }
+                  >
+                    <option value="">По оружию</option>
+                    {Object.entries({
+                      str: "Сила",
+                      dex: "Ловкость",
+                      con: "Телосложение",
+                      int: "Интеллект",
+                      wis: "Мудрость",
+                      cha: "Харизма",
+                    }).map(([id, label]) => (
+                      <option key={id} value={id}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </>
+          )}
+
           <input
             aria-label={`Количество: ${item.name}`}
             type="number"

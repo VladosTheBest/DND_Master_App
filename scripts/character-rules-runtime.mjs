@@ -70,6 +70,10 @@ export function loadCharacterRules(includeTests = false) {
     "choice-help",
     "feature-reference",
     "feature-help",
+    "feature-help-editions",
+    "character-combat",
+    "combat-equipment",
+    "starting-equipment",
     "ability-controls",
     "rules-data",
     "rules",
@@ -91,6 +95,8 @@ export function loadCharacterRules(includeTests = false) {
   const require = createRequire(import.meta.url);
   return {
     rules: require(path.join(directory, "rules.js")),
+    combat: require(path.join(directory, "character-combat.js")),
+    equipment: require(path.join(directory, "combat-equipment.js")),
     runTests: () => require(path.join(directory, "rules.test.js")),
     cleanup: () => {
       const resolved = fs.realpathSync(directory);

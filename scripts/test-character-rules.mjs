@@ -17,3 +17,9 @@ const snapshotCheck = spawnSync(
 );
 if (snapshotCheck.error) throw snapshotCheck.error;
 if (snapshotCheck.status !== 0) process.exitCode = snapshotCheck.status ?? 1;
+
+if (!process.exitCode) {
+  const combat = spawnSync(process.execPath, [fileURLToPath(new URL("./test-character-combat.mjs", import.meta.url))], {stdio:"inherit"});
+  if(combat.error) throw combat.error;
+  if(combat.status !== 0) process.exitCode = combat.status ?? 1;
+}
