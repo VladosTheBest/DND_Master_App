@@ -52,6 +52,7 @@ const pointCost = (value: number) =>
 export function isUsableDraft(value: unknown): value is CharacterDraft {
   if (!value || typeof value !== "object") return false;
   const draft = value as CharacterDraft;
+  if (draft.gold !== undefined && (!Number.isInteger(draft.gold) || draft.gold < 0 || draft.gold > 1000000)) return false;
   if (!isPersonality(draft.personality)) return false;
   if (
     draft.portrait !== undefined &&
@@ -1734,8 +1735,8 @@ export function CharacterBuilder({
               </label>
               <CharacterEquipment
                 draft={draft}
-                onChange={(equipment) =>
-                  setDraft((value) => ({ ...value, equipment }))
+                onChange={(equipment, gold = draft.gold) =>
+                  setDraft((value) => ({ ...value, equipment, gold }))
                 }
               />
               <CharacterPortrait

@@ -26,6 +26,7 @@ func TestCharacterPortraitValidationAndPersistence(t *testing.T) {
 	}
 	d := characterTestDraft(t)
 	d.Portrait = portrait
+	d.Gold = 123
 	d.Equipment = []characterEquipmentItem{{Name: "Longsword", Type: "weapon", Quantity: 1}}
 	store, campaign := newCharacterTestStore(t)
 	invite, err := store.setCharacterInvite("owner", campaign.ID, characterInviteInput{Edition: "any", Level: 1})
@@ -40,8 +41,18 @@ func TestCharacterPortraitValidationAndPersistence(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.Draft.Portrait != portrait || len(got.Draft.Equipment) != 1 || got.Draft.Equipment[0].Name != "Longsword" {
+	if got.Draft.Gold != 123 || got.Draft.Portrait != portrait || len(got.Draft.Equipment) != 1 || got.Draft.Equipment[0].Name != "Longsword" {
 		t.Fatal("portrait or inventory lost")
+	}
+	for _, gold := range []int{-1, 1000001} {
+		d.Gold = gold
+		if _, err := validateAndDeriveCharacter(d); err == nil {
+			t.Fatal("invalid gold accepted")
+		}
+	}
+	d.Gold = 0
+	if _, err := validateAndDeriveCharacter(d); err != nil {
+		t.Fatal(err)
 	}
 	d.Equipment[0].Quantity = -1
 	if _, err := validateAndDeriveCharacter(d); err == nil {

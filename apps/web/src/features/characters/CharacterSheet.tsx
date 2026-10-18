@@ -1,7 +1,6 @@
 import { downloadFoundryCharacter } from "./character-foundry";
 import { spellMetadata } from "./spell-metadata";
 import { RandomEffectTable } from "./RandomEffectTable";
-import { RulesLibrary } from "./RulesLibrary";
 import { FeatureReferences } from "./RuleReference";
 import {
   useEffect,
@@ -788,7 +787,6 @@ export function CharacterSheet({
             hidden={activePane !== "features"}
             aria-label="Особенности персонажа"
           >
-            <RulesLibrary edition={draft.edition} />
             <div className="chsheet-pane-heading">
               <h2>То, что делает вас героем</h2>
               <span>{character.class?.name}</span>

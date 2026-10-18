@@ -7,6 +7,12 @@ SRD baseline verified 7 September 2026; selected extensions checked 29 September
 - [Official SRD download and version page](https://www.dndbeyond.com/srd).
 - [2014 Basic Rules: Personality and Background](https://www.dndbeyond.com/sources/dnd/basic-rules-2014/personality-and-background): factual skill pairs for Criminal, Folk Hero, Noble, Sage and Soldier. Descriptive Russian summaries in this catalogue are original, not copied background prose. Acolyte and custom-background creation come from SRD 5.1.
 
+## Starting equipment
+
+`starting-equipment.ts` keeps 2014 and 2024 packages separate. SRD 5.1 supplies the twelve base classes' starting equipment and Acolyte; SRD 5.2.1 pp. 28–82 and 83 supply twelve classes and four backgrounds, including separate class/background gold alternatives. The [2014 Basic Rules equipment chapter](https://www.dndbeyond.com/sources/dnd/basic-rules-2014/equipment) verifies that gold replaces both class and background packages; its public wealth table supplies rolls for Cleric, Fighter, Rogue and Wizard. Other 2014 gold amounts are entered from the table used by the group or the GM. The Basic Rules background chapter above supplies the five other 2014 packages. Checked 18 October 2026.
+
+Package choices include common weapon/tool/instrument alternatives; custom inventory remains available for other choices, Artificer, custom backgrounds and extra higher-level gear. Cleric 2014's warhammer/chain-mail choices require the relevant proficiency; the UI explains this prerequisite but does not enforce it. Packs stay inventory bundles; contents, purchases, spending, equipping and AC are not automated. Gold is a whole-number balance, also exported to Foundry. No automatic starting gear is granted to existing characters.
+
 ## Attribution
 
 This work includes material taken from the System Reference Document 5.1 (“SRD 5.1”) by Wizards of the Coast LLC and available at https://dnd.wizards.com/resources/systems-reference-document. The SRD 5.1 is licensed under the Creative Commons Attribution 4.0 International License available at https://creativecommons.org/licenses/by/4.0/legalcode.
@@ -17,7 +23,7 @@ Changes: machine-readable class and spell metadata, original Russian summaries/d
 
 The creator also provides original Russian explanations for every spell in its catalogue, all class progression features, skills, subclass choices, weapon masteries, metamagic and other selectable options. These explanations describe use and key limitations; they are not a complete Russian translation of the SRDs. Edition text is available in the same spell/feature cards, without leaving the application. `feature-reference.ts` contains publisher class-feature excerpts extracted from the licensed PDFs by `scripts/extract-character-feature-reference.py` (PyMuPDF required); layout tables in these excerpts are reference material, not the calculation engine.
 
-PDF export creates a separate, searchable document with the bundled DejaVu Sans font, rather than relying on the current tab's print dialog. The font's distribution license is included in `apps/web/public/fonts/LICENSE-DejaVu.txt`. Generation happens locally in the browser; character data is not sent to a PDF service. Printing remains a separate action. The export includes every selected spell regardless of the current sheet tab or search filter.
+PDF export creates a separate, searchable document with the bundled DejaVu Sans font, rather than relying on the current tab's print dialog. The font's distribution license is included in `apps/web/public/fonts/LICENSE-DejaVu.txt`. Generation happens locally in the browser; character data is not sent to a PDF service. Printing remains a separate action. The export includes every selected spell regardless of the current sheet tab or search filter. Russian PDF output omits parallel English rules and the general conditions appendix. Normal and bold DejaVu Sans support safe Markdown `**bold**` and basic `<b>/<strong>/<br>` formatting; narrative cards wrap and paginate without executing HTML.
 
 ## What the generator automates
 

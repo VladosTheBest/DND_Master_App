@@ -11,6 +11,26 @@ import {
 import type { CharacterDraft } from "./rules";
 import "./characters.css";
 
+const localCharacterPrefix = "shadow-edge-finished-v1:";
+function readLocalCharacters(): { id: string; draft: CharacterDraft }[] {
+  const result: { id: string; draft: CharacterDraft }[] = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!key?.startsWith(localCharacterPrefix)) continue;
+      try {
+        const draft = JSON.parse(localStorage.getItem(key) || "null");
+        if (isUsableDraft(draft))
+          result.push({ id: key.slice(localCharacterPrefix.length), draft });
+      } catch {
+        /* Skip one corrupt record, preserving the remaining library. */
+      }
+    }
+  } catch {
+    /* Browser storage can be disabled. */
+  }
+  return result;
+}
 export default function CharacterPublicApp({ hash }: { hash: string }) {
   const route = hash.slice(1).split("/");
   const mode = route[1] || "new";
@@ -24,6 +44,20 @@ export default function CharacterPublicApp({ hash }: { hash: string }) {
   const [invite, setInvite] = useState<PublicCharacterInvite>();
   const [saved, setSaved] = useState<SavedCharacter | null>(null);
   const [localSheet, setLocalSheet] = useState<CharacterDraft | null>(null);
+  const [legacyDraft] = useState<CharacterDraft | null>(() => {
+    try {
+      const record = JSON.parse(
+        localStorage.getItem("shadow-edge-character-v1:standalone") || "null",
+      );
+      return isUsableDraft(record?.draft) ? record.draft : null;
+    } catch {
+      return null;
+    }
+  });
+  const [localCharacters, setLocalCharacters] = useState(readLocalCharacters);
+  const [localId, setLocalId] = useState<string | null>(null);
+  const [builderKey, setBuilderKey] = useState(0);
+  const importInput = useRef<HTMLInputElement>(null);
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(mode !== "new");
   const [busy, setBusy] = useState(false);
@@ -115,13 +149,59 @@ export default function CharacterPublicApp({ hash }: { hash: string }) {
       } else {
         setLocalSheet(draft);
         setEditing(false);
-        setNotice("Персонаж создан. Скачайте лист или распечатайте его.");
+        saveLocal(draft);
       }
     } catch (err) {
       setError((err as Error).message);
     } finally {
       savingRef.current = false;
       setBusy(false);
+    }
+  }
+  function saveLocal(
+    draft: CharacterDraft,
+    id = localId ||
+      Array.from(crypto.getRandomValues(new Uint32Array(4)), (n) =>
+        n.toString(16).padStart(8, "0"),
+      ).join(""),
+  ) {
+    setLocalId(id);
+    try {
+      localStorage.setItem(localCharacterPrefix + id, JSON.stringify(draft));
+      setLocalCharacters(readLocalCharacters());
+      setNotice(
+        "Персонаж сохранён в этом браузере. PDF и экспорт доступны при повторном открытии. Скачайте JSON для резервной копии.",
+      );
+    } catch {
+      setNotice(
+        "Не удалось сохранить персонажа в браузере: хранилище недоступно или заполнено. Скачайте JSON, чтобы не потерять персонажа.",
+      );
+    }
+  }
+  async function openCharacterFile(file: File) {
+    try {
+      if (file.size > 10 * 1024 * 1024)
+        throw new Error("Файл слишком большой: максимум 10 МБ.");
+      const data = JSON.parse(await file.text());
+      const draft =
+        data.format === "shadow-edge-character"
+          ? data.character
+          : (data.draft ?? data);
+      if (!isUsableDraft(draft))
+        throw new Error(
+          "Нужен JSON персонажа, скачанный из мастерской. Из PDF восстановить все выборы нельзя.",
+        );
+      setLocalSheet(draft);
+      setEditing(false);
+      setError("");
+      saveLocal(
+        draft,
+        Array.from(crypto.getRandomValues(new Uint32Array(4)), (n) =>
+          n.toString(16).padStart(8, "0"),
+        ).join(""),
+      );
+    } catch (err) {
+      setError((err as Error).message);
     }
   }
   const sheet = saved?.draft || localSheet;
@@ -140,6 +220,76 @@ export default function CharacterPublicApp({ hash }: { hash: string }) {
           Кабинет мастера <span aria-hidden="true">↗</span>
         </a>
       </header>
+      {mode === "new" && !invalidRoute && (
+        <section className="ch-local-library">
+          <h2>Мои готовые персонажи</h2>
+          <p>
+            Откройте сохранённого героя, чтобы скачать PDF, поделиться им или
+            экспортировать в Foundry. Этот список хранится в текущем браузере.
+          </p>
+          <div className="ch-inline-actions">
+            {legacyDraft && localCharacters.length === 0 && (
+              <button
+                type="button"
+                className="chsheet-button"
+                onClick={() => {
+                  setLocalSheet(legacyDraft);
+                  setEditing(false);
+                  saveLocal(
+                    legacyDraft,
+                    Array.from(
+                      crypto.getRandomValues(new Uint32Array(4)),
+                      (n) => n.toString(16).padStart(8, "0"),
+                    ).join(""),
+                  );
+                }}
+              >
+                Открыть прежний локальный лист
+              </button>
+            )}
+            {localCharacters.map((record) => (
+              <button
+                type="button"
+                className="chsheet-button"
+                key={record.id}
+                onClick={() => {
+                  setLocalId(record.id);
+                  setLocalSheet(record.draft);
+                  setEditing(false);
+                  setNotice("");
+                  setError("");
+                }}
+              >
+                {record.draft.name || "Персонаж"} · {record.draft.targetLevel}{" "}
+                ур.
+              </button>
+            ))}
+            <button
+              type="button"
+              className="chsheet-button"
+              onClick={() => importInput.current?.click()}
+            >
+              Открыть персонажа из JSON
+            </button>
+            <input
+              ref={importInput}
+              hidden
+              type="file"
+              accept=".json,application/json"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (file) void openCharacterFile(file);
+              }}
+            />
+          </div>
+          {error && !editing && (
+            <p role="alert" className="ch-error">
+              {error}
+            </p>
+          )}
+        </section>
+      )}
       {invalidRoute ? (
         <div className="ch-status-page">
           <DiceMark />
@@ -236,6 +386,14 @@ export default function CharacterPublicApp({ hash }: { hash: string }) {
               if (mode !== "new") window.location.hash = "characters";
               else {
                 setLocalSheet(null);
+                setLocalId(null);
+                setEditing(false);
+                try {
+                  localStorage.removeItem(storageKey);
+                } catch {
+                  /* Optional storage. */
+                }
+                setBuilderKey((value) => value + 1);
                 setNotice("");
               }
             }}
@@ -244,6 +402,7 @@ export default function CharacterPublicApp({ hash }: { hash: string }) {
         </div>
       ) : (
         <CharacterBuilder
+          key={builderKey}
           initialDraft={editing && sheet ? sheet : undefined}
           invite={invite}
           storageKey={storageKey}

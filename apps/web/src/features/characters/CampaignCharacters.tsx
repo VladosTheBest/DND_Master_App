@@ -278,7 +278,7 @@ export function CampaignCharacters({
                   {sheet.draft.targetLevel} ур. · {sheet.draft.edition}
                 </small>
               </span>
-              <span aria-hidden="true">↗</span>
+              <span>Открыть · PDF · Foundry ↗</span>
             </button>
           ))}
         </div>

@@ -1961,3 +1961,12 @@
     padding: 0;
   }
 }
+
+.ch-equipment-start, .ch-equipment-preview, .ch-local-library { background: var(--ch-panel, #211b2d); border: 1px solid #59436e; border-radius: 14px; padding: 20px; margin: 16px 0; }
+.ch-equipment-start summary { cursor: pointer; color: #e7c27e; font-weight: 700; }
+.ch-equipment-preview ul { display: grid; grid-template-columns: repeat(auto-fit,minmax(210px,1fr)); gap: 8px 24px; padding-left: 20px; }
+.ch-equipment-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #59436e; flex-wrap: wrap; }
+.ch-equipment-row > span { flex: 1; min-width: 160px; }
+.ch-equipment-row input { width: 80px; }
+.ch-local-library { max-width: 1180px; margin: 24px auto; }
+.ch-local-library p { color: #bbb0c8; line-height: 1.6; }

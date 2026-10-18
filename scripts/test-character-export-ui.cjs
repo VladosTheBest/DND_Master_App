@@ -36,13 +36,14 @@ const { chromium } = require(
       "Наследник древней клятвы. " +
       "Герой ищет своё место в мире. ".repeat(55),
     appearance: "Тёмный плащ, серебряные доспехи и шрам над левым глазом.",
-    ideals: "Верность клятве",
+    ideals:
+      "**Верность клятве.** Я храню данное слово.\n\n**Сила обязывает.** Я защищаю друзей.",
     bonds: "Друзья",
     flaws: "Гордыня",
   };
   const bundle = await build({
     stdin: {
-      contents: `import React from 'react';import{createRoot}from'react-dom/client';import{CharacterSheet}from'./apps/web/src/features/characters/CharacterSheet';import{CharacterPortrait}from'./apps/web/src/features/characters/CharacterPortrait';import{CharacterEquipment}from'./apps/web/src/features/characters/CharacterEquipment';import{createCharacterPdf,characterPdfFile}from'./apps/web/src/features/characters/character-pdf';import{characterFoundryActor,characterFoundryMacro}from'./apps/web/src/features/characters/character-foundry';import'./apps/web/src/features/characters/characters.css';window.exports={createCharacterPdf,characterPdfFile,characterFoundryActor,characterFoundryMacro};function Test(){const[d,setD]=React.useState(${JSON.stringify(draft)});window.draft=d;return <main className="ch-public" style={{padding:24}}><CharacterEquipment draft={d} onChange={equipment=>setD({...d,equipment})}/><CharacterPortrait draft={d} onChange={portrait=>setD({...d,portrait})}/><CharacterSheet draft={d}/></main>}createRoot(document.getElementById('root')).render(<Test/>);`,
+      contents: `import React from 'react';import{createRoot}from'react-dom/client';import CharacterPublicApp from './apps/web/src/features/characters/CharacterPublicApp';import{CharacterSheet}from'./apps/web/src/features/characters/CharacterSheet';import{CharacterPortrait}from'./apps/web/src/features/characters/CharacterPortrait';import{CharacterEquipment}from'./apps/web/src/features/characters/CharacterEquipment';import{createCharacterPdf,characterPdfFile}from'./apps/web/src/features/characters/character-pdf';import{characterFoundryActor,characterFoundryMacro}from'./apps/web/src/features/characters/character-foundry';import'./apps/web/src/features/characters/characters.css';window.exports={createCharacterPdf,characterPdfFile,characterFoundryActor,characterFoundryMacro};function Test(){const[d,setD]=React.useState(${JSON.stringify(draft)});window.draft=d;window.setTestDraft=setD;return <main className="ch-public" style={{padding:24}}><CharacterEquipment draft={d} onChange={(equipment,gold=d.gold)=>setD({...d,equipment,gold})}/><CharacterPortrait draft={d} onChange={portrait=>setD({...d,portrait})}/><CharacterSheet draft={d}/></main>}const root=createRoot(document.getElementById('root'));window.renderPublic=()=>root.render(<CharacterPublicApp hash='#characters'/>);root.render(<Test/>);`,
       resolveDir: process.cwd(),
       loader: "tsx",
     },
@@ -69,7 +70,7 @@ const { chromium } = require(
       .toBuffer();
     let generationRequests = 0;
     let generationDescription = "";
-    await page.route("http://character.test/**", async (route) => {
+    await page.route("https://character.test/**", async (route) => {
       const u = new URL(route.request().url());
       if (u.pathname === "/api/characters/portrait") {
         generationRequests++;
@@ -82,9 +83,9 @@ const { chromium } = require(
           },
         });
       }
-      if (u.pathname === "/fonts/DejaVuSans.ttf")
+      if (/^\/fonts\/DejaVuSans(?:-Bold)?\.ttf$/.test(u.pathname))
         return route.fulfill({
-          body: await fs.readFile("apps/web/public/fonts/DejaVuSans.ttf"),
+          body: await fs.readFile("apps/web/public" + u.pathname),
           contentType: "font/ttf",
         });
       if (u.pathname === "/")
@@ -101,20 +102,20 @@ const { chromium } = require(
         ).text,
       });
     });
-    await page.goto("http://character.test/");
+    await page.goto("https://character.test/");
     await page
       .getByRole("textbox", { name: "Предмет", exact: true })
       .fill("Longsword");
     await page
       .getByRole("button", { name: "Добавить предмет", exact: true })
       .click();
-    await page
-      .locator("input[type=file]")
-      .setInputFiles({
-        name: "portrait.jpg",
-        mimeType: "image/jpeg",
-        buffer: portrait,
-      });
+    await page.getByRole("textbox", {name:"Предмет",exact:true}).fill("Длинный меч");
+    await page.getByRole("button", {name:"Добавить предмет",exact:true}).click();
+    await page.locator("input[type=file]").setInputFiles({
+      name: "portrait.jpg",
+      mimeType: "image/jpeg",
+      buffer: portrait,
+    });
     await page.waitForFunction(() =>
       window.draft?.portrait?.startsWith("data:image/jpeg;base64,"),
     );
@@ -133,17 +134,27 @@ const { chromium } = require(
     const font = (
       await fs.readFile("apps/web/public/fonts/DejaVuSans.ttf")
     ).toString("base64");
-    const result = await page.evaluate((font) => {
-      const pdf = window.exports.createCharacterPdf(window.draft, font);
-      const actor = window.exports.characterFoundryActor(window.draft);
-      const macro = window.exports.characterFoundryMacro(window.draft);
-      return {
-        pdf: pdf.output("datauristring").split(",")[1],
-        pages: pdf.getNumberOfPages(),
-        actor,
-        macro,
-      };
-    }, font);
+    const boldFont = (
+      await fs.readFile("apps/web/public/fonts/DejaVuSans-Bold.ttf")
+    ).toString("base64");
+    const result = await page.evaluate(
+      ({ font, boldFont }) => {
+        const pdf = window.exports.createCharacterPdf(
+          window.draft,
+          font,
+          boldFont,
+        );
+        const actor = window.exports.characterFoundryActor(window.draft);
+        const macro = window.exports.characterFoundryMacro(window.draft);
+        return {
+          pdf: pdf.output("datauristring").split(",")[1],
+          pages: pdf.getNumberOfPages(),
+          actor,
+          macro,
+        };
+      },
+      { font, boldFont },
+    );
     assert(result.pages >= 4);
     assert.equal(
       result.actor.system.attributes.hp.value,
@@ -266,6 +277,7 @@ const { chromium } = require(
       execution.items.find((i) => i.name === "Longsword").system.activities
         .attack,
     );
+    assert(execution.items.find(i => i.name === "Длинный меч").system.activities.attack, "Russian standard equipment resolves through canonical aliases");
     await page.evaluate(() => {
       Object.defineProperty(navigator, "canShare", {
         configurable: true,
@@ -312,6 +324,161 @@ const { chromium } = require(
       path: "tmp/character-export-qa/mobile.png",
       fullPage: true,
     });
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page
+      .locator("summary")
+      .filter({ hasText: "Стартовое снаряжение" })
+      .click();
+    await page
+      .getByRole("button", {
+        name: "Применить стартовое снаряжение",
+        exact: true,
+      })
+      .click();
+    assert(
+      await page
+        .getByRole("button", { name: "Подтвердить замену инвентаря" })
+        .isVisible(),
+    );
+    await page.getByRole("button", { name: "Отмена замены" }).click();
+    assert.equal(
+      await page.evaluate(() => window.draft.equipment[0].name),
+      "Longsword",
+    );
+    await page
+      .getByRole("button", {
+        name: "Применить стартовое снаряжение",
+        exact: true,
+      })
+      .click();
+    await page
+      .getByRole("button", { name: "Подтвердить замену инвентаря" })
+      .click();
+    assert.equal(await page.evaluate(() => window.draft.gold), 15); // Acolyte 2014.
+    await page.getByLabel("Способ получения").selectOption("gold");
+    await page
+      .getByLabel("Стартовое золото (бросок или сумма от мастера)")
+      .fill("120");
+    await page
+      .getByRole("button", {
+        name: "Применить стартовое снаряжение",
+        exact: true,
+      })
+      .click();
+    await page
+      .getByRole("button", { name: "Подтвердить замену инвентаря" })
+      .click();
+    assert.deepEqual(
+      await page.evaluate(() => ({
+        gold: window.draft.gold,
+        items: window.draft.equipment,
+      })),
+      { gold: 120, items: [] },
+    );
+    const modern = structuredClone(
+      fixtures.find(
+        (f) =>
+          f.valid &&
+          f.draft.edition === "2024" &&
+          f.draft.classId === "fighter",
+      ).draft,
+    );
+    modern.backgroundId = "acolyte";
+    await page.evaluate((d) => window.setTestDraft(d), modern);
+    await page.getByLabel("Способ получения").selectOption("gold");
+    await page
+      .getByLabel("Набор предыстории", { exact: true })
+      .selectOption("gold");
+    await page
+      .getByRole("button", {
+        name: "Применить стартовое снаряжение",
+        exact: true,
+      })
+      .click();
+    assert.deepEqual(
+      await page.evaluate(() => ({
+        gold: window.draft.gold,
+        items: window.draft.equipment,
+      })),
+      { gold: 205, items: [] },
+    );
+    await page.getByLabel("Способ получения").selectOption("package");
+    await page.getByLabel("Набор класса", { exact: true }).selectOption("1");
+    await page
+      .getByLabel("Набор предыстории", { exact: true })
+      .selectOption("package");
+    await page
+      .getByRole("button", {
+        name: "Применить стартовое снаряжение",
+        exact: true,
+      })
+      .click();
+    await page
+      .getByRole("button", { name: "Подтвердить замену инвентаря" })
+      .click();
+    assert.equal(await page.evaluate(() => window.draft.gold), 19);
+    const modernActor = await page.evaluate(() =>
+      window.exports.characterFoundryActor(window.draft),
+    );
+    assert.equal(modernActor.system.currency.gp, 19);
+    assert.equal(
+      modernActor.items.find((i) => i.name === "Скимитар").flags["shadow-edge"]
+        .englishName,
+      "Scimitar",
+    );
+    await page.setViewportSize({width:390,height:844});
+    assert(await page.evaluate(()=>document.documentElement.scrollWidth<=390), "Expanded equipment controls overflow on mobile");
+    await page.setViewportSize({width:1280,height:900});
+    const oldDraft = { ...draft };
+    delete oldDraft.portrait;
+    delete oldDraft.equipment;
+    delete oldDraft.gold;
+    await page.evaluate(() => window.renderPublic());
+    await page
+      .getByRole("button", { name: "Открыть персонажа из JSON" })
+      .waitFor();
+    await page
+      .locator("input[type=file]")
+      .first()
+      .setInputFiles({
+        name: "old-character.json",
+        mimeType: "application/json",
+        buffer: Buffer.from(
+          JSON.stringify({
+            format: "shadow-edge-character",
+            version: 1,
+            character: oldDraft,
+          }),
+        ),
+      });
+    await page
+      .getByRole("button", { name: "Поделиться PDF", exact: true })
+      .waitFor();
+    const count = await page.evaluate(
+      () =>
+        Object.keys(localStorage).filter((k) =>
+          k.startsWith("shadow-edge-finished-v1:"),
+        ).length,
+    );
+    assert.equal(count, 1);
+    await page.reload();
+    await page.evaluate(() => window.renderPublic());
+    await page
+      .getByRole("button", {
+        name: oldDraft.name + " · " + oldDraft.targetLevel + " ур.",
+        exact: true,
+      })
+      .click();
+    const oldPdf = page.waitForEvent("download");
+    await page
+      .getByRole("button", { name: "Скачать PDF", exact: true })
+      .click();
+    assert((await oldPdf).suggestedFilename().endsWith(".pdf"));
+    const oldZip = page.waitForEvent("download");
+    await page
+      .getByRole("button", { name: "Экспорт в Foundry", exact: true })
+      .click();
+    assert((await oldZip).suggestedFilename().endsWith(".zip"));
     console.log(
       JSON.stringify({
         pages: result.pages,
@@ -321,6 +488,8 @@ const { chromium } = require(
         fallback: true,
         macroWeaponActivity: true,
         mobile: true,
+        oldCharacterReloadAndExport: true,
+        startingEquipmentAndGold: true,
       }),
     );
   } finally {

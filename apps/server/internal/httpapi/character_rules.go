@@ -366,6 +366,9 @@ func validateAndDeriveCharacter(d characterDraft) (characterStats, error) {
 	if err := validateCharacterPortrait(d.Portrait); err != nil {
 		return characterStats{}, err
 	}
+	if d.Gold < 0 || d.Gold > 1000000 {
+		return empty, fmt.Errorf("золото — целое число от 0 до 1000000")
+	}
 	if len(d.Equipment) > 100 {
 		return empty, fmt.Errorf("до 100 предметов")
 	}

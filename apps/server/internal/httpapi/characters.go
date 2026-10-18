@@ -24,6 +24,7 @@ type characterEquipmentItem struct {
 	Type     string `json:"type"`
 }
 type characterDraft struct {
+	Gold           int                      `json:"gold,omitempty"`
 	Equipment      []characterEquipmentItem `json:"equipment,omitempty"`
 	Portrait       string                   `json:"portrait,omitempty"`
 	LandTerrain    string                   `json:"landTerrain,omitempty"`

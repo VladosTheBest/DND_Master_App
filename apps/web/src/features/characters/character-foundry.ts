@@ -1,3 +1,4 @@
+import { equipmentEnglish } from "./starting-equipment";
 import { zipSync, strToU8 } from "fflate";
 import { ABILITIES, deriveCharacter, type CharacterDraft } from "./rules";
 import { personalityEntries } from "./personality";
@@ -100,6 +101,7 @@ export function characterFoundryActor(draft: CharacterDraft) {
             ];
           }),
       ),
+      currency: { gp: draft.gold ?? 0, pp: 0, ep: 0, sp: 0, cp: 0 },
       spells: {
         ...Object.fromEntries(
           c.spellSlots.map((n, i) => [
@@ -165,6 +167,7 @@ export function characterFoundryActor(draft: CharacterDraft) {
         : []),
       ...(draft.equipment || []).map((item) => ({
         name: item.name,
+        flags: { "shadow-edge": { englishName: equipmentEnglish[item.name] } },
         type: item.type,
         system: {
           quantity: item.quantity,
@@ -252,13 +255,13 @@ const missing = [];
 const normalize = s => String(s || "").trim().toLowerCase().replaceAll("’", "'");
 for (let i = 0; i < data.items.length; i++) {
  const item = data.items[i];
- const names = [item.name, ...item.name.split(" · ").flatMap(name => name.split(" / ")), ...(item.type === "class" ? [classEnglish] : [])].map(normalize);
+ const names = [item.name, item.flags?.["shadow-edge"]?.englishName, ...item.name.split(" · ").flatMap(name => name.split(" / ")), ...(item.type === "class" ? [classEnglish] : [])].map(normalize).filter(Boolean);
  let replacement;
  for (const pack of game.packs.values()) {
   if (pack.documentName !== "Item" || pack.metadata.packageName !== "dnd5e") continue;
   if (/24$/.test(pack.metadata.name) !== (edition === "2024")) continue;
   const index = await pack.getIndex({fields:["type","system.identifier"]});
-  const hit = index.find(v => v.type === item.type && (names.includes(normalize(v.name)) || item.system.identifier && normalize(v.system?.identifier) === normalize(item.system.identifier)));
+  const hit = index.find(v => (v.type === item.type || item.flags?.["shadow-edge"]?.englishName && ["equipment", "weapon", "tool", "consumable", "loot", "container", "backpack"].includes(v.type)) && (names.includes(normalize(v.name)) || item.system.identifier && normalize(v.system?.identifier) === normalize(item.system.identifier)));
   if (!hit) continue;
   replacement = (await pack.getDocument(hit._id)).toObject();
   delete replacement._id; delete replacement._stats;
@@ -284,7 +287,7 @@ for (let i = 0; i < data.items.length; i++) {
   break;
  }
  if (replacement) data.items[i] = replacement;
- else if (["spell","weapon","class","subclass"].includes(item.type)) missing.push(item.name);
+ else if (item.flags?.["shadow-edge"]?.englishName || ["spell","weapon","class","subclass"].includes(item.type)) missing.push(item.name);
 }
 if (data.img.startsWith("data:image/jpeg;base64,")) {
  const image = await (await fetch(data.img)).blob();

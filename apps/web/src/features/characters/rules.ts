@@ -68,6 +68,7 @@ export interface LevelChoice {
 }
 export interface CharacterDraft {
   portrait?: string;
+  gold?: number;
   equipment?: { name: string; quantity: number; type: "weapon" | "equipment" | "loot" }[];
   /** Current 2024 Circle of the Land choice after the latest Long Rest. */
   landTerrain?: string;
@@ -3272,7 +3273,7 @@ export function deriveCharacter(
     feats,
     hitDice: `${n}d${cls?.hitDie ?? 8}`,
     warnings: [
-      "КД рассчитан без доспехов и щита. Снаряжение, языки, инструменты и расходуемые ресурсы внесите в заметки по правилам кампании.",
+      "КД рассчитан без доспехов и щита. Владения, надетые предметы и расход ресурсов уточняйте по правилам кампании.",
       "Один класс, фиксированный прирост хитов. Каталог SRD дополнен отдельными вариантами PHB/XGE; охват опубликованных подклассов и черт пока неполный. Мультикласс не поддерживается.",
     ],
   };
