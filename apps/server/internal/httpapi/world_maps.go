@@ -37,6 +37,7 @@ type worldMapLabel struct {
 	Italic   bool    `json:"italic"`
 }
 type worldMapDocument struct {
+	Creative       string           `json:"creative,omitempty"`
 	SourceMapID    string           `json:"sourceMapId,omitempty"`
 	SourceRevision int              `json:"sourceRevision,omitempty"`
 	Scale          string           `json:"scale,omitempty"`
@@ -185,6 +186,10 @@ func mapImageConfig(b []byte) (image.Config, string, error) {
 
 func (srv *server) handleWorldMaps(w http.ResponseWriter, r *http.Request, user authUser, campaign campaignData, action string) {
 	w.Header().Set("Cache-Control", "no-store")
+	if action == "creative" && r.Method == http.MethodPost {
+		srv.saveCreativeMap(w, r, user, campaign)
+		return
+	}
 	if action == "" && r.Method == http.MethodGet {
 		maps := campaign.WorldMaps
 		if maps == nil {

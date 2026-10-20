@@ -3,6 +3,7 @@ import { ArrowLeft, Bold, Download, Italic, Map, MessageSquare, Plus, Redo2, Sav
 import { TransformWrapper, TransformComponent, type ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
 import type { CampaignSummary, WorldMapDocument, WorldMapLabel } from "@shadow-edge/shared-types";
 import { api } from "../../app/api";
+import { CreativeMapEditor } from "./CreativeMapEditor";
 import { MapCreateForm } from "./MapCreateForm";
 import { mapFont, mapMediaURL, renderMapPNG, worldMapsAPI } from "./world-maps.api";
 import { labelGeometry, labelTextSize, labelRoleSizes } from "./map-label-geometry";
@@ -21,16 +22,17 @@ export function WorldMapsPage(){
 }
 
 function MapWorkspace({campaignId,readOnly=false}:{campaignId:string;readOnly?:boolean}){
+  const [creative,setCreative]=useState(false),[draftKey,setDraftKey]=useState(0);
   const [maps,setMaps]=useState<WorldMapDocument[]>([]),[selected,setSelected]=useState(new URLSearchParams(location.search).get("map")||"");
   const [error,setError]=useState(""),[loading,setLoading]=useState(true),[creating,setCreating]=useState(false),[dirty,setDirty]=useState(false);
   useEffect(()=>{const abort=new AbortController();void worldMapsAPI.list(campaignId,abort.signal).then(items=>{setMaps(items);setSelected(current=>items.some(m=>m.id===current)?current:items[0]?.id||"");setCreating(!items.length);}).catch(e=>{if(!abort.signal.aborted)setError(e.message);}).finally(()=>{if(!abort.signal.aborted)setLoading(false);});return()=>abort.abort();},[campaignId]);
   useEffect(()=>{const leave=(event:BeforeUnloadEvent)=>{if(dirty){event.preventDefault();event.returnValue="";}};window.addEventListener("beforeunload",leave);return()=>window.removeEventListener("beforeunload",leave);},[dirty]);
-  function navigate(id:string){if(dirty&&!confirm("Есть несохранённые правки. Перейти без сохранения?"))return;setDirty(false);setSelected(id);setCreating(!id);history.replaceState(null,"",`/maps?campaign=${encodeURIComponent(campaignId)}${id?`&map=${encodeURIComponent(id)}`:""}`);}
+  function navigate(id:string){if(dirty&&!confirm("Есть несохранённые правки. Перейти без сохранения?"))return;setDirty(false);setSelected(id);setCreating(!id);if(!id)setDraftKey(v=>v+1);history.replaceState(null,"",`/maps?campaign=${encodeURIComponent(campaignId)}${id?`&map=${encodeURIComponent(id)}`:""}`);}
   function upsert(map:WorldMapDocument){setMaps(items=>[map,...items.filter(item=>item.id!==map.id)]);}
   const current=maps.find(map=>map.id===selected);
   return <><header className="world-maps-heading"><div><small>АТЛАС КАМПАНИИ</small><h2>{creating?"Новая карта":current?.title||"Карты мира"}</h2></div><div className="world-map-tools">{!readOnly && <><AISoundToggle/><button type="button" onClick={()=>navigate("")}><Plus size={18}/>Новая карта</button></>}</div></header>
     <nav className="world-map-library" aria-label="Карты кампании">{maps.map(map=><button type="button" key={map.id} aria-current={!creating&&selected===map.id?"page":undefined} onClick={()=>navigate(map.id)}><img src={mapMediaURL(map.imageUrl)} alt=""/><span>{map.title}</span></button>)}</nav>
-    {error&&<p role="alert">{error}</p>}{loading?<p role="status">Загружаю карты…</p>:creating&&!readOnly?<div className="world-map-new"><h3>Каким будет этот мир?</h3><MapCreateForm campaignId={campaignId} onCreated={map=>{upsert(map);navigate(map.id);}}/></div>:current&&readOnly?<ReadyMapViewer key={current.id} map={current}/>:current?<MapEditor key={current.id} campaignId={campaignId} original={current} onSaved={upsert} onVariant={map=>{upsert(map);navigate(map.id);}} onDirty={setDirty}/>:null}
+    {error&&<p role="alert">{error}</p>}{loading?<p role="status">Загружаю карты…</p>:creating&&!readOnly?<div className="world-map-new"><div className="world-map-tools"><button type="button" aria-pressed={!creative} onClick={()=>{if(!dirty||confirm("Закрыть холст без сохранения?")){setDirty(false);setCreative(false);}}}>Генерация с AI</button><button type="button" aria-pressed={creative} onClick={()=>setCreative(true)}>Креатив · рисовать карту</button></div>{creative?<CreativeMapEditor key={draftKey} campaignId={campaignId} onSaved={upsert} onDirty={setDirty} onVariant={map=>{upsert(map);navigate(map.id);}}/>:<><h3>Каким будет этот мир?</h3><MapCreateForm campaignId={campaignId} onCreated={map=>{upsert(map);navigate(map.id);}}/></>}</div>:current&&readOnly?<ReadyMapViewer key={current.id} map={current}/>:current?.creative?<CreativeMapEditor key={current.id} campaignId={campaignId} original={current} onSaved={upsert} onDirty={setDirty} onVariant={map=>{upsert(map);navigate(map.id);}}/>:current?<MapEditor key={current.id} campaignId={campaignId} original={current} onSaved={upsert} onVariant={map=>{upsert(map);navigate(map.id);}} onDirty={setDirty}/>:null}
   </>;
 }
 
