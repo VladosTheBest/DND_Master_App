@@ -22,8 +22,13 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/User/.cache/co
  if(p==='/maps')return route.fulfill({contentType:'text/html',body:'<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><div id="root"></div><link rel="stylesheet" href="/test.css"><script src="/test.js"></script>'});
  return route.fulfill({contentType:p.endsWith('.css')?'text/css':'application/javascript',body:bundle.outputFiles.find(f=>f.path.endsWith(p.endsWith('.css')?'.css':'.js')).text});});
  await page.goto('https://creative.local/maps?campaign=campaign');await page.getByRole('button',{name:'Креатив · рисовать карту'}).click();
- await page.getByRole('button',{name:'Полный экран',exact:true}).click();assert.equal(await page.getByLabel('Набор ассетов').inputValue(),'painted');await page.getByLabel('Набор ассетов').selectOption('all');
+ await page.getByRole('button',{name:'Выйти из полного экрана',exact:true}).waitFor();assert.equal(await page.getByLabel('Набор ассетов').inputValue(),'painted');await page.getByLabel('Набор ассетов').selectOption('all');
  const canvas=page.getByLabel('Холст ручной карты');await canvas.waitFor();
+ // Reproduce the wide screenshot: the editor fills both dimensions, including on tall screens.
+ for(const [width,height] of [[3194,1358],[1920,1600],[1440,900]]){await page.setViewportSize({width,height});await page.waitForTimeout(120);const layout=await page.evaluate(()=>{const root=document.querySelector('.creative-studio'),viewport=document.querySelector('.creative-viewport'),box=root.getBoundingClientRect(),v=viewport.getBoundingClientRect(),label=root.querySelector('.creative-tool-options .creative-check').getBoundingClientRect();return {x:box.x,y:box.y,w:box.width,h:box.height,vh:v.height,vw:v.width,label:label.height,canvas:root.querySelector('canvas').getBoundingClientRect().height};});assert.equal(layout.x,0);assert.equal(layout.y,0);assert.equal(layout.w,width);assert.equal(layout.h,height);assert.ok(layout.vh>height*.65);assert.ok(layout.label<30,'checkbox label must not wrap');assert.ok(layout.canvas>Math.min(layout.vh-48,(layout.vw-48)/1.6)*.95,'map should fill the viewport height');}
+ await page.screenshot({path:'tmp/creative-full-workspace.png',fullPage:true});await page.setViewportSize({width:1680,height:1100});
+ await page.getByRole('button',{name:'Выйти из полного экрана',exact:true}).click();assert.equal(await page.evaluate(()=>document.body.style.overflow),'');await page.getByRole('button',{name:'Полный экран',exact:true}).click();
+
  const click=async(x,y,modifiers=[])=>{const b=await canvas.boundingBox();await canvas.click({position:{x:x*b.width/1600,y:y*b.height/1000},modifiers});};
  const drag=async(x,y,dx,dy)=>{const b=await canvas.boundingBox(),s=b.width/1600;await page.mouse.move(b.x+x*s,b.y+y*s);await page.mouse.down();await page.mouse.move(b.x+(x+dx)*s,b.y+(y+dy)*s,{steps:8});await page.mouse.up();};
  const btn=name=>page.getByRole('button',{name,exact:true});
@@ -65,12 +70,12 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/User/.cache/co
  await page.getByLabel('Поиск ассетов').fill('');await btn('Выбрать').click();await click(1500,50);await page.screenshot({path:'tmp/creative-studio-desktop.png',fullPage:true});
  // Wheel zoom anchors to pointer and does not scroll the page; pan changes only camera.
  const before=await canvas.boundingBox(),vp=await page.getByLabel('Рабочая область карты').boundingBox();await page.mouse.move(vp.x+vp.width/2,vp.y+vp.height/2);await page.mouse.wheel(0,-100);await page.waitForFunction(w=>document.querySelector('canvas').getBoundingClientRect().width>w,before.width);await btn('Вписать холст').click();
- await page.reload();await canvas.waitFor();await btn('Полный экран').click();assert.equal(await page.getByLabel('Название ручной карты').inputValue(),'Забытое святилище');
+ await page.reload();await canvas.waitFor();if(await btn('Полный экран').count())await btn('Полный экран').click();assert.equal(await page.getByLabel('Название ручной карты').inputValue(),'Забытое святилище');
  await page.getByLabel('Название ручной карты').fill('Черновик святилища');await page.waitForFunction(()=>Object.keys(sessionStorage).some(k=>k.includes('creative-draft')));page.once('dialog',d=>d.accept());await page.reload();await btn('Восстановить черновик').click();assert.equal(await page.getByLabel('Название ручной карты').inputValue(),'Черновик святилища');await btn('Сохранить карту').click();await page.getByText('Ручная карта сохранена',{exact:true}).waitFor();
  await btn('Оформить с AI').click();await page.getByLabel('Стиль',{exact:true}).selectOption('Акварель на пергаменте');await btn('Создать новый вариант').click();await page.getByText('Тест: генерация не запускалась',{exact:true}).waitFor();assert.equal(generated.sourceMapId,maps[0].id);assert.equal(generated.sourceRevision,2);assert.ok(generated.prompt.includes('Акварель'));
 
  // Outdoor modes preserve objects; new terrain, road and river tools persist and undo.
- await btn('Полный экран').click();
+ if(await btn('Полный экран').count())await btn('Полный экран').click();
  const countBefore=JSON.parse(maps[0].creative).items.length;
  for(const mode of ['Город','Деревня','Открытая местность']){await btn(mode).click();assert.equal(await btn(mode).getAttribute('aria-pressed'),'true');}
  await btn('Грунт').click();await page.getByLabel('Материал кисти').selectOption('sand');await drag(100,100,250,100);

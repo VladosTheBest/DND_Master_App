@@ -13,3 +13,18 @@
 .creative-assets{grid-template-columns:repeat(2,minmax(0,1fr))}.creative-studio .creative-asset{padding:7px 4px;width:100%;gap:5px;background:#292f32}.creative-asset img{width:76px;height:76px;object-fit:contain;padding:4px;background-color:#b5bcab;background-image:linear-gradient(45deg,#a3aa9a 25%,transparent 25%),linear-gradient(-45deg,#a3aa9a 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#a3aa9a 75%),linear-gradient(-45deg,transparent 75%,#a3aa9a 75%);background-size:12px 12px;background-position:0 0,0 6px,6px -6px,-6px 0}.creative-asset span{font-size:10px;min-height:24px}.creative-asset small{font-size:9px}@media(max-width:700px){.creative-assets{grid-template-columns:repeat(3,minmax(0,1fr))}.creative-asset img{width:70px;height:70px}}
 
 .creative-road-presets{display:flex;flex-wrap:wrap;gap:6px;padding:8px 10px;background:#242830;border-bottom:1px solid #3c3e49}.creative-road-presets button{display:flex;align-items:center;gap:7px;border:1px solid #454853;border-radius:6px;background:#2b3038;color:#e4dfd5;padding:4px 8px;font-size:11px;cursor:pointer}.creative-road-presets button[aria-pressed=true]{border-color:#bda4da;background:#514362}.creative-road-presets img{width:48px;height:28px;border-radius:3px}
+
+/* The workspace consumes the available viewport; panel content scrolls independently. */
+@media(min-width:1151px){
+ .creative-studio.is-fullscreen{height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+ .creative-studio.is-fullscreen .creative-header,.creative-studio.is-fullscreen .creative-status,.creative-studio.is-fullscreen .creative-draft,.creative-studio.is-fullscreen .creative-error{flex:none}
+ .creative-studio.is-fullscreen .creative-body{flex:1;min-height:0;overflow:hidden}
+ .creative-studio.is-fullscreen .creative-library,.creative-studio.is-fullscreen .creative-inspector,.creative-studio.is-fullscreen .creative-workbench{height:100%;min-height:0}
+ .creative-studio.is-fullscreen .creative-viewport{min-height:0}
+ .creative-studio.is-fullscreen .creative-workbench>*:not(.creative-viewport){flex-shrink:0}
+ .creative-studio.is-fullscreen>.world-map-ai-edit{overflow:auto;min-height:0}
+}
+.creative-studio .creative-tool-options label{display:flex;flex:0 0 auto;flex-direction:row;align-items:center;width:auto;min-width:max-content;white-space:nowrap;word-break:normal;overflow-wrap:normal;margin:0}
+.creative-studio .creative-tool-options input[type=checkbox]{flex:0 0 14px;width:14px;min-width:14px;padding:0}
+.creative-studio .creative-tool-options input[type=range]{width:80px;min-width:80px;flex:0 0 80px}
+.creative-studio .creative-tool-options select{width:auto;flex:0 0 auto}
