@@ -1,6 +1,7 @@
+import {paintedAssetURL,paintedImage} from './creative-painted-assets';
 import {expandAssets,assetCategories,shade} from './creative-asset-expansion';
-// Original vector props: shared paths for library thumbnails and map rendering.
-// No third-party asset downloads or runtime dependencies.
+// Original painted raster sprites override selected props; other props use shared vector paths.
+// All artwork ships locally, without third-party downloads or runtime services.
 export type AssetCategory = typeof assetCategories[number]| 'Природа'|'Мебель'|'Подземелье'|'Таверна'|'Лагерь'|'Храм'|'Город';
 export type AssetPart = {d:string;fill?:string;stroke?:string;width?:number};
 export type MapAsset = {id:string;name:string;category:AssetCategory;parts:AssetPart[];w:number;h:number};
@@ -77,12 +78,15 @@ expandAssets(assets);
 export const mapAssets=assets;
 export const assetById=new Map(assets.map(a=>[a.id,a]));
 export const assetThumbnail=(a:MapAsset)=>{
+ const raster=paintedAssetURL(a.id);if(raster)return raster.replace('/painted-v1/','/painted-v1/thumbs/');
  const colors=[...new Set(a.parts.map(p=>p.fill).filter((c):c is string=>!!c&&/^#[a-f0-9]{6}$/i.test(c)))];
  const defs=colors.map((c,i)=>`<linearGradient id="g${i}" x2=".7" y2="1"><stop stop-color="${shade(c,15)}"/><stop offset="1" stop-color="${shade(c,-13)}"/></linearGradient>`).join('');
  return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -4 108 108"><defs>${defs}</defs>${a.parts.map(p=>`<path d="${p.d}" fill="${colors.includes(p.fill||'')?`url(#g${colors.indexOf(p.fill!)})`:p.fill||'none'}" stroke="${p.stroke||'#39372f'}" stroke-width="${p.width||2}" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}</svg>`);
 };
 export function paintAsset(c:CanvasRenderingContext2D,id:string,w:number,h:number){
- const a=assetById.get(id);if(!a)return;c.save();c.scale(w/100,h/100);c.translate(-50,-50);
+ const a=assetById.get(id);if(!a)return;
+ if(paintedAssetURL(id)){const sprite=paintedImage(id);if(sprite){const scale=Math.min(w/sprite.naturalWidth,h/sprite.naturalHeight),sw=sprite.naturalWidth*scale,sh=sprite.naturalHeight*scale;c.save();c.imageSmoothingEnabled=true;c.imageSmoothingQuality='high';c.drawImage(sprite,-sw/2,-sh/2,sw,sh);c.restore();}return;}
+ c.save();c.scale(w/100,h/100);c.translate(-50,-50);
  // One combined silhouette casts a single shadow, rather than a shadow per roof tile/leaf.
  const silhouette=new Path2D();for(const part of a.parts)if(part.fill&&part.fill!=='none')silhouette.addPath(new Path2D(part.d));
  c.save();c.translate(2,3);c.fillStyle='#243026';c.globalAlpha=.22;c.fill(silhouette);c.restore();

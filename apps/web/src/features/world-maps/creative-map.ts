@@ -1,3 +1,4 @@
+import {preparePaintedAssets} from './creative-painted-assets';
 import {assetById,paintAsset} from './creative-assets';
 import {mapMediaURL} from './world-maps.api';
 export const MAP_WIDTH=1600,MAP_HEIGHT=1000;
@@ -93,7 +94,7 @@ function dungeon(target:CanvasRenderingContext2D,items:CreativeItem[],scene:Crea
 }
 const imageCache=new Map<string,HTMLImageElement>();
 const pendingImages=new Map<string,Promise<void>>();
-export async function prepareSceneImages(scene:CreativeScene){await Promise.all(scene.items.filter(i=>i.kind==='image').map(async i=>{
+export async function prepareSceneImages(scene:CreativeScene){await preparePaintedAssets(scene.items.map(i=>i.assetId||i.kind));await Promise.all(scene.items.filter(i=>i.kind==='image').map(async i=>{
  const url=i.imageUrl!;if(imageCache.has(url))return;
  let job=pendingImages.get(url);if(!job){job=new Promise<void>((resolve,reject)=>{const image=new Image();image.crossOrigin='use-credentials';image.onload=()=>{imageCache.set(url,image);resolve();};image.onerror=()=>reject(new Error('Не удалось загрузить объект-изображение.'));image.src=mapMediaURL(url);});pendingImages.set(url,job);job.finally(()=>pendingImages.delete(url)).catch(()=>{});}await job;
 }));}
