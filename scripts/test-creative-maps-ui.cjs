@@ -94,7 +94,28 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/User/.cache/co
  await page.getByText('Экспорт и горячие клавиши',{exact:true}).click();await page.getByLabel('Разрешение PNG').selectOption('3');const high=await download('Скачать PNG');assert.equal((await sharp(high).metadata()).width,4800);
  // Re-rendered paths differ from simply enlarging the 1x bitmap.
  const enlarged=await sharp(await fs.readFile('tmp/creative-town.png')).resize(4800,3000).raw().toBuffer();const highRaw=await sharp(high).raw().toBuffer();assert.notDeepEqual(highRaw,enlarged);
+
+ await page.getByLabel('Разрешение PNG').selectOption('1');
+ await page.getByLabel('Показывать сетку').check();assert.equal(JSON.parse((await download('Проект JSON')).toString()).scene.grid,true);await page.getByLabel('Показывать сетку').uncheck();
+ await btn('Линейка').click();await drag(400,300,150,200);assert.equal(await page.getByLabel('Измеренное расстояние').textContent(),'25 фт');
+ const beforeMeasure=JSON.parse((await download('Проект JSON')).toString()).scene;assert.equal(beforeMeasure.items.length,town.items.length);
+ await page.getByText('Размер карты и масштаб',{exact:true}).click();assert.equal(await page.getByLabel('Футов в клетке').inputValue(),'5');
+ await page.getByLabel('Ширина карты в клетках').fill('40');await page.getByLabel('Высота карты в клетках').fill('30');await btn('Применить размер').click();
+ assert.equal(await canvas.getAttribute('width'),'2000');assert.equal(await canvas.getAttribute('height'),'1500');
+ const expanded=JSON.parse((await download('Проект JSON')).toString()).scene;assert.deepEqual(expanded.items,beforeMeasure.items);
+ await btn('Отменить').click();assert.equal(await canvas.getAttribute('width'),'1600');await btn('Повторить').click();assert.equal(await canvas.getAttribute('width'),'2000');
+ await page.getByLabel('Ширина карты в клетках').fill('4');await btn('Применить размер').click();await page.getByRole('alert').filter({hasText:'За новым краем'}).waitFor();await btn('Закрыть').click();assert.equal(await canvas.getAttribute('width'),'2000');
+ const wideDrag=async(x,y,dx,dy)=>{const b=await canvas.boundingBox(),scale=b.width/2000;await page.mouse.move(b.x+x*scale,b.y+y*scale);await page.mouse.down();await page.mouse.move(b.x+(x+dx)*scale,b.y+(y+dy)*scale,{steps:8});await page.mouse.up();};
+ await btn('Линейка').click();await wideDrag(1700,1100,150,200);assert.equal(await page.getByLabel('Измеренное расстояние').textContent(),'25 фт');
+ await page.getByLabel('Ширина карты в клетках').fill('40');await page.screenshot({path:'tmp/creative-ruler-desktop.png',fullPage:true});await btn('Приблизить холст').click();await wideDrag(400,300,150,200);assert.equal(await page.getByLabel('Измеренное расстояние').textContent(),'25 фт');await btn('Вписать холст').click();
+ await page.getByLabel('Футов в клетке').fill('10');assert.equal(await page.getByLabel('Измеренное расстояние').textContent(),'50 фт');
+ const scaledProps=JSON.parse((await download('Проект JSON')).toString()).scene.items;for(const original of expanded.items.filter(i=>i.kind==='asset')){const scaled=scaledProps.find(i=>i.id===original.id);assert.equal(scaled.w,original.w/2);assert.equal(scaled.h,original.h/2);}
+ await page.getByLabel('Категория ассетов').selectOption('Мебель');await page.getByLabel('Поиск ассетов').fill('Стол');await btn('Стол').click();const cb=await canvas.boundingBox();await canvas.click({position:{x:1750*cb.width/2000,y:200*cb.height/1500}});await page.getByLabel('Ширина предмета в футах').fill('12');assert.equal(await page.getByLabel('Ширина предмета в футах').inputValue(),'12');
+ const sizedItem=JSON.parse((await download('Проект JSON')).toString()).scene.items.at(-1);assert.equal(sizedItem.w,60);assert.equal(sizedItem.assetId,'table');
+ await btn('Комната').click();await wideDrag(1700,1100,200,200);const resizedPNG=await download('Скачать PNG');const resizedMeta=await sharp(resizedPNG).metadata();assert.equal(resizedMeta.width,2000);assert.equal(resizedMeta.height,1500);const floorPixel=await sharp(resizedPNG).extract({left:1803,top:1203,width:1,height:1}).removeAlpha().raw().toBuffer();assert.deepEqual([...floorPixel],[250,247,237]);
+ await btn('Сохранить карту').click();await page.getByText('Ручная карта сохранена',{exact:true}).waitFor();assert.equal(JSON.parse(maps[0].creative).width,2000);assert.equal(JSON.parse(maps[0].creative).feetPerCell,10);
+ await page.reload();await canvas.waitFor();assert.equal(await canvas.getAttribute('width'),'2000');await page.getByText('Размер карты и масштаб',{exact:true}).click();assert.equal(await page.getByLabel('Футов в клетке').inputValue(),'10');
  await page.setViewportSize({width:390,height:844});await page.screenshot({path:'tmp/creative-studio-mobile.png',fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'mobile overflow');
- assert.deepEqual(errors,[]);console.log(`Creative studio passed: ${geometry.count} assets, merged floors/cuts, polygon/cave/corridor, layers/locks, move/rotate/duplicate, undo/redo, save/reopen, PNG/JSON, draft recovery, AI source/style, outdoor modes/terrain/roads/rivers/scatter, true 3x render, 390px.`);
+ assert.deepEqual(errors,[]);console.log(`Creative studio passed: ${geometry.count} assets, merged floors/cuts, polygon/cave/corridor, layers/locks, move/rotate/duplicate, undo/redo, save/reopen, PNG/JSON, draft recovery, AI source/style, outdoor modes/terrain/roads/rivers/scatter, true 3x render, resize/undo/bounds/reopen, feet ruler/scale, 390px.`);
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1)});

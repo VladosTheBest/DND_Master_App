@@ -35,19 +35,22 @@ type creativeItem struct {
 	Points   [][]float64 `json:"points,omitempty"`
 }
 type creativeScene struct {
-	MapType    string          `json:"mapType,omitempty"`
-	Surface    string          `json:"surface,omitempty"`
-	Layers     []creativeLayer `json:"layers,omitempty"`
-	Style      string          `json:"style,omitempty"`
-	GridSize   float64         `json:"gridSize,omitempty"`
-	WallWidth  float64         `json:"wallWidth,omitempty"`
-	FloorColor string          `json:"floorColor,omitempty"`
-	WallColor  string          `json:"wallColor,omitempty"`
-	Hatching   bool            `json:"hatching,omitempty"`
-	Version    int             `json:"version"`
-	Background string          `json:"background"`
-	Grid       bool            `json:"grid"`
-	Items      []creativeItem  `json:"items"`
+	Width       *int            `json:"width,omitempty"`
+	Height      *int            `json:"height,omitempty"`
+	FeetPerCell *float64        `json:"feetPerCell,omitempty"`
+	MapType     string          `json:"mapType,omitempty"`
+	Surface     string          `json:"surface,omitempty"`
+	Layers      []creativeLayer `json:"layers,omitempty"`
+	Style       string          `json:"style,omitempty"`
+	GridSize    float64         `json:"gridSize,omitempty"`
+	WallWidth   float64         `json:"wallWidth,omitempty"`
+	FloorColor  string          `json:"floorColor,omitempty"`
+	WallColor   string          `json:"wallColor,omitempty"`
+	Hatching    bool            `json:"hatching,omitempty"`
+	Version     int             `json:"version"`
+	Background  string          `json:"background"`
+	Grid        bool            `json:"grid"`
+	Items       []creativeItem  `json:"items"`
 }
 
 var creativeAssetIDs = map[string]bool{"altar": true, "anvil": true, "banner": true, "bar": true, "barn": true, "barn-long": true, "barrel": true, "battlement": true, "beacon": true, "bed": true, "bedroll": true, "bench": true, "birch-1": true, "birch-2": true, "birch-3": true, "boat": true, "bones": true, "bookshelf": true, "bottles": true, "boulders-1": true, "boulders-2": true, "boulders-3": true, "boulders-4": true, "brazier": true, "bridge": true, "bush": true, "candelabra": true, "candles": true, "cart": true, "cauldron": true, "chain": true, "chair": true, "cherry-1": true, "cherry-2": true, "cherry-3": true, "chest": true, "city-gate": true, "cliff": true, "conifer-1": true, "conifer-2": true, "conifer-3": true, "conifer-4": true, "conifer-5": true, "cottage": true, "cottage-long": true, "crate": true, "crystal-blue": true, "crystal-purple": true, "deadwood-1": true, "deadwood-2": true, "deadwood-3": true, "desk": true, "dining-1": true, "dining-2": true, "dining-3": true, "door": true, "door-1": true, "door-2": true, "door-3": true, "double-bed": true, "double-door": true, "fence": true, "field-1": true, "field-2": true, "field-3": true, "field-4": true, "fire": true, "flowers-1": true, "flowers-2": true, "flowers-3": true, "forge": true, "fountain": true, "golden-1": true, "golden-2": true, "golden-3": true, "gravestone": true, "hanging-lamp": true, "hatch": true, "hay": true, "haystack": true, "hearth": true, "jungle-1": true, "jungle-2": true, "jungle-3": true, "keg": true, "lamp-green": true, "lantern": true, "large-tent": true, "lilies": true, "log": true, "manor": true, "manor-long": true, "maple-1": true, "maple-2": true, "maple-3": true, "market-1": true, "market-2": true, "market-3": true, "market-4": true, "mushrooms": true, "oak-1": true, "oak-2": true, "oak-3": true, "obelisk": true, "oven": true, "palisade": true, "palm": true, "pentagram": true, "pier": true, "pillar": true, "pine": true, "pit": true, "plates": true, "pond-stones": true, "portcullis": true, "reeds": true, "rock": true, "rocks": true, "round-hut": true, "round-rug": true, "round-table": true, "rug": true, "ruined-house": true, "ruined-house-long": true, "rune-circle": true, "sacks": true, "sarcophagus": true, "shrub-1": true, "shrub-2": true, "shrub-3": true, "shrub-4": true, "slate-house": true, "slate-house-long": true, "smithy": true, "smithy-long": true, "sofa": true, "spikes": true, "spiral-stairs": true, "stable": true, "stable-long": true, "stairs": true, "stall": true, "statue": true, "stone-wall-1": true, "stone-wall-2": true, "stone-wall-3": true, "streetlamp": true, "stump": true, "table": true, "tavern-roof": true, "tavern-roof-long": true, "temple-roof": true, "temple-roof-long": true, "tent": true, "thatch-house": true, "thatch-house-long": true, "throne": true, "tomb": true, "torch": true, "townhouse": true, "townhouse-long": true, "tree": true, "wagon-covered": true, "wardrobe": true, "warehouse": true, "warehouse-long": true, "watchtower-roof": true, "watermill": true, "well": true, "well-roof": true, "willow-1": true, "willow-2": true, "willow-3": true, "windmill": true, "window": true, "woodpile": true, "workbench": true}
@@ -62,6 +65,13 @@ func validateCreative(raw string) error {
 	}
 	if !creativeMaterial(scene.Surface) {
 		return fmt.Errorf("Неизвестная поверхность.")
+	}
+	width, height := creativeDimensions(scene)
+	if width < 200 || width > 3200 || height < 200 || height > 3200 {
+		return fmt.Errorf("Сторона карты: от 200 до 3200 пикселей.")
+	}
+	if scene.FeetPerCell != nil && (*scene.FeetPerCell < 1 || *scene.FeetPerCell > 1000) {
+		return fmt.Errorf("Масштаб клетки: от 1 до 1000 футов.")
 	}
 	layers := map[string]bool{}
 	if scene.Version == 2 && (len(scene.Layers) < 1 || len(scene.Layers) > 16) {
@@ -131,7 +141,7 @@ func validateCreative(raw string) error {
 				return fmt.Errorf("Некорректные размеры.")
 			}
 		}
-		if item.W < 1 || item.H < 1 || item.X < 0 || item.X > 1600 || item.Y < 0 || item.Y > 1000 || item.Rotation < -180 || item.Rotation > 180 {
+		if item.W < 1 || item.H < 1 || item.X < 0 || item.X > float64(width) || item.Y < 0 || item.Y > float64(height) || item.Rotation < -180 || item.Rotation > 180 {
 			return fmt.Errorf("Некорректные размеры.")
 		}
 		for _, p := range item.Points {
@@ -139,7 +149,7 @@ func validateCreative(raw string) error {
 				return fmt.Errorf("Точка должна иметь две координаты.")
 			}
 			for axis, v := range p {
-				if math.IsNaN(v) || math.IsInf(v, 0) || v < 0 || v > 1600 || (axis == 1 && v > 1000) {
+				if math.IsNaN(v) || math.IsInf(v, 0) || v < 0 || (axis == 0 && v > float64(width)) || (axis == 1 && v > float64(height)) {
 					return fmt.Errorf("Некорректный штрих.")
 				}
 			}
@@ -189,8 +199,9 @@ func (srv *server) saveCreativeMap(w http.ResponseWriter, r *http.Request, user 
 		writeError(w, 400, "invalid_image", err.Error())
 		return
 	}
-	if cfg.Width != 1600 || cfg.Height != 1000 {
-		writeError(w, 400, "invalid_image", "Холст должен быть 1600 × 1000.")
+	width, height := creativeDimensions(scene)
+	if cfg.Width != width || cfg.Height != height {
+		writeError(w, 400, "invalid_image", "Размер изображения не совпадает с размером холста.")
 		return
 	}
 	srv.store.mu.Lock()
@@ -223,7 +234,7 @@ func (srv *server) saveCreativeMap(w http.ResponseWriter, r *http.Request, user 
 		if scene.MapType == "city" || scene.MapType == "village" {
 			scale = "city"
 		}
-		doc := worldMapDocument{ID: input.ID, Title: input.Title, ImageURL: canonical, Creative: input.Creative, Width: 1600, Height: 1000, Labels: []worldMapLabel{}, Provider: "creative", Scale: scale, Context: &worldMapContext{}, CreatedAt: time.Now().UTC(), Revision: input.Revision + 1}
+		doc := worldMapDocument{ID: input.ID, Title: input.Title, ImageURL: canonical, Creative: input.Creative, Width: width, Height: height, Labels: []worldMapLabel{}, Provider: "creative", Scale: scale, Context: &worldMapContext{}, CreatedAt: time.Now().UTC(), Revision: input.Revision + 1}
 		if index < 0 {
 			c.WorldMaps = append(c.WorldMaps, doc)
 		} else {
@@ -247,4 +258,15 @@ func creativeMaterial(value string) bool {
 		return true
 	}
 	return false
+}
+
+func creativeDimensions(scene creativeScene) (int, int) {
+	w, h := 1600, 1000
+	if scene.Width != nil {
+		w = *scene.Width
+	}
+	if scene.Height != nil {
+		h = *scene.Height
+	}
+	return w, h
 }

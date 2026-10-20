@@ -81,7 +81,10 @@ func TestCreativeWorldMapPersistenceAndAccess(t *testing.T) {
 	}
 	// New-format fields and nested owned images must survive storage together.
 	input["imageUrl"] = "/uploads/" + owner.ID + "/" + campaign.ID + "/canvas.png"
-	v2 := `{"version":2,"mapType":"city","surface":"cobble","background":"#e9e4d8","grid":true,"style":"classic","wallWidth":5,"gridSize":50,"floorColor":"#faf7ed","wallColor":"#35352f","hatching":true,"layers":[{"id":"dungeon","name":"Комнаты","visible":true,"locked":false,"opacity":0.75}],"items":[{"id":"prop","kind":"asset","assetId":"altar","layerId":"dungeon","x":200,"y":300,"w":90,"h":60,"rotation":45,"color":"#345b38","flipX":true},{"id":"picture","kind":"image","imageUrl":"IMAGE","layerId":"dungeon","x":500,"y":500,"w":100,"h":60,"rotation":0,"color":"#ffffff"}]}`
+	pngBytes.Reset()
+	_ = png.Encode(&pngBytes, image.NewRGBA(image.Rect(0, 0, 2000, 1500)))
+	_ = os.WriteFile(filepath.Join(dir, "canvas.png"), pngBytes.Bytes(), 0600)
+	v2 := `{"version":2,"width":2000,"height":1500,"feetPerCell":5,"mapType":"city","surface":"cobble","background":"#e9e4d8","grid":true,"style":"classic","wallWidth":5,"gridSize":50,"floorColor":"#faf7ed","wallColor":"#35352f","hatching":true,"layers":[{"id":"dungeon","name":"Комнаты","visible":true,"locked":false,"opacity":0.75}],"items":[{"id":"prop","kind":"asset","assetId":"altar","layerId":"dungeon","x":200,"y":300,"w":90,"h":60,"rotation":45,"color":"#345b38","flipX":true},{"id":"picture","kind":"image","imageUrl":"IMAGE","layerId":"dungeon","x":500,"y":500,"w":100,"h":60,"rotation":0,"color":"#ffffff"}]}`
 	scene = strings.Replace(v2, "IMAGE", input["imageUrl"].(string), 1)
 	input["creative"] = strings.Replace(v2, "IMAGE", "/uploads/foreign/other/image.png", 1)
 	if w = call("POST", base+"/creative", body(), "http://localhost", cookie); w.Code != 400 {
@@ -100,7 +103,7 @@ func TestCreativeWorldMapPersistenceAndAccess(t *testing.T) {
 		t.Fatal("missing map", err)
 	}
 	m := c.WorldMaps[0]
-	if m.Creative != scene || m.Revision != 3 || m.Title != "Обновлённая карта" || m.Provider != "creative" || m.Scale != "city" {
+	if m.Creative != scene || m.Revision != 3 || m.Title != "Обновлённая карта" || m.Provider != "creative" || m.Scale != "city" || m.Width != 2000 || m.Height != 1500 {
 		t.Fatal("roundtrip lost editable scene", m)
 	}
 	for _, bad := range []string{`{}`, strings.Replace(scene, `"altar"`, `"script"`, 1), strings.Replace(scene, `"w":90`, `"w":-1`, 1), strings.Replace(scene, `"opacity":0.75`, `"opacity":1.5`, 1), strings.Replace(scene, `"layerId":"dungeon"`, `"layerId":"missing"`, 1)} {
@@ -170,5 +173,36 @@ func TestCreativeOutdoorValidation(t *testing.T) {
 	base.Items[1].Points = nil
 	check(true)
 	base.Items[1].Points = [][]float64{{20, 20}, {40, 40}}
+	check(false)
+}
+
+func TestCreativeMapDimensions(t *testing.T) {
+	scene := creativeScene{Version: 1, Background: "#eeeeee", Items: []creativeItem{}}
+	check := func(want bool) {
+		t.Helper()
+		b, _ := json.Marshal(scene)
+		if err := validateCreative(string(b)); (err == nil) != want {
+			t.Fatalf("valid=%v error=%v", want, err)
+		}
+	}
+	check(true)
+	width, height, feet := 2400, 800, 5.0
+	scene.Width = &width
+	scene.Height = &height
+	scene.FeetPerCell = &feet
+	scene.Items = []creativeItem{{ID: "far", Kind: "tree", X: 2300, Y: 700, W: 50, H: 50, Color: "#ffffff"}}
+	check(true)
+	width = 1600
+	check(false)
+	width = 2400
+	height = 600
+	check(false)
+	height = 800
+	feet = 0
+	check(false)
+	feet = 5
+	width = 3201
+	check(false)
+	width = 0
 	check(false)
 }
