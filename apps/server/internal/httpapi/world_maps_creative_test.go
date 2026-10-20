@@ -70,6 +70,15 @@ func TestCreativeWorldMapPersistenceAndAccess(t *testing.T) {
 	}
 	input["revision"] = 1
 	input["title"] = "Обновлённая карта"
+	// Replay the upload optimizer's WebP output through the real save route.
+	webp, readErr := os.ReadFile("testdata/creative-preview.webp")
+	if readErr != nil {
+		t.Fatal(readErr)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "canvas.webp"), webp, 0600); err != nil {
+		t.Fatal(err)
+	}
+	input["imageUrl"] = "/uploads/" + owner.ID + "/" + campaign.ID + "/canvas.webp"
 	w = call("POST", base+"/creative", body(), "http://localhost", cookie)
 	if w.Code != 200 {
 		t.Fatal(w.Body.String())

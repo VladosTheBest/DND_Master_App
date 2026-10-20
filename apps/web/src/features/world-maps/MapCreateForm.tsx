@@ -1,3 +1,4 @@
+import {prepareMapImage} from './map-image-upload';
 import { useEffect, useRef, useState } from "react";
 import { ExternalLink, ImagePlus, LoaderCircle, Sparkles, X } from "lucide-react";
 import type { AIJob, WorldMapDocument } from "@shadow-edge/shared-types";
@@ -48,7 +49,7 @@ export function MapCreateForm({campaignId, initialPrompt="", onCreated, storageK
   },[jobId,key,retry]);
   async function upload(file:File){
     if(lock.current)return;lock.current=true;setBusy(true);setError("");
-    try{if(file.size>20*1024*1024||!/^image\/(png|jpeg|webp)$/.test(file.type))throw new Error("Выбери PNG, JPEG или WebP до 20 МБ.");const result=await api.uploadImage(campaignId,file);setReference(new URL(result.url,location.origin).pathname);}catch(e){setError((e as Error).message);}finally{lock.current=false;setBusy(false);if(input.current)input.current.value="";}
+    try{file=await prepareMapImage(file);const result=await api.uploadImage(campaignId,file);setReference(new URL(result.url,location.origin).pathname);}catch(e){setError((e as Error).message);}finally{lock.current=false;setBusy(false);if(input.current)input.current.value="";}
   }
   async function generate(){
     if(lock.current||jobId)return;lock.current=true;setBusy(true);setError("");setCreated(null);setStage("Запускаю генерацию…");
@@ -78,7 +79,7 @@ export function MapCreateForm({campaignId, initialPrompt="", onCreated, storageK
 			{useLocation&&!locationsError&&!locations.length&&<p>Нет доступных локаций</p>}
 		</fieldset>}
     <div className="world-map-create-actions">
-      <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={e=>{if(e.target.files?.[0])void upload(e.target.files[0]);}}/>
+      <input ref={input} type="file" accept="image/*" hidden onChange={e=>{if(e.target.files?.[0])void upload(e.target.files[0]);}}/>
       {!sourceMap&&<button type="button" disabled={disabled} onClick={()=>input.current?.click()}><ImagePlus size={17}/>{reference?"Заменить референс":"Референс"}</button>}
       <button type="button" className="map-primary" disabled={disabled||(!!sourceMap&&!prompt.trim())||prompt.length>6000||(useLocation&&!locationId)||(!prompt.trim()&&!reference&&!includeCampaign&&!useLocation)} onClick={()=>void generate()}><Sparkles size={17}/>{sourceMap?"Создать новый вариант":"Создать карту"}</button>
     </div>

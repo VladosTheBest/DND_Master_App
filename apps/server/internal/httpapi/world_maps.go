@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	_ "golang.org/x/image/webp"
 	"image"
+	_ "image/gif"
 	"io"
 	"math"
 	"net/http"
@@ -18,7 +20,7 @@ import (
 	"time"
 )
 
-const worldMapMaxBytes = 20 << 20
+const worldMapMaxBytes = 100 << 20
 
 type worldMapLabel struct {
 	Role     string  `json:"role,omitempty"`
@@ -175,11 +177,11 @@ func readMapImage(file string) ([]byte, error) {
 }
 func mapImageConfig(b []byte) (image.Config, string, error) {
 	if len(b) > worldMapMaxBytes {
-		return image.Config{}, "", fmt.Errorf("Картинка должна быть не больше 20 МБ.")
+		return image.Config{}, "", fmt.Errorf("Картинка должна быть не больше 100 МБ.")
 	}
 	cfg, format, err := image.DecodeConfig(bytes.NewReader(b))
-	if err != nil || cfg.Width < 1 || cfg.Height < 1 || cfg.Width > 8192 || cfg.Height > 8192 || int64(cfg.Width)*int64(cfg.Height) > 16000000 || (format != "png" && format != "jpeg" && format != "webp") {
-		return image.Config{}, "", fmt.Errorf("Нужна PNG, JPEG или WebP до 16 мегапикселей.")
+	if err != nil || cfg.Width < 1 || cfg.Height < 1 || (format != "png" && format != "jpeg" && format != "webp" && format != "gif") {
+		return image.Config{}, "", fmt.Errorf("Не удалось прочитать изображение. Поддерживаются PNG, JPEG, WebP и GIF; другие форматы преобразуй в PNG.")
 	}
 	return cfg, format, nil
 }

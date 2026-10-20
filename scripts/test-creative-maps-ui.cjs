@@ -61,7 +61,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/User/.cache/co
  const png=await download('Скачать PNG');const meta=await sharp(png).metadata();assert.equal(meta.width,1600);assert.equal(meta.height,1000);assert.ok((await sharp(png).stats()).channels[0].stdev>15);
  const json=JSON.parse((await download('Проект JSON')).toString());assert.equal(json.scene.items.length,scene.items.length);
   // Custom uploads are actual raster inputs to the renderer; JSON import roundtrips the scene.
- await page.locator('input[type=file][accept="image/png,image/jpeg,image/webp"]').setInputFiles({name:'custom.png',mimeType:'image/png',buffer:bitmap});
+ await page.locator('input[type=file][accept="image/*"]').setInputFiles({name:'custom.png',mimeType:'image/png',buffer:bitmap});
  await page.getByText('Объект',{exact:true}).waitFor();await btn('Скачать PNG').isEnabled();
  const withImage=await download('Скачать PNG');const imagePixel=await sharp(withImage).extract({left:803,top:503,width:1,height:1}).removeAlpha().raw().toBuffer();assert.deepEqual([...imagePixel],[119,117,104]);
  await btn('Удалить объект').click();
