@@ -124,12 +124,30 @@ export function paintScene(canvas:HTMLCanvasElement,raw:CreativeScene,selected:s
 }
 export async function creativePNG(scene:CreativeScene,scale=1):Promise<Blob>{if(![1,2,3].includes(scale)||sceneSize(scene).width*sceneSize(scene).height*scale*scale>16000000)throw new Error('Экспорт ограничен 16 мегапикселями. Выбери меньшее разрешение.');await prepareSceneImages(scene);const canvas=newCanvas(scale,scene);paintScene(canvas,scene);return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Не удалось экспортировать холст.')),'image/png'));}
 export const mapTypes=[{id:'dungeon',name:'Подземелье',surface:''},{id:'city',name:'Город',surface:'cobble'},{id:'village',name:'Деревня',surface:'grass'},{id:'wilderness',name:'Открытая местность',surface:'grass'}];
-export const materials=[{id:'grass',name:'Луговая трава',color:'#819061'},{id:'earth',name:'Грунт',color:'#b19a73'},{id:'sand',name:'Песок',color:'#dac99c'},{id:'snow',name:'Снег',color:'#e1e8e6'},{id:'cobble',name:'Брусчатка',color:'#a4a39a'},{id:'water',name:'Вода',color:'#669eaa'}];
+export const materials=[{id:'grass',name:'Луговая трава',color:'#819061'},{id:'earth',name:'Грунт',color:'#b19a73'},{id:'forest-path',name:'Лесная тропа',color:'#8a7351'},{id:'mud',name:'Мокрая грязь',color:'#66513e'},{id:'flagstone',name:'Каменные плиты',color:'#aaa79e'},{id:'brick-road',name:'Кирпичная мостовая',color:'#a47559'},{id:'sand',name:'Песок',color:'#dac99c'},{id:'snow',name:'Снег',color:'#e1e8e6'},{id:'cobble',name:'Брусчатка',color:'#a4a39a'},{id:'water',name:'Вода',color:'#669eaa'}];
+export const roadMaterials=['earth','forest-path','mud','cobble','flagstone','brick-road'];
+const materialPreviews=new Map<string,string>();
+export function materialThumbnail(id:string){let url=materialPreviews.get(id);if(!url){const c=document.createElement('canvas');c.width=96;c.height=48;const ctx=c.getContext('2d')!;ctx.fillStyle=materialPattern(ctx,id);ctx.fillRect(0,0,96,48);url=c.toDataURL();materialPreviews.set(id,url);}return url;}
 const textureCache=new Map<string,HTMLCanvasElement>();
 function materialPattern(ctx:CanvasRenderingContext2D,id:string):CanvasPattern{
  let tile=textureCache.get(id);if(!tile){tile=document.createElement('canvas');tile.width=tile.height=128;const c=tile.getContext('2d')!,base=materials.find(m=>m.id===id)?.color||'#b19a73';c.fillStyle=base;c.fillRect(0,0,128,128);let seed=734;const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296;};
  if(id==='cobble'){for(let row=0;row<8;row++)for(let col=-1;col<9;col++){const x=col*16+(row%2)*8,y=row*16;c.fillStyle=`rgba(${random()>.5?'255,255,255':'30,35,25'},${.04+random()*.1})`;c.beginPath();c.roundRect(x+1,y+1,14,14,3);c.fill();c.strokeStyle='#77786b';c.lineWidth=.6;c.stroke();}}
  else for(let i=0;i<650;i++){const x=random()*128,y=random()*128;c.strokeStyle=`rgba(${random()>.5?'255,255,235':'30,45,26'},${.04+random()*.13})`;c.lineWidth=.5+random();c.beginPath();c.moveTo(x,y);if(id==='water')c.bezierCurveTo(x+3,y-2,x+5,y+2,x+9,y);else c.lineTo(x+(id==='grass'?2:1),y+(id==='grass'?-4:1));c.stroke();}
+ if(id==='forest-path'||id==='mud'){
+  for(let n=0;n<100;n++){const x=random()*128,y=random()*128,r=1+random()*6;c.fillStyle=id==='mud'?`rgba(36,28,22,${.08+random()*.17})`:`rgba(52,47,30,${.08+random()*.12})`;c.beginPath();c.ellipse(x,y,r*1.6,r,.3,0,Math.PI*2);c.fill();}
+  if(id==='forest-path')for(let n=0;n<45;n++){const x=random()*128,y=random()*128;c.save();c.translate(x,y);c.rotate(random()*Math.PI*2);c.fillStyle=['#a78b4c','#615c37','#b49b65'][n%3];c.beginPath();c.ellipse(0,0,1.3,3.5,0,0,Math.PI*2);c.fill();c.strokeStyle='#51452f';c.lineWidth=.5;c.beginPath();c.moveTo(0,-3);c.lineTo(0,4);c.stroke();c.restore();}
+  else for(let n=0;n<10;n++){const x=random()*128,y=random()*128;c.fillStyle='rgba(152,163,153,.18)';c.beginPath();c.ellipse(x,y,3+random()*7,1+random()*3,-.2,0,Math.PI*2);c.fill();c.strokeStyle='rgba(196,196,169,.16)';c.lineWidth=.6;c.stroke();}
+ }
+ if(id==='flagstone'||id==='brick-road'){
+  const bw=32,bh=id==='flagstone'?32:16;
+  c.fillStyle=id==='flagstone'?'#68675e':'#685d50';c.fillRect(0,0,128,128);
+  for(let row=0;row<Math.ceil(128/bh);row++)for(let col=-1;col<Math.ceil(128/bw)+1;col++){
+   const x=col*bw+(row%2)*bw/2,y=row*bh,v=Math.floor(random()*22)-11;
+   c.fillStyle=id==='flagstone'?`rgb(${164+v},${162+v},${151+v})`:`rgb(${159+v},${107+v},${78+v})`;c.beginPath();c.roundRect(x+1,y+1,bw-2,bh-2,id==='flagstone'?2:1);c.fill();
+   c.strokeStyle='rgba(238,227,199,.35)';c.lineWidth=.7;c.beginPath();c.moveTo(x+2,y+bh-3);c.lineTo(x+2,y+2);c.lineTo(x+bw-3,y+2);c.stroke();
+   for(let n=0;n<18;n++){c.fillStyle=n%2?'rgba(255,245,221,.09)':'rgba(39,30,25,.10)';c.fillRect(x+2+random()*(bw-4),y+2+random()*(bh-4),1+random()*2,1);}
+  }
+ }
  textureCache.set(id,tile);}
  return ctx.createPattern(tile,'repeat')!;
 }

@@ -254,7 +254,7 @@ func (srv *server) saveCreativeMap(w http.ResponseWriter, r *http.Request, user 
 
 func creativeMaterial(value string) bool {
 	switch value {
-	case "", "grass", "earth", "sand", "snow", "cobble", "water":
+	case "", "grass", "earth", "sand", "snow", "cobble", "water", "forest-path", "mud", "flagstone", "brick-road":
 		return true
 	}
 	return false

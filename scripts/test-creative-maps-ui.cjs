@@ -75,6 +75,12 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/User/.cache/co
  for(const mode of ['Город','Деревня','Открытая местность']){await btn(mode).click();assert.equal(await btn(mode).getAttribute('aria-pressed'),'true');}
  await btn('Грунт').click();await page.getByLabel('Материал кисти').selectOption('sand');await drag(100,100,250,100);
  await btn('Дорога').click();await page.getByLabel('Материал кисти').selectOption('earth');await drag(300,150,400,250);
+ const roadBrushes=[['forest-path','Лесная тропа'],['mud','Мокрая грязь'],['flagstone','Каменные плиты'],['brick-road','Кирпичная мостовая']];
+ for(let n=0;n<roadBrushes.length;n++){const [id,label]=roadBrushes[n];await page.getByRole('group',{name:'Дорожные кисти',exact:true}).getByRole('button',{name:label,exact:true}).click();assert.equal(await page.getByLabel('Материал кисти').inputValue(),id);await drag(800,100+n*160,500,70);}
+ const roadsProject=JSON.parse((await download('Проект JSON')).toString()).scene;
+ for(const [id] of roadBrushes)assert.ok(roadsProject.items.some(i=>i.kind==='road'&&i.material===id));
+ await page.screenshot({path:'tmp/creative-road-brushes.png',fullPage:true});
+ const textures=await page.evaluate(()=>{const out=[];for(const id of ['earth','forest-path','mud','cobble','flagstone','brick-road']){const s=window.testMap.emptyScene();s.grid=false;s.surface=id;const c=document.createElement('canvas');c.width=1600;c.height=1000;window.testMap.paintScene(c,s);out.push(c.toDataURL());}return out;});assert.equal(new Set(textures).size,6,'road textures must differ');
  await btn('Река').click();await drag(1250,50,120,850);
  await page.getByLabel('Категория ассетов').selectOption('Здания');await asset('Коттедж',600,600);
  await page.getByLabel('Категория ассетов').selectOption('Растительность');await asset('Дуб раскидистый · зрелое',250,600);
@@ -122,6 +128,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/User/.cache/co
  await btn('Сохранить карту').click();await page.getByText('Ручная карта сохранена',{exact:true}).waitFor();assert.equal(JSON.parse(maps[0].creative).width,2000);assert.equal(JSON.parse(maps[0].creative).feetPerCell,10);
  await page.reload();await canvas.waitFor();assert.equal(await canvas.getAttribute('width'),'2000');await page.getByText('Размер карты и масштаб',{exact:true}).click();assert.equal(await page.getByLabel('Футов в клетке').inputValue(),'10');
  await page.setViewportSize({width:390,height:844});await page.screenshot({path:'tmp/creative-studio-mobile.png',fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'mobile overflow');
+ await btn('Дорога').click();await page.getByRole('group',{name:'Дорожные кисти',exact:true}).getByRole('button',{name:'Мокрая грязь',exact:true}).click();assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'road presets mobile overflow');
  assert.deepEqual(errors,[]);console.log(`Creative studio passed: ${geometry.count} assets, merged floors/cuts, polygon/cave/corridor, layers/locks, move/rotate/duplicate, undo/redo, save/reopen, PNG/JSON, draft recovery, AI source/style, outdoor modes/terrain/roads/rivers/scatter, true 3x render, resize/undo/bounds/reopen, feet ruler/scale, 390px.`);
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1)});

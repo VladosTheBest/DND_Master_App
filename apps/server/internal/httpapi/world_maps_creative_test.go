@@ -161,6 +161,11 @@ func TestCreativeOutdoorValidation(t *testing.T) {
 		}
 	}
 	check(false)
+	for _, material := range []string{"forest-path", "mud", "flagstone", "brick-road"} {
+		base.Surface = material
+		base.Items[1].Material = material
+		check(false)
+	}
 	base.MapType = "unknown"
 	check(true)
 	base.MapType = "wilderness"
