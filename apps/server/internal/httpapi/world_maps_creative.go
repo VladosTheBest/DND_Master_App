@@ -132,7 +132,7 @@ func validateCreative(raw string) error {
 			}
 		}
 		switch item.Kind {
-		case "terrain", "road", "river", "brush", "wall", "room", "water", "tree", "table", "chair", "bed", "rock", "door", "stairs", "chest", "fire", "ellipse", "polygon", "corridor", "cave", "cut", "asset", "image", "text":
+		case "portal", "terrain", "road", "river", "brush", "wall", "room", "water", "tree", "table", "chair", "bed", "rock", "door", "stairs", "chest", "fire", "ellipse", "polygon", "corridor", "cave", "cut", "asset", "image", "text":
 		default:
 			return fmt.Errorf("Неизвестный объект.")
 		}
@@ -153,6 +153,9 @@ func validateCreative(raw string) error {
 					return fmt.Errorf("Некорректный штрих.")
 				}
 			}
+		}
+		if item.Kind == "portal" && (len(item.Points) != 2 || item.Rotation != 0 || math.Hypot(item.Points[1][0]-item.Points[0][0], item.Points[1][1]-item.Points[0][1]) < 4) {
+			return fmt.Errorf("Дверь должна быть отрезком длиной не менее 4 пикселей.")
 		}
 	}
 	return nil

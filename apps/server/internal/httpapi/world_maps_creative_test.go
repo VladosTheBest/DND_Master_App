@@ -211,3 +211,22 @@ func TestCreativeMapDimensions(t *testing.T) {
 	width = 0
 	check(false)
 }
+
+func TestCreativePortalValidation(t *testing.T) {
+	s := creativeScene{Version: 2, Background: "#ffffff", Layers: []creativeLayer{{ID: "dungeon", Name: "Rooms", Visible: true, Opacity: 1}}, Items: []creativeItem{{ID: "door", Kind: "portal", X: 100, Y: 100, W: 32, H: 32, Color: "#ffffff", LayerID: "dungeon", Points: [][]float64{{100, 100}, {150, 100}}}}}
+	check := func(want bool) {
+		t.Helper()
+		b, _ := json.Marshal(s)
+		if err := validateCreative(string(b)); (err == nil) != want {
+			t.Fatalf("portal validation: %v; want valid=%v", err, want)
+		}
+	}
+	check(true)
+	for _, points := range [][][]float64{nil, {{100, 100}}, {{100, 100}, {100, 100}}, {{100, 100}, {101, 100}}, {{100, 100}, {150, 100}, {200, 100}}, {{100}, {150, 100}}, {{100, 100}, {4000, 100}}} {
+		s.Items[0].Points = points
+		check(false)
+	}
+	s.Items[0].Points = [][]float64{{100, 100}, {150, 100}}
+	s.Items[0].Rotation = 45
+	check(false)
+}

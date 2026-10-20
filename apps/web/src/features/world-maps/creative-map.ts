@@ -3,7 +3,7 @@ import {assetById,paintAsset} from './creative-assets';
 import {mapMediaURL} from './world-maps.api';
 export const MAP_WIDTH=1600,MAP_HEIGHT=1000;
 export type Point=[number,number];
-export type CreativeKind='terrain'|'road'|'river'|'brush'|'wall'|'room'|'water'|'ellipse'|'polygon'|'corridor'|'cave'|'cut'|'asset'|'image'|'text'|'tree'|'table'|'chair'|'bed'|'rock'|'door'|'stairs'|'chest'|'fire';
+export type CreativeKind='portal'|'terrain'|'road'|'river'|'brush'|'wall'|'room'|'water'|'ellipse'|'polygon'|'corridor'|'cave'|'cut'|'asset'|'image'|'text'|'tree'|'table'|'chair'|'bed'|'rock'|'door'|'stairs'|'chest'|'fire';
 export type CreativeItem={id:string;kind:CreativeKind;x:number;y:number;w:number;h:number;rotation:number;color:string;points?:Point[];material?:string;assetId?:string;imageUrl?:string;text?:string;layerId?:string;locked?:boolean;flipX?:boolean};
 export type CreativeLayer={id:string;name:string;visible:boolean;locked:boolean;opacity:number};
 export type CreativeScene={width?:number;height?:number;feetPerCell?:number;mapType?:string;surface?:string;version:1|2;background:string;grid:boolean;items:CreativeItem[];layers?:CreativeLayer[];style?:string;gridSize?:number;wallWidth?:number;floorColor?:string;wallColor?:string;hatching?:boolean};
@@ -25,7 +25,7 @@ export const defaultLayers=():CreativeLayer[]=>[
 export const emptyScene=():CreativeScene=>({version:2,width:1600,height:1000,feetPerCell:5,background:styles[0].background,floorColor:styles[0].floor,wallColor:styles[0].wall,style:'classic',grid:true,gridSize:50,wallWidth:5,hatching:true,layers:defaultLayers(),items:[]});
 export function normalizeScene(s:CreativeScene):CreativeScene {
  const layers=s.layers?.length?s.layers:defaultLayers();
- return {...emptyScene(),...s,version:2,layers,items:s.items.map(i=>({...i,layerId:i.layerId||(['water','brush','terrain','road','river'].includes(i.kind)?'terrain':floorKinds.has(i.kind)||i.kind==='wall'?'dungeon':i.kind==='text'?'notes':'props')}))};
+ return {...emptyScene(),...s,version:2,layers,items:s.items.map(i=>({...i,layerId:i.layerId||(['water','brush','terrain','road','river'].includes(i.kind)?'terrain':floorKinds.has(i.kind)||['wall','portal'].includes(i.kind)?'dungeon':i.kind==='text'?'notes':'props')}))};
 }
 export function sceneFromJSON(raw:string):CreativeScene {
  if(new TextEncoder().encode(raw).length>1024*1024)throw new Error('Проект больше 1 МБ.');
@@ -40,7 +40,8 @@ export function sceneFromJSON(raw:string):CreativeScene {
  if(s.feetPerCell!==undefined&&(!Number.isFinite(s.feetPerCell)||s.feetPerCell<1||s.feetPerCell>1000))throw new Error('Масштаб клетки: от 1 до 1000 футов.');
  const ids=new Set<string>();
  for(const i of s.items){
-  if(!i||typeof i.id!=='string'||!i.id||i.id.length>80||ids.has(i.id)||!hex.test(i.color)||![i.x,i.y,i.w,i.h,i.rotation].every(Number.isFinite)||i.x<0||i.x>width||i.y<0||i.y>height||i.w<1||i.w>4096||i.h<1||i.h>4096||Math.abs(i.rotation)>180||!['terrain','road','river','brush','wall','room','water','ellipse','polygon','corridor','cave','cut','asset','image','text','tree','table','chair','bed','rock','door','stairs','chest','fire'].includes(i.kind))throw new Error('Некорректный объект.');
+  if(!i||typeof i.id!=='string'||!i.id||i.id.length>80||ids.has(i.id)||!hex.test(i.color)||![i.x,i.y,i.w,i.h,i.rotation].every(Number.isFinite)||i.x<0||i.x>width||i.y<0||i.y>height||i.w<1||i.w>4096||i.h<1||i.h>4096||Math.abs(i.rotation)>180||!['portal','terrain','road','river','brush','wall','room','water','ellipse','polygon','corridor','cave','cut','asset','image','text','tree','table','chair','bed','rock','door','stairs','chest','fire'].includes(i.kind))throw new Error('Некорректный объект.');
+  if(i.kind==='portal'&&(!Array.isArray(i.points)||i.points.length!==2||!i.points.every(p=>Array.isArray(p)&&p.length===2&&p.every(Number.isFinite))||Math.hypot(i.points[1][0]-i.points[0][0],i.points[1][1]-i.points[0][1])<4||i.rotation!==0))throw new Error('Дверь должна быть отрезком длиной не менее 4 пикселей.');
   if(i.material!==undefined&&!materials.some(m=>m.id===i.material))throw new Error('Неизвестный материал.');
   ids.add(i.id);
   if(s.version===2&&!s.layers?.some(l=>l.id===i.layerId))throw new Error('Не найден слой объекта.');
@@ -67,7 +68,7 @@ export function hitItem(i:CreativeItem,p:Point){
  const a=-i.rotation*Math.PI/180,dx=p[0]-i.x,dy=p[1]-i.y;return Math.abs(dx*Math.cos(a)-dy*Math.sin(a))<=i.w/2+5&&Math.abs(dx*Math.sin(a)+dy*Math.cos(a))<=i.h/2+5;
 }
 function newCanvas(scale=1,scene?:CreativeScene){const {width,height}=sceneSize(scene);const c=document.createElement('canvas');c.width=width*scale;c.height=height*scale;return c;}
-function geometry(c:CanvasRenderingContext2D,i:CreativeItem){
+export function geometry(c:CanvasRenderingContext2D,i:CreativeItem){
  c.save();c.translate(i.x,i.y);c.rotate(i.rotation*Math.PI/180);c.beginPath();
  if(i.points?.length&&['road','river','terrain'].includes(i.kind)){const pts=i.points;c.moveTo(pts[0][0]-i.x,pts[0][1]-i.y);for(let n=1;n<pts.length-1;n++){const p=pts[n],q=pts[n+1];c.quadraticCurveTo(p[0]-i.x,p[1]-i.y,(p[0]+q[0])/2-i.x,(p[1]+q[1])/2-i.y);}const end=pts.at(-1)!;c.lineTo(end[0]-i.x,end[1]-i.y);}
  else if(i.points?.length){i.points.forEach(([x,y],n)=>n?c.lineTo(x-i.x,y-i.y):c.moveTo(x-i.x,y-i.y));if(i.kind==='polygon')c.closePath();}
@@ -98,15 +99,16 @@ export async function prepareSceneImages(scene:CreativeScene){await preparePaint
  const url=i.imageUrl!;if(imageCache.has(url))return;
  let job=pendingImages.get(url);if(!job){job=new Promise<void>((resolve,reject)=>{const image=new Image();image.crossOrigin='use-credentials';image.onload=()=>{imageCache.set(url,image);resolve();};image.onerror=()=>reject(new Error('Не удалось загрузить объект-изображение.'));image.src=mapMediaURL(url);});pendingImages.set(url,job);job.finally(()=>pendingImages.delete(url)).catch(()=>{});}await job;
 }));}
-export function paintScene(canvas:HTMLCanvasElement,raw:CreativeScene,selected:string|string[]=[],preview:Point[]=[]){
+export function paintScene(canvas:HTMLCanvasElement,raw:CreativeScene,selected:string|string[]=[],preview:Point[]=[],openDoors=false){
  const scene=normalizeScene(raw),c=canvas.getContext('2d');if(!c)return;const {width,height}=sceneSize(scene);const scale=canvas.width/width;c.save();c.scale(scale,scale);
  c.clearRect(0,0,width,height);c.fillStyle=scene.background;c.fillRect(0,0,width,height);if(scene.surface){c.fillStyle=materialPattern(c,scene.surface);c.fillRect(0,0,width,height);}
  for(const layer of scene.layers!){if(!layer.visible)continue;
  const items=scene.items.filter(i=>i.layerId===layer.id);if(!items.length)continue;const cv=newCanvas(scale,scene),l=cv.getContext('2d')!;l.scale(scale,scale);
  dungeon(l,items.filter(i=>floorKinds.has(i.kind)),scene,scale);
- for(const i of items.filter(i=>!floorKinds.has(i.kind))){
+ for(const i of items.filter(i=>!floorKinds.has(i.kind)).sort((a,b)=>Number(a.kind==='portal')-Number(b.kind==='portal'))){
   l.save();
   if(['terrain','road','river'].includes(i.kind)){if(i.kind!=='terrain'){l.fillStyle=l.strokeStyle=i.kind==='river'?'#9d986e':'#716348';geometry(l,{...i,w:i.w+8});}l.fillStyle=l.strokeStyle=materialPattern(l,i.kind==='river'?'water':i.material||'earth');geometry(l,i);}
+  else if(i.kind==='portal'&&i.points){const [a,b]=i.points;l.lineCap='butt';l.strokeStyle=scene.floorColor||'#faf7ed';l.lineWidth=Math.max(i.w,2*(scene.wallWidth||5)+4);l.beginPath();l.moveTo(...a);l.lineTo(...b);l.stroke();if(!openDoors){l.strokeStyle='#4e3728';l.lineWidth=8;l.stroke();l.strokeStyle='#b9915e';l.lineWidth=4;l.stroke();}const angle=Math.atan2(b[1]-a[1],b[0]-a[0]);l.strokeStyle=scene.wallColor||'#35352f';l.lineWidth=3;for(const p of [a,b]){const dx=Math.sin(angle)*7,dy=-Math.cos(angle)*7;l.beginPath();l.moveTo(p[0]-dx,p[1]-dy);l.lineTo(p[0]+dx,p[1]+dy);l.stroke();}}
   else if(i.kind==='brush'||i.kind==='wall'||i.kind==='water'){l.fillStyle=l.strokeStyle=i.color;geometry(l,i);}
   else {l.translate(i.x,i.y);l.rotate(i.rotation*Math.PI/180);if(i.flipX)l.scale(-1,1);
    if(i.kind==='image'){const image=imageCache.get(i.imageUrl!);if(image)l.drawImage(image,-i.w/2,-i.h/2,i.w,i.h);else{l.fillStyle='#ba8d8d';l.fillRect(-i.w/2,-i.h/2,i.w,i.h);}}
@@ -122,7 +124,7 @@ export function paintScene(canvas:HTMLCanvasElement,raw:CreativeScene,selected:s
  if(preview.length){c.strokeStyle='#8251d8';c.lineWidth=3;c.beginPath();preview.forEach(([x,y],n)=>n?c.lineTo(x,y):c.moveTo(x,y));c.stroke();for(const [x,y] of preview){c.fillStyle='#8251d8';c.fillRect(x-4,y-4,8,8);}}
  c.restore();
 }
-export async function creativePNG(scene:CreativeScene,scale=1):Promise<Blob>{if(![1,2,3].includes(scale)||sceneSize(scene).width*sceneSize(scene).height*scale*scale>16000000)throw new Error('Экспорт ограничен 16 мегапикселями. Выбери меньшее разрешение.');await prepareSceneImages(scene);const canvas=newCanvas(scale,scene);paintScene(canvas,scene);return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Не удалось экспортировать холст.')),'image/png'));}
+export async function creativePNG(scene:CreativeScene,scale=1,openDoors=false):Promise<Blob>{if(![1,2,3].includes(scale)||sceneSize(scene).width*sceneSize(scene).height*scale*scale>16000000)throw new Error('Экспорт ограничен 16 мегапикселями. Выбери меньшее разрешение.');await prepareSceneImages(scene);const canvas=newCanvas(scale,scene);paintScene(canvas,scene,[],[],openDoors);return new Promise((resolve,reject)=>canvas.toBlob(b=>b?resolve(b):reject(new Error('Не удалось экспортировать холст.')),'image/png'));}
 export const mapTypes=[{id:'dungeon',name:'Подземелье',surface:''},{id:'city',name:'Город',surface:'cobble'},{id:'village',name:'Деревня',surface:'grass'},{id:'wilderness',name:'Открытая местность',surface:'grass'}];
 export const materials=[{id:'grass',name:'Луговая трава',color:'#819061'},{id:'earth',name:'Грунт',color:'#b19a73'},{id:'forest-path',name:'Лесная тропа',color:'#8a7351'},{id:'mud',name:'Мокрая грязь',color:'#66513e'},{id:'flagstone',name:'Каменные плиты',color:'#aaa79e'},{id:'brick-road',name:'Кирпичная мостовая',color:'#a47559'},{id:'sand',name:'Песок',color:'#dac99c'},{id:'snow',name:'Снег',color:'#e1e8e6'},{id:'cobble',name:'Брусчатка',color:'#a4a39a'},{id:'water',name:'Вода',color:'#669eaa'}];
 export const roadMaterials=['earth','forest-path','mud','cobble','flagstone','brick-road'];
