@@ -62,7 +62,39 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/User/.cache/co
  await page.reload();await canvas.waitFor();await btn('Полный экран').click();assert.equal(await page.getByLabel('Название ручной карты').inputValue(),'Забытое святилище');
  await page.getByLabel('Название ручной карты').fill('Черновик святилища');await page.waitForFunction(()=>Object.keys(sessionStorage).some(k=>k.includes('creative-draft')));page.once('dialog',d=>d.accept());await page.reload();await btn('Восстановить черновик').click();assert.equal(await page.getByLabel('Название ручной карты').inputValue(),'Черновик святилища');await btn('Сохранить карту').click();await page.getByText('Ручная карта сохранена',{exact:true}).waitFor();
  await btn('Оформить с AI').click();await page.getByLabel('Стиль',{exact:true}).selectOption('Акварель на пергаменте');await btn('Создать новый вариант').click();await page.getByText('Тест: генерация не запускалась',{exact:true}).waitFor();assert.equal(generated.sourceMapId,maps[0].id);assert.equal(generated.sourceRevision,2);assert.ok(generated.prompt.includes('Акварель'));
+
+ // Outdoor modes preserve objects; new terrain, road and river tools persist and undo.
+ await btn('Полный экран').click();
+ const countBefore=JSON.parse(maps[0].creative).items.length;
+ for(const mode of ['Город','Деревня','Открытая местность']){await btn(mode).click();assert.equal(await btn(mode).getAttribute('aria-pressed'),'true');}
+ await btn('Грунт').click();await page.getByLabel('Материал кисти').selectOption('sand');await drag(100,100,250,100);
+ await btn('Дорога').click();await page.getByLabel('Материал кисти').selectOption('earth');await drag(300,150,400,250);
+ await btn('Река').click();await drag(1250,50,120,850);
+ await page.getByLabel('Категория ассетов').selectOption('Здания');await asset('Коттедж',600,600);
+ await page.getByLabel('Категория ассетов').selectOption('Растительность');await asset('Дуб раскидистый · зрелое',250,600);
+ await page.getByLabel('Рассыпать кистью').check();await drag(200,800,650,0);await page.getByLabel('Рассыпать кистью').uncheck();
+ const outdoorJSON=JSON.parse((await download('Проект JSON')).toString()).scene;
+ assert.equal(outdoorJSON.mapType,'wilderness');assert.equal(outdoorJSON.surface,'grass');assert.ok(outdoorJSON.items.length>countBefore+8);
+ for(const kind of ['terrain','road','river'])assert.ok(outdoorJSON.items.some(i=>i.kind===kind&&i.layerId==='terrain'&&i.points.length>2));
+ await btn('Сохранить карту').click();await page.getByText('Ручная карта сохранена',{exact:true}).waitFor();assert.deepEqual(JSON.parse(maps[0].creative),outdoorJSON);
+ // A representative city composition exercises detailed roofs, ground and water at 1x and true 3x.
+ const town=await page.evaluate(()=>{const s=window.testMap.emptyScene();s.mapType='city';s.surface='grass';s.grid=false;s.hatching=false;let n=0;
+ const add=(kind,x,y,w,h,extra={})=>s.items.push({id:'town-'+(++n),kind,x,y,w,h,rotation:0,color:'#ffffff',layerId:kind==='asset'?'props':'terrain',...extra});
+ add('river',200,0,155,155,{points:[[240,0],[195,160],[260,330],[185,520],[230,750],[170,1000]]});
+ add('road',380,500,95,95,{material:'cobble',points:[[280,500],[520,500],[780,520],[1100,500],[1600,530]]});
+ add('road',900,0,75,75,{material:'earth',points:[[850,0],[880,250],[890,500],[950,750],[1000,1000]]});
+ for(let y=0;y<3;y++)for(let x=0;x<5;x++){const id=['cottage','townhouse','slate-house','thatch-house','tavern-roof'][(x+y)%5],a=window.testMap.mapAssets.find(a=>a.id===id);add('asset',440+x*230,140+y*310,a.w*.85,a.h*.85,{assetId:id,rotation:y%2?90:0});}
+ for(let i=0;i<33;i++){const x=i<13?45+(i%3)*34:330+(i*137)%1200,y=i<13?40+i*75:30+(i*197)%940;add('asset',x,y,65+(i%3)*12,65+(i%3)*12,{assetId:'oak-'+(i%3+1),rotation:i*31%360-180});}
+ add('asset',208,500,190,120,{assetId:'bridge'});add('asset',1180,530,80,80,{assetId:'fountain'});add('asset',1300,880,170,125,{assetId:'field-3'});add('asset',1450,830,150,150,{assetId:'windmill'});
+ for(let i=0;i<6;i++)add('asset',470+i*180,580,30,30,{assetId:'streetlamp'});
+ return s;});
+ await page.locator('input[type=file][accept=".json,application/json"]').setInputFiles({name:'town.json',mimeType:'application/json',buffer:Buffer.from(JSON.stringify({scene:town}))});await page.getByText('Проект открыт. Проверь карту перед сохранением.',{exact:true}).waitFor();
+ await page.getByLabel('Название ручной карты').fill('Речной город');await page.getByLabel('Поиск ассетов').fill('');await page.getByLabel('Категория ассетов').selectOption('Здания');await btn('Выбрать').click();
+ await fs.writeFile('tmp/creative-town.png',await download('Скачать PNG'));await page.screenshot({path:'tmp/creative-town-editor.png',fullPage:true});
+ await page.getByText('Экспорт и горячие клавиши',{exact:true}).click();await page.getByLabel('Разрешение PNG').selectOption('3');const high=await download('Скачать PNG');assert.equal((await sharp(high).metadata()).width,4800);
+ // Re-rendered paths differ from simply enlarging the 1x bitmap.
+ const enlarged=await sharp(await fs.readFile('tmp/creative-town.png')).resize(4800,3000).raw().toBuffer();const highRaw=await sharp(high).raw().toBuffer();assert.notDeepEqual(highRaw,enlarged);
  await page.setViewportSize({width:390,height:844});await page.screenshot({path:'tmp/creative-studio-mobile.png',fullPage:true});assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1),'mobile overflow');
- assert.deepEqual(errors,[]);console.log(`Creative studio passed: ${geometry.count} assets, merged floors/cuts, polygon/cave/corridor, layers/locks, move/rotate/duplicate, undo/redo, save/reopen, PNG/JSON, draft recovery, AI source/style, 390px.`);
+ assert.deepEqual(errors,[]);console.log(`Creative studio passed: ${geometry.count} assets, merged floors/cuts, polygon/cave/corridor, layers/locks, move/rotate/duplicate, undo/redo, save/reopen, PNG/JSON, draft recovery, AI source/style, outdoor modes/terrain/roads/rivers/scatter, true 3x render, 390px.`);
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exit(1)});

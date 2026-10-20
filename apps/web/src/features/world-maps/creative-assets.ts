@@ -1,6 +1,7 @@
+import {expandAssets,assetCategories,shade} from './creative-asset-expansion';
 // Original vector props: shared paths for library thumbnails and map rendering.
 // No third-party asset downloads or runtime dependencies.
-export type AssetCategory = 'Природа'|'Мебель'|'Подземелье'|'Таверна'|'Лагерь'|'Храм'|'Город';
+export type AssetCategory = typeof assetCategories[number]| 'Природа'|'Мебель'|'Подземелье'|'Таверна'|'Лагерь'|'Храм'|'Город';
 export type AssetPart = {d:string;fill?:string;stroke?:string;width?:number};
 export type MapAsset = {id:string;name:string;category:AssetCategory;parts:AssetPart[];w:number;h:number};
 const wood='#b69060',light='#d9c5a0',stone='#999b94',green='#64835a',metal='#9daeb1',cloth='#9a6e65';
@@ -72,7 +73,20 @@ add('fence','Забор','Город',[rect(5,42,90,16),...Array.from({length:5}
 add('anvil','Наковальня','Город',[rect(28,15,44,70,wood),path('M12 32H88L74 45H58V69H35V45L12 40Z',metal)],60);
 add('hay','Сено','Город',[rect(10,15,80,70,'#c7ae6e'),line('M20 20V80 M30 20V80 M45 20V80 M60 20V80 M75 20V80 M10 35H90 M10 65H90')],80,65);
 add('banner','Знамя','Город',[rect(10,42,80,16,wood),path('M25 15H85L72 50L85 85H25Z',cloth),line('M20 10V90'),circle(20,10,5,'#c5a25b')],55,80);
+expandAssets(assets);
 export const mapAssets=assets;
 export const assetById=new Map(assets.map(a=>[a.id,a]));
-export const assetThumbnail=(a:MapAsset)=>'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">${a.parts.map(p=>`<path d="${p.d}" fill="${p.fill||'none'}" stroke="${p.stroke||'#39372f'}" stroke-width="${p.width||2}" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}</svg>`);
-export function paintAsset(c:CanvasRenderingContext2D,id:string,w:number,h:number){const a=assetById.get(id);if(!a)return;c.save();c.scale(w/100,h/100);c.translate(-50,-50);for(const part of a.parts){const p=new Path2D(part.d);c.fillStyle=part.fill||'transparent';c.strokeStyle=part.stroke||'#39372f';c.lineWidth=part.width||2;c.lineJoin='round';c.lineCap='round';c.fill(p);c.stroke(p);}c.restore();}
+export const assetThumbnail=(a:MapAsset)=>{
+ const colors=[...new Set(a.parts.map(p=>p.fill).filter((c):c is string=>!!c&&/^#[a-f0-9]{6}$/i.test(c)))];
+ const defs=colors.map((c,i)=>`<linearGradient id="g${i}" x2=".7" y2="1"><stop stop-color="${shade(c,15)}"/><stop offset="1" stop-color="${shade(c,-13)}"/></linearGradient>`).join('');
+ return 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -4 108 108"><defs>${defs}</defs>${a.parts.map(p=>`<path d="${p.d}" fill="${colors.includes(p.fill||'')?`url(#g${colors.indexOf(p.fill!)})`:p.fill||'none'}" stroke="${p.stroke||'#39372f'}" stroke-width="${p.width||2}" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}</svg>`);
+};
+export function paintAsset(c:CanvasRenderingContext2D,id:string,w:number,h:number){
+ const a=assetById.get(id);if(!a)return;c.save();c.scale(w/100,h/100);c.translate(-50,-50);
+ // One combined silhouette casts a single shadow, rather than a shadow per roof tile/leaf.
+ const silhouette=new Path2D();for(const part of a.parts)if(part.fill&&part.fill!=='none')silhouette.addPath(new Path2D(part.d));
+ c.save();c.translate(2,3);c.fillStyle='#243026';c.globalAlpha=.22;c.fill(silhouette);c.restore();
+ const gradients=new Map<string,CanvasGradient>();
+ for(const part of a.parts){const p=new Path2D(part.d);let fill:CanvasGradient|string=part.fill||'transparent';if(/^#[a-f0-9]{6}$/i.test(fill)){let g=gradients.get(fill);if(!g){g=c.createLinearGradient(15,5,80,95);g.addColorStop(0,shade(fill,15));g.addColorStop(1,shade(fill,-13));gradients.set(fill,g);}fill=g;}
+ c.strokeStyle=part.stroke||'#39372f';c.lineWidth=part.width||2;c.lineJoin='round';c.lineCap='round';if(part.fill&&part.fill!=='none'){c.fillStyle=fill;c.fill(p);}c.stroke(p);}c.restore();
+}

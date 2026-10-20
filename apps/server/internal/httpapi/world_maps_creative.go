@@ -17,6 +17,7 @@ type creativeLayer struct {
 	Opacity float64 `json:"opacity"`
 }
 type creativeItem struct {
+	Material string      `json:"material,omitempty"`
 	AssetID  string      `json:"assetId,omitempty"`
 	ImageURL string      `json:"imageUrl,omitempty"`
 	Text     string      `json:"text,omitempty"`
@@ -34,6 +35,8 @@ type creativeItem struct {
 	Points   [][]float64 `json:"points,omitempty"`
 }
 type creativeScene struct {
+	MapType    string          `json:"mapType,omitempty"`
+	Surface    string          `json:"surface,omitempty"`
 	Layers     []creativeLayer `json:"layers,omitempty"`
 	Style      string          `json:"style,omitempty"`
 	GridSize   float64         `json:"gridSize,omitempty"`
@@ -47,12 +50,18 @@ type creativeScene struct {
 	Items      []creativeItem  `json:"items"`
 }
 
-var creativeAssetIDs = map[string]bool{"tree": true, "pine": true, "bush": true, "stump": true, "rock": true, "rocks": true, "mushrooms": true, "lilies": true, "table": true, "round-table": true, "chair": true, "bench": true, "bed": true, "double-bed": true, "wardrobe": true, "bookshelf": true, "rug": true, "sofa": true, "desk": true, "door": true, "double-door": true, "portcullis": true, "stairs": true, "spiral-stairs": true, "chest": true, "crate": true, "barrel": true, "pillar": true, "pit": true, "spikes": true, "bones": true, "chain": true, "bar": true, "keg": true, "plates": true, "hearth": true, "cauldron": true, "sacks": true, "bottles": true, "fire": true, "tent": true, "bedroll": true, "cart": true, "boat": true, "log": true, "altar": true, "statue": true, "sarcophagus": true, "pentagram": true, "candles": true, "throne": true, "gravestone": true, "fountain": true, "well": true, "stall": true, "bridge": true, "fence": true, "anvil": true, "hay": true, "banner": true}
+var creativeAssetIDs = map[string]bool{"altar": true, "anvil": true, "banner": true, "bar": true, "barn": true, "barn-long": true, "barrel": true, "battlement": true, "beacon": true, "bed": true, "bedroll": true, "bench": true, "birch-1": true, "birch-2": true, "birch-3": true, "boat": true, "bones": true, "bookshelf": true, "bottles": true, "boulders-1": true, "boulders-2": true, "boulders-3": true, "boulders-4": true, "brazier": true, "bridge": true, "bush": true, "candelabra": true, "candles": true, "cart": true, "cauldron": true, "chain": true, "chair": true, "cherry-1": true, "cherry-2": true, "cherry-3": true, "chest": true, "city-gate": true, "cliff": true, "conifer-1": true, "conifer-2": true, "conifer-3": true, "conifer-4": true, "conifer-5": true, "cottage": true, "cottage-long": true, "crate": true, "crystal-blue": true, "crystal-purple": true, "deadwood-1": true, "deadwood-2": true, "deadwood-3": true, "desk": true, "dining-1": true, "dining-2": true, "dining-3": true, "door": true, "door-1": true, "door-2": true, "door-3": true, "double-bed": true, "double-door": true, "fence": true, "field-1": true, "field-2": true, "field-3": true, "field-4": true, "fire": true, "flowers-1": true, "flowers-2": true, "flowers-3": true, "forge": true, "fountain": true, "golden-1": true, "golden-2": true, "golden-3": true, "gravestone": true, "hanging-lamp": true, "hatch": true, "hay": true, "haystack": true, "hearth": true, "jungle-1": true, "jungle-2": true, "jungle-3": true, "keg": true, "lamp-green": true, "lantern": true, "large-tent": true, "lilies": true, "log": true, "manor": true, "manor-long": true, "maple-1": true, "maple-2": true, "maple-3": true, "market-1": true, "market-2": true, "market-3": true, "market-4": true, "mushrooms": true, "oak-1": true, "oak-2": true, "oak-3": true, "obelisk": true, "oven": true, "palisade": true, "palm": true, "pentagram": true, "pier": true, "pillar": true, "pine": true, "pit": true, "plates": true, "pond-stones": true, "portcullis": true, "reeds": true, "rock": true, "rocks": true, "round-hut": true, "round-rug": true, "round-table": true, "rug": true, "ruined-house": true, "ruined-house-long": true, "rune-circle": true, "sacks": true, "sarcophagus": true, "shrub-1": true, "shrub-2": true, "shrub-3": true, "shrub-4": true, "slate-house": true, "slate-house-long": true, "smithy": true, "smithy-long": true, "sofa": true, "spikes": true, "spiral-stairs": true, "stable": true, "stable-long": true, "stairs": true, "stall": true, "statue": true, "stone-wall-1": true, "stone-wall-2": true, "stone-wall-3": true, "streetlamp": true, "stump": true, "table": true, "tavern-roof": true, "tavern-roof-long": true, "temple-roof": true, "temple-roof-long": true, "tent": true, "thatch-house": true, "thatch-house-long": true, "throne": true, "tomb": true, "torch": true, "townhouse": true, "townhouse-long": true, "tree": true, "wagon-covered": true, "wardrobe": true, "warehouse": true, "warehouse-long": true, "watchtower-roof": true, "watermill": true, "well": true, "well-roof": true, "willow-1": true, "willow-2": true, "willow-3": true, "windmill": true, "window": true, "woodpile": true, "workbench": true}
 
 func validateCreative(raw string) error {
 	var scene creativeScene
 	if len(raw) > 1<<20 || json.Unmarshal([]byte(raw), &scene) != nil || (scene.Version != 1 && scene.Version != 2) || !mapColor.MatchString(scene.Background) || scene.Items == nil || len(scene.Items) > 1000 {
 		return fmt.Errorf("Некорректный холст: максимум 1000 объектов и 1 МБ.")
+	}
+	if scene.MapType != "" && scene.MapType != "dungeon" && scene.MapType != "city" && scene.MapType != "village" && scene.MapType != "wilderness" {
+		return fmt.Errorf("Неизвестный тип карты.")
+	}
+	if !creativeMaterial(scene.Surface) {
+		return fmt.Errorf("Неизвестная поверхность.")
 	}
 	layers := map[string]bool{}
 	if scene.Version == 2 && (len(scene.Layers) < 1 || len(scene.Layers) > 16) {
@@ -79,6 +88,9 @@ func validateCreative(raw string) error {
 			return fmt.Errorf("Некорректный объект холста.")
 		}
 		seen[item.ID] = true
+		if !creativeMaterial(item.Material) {
+			return fmt.Errorf("Неизвестный материал.")
+		}
 		if scene.Version == 2 && !layers[item.LayerID] {
 			return fmt.Errorf("Не найден слой объекта.")
 		}
@@ -103,14 +115,14 @@ func validateCreative(raw string) error {
 				if len(item.Points) < 3 {
 					return fmt.Errorf("Не хватает вершин.")
 				}
-			case "wall", "brush", "corridor", "cave", "cut":
+			case "terrain", "road", "river", "wall", "brush", "corridor", "cave", "cut":
 				if len(item.Points) < 2 {
 					return fmt.Errorf("Не хватает точек.")
 				}
 			}
 		}
 		switch item.Kind {
-		case "brush", "wall", "room", "water", "tree", "table", "chair", "bed", "rock", "door", "stairs", "chest", "fire", "ellipse", "polygon", "corridor", "cave", "cut", "asset", "image", "text":
+		case "terrain", "road", "river", "brush", "wall", "room", "water", "tree", "table", "chair", "bed", "rock", "door", "stairs", "chest", "fire", "ellipse", "polygon", "corridor", "cave", "cut", "asset", "image", "text":
 		default:
 			return fmt.Errorf("Неизвестный объект.")
 		}
@@ -207,7 +219,11 @@ func (srv *server) saveCreativeMap(w http.ResponseWriter, r *http.Request, user 
 			writeError(w, 500, "save_failed", "Не удалось сохранить карту.")
 			return
 		}
-		doc := worldMapDocument{ID: input.ID, Title: input.Title, ImageURL: canonical, Creative: input.Creative, Width: 1600, Height: 1000, Labels: []worldMapLabel{}, Provider: "creative", Scale: "site", Context: &worldMapContext{}, CreatedAt: time.Now().UTC(), Revision: input.Revision + 1}
+		scale := "site"
+		if scene.MapType == "city" || scene.MapType == "village" {
+			scale = "city"
+		}
+		doc := worldMapDocument{ID: input.ID, Title: input.Title, ImageURL: canonical, Creative: input.Creative, Width: 1600, Height: 1000, Labels: []worldMapLabel{}, Provider: "creative", Scale: scale, Context: &worldMapContext{}, CreatedAt: time.Now().UTC(), Revision: input.Revision + 1}
 		if index < 0 {
 			c.WorldMaps = append(c.WorldMaps, doc)
 		} else {
@@ -223,4 +239,12 @@ func (srv *server) saveCreativeMap(w http.ResponseWriter, r *http.Request, user 
 		return
 	}
 	writeError(w, 404, "not_found", "Кампания не найдена.")
+}
+
+func creativeMaterial(value string) bool {
+	switch value {
+	case "", "grass", "earth", "sand", "snow", "cobble", "water":
+		return true
+	}
+	return false
 }

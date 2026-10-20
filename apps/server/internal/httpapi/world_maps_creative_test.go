@@ -81,7 +81,7 @@ func TestCreativeWorldMapPersistenceAndAccess(t *testing.T) {
 	}
 	// New-format fields and nested owned images must survive storage together.
 	input["imageUrl"] = "/uploads/" + owner.ID + "/" + campaign.ID + "/canvas.png"
-	v2 := `{"version":2,"background":"#e9e4d8","grid":true,"style":"classic","wallWidth":5,"gridSize":50,"floorColor":"#faf7ed","wallColor":"#35352f","hatching":true,"layers":[{"id":"dungeon","name":"Комнаты","visible":true,"locked":false,"opacity":0.75}],"items":[{"id":"prop","kind":"asset","assetId":"altar","layerId":"dungeon","x":200,"y":300,"w":90,"h":60,"rotation":45,"color":"#345b38","flipX":true},{"id":"picture","kind":"image","imageUrl":"IMAGE","layerId":"dungeon","x":500,"y":500,"w":100,"h":60,"rotation":0,"color":"#ffffff"}]}`
+	v2 := `{"version":2,"mapType":"city","surface":"cobble","background":"#e9e4d8","grid":true,"style":"classic","wallWidth":5,"gridSize":50,"floorColor":"#faf7ed","wallColor":"#35352f","hatching":true,"layers":[{"id":"dungeon","name":"Комнаты","visible":true,"locked":false,"opacity":0.75}],"items":[{"id":"prop","kind":"asset","assetId":"altar","layerId":"dungeon","x":200,"y":300,"w":90,"h":60,"rotation":45,"color":"#345b38","flipX":true},{"id":"picture","kind":"image","imageUrl":"IMAGE","layerId":"dungeon","x":500,"y":500,"w":100,"h":60,"rotation":0,"color":"#ffffff"}]}`
 	scene = strings.Replace(v2, "IMAGE", input["imageUrl"].(string), 1)
 	input["creative"] = strings.Replace(v2, "IMAGE", "/uploads/foreign/other/image.png", 1)
 	if w = call("POST", base+"/creative", body(), "http://localhost", cookie); w.Code != 400 {
@@ -100,7 +100,7 @@ func TestCreativeWorldMapPersistenceAndAccess(t *testing.T) {
 		t.Fatal("missing map", err)
 	}
 	m := c.WorldMaps[0]
-	if m.Creative != scene || m.Revision != 3 || m.Title != "Обновлённая карта" || m.Provider != "creative" {
+	if m.Creative != scene || m.Revision != 3 || m.Title != "Обновлённая карта" || m.Provider != "creative" || m.Scale != "city" {
 		t.Fatal("roundtrip lost editable scene", m)
 	}
 	for _, bad := range []string{`{}`, strings.Replace(scene, `"altar"`, `"script"`, 1), strings.Replace(scene, `"w":90`, `"w":-1`, 1), strings.Replace(scene, `"opacity":0.75`, `"opacity":1.5`, 1), strings.Replace(scene, `"layerId":"dungeon"`, `"layerId":"missing"`, 1)} {
@@ -143,4 +143,32 @@ func TestCreativeWorldMapV2GeometryValidation(t *testing.T) {
 	if validateCreative(encode()) == nil {
 		t.Fatal("duplicate layer accepted")
 	}
+}
+
+func TestCreativeOutdoorValidation(t *testing.T) {
+	base := creativeScene{Version: 2, MapType: "village", Surface: "grass", Background: "#819061", Layers: []creativeLayer{{ID: "terrain", Name: "Земля", Visible: true, Opacity: 1}}, Items: []creativeItem{}}
+	for _, kind := range []string{"terrain", "road", "river"} {
+		base.Items = append(base.Items, creativeItem{ID: kind, Kind: kind, LayerID: "terrain", Material: "earth", X: 20, Y: 20, W: 100, H: 100, Color: "#ffffff", Points: [][]float64{{20, 20}, {300, 300}}})
+	}
+	check := func(wantError bool) {
+		t.Helper()
+		raw, _ := json.Marshal(base)
+		if err := validateCreative(string(raw)); (err != nil) != wantError {
+			t.Fatalf("validate=%v, wantError=%v", err, wantError)
+		}
+	}
+	check(false)
+	base.MapType = "unknown"
+	check(true)
+	base.MapType = "wilderness"
+	base.Surface = "lava"
+	check(true)
+	base.Surface = "snow"
+	base.Items[0].Material = "unknown"
+	check(true)
+	base.Items[0].Material = "sand"
+	base.Items[1].Points = nil
+	check(true)
+	base.Items[1].Points = [][]float64{{20, 20}, {40, 40}}
+	check(false)
 }

@@ -1,0 +1,11 @@
+import {build} from 'esbuild';
+import {readFile,writeFile} from 'node:fs/promises';
+const result=await build({entryPoints:['apps/web/src/features/world-maps/creative-assets.ts'],bundle:true,write:false,format:'esm',platform:'node'});
+const {mapAssets}=await import('data:text/javascript;base64,'+Buffer.from(result.outputFiles[0].text).toString('base64'));
+const ids=mapAssets.map(a=>a.id).sort();
+if(new Set(ids).size!==ids.length)throw new Error('Duplicate asset IDs');
+const file='apps/server/internal/httpapi/world_maps_creative.go';
+const source=await readFile(file,'utf8');
+const next=source.replace(/var creativeAssetIDs = map\[string\]bool\{[^}]+\}/s,'var creativeAssetIDs = map[string]bool{'+ids.map(id=>JSON.stringify(id)+': true').join(', ')+'}');
+if(process.argv.includes('--check')){if(next!==source)throw new Error('Creative catalog drift: run node scripts/generate-creative-assets.mjs');}else await writeFile(file,next);
+console.log(`${ids.length} creative assets verified`);
