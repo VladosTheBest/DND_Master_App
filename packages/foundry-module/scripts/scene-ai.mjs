@@ -1,5 +1,5 @@
 import {sceneCreation,sceneBackground,setSceneBackground,verifySceneImage} from './scene-background.mjs';
-import {watchSceneJob,scenePreviewHTML,createSceneMonitor} from './scene-job-ui.mjs';
+import {watchSceneJob,scenePreviewHTML,renderScenePreview,createSceneMonitor} from './scene-job-ui.mjs';
 import {MODULE,clone,sceneLevel} from './core.mjs';
 import {scenePlan,safeHTML} from './adapter.mjs';
 import {managedFolder,folderPath} from './presentation.mjs';
@@ -27,7 +27,7 @@ export function createSceneAI({connected,request,saveState,localAsset,waitClosed
    const map=job.result?.data;if(!map?.levels?.[0])throw Error('Сайт не вернул фон сцены.');const record=sceneAIRecord(map),level=map.levels[0];
    ui.notifications.info('Фон готов. Загружаем изображение в Foundry…');
    const src=await localAsset(state,level.imageUrl,'Карты');await saveState(state);await verifySceneImage(src);const plan=scenePlan(record,level);ui.notifications.info('Фон готов. Посмотрите изображение и создайте сцену.');
-   const action=await waitClosed({window:{title:`Фон готов · ${map.title}`},position:{width:640},content:scenePreviewHTML(src,level,plan),buttons:[{action:'create',label:'Создать сцену',default:true},{action:'retry',label:'Перегенерировать'},{action:'discard',label:'Отклонить фон'},{action:'later',label:'Сохранить предпросмотр на потом'}]});
+   const action=await waitClosed({window:{title:`Фон готов · ${map.title}`},position:{width:640},content:scenePreviewHTML(src,level,plan),render:(_e,dialog)=>renderScenePreview(dialog.element,level),buttons:[{action:'create',label:'Создать сцену',default:true},{action:'retry',label:'Перегенерировать'},{action:'discard',label:'Отклонить фон'},{action:'later',label:'Сохранить предпросмотр на потом'}]});
    if(action==='retry'){pending=state.sceneAI={input:{...pending.input,requestId:crypto.randomUUID()}};await saveState(state);return launch();}
    if(action==='discard'){delete state.sceneAI;await saveState(state);return}if(action!=='create')return;
    ui.notifications.info('Сохраняем фон и создаём сцену…');

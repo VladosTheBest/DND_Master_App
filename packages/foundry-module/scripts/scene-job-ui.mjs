@@ -6,9 +6,19 @@ export function sceneEstimate(job,now=Date.now()){
 const attr=value=>String(value??'').replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;').replaceAll('>','&gt;');
 export function scenePreviewHTML(src,level,plan){
  const w=level.width,h=level.height;
- const walls=(level.walls||[]).map(v=>`<line x1="${v.start.x*w}" y1="${v.start.y*h}" x2="${v.end.x*w}" y2="${v.end.y*h}" stroke="${v.kind==='door'?'#ff9e45':'#52e8d4'}" stroke-width="${Math.max(3,w/250)}"/>`).join('');
- const lights=(level.lights||[]).map(v=>`<circle cx="${v.x*w}" cy="${v.y*h}" r="${Math.max(5,v.dim/5*w/(level.columns||30))}" fill="#ffd16633" stroke="#ffd166"/>`).join('');
- return `<div style="position:relative"><img src="${attr(src)}" alt="Фон сцены" style="display:block;width:100%"><svg viewBox="0 0 ${w} ${h}" style="position:absolute;inset:0;width:100%;height:100%;pointer-events:none">${lights}${walls}</svg></div><p>${level.columns||Math.round(w/plan.grid.size)} × ${level.rows||Math.round(h/plan.grid.size)} клеток · ${plan.grid.distance} футов. ${level.walls?.length||0} стен/дверей · ${level.lights?.length||0} источников света.</p><p>Проверьте разметку: стены бирюзовые, двери оранжевые, свет жёлтый. AI может ошибаться. После создания всё редактируется штатными инструментами Foundry.</p>`;
+ return `<div data-scene-preview style="position:relative"><img src="${attr(src)}" alt="Фон сцены" style="display:block;width:100%"></div><p>${level.columns||Math.round(w/plan.grid.size)} × ${level.rows||Math.round(h/plan.grid.size)} клеток · ${plan.grid.distance} футов. ${level.walls?.length||0} стен/дверей · ${level.lights?.length||0} источников света.</p><p>Проверьте разметку: стены бирюзовые, двери оранжевые, свет жёлтый. AI может ошибаться. После создания всё редактируется штатными инструментами Foundry.</p>`;
+}
+// DialogV2 sanitizes SVG out of content strings. Mount trusted geometry after rendering.
+export function renderScenePreview(root,level){
+ const host=root.querySelector('[data-scene-preview]');if(!host)return;
+ host.querySelector('svg')?.remove();
+ const w=level.width,h=level.height,doc=host.ownerDocument;
+ const element=(tag,attrs)=>{const e=doc.createElementNS('http://www.w3.org/2000/svg',tag);for(const [key,value] of Object.entries(attrs))e.setAttribute(key,String(value));return e};
+ const svg=element('svg',{viewBox:`0 0 ${w} ${h}`,'aria-label':'Стены, двери и источники света'});
+ Object.assign(svg.style,{position:'absolute',inset:'0',width:'100%',height:'100%',pointerEvents:'none'});
+ for(const v of level.lights||[])svg.append(element('circle',{cx:v.x*w,cy:v.y*h,r:Math.max(5,v.dim/5*w/(level.columns||30)),fill:'#ffd16633',stroke:'#ffd166'}));
+ for(const v of level.walls||[])svg.append(element('line',{x1:v.start.x*w,y1:v.start.y*h,x2:v.end.x*w,y2:v.end.y*h,stroke:v.kind==='door'?'#ff9e45':'#52e8d4','stroke-width':Math.max(3,w/250)}));
+ host.append(svg);
 }
 // Only watches an explicitly submitted pending job; never imports or switches scenes.
 export function createSceneMonitor({readState,request,onOpen,intervalMs=5000,notify=(message)=>ui.notifications.info(message,{permanent:true})}){
