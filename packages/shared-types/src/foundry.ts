@@ -18,6 +18,7 @@ export interface FoundryActor {
   items: FoundryAbility[];
 }
 export interface SessionMapDocument {
+  generation?: {prompt:string;topologyError?:string;animatedDoors?:boolean};
   id: string; title: string; revision: number;
   levels: Array<{
     id: string; name: string; imageUrl: string; roofUrl?: string;

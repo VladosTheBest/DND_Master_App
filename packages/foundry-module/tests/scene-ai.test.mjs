@@ -77,3 +77,25 @@ test('card uses persistent text and color states, safe title text and a reopen a
  card.update({state:'succeeded'},'Map');assert.equal(el.dataset.state,'ready');assert.match(el.children[1].textContent,/Сцена готова/);assert.equal(el.children[2].hidden,true);assert.equal(el.removed,undefined);el.children[4].onclick();assert.equal(opened,1);
  card.update({state:'failed'},'Map');assert.equal(el.dataset.state,'failed');assert.match(el.children[1].textContent,/Не удалось/);card.remove();assert.equal(el.removed,true);
 });
+
+test('failed generation retries immediately with preserved description and grid',async()=>{
+ const input={requestId:'old',title:'Dungeon',prompt:'Seven connected rooms',columns:60,rows:40,distance:5,weather:'none'},state={records:{},sceneAI:{input,jobId:'old'}};let posts=0;
+ const flow=createSceneAI({connected:async()=>state,saveState:async()=>{},request:async(_s,path,options)=>{if(options?.method==='POST'){posts++;const retry=JSON.parse(options.body);assert.equal(retry.prompt,input.prompt);assert.equal(retry.columns,60);assert.equal(retry.rows,40);assert.notEqual(retry.requestId,'old');return {id:'new'}}return path.endsWith('old')?{state:'failed',result:{error:{message:'Bad topology'}}}:{state:'running'}},waitClosed:async config=>config.window.title==='AI-сцена — ошибка'?'clear':'later'});
+ await flow.launch();assert.equal(posts,1);assert.equal(state.sceneAI.jobId,'new');assert.equal(state.sceneAI.input.prompt,input.prompt);
+});
+import {replaceSceneTopology,topologySnapshot} from '../scripts/scene-topology.mjs';
+test('editing a failed request restores the draft without starting a new generation',async()=>{
+ const input={title:'Dungeon',prompt:'Seven connected rooms',columns:60,rows:40,distance:5,weather:'none'},state={sceneAI:{input,jobId:'failed'}};let forms=0;
+ const flow=createSceneAI({connected:async()=>state,saveState:async()=>{},request:async(_s,_p,options)=>{assert.equal(options?.method,undefined);return {state:'failed'}},waitClosed:async config=>{if(config.window.title==='AI-сцена — ошибка')return 'edit';forms++;const fields=Object.fromEntries(Object.keys(input).map(k=>[k,{value:''}]));config.render(null,{element:{querySelector:selector=>fields[selector.slice(6,-1)]}});assert.equal(fields.prompt.value,input.prompt);assert.equal(fields.columns.value,'60');assert.equal(fields.rows.value,'40');return null}});
+ await flow.launch();assert.equal(forms,1);assert.equal(state.sceneAI,undefined);assert.deepEqual(state.sceneDraft,input);
+});
+test('topology replacement refuses edits made while AI was running',async()=>{
+ const scene={walls:[],lights:[],environment:{darknessLevel:0}};const expected=topologySnapshot(scene);scene.environment.darknessLevel=.4;await assert.rejects(replaceSceneTopology(scene,expected,{}),/изменена/);
+});
+
+test('replacing topology rescales geometry and rolls back originals on failure',async()=>{
+ function fixture(fail){const collection=items=>{const m=new Map(items.map(v=>[v._id,{...v,id:v._id,toObject(){const {_id,c}=this;return {_id,c}}}]));m[Symbol.iterator]=m.values.bind(m);return m};let n=0;return {width:200,height:100,walls:collection([{_id:'old',c:[0,0,10,0]}]),lights:collection([]),environment:{darknessLevel:0},async createEmbeddedDocuments(type,rows){if(fail&&type==='AmbientLight'&&rows.length)throw Error('light write failed');const m=type==='Wall'?this.walls:this.lights;return rows.map(row=>{const data={...row,id:row._id||`n${++n}`};data.toObject=()=>({...row,_id:data.id});m.set(data.id,data);return data})},async deleteEmbeddedDocuments(type,ids){const m=type==='Wall'?this.walls:this.lights;ids.forEach(id=>m.delete(id))},async update(data){this.environment.darknessLevel=data['environment.darknessLevel']}}}
+ const plan={width:100,height:100,walls:[{c:[10,20,30,20]}],lights:[{x:10,y:20}],environment:{darknessLevel:.5}};
+ const scene=fixture(false);await replaceSceneTopology(scene,topologySnapshot(scene),plan);assert.equal(scene.walls.has('old'),false);assert.deepEqual([...scene.walls][0].c,[20,20,60,20]);assert.equal([...scene.lights][0].x,20);
+ const failed=fixture(true),before=topologySnapshot(failed);await assert.rejects(replaceSceneTopology(failed,before,plan),/light write failed/);assert.deepEqual(topologySnapshot(failed),before);
+});

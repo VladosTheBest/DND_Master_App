@@ -898,6 +898,7 @@ export interface CodexPromptInput {
 }
 
 export interface AIJob {
+  sceneInput?: {title:string;prompt:string;columns:number;rows:number;distance:number;weather:string;referenceUrl?:string;improve:boolean;topology:boolean;animatedDoors?:boolean};
   id: string;
   campaignId?: string;
   sessionId?: string;

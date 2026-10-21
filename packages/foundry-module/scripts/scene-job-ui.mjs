@@ -29,7 +29,7 @@ export function createSceneCard(onOpen,doc=globalThis.document){
  return {remove:()=>card.remove(),update(job,name){
   const ready=job.state==='succeeded',failed=job.state==='failed',done=ready||failed;
   card.dataset.state=ready?'ready':failed?'failed':'running';title.textContent=name||'AI-сцена';
-  status.textContent=ready?'✓ Сцена готова':failed?'! Не удалось создать сцену':job.stage||'Генерация продолжается';
+  status.textContent=ready?(job.result?.data?.generation?.topologyError?'✓ Фон готов · нужна разметка':'✓ Сцена готова'):failed?'! Не удалось создать сцену':job.stage||'Генерация продолжается';
   progress.hidden=done;detail.textContent=done?'Откройте результат, когда будет удобно.':sceneEstimate(job);button.textContent=done?'Открыть результат':'Развернуть';
  }};
 }

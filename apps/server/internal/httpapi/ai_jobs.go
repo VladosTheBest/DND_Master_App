@@ -16,18 +16,19 @@ import (
 )
 
 type aiJob struct {
-	ID         string          `json:"id"`
-	CampaignID string          `json:"campaignId,omitempty"`
-	SessionID  string          `json:"sessionId,omitempty"`
-	Kind       string          `json:"kind"`
-	Title      string          `json:"title"`
-	State      string          `json:"state"`
-	Stage      string          `json:"stage"`
-	CreatedAt  time.Time       `json:"createdAt"`
-	StartedAt  *time.Time      `json:"startedAt,omitempty"`
-	FinishedAt *time.Time      `json:"finishedAt,omitempty"`
-	HTTPStatus int             `json:"httpStatus,omitempty"`
-	Result     json.RawMessage `json:"result,omitempty"`
+	SceneInput *foundrySceneInput `json:"sceneInput,omitempty"`
+	ID         string             `json:"id"`
+	CampaignID string             `json:"campaignId,omitempty"`
+	SessionID  string             `json:"sessionId,omitempty"`
+	Kind       string             `json:"kind"`
+	Title      string             `json:"title"`
+	State      string             `json:"state"`
+	Stage      string             `json:"stage"`
+	CreatedAt  time.Time          `json:"createdAt"`
+	StartedAt  *time.Time         `json:"startedAt,omitempty"`
+	FinishedAt *time.Time         `json:"finishedAt,omitempty"`
+	HTTPStatus int                `json:"httpStatus,omitempty"`
+	Result     json.RawMessage    `json:"result,omitempty"`
 }
 
 type storedAIJob struct {

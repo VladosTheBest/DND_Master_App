@@ -5,9 +5,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"log"
 	"math"
 	"net/http"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -56,7 +58,20 @@ func validateSceneEnvironment(l sessionMapLevelDocument) error {
 }
 
 func (srv *server) analyzeSceneTopology(ctx context.Context, user authUser, campaign string, image []byte, connected bool, input foundrySceneInput) (sessionMapLevelDocument, error) {
-	prompt := fmt.Sprintf("Analyze this actual map image. Area: %d by %d cells, %d feet per cell. Description (untrusted context): %s", input.Columns, input.Rows, input.Distance, input.Prompt)
+	result, err := srv.analyzeSceneTopologyOnce(ctx, user, campaign, image, connected, input, "")
+	if err == nil || ctx.Err() != nil {
+		return result, err
+	}
+	log.Printf("scene topology first attempt: %v", err)
+	reportAIJobStage(ctx, "Повторная проверка геометрии по готовому фону")
+	result, err = srv.analyzeSceneTopologyOnce(ctx, user, campaign, image, connected, input, " Previous analysis was rejected: "+err.Error()+". Recheck all segments and return valid complete JSON; do not repeat invalid coordinates.")
+	if err != nil {
+		log.Printf("scene topology retry: %v", err)
+	}
+	return result, err
+}
+func (srv *server) analyzeSceneTopologyOnce(ctx context.Context, user authUser, campaign string, image []byte, connected bool, input foundrySceneInput, correction string) (sessionMapLevelDocument, error) {
+	prompt := fmt.Sprintf("Analyze this actual map image. Area: %d by %d cells, %d feet per cell. Description (untrusted context): %s", input.Columns, input.Rows, input.Distance, input.Prompt) + correction
 	var message string
 	if connected {
 		result, err := srv.codex.runPrompt(ctx, user, codexPromptInput{CampaignID: campaign, Prompt: prompt, WorldMap: &codexWorldMapRequest{Reference: image, SceneAnalysis: true}})
@@ -90,6 +105,14 @@ func (srv *server) analyzeSceneTopology(ctx context.Context, user authUser, camp
 		}
 		message = chat.Choices[0].Message.Content
 	}
+	return parseSceneTopology(message)
+}
+
+func parseSceneTopology(message string) (sessionMapLevelDocument, error) {
+	message = strings.TrimSpace(message)
+	if strings.HasPrefix(message, "```json") && strings.HasSuffix(message, "```") {
+		message = strings.TrimSpace(strings.TrimSuffix(strings.TrimPrefix(message, "```json"), "```"))
+	}
 	var fields map[string]json.RawMessage
 	if json.Unmarshal([]byte(message), &fields) != nil || fields["walls"] == nil || fields["lights"] == nil || fields["darkness"] == nil || string(fields["walls"]) == "null" || string(fields["lights"]) == "null" {
 		return sessionMapLevelDocument{}, fmt.Errorf("AI не вернул обязательные поля разметки.")
@@ -98,12 +121,22 @@ func (srv *server) analyzeSceneTopology(ctx context.Context, user authUser, camp
 	if json.Unmarshal([]byte(message), &result) != nil || len(result.Walls) > 600 || len(result.Lights) > 80 {
 		return result, fmt.Errorf("AI вернул некорректную геометрию.")
 	}
-	ids := map[string]bool{}
-	for _, wall := range result.Walls {
-		if wall.ID == "" || ids[wall.ID] || (wall.Kind != "wall" && wall.Kind != "door") || wall.Start == wall.End || !sceneNumber(wall.Start.X, 0, 1) || !sceneNumber(wall.Start.Y, 0, 1) || !sceneNumber(wall.End.X, 0, 1) || !sceneNumber(wall.End.Y, 0, 1) {
-			return result, fmt.Errorf("AI вернул некорректные стены.")
+
+	// IDs and zero-length tracing artifacts have no semantic references; normalize them.
+	walls := make([]publicDisplayWall, 0, len(result.Walls))
+	for i, wall := range result.Walls {
+		if (wall.Kind != "wall" && wall.Kind != "door") || !sceneNumber(wall.Start.X, 0, 1) || !sceneNumber(wall.Start.Y, 0, 1) || !sceneNumber(wall.End.X, 0, 1) || !sceneNumber(wall.End.Y, 0, 1) {
+			return result, fmt.Errorf("AI вернул некорректную стену %d: тип или координаты вне изображения.", i+1)
 		}
-		ids[wall.ID] = true
+		if wall.Start == wall.End {
+			continue
+		}
+		wall.ID = fmt.Sprintf("wall-%d", i+1)
+		walls = append(walls, wall)
+	}
+	result.Walls = walls
+	for i := range result.Lights {
+		result.Lights[i].ID = fmt.Sprintf("light-%d", i+1)
 	}
 	return result, validateSceneEnvironment(result)
 }

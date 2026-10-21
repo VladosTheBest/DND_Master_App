@@ -12,16 +12,17 @@ import (
 )
 
 type foundrySceneInput struct {
-	ReferenceURL string `json:"referenceUrl"`
-	Improve      bool   `json:"improve"`
-	Topology     bool   `json:"topology"`
-	Weather      string `json:"weather"`
-	RequestID    string `json:"requestId"`
-	Title        string `json:"title"`
-	Prompt       string `json:"prompt"`
-	Columns      int    `json:"columns"`
-	Rows         int    `json:"rows"`
-	Distance     int    `json:"distance"`
+	AnimatedDoors bool   `json:"animatedDoors,omitempty"`
+	ReferenceURL  string `json:"referenceUrl"`
+	Improve       bool   `json:"improve"`
+	Topology      bool   `json:"topology"`
+	Weather       string `json:"weather"`
+	RequestID     string `json:"requestId"`
+	Title         string `json:"title"`
+	Prompt        string `json:"prompt"`
+	Columns       int    `json:"columns"`
+	Rows          int    `json:"rows"`
+	Distance      int    `json:"distance"`
 }
 
 const sceneDoorBackgroundInstructions = ` Doorways must be EMPTY OPEN GAPS with continuous floor and clearly visible jambs. NO DOOR LEAVES, NO DOOR PANELS, NO SWING ARCS or drawn open doors anywhere: Foundry renders separate animated wooden door leaves. Preserve visible thresholds so vision analysis can locate each doorway.`
@@ -148,7 +149,7 @@ func (m *foundryManager) sceneAI(w http.ResponseWriter, r *http.Request, c found
 		return
 	}
 	key := prefix + input.RequestID + ":" + foundryHash(input)
-	job, err := jobs.start(c.OwnerID, key, aiJob{Kind: "foundry-scene", Title: "Сцена · " + input.Title, CampaignID: c.CampaignID}, func(ctx context.Context) (int, []byte) {
+	job, err := jobs.start(c.OwnerID, key, aiJob{SceneInput: &input, Kind: "foundry-scene", Title: "Сцена · " + input.Title, CampaignID: c.CampaignID}, func(ctx context.Context) (int, []byte) {
 		response := &aiJobResponse{header: make(http.Header), status: 200}
 		m.generateSceneImage(response, ctx, c, input)
 		return response.status, response.body.Bytes()
@@ -232,40 +233,44 @@ func (m *foundryManager) generateSceneImage(w http.ResponseWriter, ctx context.C
 		return
 	}
 	reportAIJobStage(ctx, "Сохранение изображения и подготовка сцены")
-	ext := "." + format
-	if format == "jpeg" {
-		ext = ".jpg"
+	url := input.ReferenceURL
+	if len(reference) == 0 || input.Improve {
+		ext := "." + format
+		if format == "jpeg" {
+			ext = ".jpg"
+		}
+		dir := filepath.Join(srv.uploadDir, sanitizeUploadPathSegment(c.OwnerID), sanitizeUploadPathSegment(c.CampaignID))
+		if srv.uploadDir == "" || os.MkdirAll(dir, 0700) != nil {
+			writeError(w, 500, "save_failed", "Хранилище изображений недоступно.")
+			return
+		}
+		file := filepath.Join(dir, newID("foundry-scene")+ext)
+		if os.WriteFile(file, result.Image, 0600) != nil {
+			writeError(w, 500, "save_failed", "Не удалось сохранить фон.")
+			return
+		}
+		file, _, _ = optimizeUploadedImage(ctx, file, http.DetectContentType(result.Image), int64(len(result.Image)))
+		if srv.assets != nil && srv.assets.publishUpload(ctx, file) != nil {
+			writeError(w, 500, "save_failed", "Не удалось сохранить фон в хранилище.")
+			return
+		}
+		url = "/uploads/" + sanitizeUploadPathSegment(c.OwnerID) + "/" + sanitizeUploadPathSegment(c.CampaignID) + "/" + filepath.Base(file)
 	}
-	dir := filepath.Join(srv.uploadDir, sanitizeUploadPathSegment(c.OwnerID), sanitizeUploadPathSegment(c.CampaignID))
-	if srv.uploadDir == "" || os.MkdirAll(dir, 0700) != nil {
-		writeError(w, 500, "save_failed", "Хранилище изображений недоступно.")
-		return
-	}
-	file := filepath.Join(dir, newID("foundry-scene")+ext)
-	if os.WriteFile(file, result.Image, 0600) != nil {
-		writeError(w, 500, "save_failed", "Не удалось сохранить фон.")
-		return
-	}
-	file, _, _ = optimizeUploadedImage(ctx, file, http.DetectContentType(result.Image), int64(len(result.Image)))
-	if srv.assets != nil && srv.assets.publishUpload(ctx, file) != nil {
-		writeError(w, 500, "save_failed", "Не удалось сохранить фон в хранилище.")
-		return
-	}
-	url := "/uploads/" + sanitizeUploadPathSegment(c.OwnerID) + "/" + sanitizeUploadPathSegment(c.CampaignID) + "/" + filepath.Base(file)
 	// Grid count is applied to the actual generated pixels; no claim of exact AI tile alignment.
-	scene := sessionMapDocument{ID: newID("foundry-scene"), Title: input.Title, Levels: []sessionMapLevelDocument{{ID: "ground", Name: input.Title, ImageURL: url, Width: cfg.Width, Height: cfg.Height, Walls: []publicDisplayWall{}, Grid: &publicDisplayGrid{Type: "square", Size: 1 / float64(input.Columns)}, GridDistance: float64(input.Distance)}}}
+	scene := sessionMapDocument{Generation: &sceneGenerationInfo{Prompt: input.Prompt, AnimatedDoors: input.ReferenceURL == "" || input.AnimatedDoors}, ID: newID("foundry-scene"), Title: input.Title, Levels: []sessionMapLevelDocument{{ID: "ground", Name: input.Title, ImageURL: url, Width: cfg.Width, Height: cfg.Height, Walls: []publicDisplayWall{}, Grid: &publicDisplayGrid{Type: "square", Size: 1 / float64(input.Columns)}, GridDistance: float64(input.Distance)}}}
 	level := &scene.Levels[0]
 	level.Columns, level.Rows, level.Weather = input.Columns, input.Rows, input.Weather
 	if input.Topology {
 		reportAIJobStage(ctx, "Распознавание стен, дверей и источников света")
 		topology, analysisErr := srv.analyzeSceneTopology(ctx, user, c.CampaignID, result.Image, connected, input)
 		if analysisErr != nil {
-			writeError(w, 502, "scene_analysis_failed", analysisErr.Error())
-			return
+			// A valid background remains usable even when a separate AI analysis fails.
+			scene.Generation.TopologyError = analysisErr.Error()
+		} else {
+			level.Walls, level.Lights, level.Darkness = topology.Walls, topology.Lights, topology.Darkness
 		}
-		level.Walls, level.Lights, level.Darkness = topology.Walls, topology.Lights, topology.Darkness
 		// Existing/uploaded bitmaps may contain painted door leaves; never add duplicates.
-		if input.ReferenceURL == "" {
+		if scene.Generation.AnimatedDoors {
 			for i := range level.Walls {
 				if level.Walls[i].Kind == "door" {
 					level.Walls[i].DoorVisual = &sceneDoorVisual{Style: "wood", Direction: 1, Strength: 1, Duration: 700}

@@ -1,12 +1,15 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"math"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -132,5 +135,61 @@ func TestWebSceneUploadJobScopeAndApply(t *testing.T) {
 	raw, _ = json.Marshal(input)
 	if w = call("POST", "", string(raw), true); w.Code != 400 {
 		t.Fatal("foreign asset accepted")
+	}
+}
+
+func TestSceneTopologyNormalizesHarmlessTracingArtifacts(t *testing.T) {
+	v, err := parseSceneTopology(`{"walls":[{"id":"same","kind":"wall","start":{"x":0.1,"y":0.1},"end":{"x":0.2,"y":0.1}},{"id":"same","kind":"door","start":{"x":0.2,"y":0.1},"end":{"x":0.3,"y":0.1}},{"id":"zero","kind":"wall","start":{"x":0.4,"y":0.1},"end":{"x":0.4,"y":0.1}}],"lights":[],"darkness":0}`)
+	if err != nil || len(v.Walls) != 2 || v.Walls[0].ID == v.Walls[1].ID {
+		t.Fatalf("normalization: %v %+v", err, v)
+	}
+	if _, err = parseSceneTopology(`{"walls":[{"kind":"wall","start":{"x":1.1,"y":0},"end":{"x":0.3,"y":0.1}}],"lights":[],"darkness":0}`); err == nil {
+		t.Fatal("out of bounds wall accepted")
+	}
+}
+func TestSceneTopologyFailureKeepsBackgroundAndRetryUsesOnlyBitmap(t *testing.T) {
+	t.Setenv("SHADOW_EDGE_IMAGE_OPTIMIZER", "off")
+	m, c, _ := aiFixture(t)
+	m.srv.uploadDir = t.TempDir()
+	dir := filepath.Join(m.srv.uploadDir, c.OwnerID, c.CampaignID)
+	os.MkdirAll(dir, 0700)
+	os.WriteFile(filepath.Join(dir, "source.png"), mapFixturePNG(), 0600)
+	var calls atomic.Int32
+	var succeeds atomic.Bool
+	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/chat/completions" {
+			t.Error("regenerated bitmap instead of topology")
+		}
+		calls.Add(1)
+		message := `{"walls":[{"id":"bad","kind":"wall","start":{"x":4,"y":0},"end":{"x":0.1,"y":0.2}}],"lights":[],"darkness":0}`
+		if succeeds.Load() {
+			message = `{"walls":[{"id":"d","kind":"door","start":{"x":0.4,"y":0.3},"end":{"x":0.5,"y":0.3}}],"lights":[],"darkness":0.2}`
+		}
+		json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]any{"content": message}}}})
+	}))
+	defer upstream.Close()
+	m.srv.generator = newEntityGenerator(AIOptions{Provider: "openai", BaseURL: upstream.URL, APIToken: "test", Model: "test"})
+	input := foundrySceneInput{Title: "Seven rooms", Prompt: "Seven connected rooms with traps", Columns: 60, Rows: 40, Distance: 5, Weather: "none", ReferenceURL: "/uploads/" + c.OwnerID + "/" + c.CampaignID + "/source.png", Topology: true, AnimatedDoors: true}
+	run := func() sessionMapDocument {
+		w := httptest.NewRecorder()
+		m.generateSceneImage(w, context.Background(), c, input)
+		if w.Code != 200 {
+			t.Fatal(w.Body.String())
+		}
+		var body struct {
+			Data sessionMapDocument `json:"data"`
+		}
+		json.Unmarshal(w.Body.Bytes(), &body)
+		return body.Data
+	}
+	failed := run()
+	if calls.Load() != 2 || failed.Generation.TopologyError == "" || failed.Levels[0].ImageURL == "" || failed.Generation.Prompt != input.Prompt || failed.Levels[0].Columns != 60 || failed.Levels[0].Rows != 40 {
+		t.Fatal("lost partial result or input")
+	}
+	succeeds.Store(true)
+	input.ReferenceURL = failed.Levels[0].ImageURL
+	retried := run()
+	if calls.Load() != 3 || retried.Generation.TopologyError != "" || len(retried.Levels[0].Walls) != 1 || retried.Levels[0].Walls[0].DoorVisual == nil {
+		t.Fatal("topology-only retry failed")
 	}
 }

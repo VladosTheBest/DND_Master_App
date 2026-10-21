@@ -43,14 +43,24 @@ type sessionMapLevelDocument struct {
 	GridDistance float64             `json:"gridDistance,omitempty"`
 	RoofZones    []publicRoofZone    `json:"roofZones,omitempty"`
 }
+type sceneGenerationInfo struct {
+	Prompt        string `json:"prompt"`
+	TopologyError string `json:"topologyError,omitempty"`
+	AnimatedDoors bool   `json:"animatedDoors,omitempty"`
+}
+
 type sessionMapDocument struct {
-	ID       string                    `json:"id"`
-	Title    string                    `json:"title"`
-	Revision int                       `json:"revision"`
-	Levels   []sessionMapLevelDocument `json:"levels"`
+	Generation *sceneGenerationInfo      `json:"generation,omitempty"`
+	ID         string                    `json:"id"`
+	Title      string                    `json:"title"`
+	Revision   int                       `json:"revision"`
+	Levels     []sessionMapLevelDocument `json:"levels"`
 }
 
 func validateSessionMap(v sessionMapDocument, c foundryConnection) error {
+	if v.Generation != nil && (len([]rune(v.Generation.Prompt)) > 4000 || len([]rune(v.Generation.TopologyError)) > 2000) {
+		return fmt.Errorf("Некорректные параметры генерации сцены.")
+	}
 	if strings.TrimSpace(v.Title) == "" || len([]rune(v.Title)) > 200 || len(v.Levels) < 1 || len(v.Levels) > 30 {
 		return fmt.Errorf("Нужно название и от 1 до 30 этажей.")
 	}
