@@ -64,3 +64,16 @@ test('closing a watcher aborts stale completion and disconnected jobs do not ret
  let resolve,notices=0;const monitor=createSceneMonitor({readState:async()=>({sceneAI:{jobId:'job'}}),request:()=>new Promise(r=>resolve=r),notify:()=>notices++,onOpen:()=>{}});
  const pending=monitor.resume();await new Promise(r=>setTimeout(r,1));monitor.stop();resolve({state:'succeeded'});await pending;assert.equal(notices,0);
 });
+
+test('minimized card stays until opened, reports progress and distinguishes failure',async()=>{
+ let opened=0,removed=0,reads=0;const updates=[];
+ const monitor=createSceneMonitor({readState:async()=>({sceneAI:{jobId:'j',input:{title:'Dungeon'}}}),request:async()=>({state:++reads===1?'running':'succeeded',stage:'Drawing'}),notify:()=>{},onOpen:()=>opened++,intervalMs:1,createCard:open=>{monitor.openCard=open;return {update:(job,title)=>updates.push([job.state,title]),remove:()=>removed++}}});
+ await monitor.resume();await new Promise(r=>setTimeout(r,20));assert.equal(reads,2);assert.equal(removed,0);assert.deepEqual(updates.at(-1),['succeeded','Dungeon']);monitor.openCard();assert.equal(opened,1);assert.equal(removed,1);
+});
+import {createSceneCard} from '../scripts/scene-job-ui.mjs';
+test('card uses persistent text and color states, safe title text and a reopen action',()=>{
+ const make=()=>({dataset:{},children:[],setAttribute(){},append(...children){this.children.push(...children)},remove(){this.removed=true}});const doc={body:make(),createElement:make};let opened=0;
+ const card=createSceneCard(()=>opened++,doc),el=doc.body.children[0];card.update({state:'running',stage:'Drawing'},'<b>Map</b>');assert.equal(el.children[0].textContent,'<b>Map</b>');assert.equal(el.dataset.state,'running');assert.equal(el.children[2].hidden,false);
+ card.update({state:'succeeded'},'Map');assert.equal(el.dataset.state,'ready');assert.match(el.children[1].textContent,/Сцена готова/);assert.equal(el.children[2].hidden,true);assert.equal(el.removed,undefined);el.children[4].onclick();assert.equal(opened,1);
+ card.update({state:'failed'},'Map');assert.equal(el.dataset.state,'failed');assert.match(el.children[1].textContent,/Не удалось/);card.remove();assert.equal(el.removed,true);
+});
