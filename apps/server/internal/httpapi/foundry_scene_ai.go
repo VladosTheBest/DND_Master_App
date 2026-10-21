@@ -13,6 +13,7 @@ import (
 )
 
 type foundrySceneInput struct {
+	WallMode      string `json:"wallMode,omitempty"`
 	AnimatedDoors bool   `json:"animatedDoors,omitempty"`
 	ReferenceURL  string `json:"referenceUrl"`
 	Improve       bool   `json:"improve"`
@@ -136,7 +137,7 @@ func (m *foundryManager) sceneAI(w http.ResponseWriter, r *http.Request, c found
 			input.Prompt = "Preserve the supplied battlemap layout"
 		}
 	}
-	if !mapRequestID.MatchString(input.RequestID) || input.Title == "" || len([]rune(input.Title)) > 160 || len([]rune(input.Prompt)) < 10 || len([]rune(input.Prompt)) > 4000 || input.Columns < 10 || input.Columns > 100 || input.Rows < 10 || input.Rows > 100 || input.Distance < 1 || input.Distance > 100 {
+	if (input.WallMode != "" && input.WallMode != "auto" && input.WallMode != "ai" && input.WallMode != "cave") || !mapRequestID.MatchString(input.RequestID) || input.Title == "" || len([]rune(input.Title)) > 160 || len([]rune(input.Prompt)) < 10 || len([]rune(input.Prompt)) > 4000 || input.Columns < 10 || input.Columns > 100 || input.Rows < 10 || input.Rows > 100 || input.Distance < 1 || input.Distance > 100 {
 		writeError(w, 400, "invalid_scene", "Нужны название, описание (10–4000 символов), сетка 10–100 клеток и масштаб 1–100 футов.")
 		return
 	}
@@ -189,7 +190,7 @@ func (m *foundryManager) generateSceneImage(w http.ResponseWriter, ctx context.C
 	}
 	user := authUser{ID: c.OwnerID, Username: account.Username}
 	connected := false
-	if srv.codex != nil {
+	if srv.codex != nil && !(input.ReferenceURL != "" && !input.Improve && input.Topology && usesCaveRaster(input)) {
 		status := srv.codex.status(ctx, user)
 		allowed, _ := srv.codex.bridgeUserAllowed(user)
 		if status.State == "error" || status.State == "connecting" || (status.State == "unavailable" && allowed && srv.codex.options.Enabled) {
@@ -271,12 +272,30 @@ func (m *foundryManager) generateSceneImage(w http.ResponseWriter, ctx context.C
 		reportAIJobStage(ctx, "Распознавание стен, дверей и источников света")
 		var topology sessionMapLevelDocument
 		var analysisErr error
-		if result.Topology != nil {
+		if usesCaveRaster(input) {
+			reportAIJobStage(ctx, "Трассировка скалы по пикселям изображения")
+			topology, analysisErr = traceCaveRaster(result.Image)
+			scene.Generation.WallMethod = "raster-cave"
+			// New backgrounds still need lighting. Re-tracing an existing cave is
+			// entirely local and the module preserves its native light documents.
+			if analysisErr == nil && (len(reference) == 0 || input.Improve) {
+				lighting := result.Topology
+				if lighting == nil {
+					v, lightErr := srv.analyzeSceneTopology(ctx, user, c.CampaignID, result.Image, connected, input)
+					if lightErr == nil {
+						lighting = &v
+					}
+				}
+				if lighting != nil {
+					topology.Lights, topology.Darkness = lighting.Lights, lighting.Darkness
+				}
+			}
+		} else if result.Topology != nil {
 			topology = *result.Topology
 		} else {
 			topology, analysisErr = srv.analyzeSceneTopology(ctx, user, c.CampaignID, result.Image, connected, input)
 		}
-		if analysisErr == nil {
+		if analysisErr == nil && !usesCaveRaster(input) {
 			reportAIJobStage(ctx, "Сверка стен и дверей с изображением карты")
 			topology, analysisErr = srv.reviewSceneTopology(ctx, user, c.CampaignID, result.Image, connected, input, topology)
 		}

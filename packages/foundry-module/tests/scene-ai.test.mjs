@@ -110,3 +110,9 @@ test('replacing topology rescales geometry and rolls back originals on failure',
  const scene=fixture(false);await replaceSceneTopology(scene,topologySnapshot(scene),plan);assert.equal(scene.walls.has('old'),false);assert.deepEqual([...scene.walls][0].c,[20,20,60,20]);assert.equal([...scene.lights][0].x,20);
  const failed=fixture(true),before=topologySnapshot(failed);await assert.rejects(replaceSceneTopology(failed,before,plan),/light write failed/);assert.deepEqual(topologySnapshot(failed),before);
 });
+test('raster wall replacement preserves native lights and darkness',async()=>{
+ const wall={_id:'old',toObject(){return {_id:this._id,c:[0,0,10,0]}}};let rows=[wall];const light={_id:'lamp',toObject(){return {_id:this._id,x:17,y:18}}};let lightCalls=0;
+ const scene={width:100,height:100,environment:{darknessLevel:.7},get walls(){return rows},lights:[light],async createEmbeddedDocuments(type,data){if(type!=='Wall'){lightCalls++;throw Error('light write')};const created=data.map((w,i)=>({...w,id:`new${i}`,toObject(){return w}}));rows.push(...created);return created},async deleteEmbeddedDocuments(type,ids){if(type!=='Wall'){lightCalls++;throw Error('light deletion')};rows=rows.filter(w=>!ids.includes(w._id||w.id))},async update(){throw Error('environment write')}};
+ await replaceSceneTopology(scene,topologySnapshot(scene),{width:100,height:100,walls:[{c:[20,20,40,20]}],lights:[],environment:{darknessLevel:0}},{wallsOnly:true});
+ assert.equal(lightCalls,0);assert.equal(scene.environment.darknessLevel,.7);assert.equal(rows.length,1);assert.equal(scene.lights[0],light);
+});

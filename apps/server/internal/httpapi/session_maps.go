@@ -44,6 +44,7 @@ type sessionMapLevelDocument struct {
 	RoofZones    []publicRoofZone    `json:"roofZones,omitempty"`
 }
 type sceneGenerationInfo struct {
+	WallMethod    string `json:"wallMethod,omitempty"`
 	Prompt        string `json:"prompt"`
 	TopologyError string `json:"topologyError,omitempty"`
 	AnimatedDoors bool   `json:"animatedDoors,omitempty"`
