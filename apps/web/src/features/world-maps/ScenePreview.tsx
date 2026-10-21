@@ -1,12 +1,14 @@
 import {useEffect,useRef,useState,type PointerEvent} from 'react';
-import type {SessionMapDocument} from '@shadow-edge/shared-types';
+import type {SessionMapDocument,WorldMapDocument} from '@shadow-edge/shared-types';
+import {drawingWithSceneDoors} from './scene-creative';
+import {creativePNG,sceneFromJSON,sceneSize} from './creative-map';
 import {mapMediaURL} from './world-maps.api';
 import {cutSceneOpenings,editableScene,publishScene,snapSceneDoor,type SceneLevel} from './scene-editing';
 
 type Point={x:number;y:number};
-type Props={map:SessionMapDocument;editable:boolean;busy:boolean;error?:string;onClose:()=>void;onSave:(map:SessionMapDocument)=>void;onAccept?:(map:SessionMapDocument)=>void;onRegenerate:()=>void;onTopology:(level:SceneLevel)=>void};
+type Props={map:SessionMapDocument;creativeSources?:WorldMapDocument[];editable:boolean;busy:boolean;error?:string;onClose:()=>void;onSave:(map:SessionMapDocument)=>void;onAccept?:(map:SessionMapDocument)=>void;onRegenerate:()=>void;onTopology:(level:SceneLevel)=>void};
 const weatherNames={none:'Без осадков',rain:'Дождь',storm:'Гроза',snow:'Снег',fog:'Туман'};
-export function ScenePreview({map,editable,busy,error,onClose,onSave,onAccept,onRegenerate,onTopology}:Props){
+export function ScenePreview({map,creativeSources=[],editable,busy,error,onClose,onSave,onAccept,onRegenerate,onTopology}:Props){
  const [doc,setDoc]=useState(()=>editableScene(map)),[levelIndex,setLevelIndex]=useState(0);
  const [tool,setTool]=useState<'inspect'|'wall'|'door'|'light'|'delete'>('inspect'),[start,setStart]=useState<Point|null>(null);
  const [history,setHistory]=useState<SessionMapDocument[]>([]),[selected,setSelected]=useState(''),[zoom,setZoom]=useState(1);
@@ -14,6 +16,9 @@ export function ScenePreview({map,editable,busy,error,onClose,onSave,onAccept,on
  const drag=useRef<{id:string;part:'start'|'end'|'body'|'light';origin:Point;before:SessionMapDocument}|null>(null);
  const latest=useRef(doc);latest.current=doc;
  const level=doc.levels[levelIndex],dirty=JSON.stringify(doc)!==JSON.stringify(editableScene(map));
+ const [background,setBackground]=useState(''),[renderError,setRenderError]=useState(''),[drawingId,setDrawingId]=useState('');
+ const doorKey=JSON.stringify(level.walls.filter(w=>w.kind==='door'));
+ useEffect(()=>{let active=true,url='';setBackground('');setRenderError('');if(!level.creative)return;const timer=setTimeout(()=>{void Promise.resolve().then(()=>creativePNG(drawingWithSceneDoors(level),1,true)).then(blob=>{if(!active)return;url=URL.createObjectURL(blob);setBackground(url);}).catch(e=>{if(active)setRenderError(e.message);});},100);return()=>{active=false;clearTimeout(timer);if(url)URL.revokeObjectURL(url);};},[levelIndex,level.creative,doorKey]);
  const wall=level.walls.find(w=>w.id===selected);
  useEffect(()=>{dialog.current?.showModal();},[]);
  function close(){if(!dirty||confirm('Закрыть без сохранения правок сцены?'))onClose();}
@@ -41,11 +46,14 @@ export function ScenePreview({map,editable,busy,error,onClose,onSave,onAccept,on
  <header><h2>{doc.title}</h2><button aria-label="Закрыть предпросмотр" onClick={close}>✕</button></header>
  {map.generation?.topologyError&&<p role="alert">Фон сохранён, но AI-разметка не завершена: {map.generation.topologyError} Можно повторить распознавание или расставить элементы вручную.</p>}
  <p>Стены — бирюзовые, двери — оранжевые, свет — жёлтый. Проверьте расположение перед сохранением.</p>
+ {editable&&!onAccept&&!level.creative&&creativeSources.length>0&&<details><summary>Связать с исходным рисунком Креатива</summary><p>Для старых сцен выберите исходную ручную карту: её копия будет перерисовываться вместе с дверями. Сохранённая карта не изменяется.</p><select aria-label="Исходный рисунок Креатива" value={drawingId} onChange={e=>setDrawingId(e.target.value)}><option value="">Выберите исходник</option>{creativeSources.filter(m=>{try{const size=sceneSize(sceneFromJSON(m.creative!));return size.width===level.width&&size.height===level.height;}catch{return false;}}).map(m=><option key={m.id} value={m.id}>{m.title}</option>)}</select><button disabled={!drawingId||busy} onClick={()=>{const source=creativeSources.find(m=>m.id===drawingId);if(source)change({creative:source.creative});}}>Связать и обновить фон</button></details>}
+ {level.creative&&<p role="status">Фон из Креатива обновляется вместе с дверями. Сохранение запишет картинку и разметку.</p>}
+ {renderError&&<p role="alert">Не удалось обновить фон: {renderError}</p>}
  <select aria-label="Этаж" value={levelIndex} onChange={e=>{setLevelIndex(+e.target.value);setStart(null);setSelected('');}}>{doc.levels.map((l,i)=><option key={l.id} value={i}>{l.name}</option>)}</select>
  {editable&&<fieldset disabled={busy} className="scene-edit-tools"><legend>Разметка · исправьте перед сохранением</legend><div className="scene-source-actions">{(['inspect','wall','door','light','delete'] as const).map((t,i)=><button key={t} aria-pressed={t===tool} onClick={()=>{setTool(t);setStart(null);setSelected('');}}>{['Выбрать / двигать','＋ Стена','＋ Дверь','☀ Свет','Удалить'][i]}</button>)}<button disabled={!history.length} onClick={()=>{setDoc(history[history.length-1]);setHistory(h=>h.slice(0,-1));setStart(null);setSelected('');}}>Отменить</button></div><p>{tool==='inspect'?'Перетяните линию целиком, её круглые концы или источник света.':tool==='door'?'Нажмите начало и конец двери рядом со стеной: проём вырезается автоматически.':tool==='wall'?'Нажмите начало и конец стены.':tool==='delete'?'Нажмите элемент, который нужно удалить.':'Нажмите на карте, чтобы поставить источник света.'} При переносе двери прежний проём в добавленной стене закрывается.</p></fieldset>}
  <div className="scene-source-actions"><button disabled={zoom<=1} onClick={()=>setZoom(v=>Math.max(1,v-.5))}>−</button><output>{Math.round(zoom*100)}%</output><button disabled={zoom>=4} onClick={()=>setZoom(v=>Math.min(4,v+.5))}>＋</button><button onClick={()=>setZoom(1)}>Вся карта</button>{start&&<button onClick={()=>setStart(null)}>Отменить первую точку</button>}</div>
  <div className="scene-preview-scroll"><div className="scene-preview-canvas" style={{width:`${zoom*100}%`,maxWidth:'none'}}><svg ref={svg} viewBox={`0 0 ${level.width} ${level.height}`} onPointerDown={add} onPointerMove={move} onPointerUp={()=>end()} onPointerCancel={()=>end(true)} onLostPointerCapture={()=>end()}>
- <image href={mapMediaURL(level.imageUrl)} width={level.width} height={level.height}/>
+ <image href={background||mapMediaURL(level.imageUrl)} width={level.width} height={level.height}/>
  {(level.lights||[]).map(l=><g key={l.id}><circle cx={l.x*level.width} cy={l.y*level.height} r={Math.max(5,l.dim/5*level.width/(level.columns||30))} fill="#ffd16622" stroke="#ffd166" pointerEvents="none"/><circle aria-label="Источник света" cx={l.x*level.width} cy={l.y*level.height} r={8*level.width/850/zoom} fill="#ffd166" onPointerDown={e=>{if(tool==='delete'){e.stopPropagation();remove(l.id,true);}else begin(e,l.id,'light');}}/></g>)}
  {cutSceneOpenings(level.walls,level).map(w=>line(w,false))}
  {level.walls.filter(w=>w.kind!=='door').map(w=>line(w,true))}{level.walls.filter(w=>w.kind==='door').map(w=>line(w,true))}

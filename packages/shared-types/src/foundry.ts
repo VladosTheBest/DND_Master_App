@@ -23,6 +23,7 @@ export interface SessionMapDocument {
   levels: Array<{
     id: string; name: string; imageUrl: string; roofUrl?: string;
     width: number; height: number;
+    creative?: string;
     editorWalls?: import("./index").PlayerDisplayWall[];
     walls: import("./index").PlayerDisplayWall[];
     grid?: import("./index").PlayerDisplayGridSettings;

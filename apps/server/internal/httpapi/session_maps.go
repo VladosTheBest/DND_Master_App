@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
 	"net/http"
@@ -27,6 +28,7 @@ type sceneDoorVisual struct {
 }
 
 type sessionMapLevelDocument struct {
+	Creative     string              `json:"creative,omitempty"`
 	EditorWalls  []publicDisplayWall `json:"editorWalls,omitempty"`
 	Lights       []sceneLight        `json:"lights,omitempty"`
 	Weather      string              `json:"weather,omitempty"`
@@ -70,6 +72,24 @@ func validateSessionMap(v sessionMapDocument, c foundryConnection) error {
 	for _, l := range v.Levels {
 		if l.ID == "" || len(l.ID) > 128 || ids[l.ID] || !foundryOwnedURL(l.ImageURL, c) || l.RoofURL != "" && !foundryOwnedURL(l.RoofURL, c) || l.Width < 1 || l.Width > 32000 || l.Height < 1 || l.Height > 32000 || len(l.Walls) > 10000 || len(l.EditorWalls) > 10000 || len(l.RoofZones) > 100 {
 			return fmt.Errorf("Некорректный этаж или фон не загружен в эту кампанию.")
+		}
+		if l.Creative != "" {
+			if err := validateCreative(l.Creative); err != nil {
+				return err
+			}
+			var drawing creativeScene
+			if json.Unmarshal([]byte(l.Creative), &drawing) != nil {
+				return fmt.Errorf("Некорректный рисунок сцены.")
+			}
+			width, height := creativeDimensions(drawing)
+			if width != l.Width || height != l.Height {
+				return fmt.Errorf("Размер рисунка не совпадает с фоном сцены.")
+			}
+			for _, item := range drawing.Items {
+				if item.Kind == "image" && !foundryOwnedURL(item.ImageURL, c) {
+					return fmt.Errorf("Изображение рисунка не принадлежит кампании.")
+				}
+			}
 		}
 		ids[l.ID] = true
 		environment := l
