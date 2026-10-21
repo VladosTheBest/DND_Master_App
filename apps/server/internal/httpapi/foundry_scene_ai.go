@@ -3,6 +3,7 @@ package httpapi
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -210,7 +211,7 @@ func (m *foundryManager) generateSceneImage(w http.ResponseWriter, ctx context.C
 	if len(reference) > 0 && !input.Improve {
 		result.Image = reference
 	} else if connected {
-		result, err = srv.generateCodexWorldMap(ctx, user, c.CampaignID, prompt, reference)
+		result, err = generateVerifiedCodexMap(ctx, c.CampaignID, prompt, reference, true, func(input codexPromptInput) (codexPromptResult, error) { return srv.codex.runPrompt(ctx, user, input) })
 	} else {
 		if !subscriptionActive(account.Subscription, time.Now()) {
 			writeError(w, 402, "subscription_required", "Подключите Codex или активируйте подписку сайта для изображений.")
@@ -224,7 +225,13 @@ func (m *foundryManager) generateSceneImage(w http.ResponseWriter, ctx context.C
 		result, err = g.generatePlannedMap(ctx, prompt, reference, foundryScenePlanInstructions)
 	}
 	if err != nil {
-		writeError(w, 502, "scene_generation_failed", "Не удалось создать фон. Повторите генерацию позже.")
+		var publicErr *codexPromptPublicError
+		if errors.As(err, &publicErr) {
+			writeError(w, 502, publicErr.code, publicErr.message)
+		} else {
+			// These generators expose fixed, safe messages, never the raw provider response.
+			writeError(w, 502, "scene_generation_failed", err.Error())
+		}
 		return
 	}
 	cfg, format, err := mapImageConfig(result.Image)

@@ -84,6 +84,9 @@ test('failed generation retries immediately with preserved description and grid'
  await flow.launch();assert.equal(posts,1);assert.equal(state.sceneAI.jobId,'new');assert.equal(state.sceneAI.input.prompt,input.prompt);
 });
 import {replaceSceneTopology,topologySnapshot} from '../scripts/scene-topology.mjs';
+test('Foundry cancel action cannot become a generation request and old corrupt pending is repaired',async()=>{
+ for(const pending of [undefined,{input:'cancel'}]){const state={sceneAI:pending,sceneDraft:{prompt:'Saved description'}};let forms=0;const flow=createSceneAI({connected:async()=>state,saveState:async()=>{},request:async()=>assert.fail('Cancel must not request AI'),waitClosed:async()=>{forms++;return 'cancel'}});await flow.launch();assert.equal(forms,1);assert.equal(state.sceneAI,undefined);assert.equal(state.sceneDraft.prompt,'Saved description');}
+});
 test('editing a failed request restores the draft without starting a new generation',async()=>{
  const input={title:'Dungeon',prompt:'Seven connected rooms',columns:60,rows:40,distance:5,weather:'none'},state={sceneAI:{input,jobId:'failed'}};let forms=0;
  const flow=createSceneAI({connected:async()=>state,saveState:async()=>{},request:async(_s,_p,options)=>{assert.equal(options?.method,undefined);return {state:'failed'}},waitClosed:async config=>{if(config.window.title==='AI-сцена — ошибка')return 'edit';forms++;const fields=Object.fromEntries(Object.keys(input).map(k=>[k,{value:''}]));config.render(null,{element:{querySelector:selector=>fields[selector.slice(6,-1)]}});assert.equal(fields.prompt.value,input.prompt);assert.equal(fields.columns.value,'60');assert.equal(fields.rows.value,'40');return null}});

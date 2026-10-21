@@ -730,6 +730,9 @@ func (manager *codexBridgeManager) runPromptOnce(ctx context.Context, user authU
 	if input.WorldMap != nil {
 		instructions = mapPlanInstructions + "\nThe user explicitly opted in to image generation. Use the built-in $imagegen skill exactly once to generate the map background. Do not use MCP tools or modify campaign data. Return only the requested JSON, with imagePath pointing to the actual generated file under CODEX_HOME/generated_images. Inspect the generated map to place labels on the correct features. Never render lettering in the bitmap. Use the provided reference image when present."
 		instructions += "\n" + mapRenderInstructions
+		if input.WorldMap.SceneBackground {
+			instructions = strings.ReplaceAll(foundryScenePlanInstructions, "imagePath is empty", "imagePath points to the actual generated file under CODEX_HOME/generated_images") + "\nThe user explicitly opted in to image generation. Use the built-in $imagegen skill exactly once to generate the requested tactical background. Do not use MCP tools or modify campaign data. Return only the requested JSON. " + sceneDoorBackgroundInstructions
+		}
 		if input.WorldMap.Validate {
 			instructions = mapVisualCheckInstructions
 		}
