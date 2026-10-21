@@ -31,6 +31,13 @@ func validSceneWeather(v string) bool {
 	return v == "" || v == "none" || v == "rain" || v == "storm" || v == "snow" || v == "fog"
 }
 
+func sceneValidatedTopologySchema() map[string]any {
+	schema := sceneTopologySchema()
+	schema["properties"].(map[string]any)["isMap"] = map[string]any{"type": "boolean"}
+	schema["required"] = append(schema["required"].([]string), "isMap")
+	return schema
+}
+
 var sceneLightColor = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 
 func sceneNumber(v, min, max float64) bool {

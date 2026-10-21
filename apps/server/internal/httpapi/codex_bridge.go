@@ -738,6 +738,9 @@ func (manager *codexBridgeManager) runPromptOnce(ctx context.Context, user authU
 		}
 		if input.WorldMap.SceneAnalysis {
 			instructions = sceneTopologyInstructions
+			if input.WorldMap.Validate {
+				instructions += "\n" + mapVisualCheckInstructions + "\nReturn a single JSON object containing isMap, walls, lights, darkness. For a rejected bitmap return isMap=false, empty walls/lights and darkness=0."
+			}
 		}
 	}
 	if input.SessionID != "" {
@@ -831,6 +834,9 @@ func (manager *codexBridgeManager) runPromptOnce(ctx context.Context, user authU
 		}
 		if input.WorldMap.SceneAnalysis {
 			turnParams["outputSchema"] = sceneTopologySchema()
+			if input.WorldMap.Validate {
+				turnParams["outputSchema"] = sceneValidatedTopologySchema()
+			}
 		}
 		if len(input.WorldMap.Reference) > 0 {
 			_, format, imageErr := mapImageConfig(input.WorldMap.Reference)

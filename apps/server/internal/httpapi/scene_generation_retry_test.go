@@ -7,6 +7,48 @@ import (
 	"testing"
 )
 
+func TestSceneCombinedValidationAndTopologyUsesTwoTurns(t *testing.T) {
+	for _, message := range []string{`{"isMap":true,"walls":[],"lights":[],"darkness":0.4}`, `{"isMap":true,"walls":"bad","lights":[],"darkness":0.4}`, `{"isMap":false,"walls":[],"lights":[],"darkness":0}`} {
+		calls := 0
+		result, err := generateVerifiedCodexMap(context.Background(), "campaign", "60 by 30 cells, 5 feet", nil, true, func(in codexPromptInput) (codexPromptResult, error) {
+			calls++
+			if calls == 1 {
+				return codexPromptResult{WorldMap: &mapGenerationResult{Image: mapFixturePNG()}}, nil
+			}
+			if !in.WorldMap.Validate || !in.WorldMap.SceneAnalysis || in.IncludeImages {
+				t.Fatal("combined read-only check missing")
+			}
+			return codexPromptResult{Message: message}, nil
+		}, true)
+		if calls != 2 {
+			t.Fatal(calls)
+		}
+		if strings.Contains(message, `false`) {
+			if err == nil {
+				t.Fatal("rejected image accepted")
+			}
+			continue
+		}
+		if err != nil || len(result.Image) == 0 {
+			t.Fatal(err)
+		}
+		if strings.Contains(message, `"bad"`) {
+			if result.Topology != nil {
+				t.Fatal("invalid trace accepted")
+			}
+		} else if result.Topology == nil || result.Topology.Darkness != .4 {
+			t.Fatal("trace lost")
+		}
+	}
+	schema := sceneValidatedTopologySchema()
+	if schema["properties"].(map[string]any)["isMap"] == nil {
+		t.Fatal("schema missing image check")
+	}
+	if sceneTopologySchema()["properties"].(map[string]any)["isMap"] != nil {
+		t.Fatal("standalone schema mutated")
+	}
+}
+
 func TestSceneBackgroundRetriesMalformedResultAndChecksSameImage(t *testing.T) {
 	image := mapFixturePNG()
 	generates, checks := 0, 0

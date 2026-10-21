@@ -257,8 +257,8 @@ func (m *aiJobManager) run(id string, work func(context.Context) (int, []byte)) 
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	now = time.Now().UTC()
-	job.FinishedAt, job.HTTPStatus, job.Result = &now, status, append(json.RawMessage(nil), body...)
+	finished := time.Now().UTC()
+	job.FinishedAt, job.HTTPStatus, job.Result = &finished, status, append(json.RawMessage(nil), body...)
 	job.State, job.Stage = "succeeded", "Готово"
 	if status < 200 || status >= 300 {
 		job.State, job.Stage = "failed", "Не удалось завершить"

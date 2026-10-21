@@ -47,11 +47,11 @@ export function createSceneAI({connected,request,saveState,localAsset,waitClosed
    if(action==='discard'){delete state.sceneAI;await saveState(state);return}if(action!=='create')return;
    if(pending.target){const target=await fromUuid(pending.target.uuid);if(!target)throw Error('Исходная сцена удалена.');if(map.generation?.topologyError)throw Error('Разметка не готова. Существующие стены сохранены; повторите только разметку.');await replaceSceneTopology(target,pending.target.geometry,plan);delete state.sceneAI;await saveState(state);ui.notifications.info('Стены, двери и свет обновлены. Фон и остальные данные сцены сохранены.');return;}
    ui.notifications.info('Сохраняем фон и создаём сцену…');
-   const accepted=await request(state,`v1/scenes/ai/${pending.jobId}/apply`,{method:'POST',body:'{}'}),snapshot=await request(state,'v1/snapshot');
-   const savedRecord=snapshot.records.find(r=>r.key===`session-map:${accepted.id}`)??sceneAIRecord(accepted),savedLevel=accepted.levels[0],key=`${savedRecord.key}/${savedLevel.id}`;
+   const accepted=await request(state,`v1/scenes/ai/${pending.jobId}/apply`,{method:'POST',body:'{}'});
+   const savedRecord=sceneAIRecord(accepted),savedLevel=accepted.levels[0],key=`${savedRecord.key}/${savedLevel.id}`;
    let scene=state.records[key]?.uuid?await fromUuid(state.records[key].uuid):null;
    scene??=game.scenes.find(s=>s.flags?.[MODULE]?.site===state.base&&s.flags?.[MODULE]?.campaignId===state.campaignId&&s.flags?.[MODULE]?.sourceKey===savedRecord.key&&s.flags?.[MODULE]?.levelId===savedLevel.id);
-   const projection=scenePlan(savedRecord,savedLevel);projection.background.src=await localAsset(state,savedLevel.imageUrl,'Карты');projection.folder=await managedFolder(state,snapshot.title,'Scene',folderPath(savedRecord,snapshot.records,'Scene'));projection.flags[MODULE]={...projection.flags[MODULE],site:state.base,campaignId:state.campaignId};
+   const projection=scenePlan(savedRecord,savedLevel);projection.background.src=await localAsset(state,savedLevel.imageUrl,'Карты');projection.folder=await managedFolder(state,state.title,'Scene',folderPath(savedRecord,[],'Scene'));projection.flags[MODULE]={...projection.flags[MODULE],site:state.base,campaignId:state.campaignId};
    await verifySceneImage(projection.background.src);
    if(!scene)scene=await Scene.create(sceneCreation(projection));
    else if(!sceneBackground(scene))await setSceneBackground(scene,projection.background.src);

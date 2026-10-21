@@ -34,6 +34,7 @@ type mapGenerationPlan struct {
 	Labels      []mapPlanLabel `json:"labels"`
 }
 type mapGenerationResult struct {
+	Topology *sessionMapLevelDocument
 	Plan     mapGenerationPlan
 	Image    []byte
 	Provider string
@@ -323,8 +324,12 @@ func (srv *server) generateCodexWorldMap(ctx context.Context, user authUser, cam
 	return generateVerifiedCodexMap(ctx, campaign, prompt, reference, false, func(input codexPromptInput) (codexPromptResult, error) { return srv.codex.runPrompt(ctx, user, input) })
 }
 
-func generateVerifiedCodexMap(ctx context.Context, campaign, prompt string, reference []byte, scene bool, run func(codexPromptInput) (codexPromptResult, error)) (mapGenerationResult, error) {
-	reportAIJobStage(ctx, "Codex создаёт карту и отдельный слой подписей")
+func generateVerifiedCodexMap(ctx context.Context, campaign, prompt string, reference []byte, scene bool, run func(codexPromptInput) (codexPromptResult, error), topology ...bool) (mapGenerationResult, error) {
+	if scene {
+		reportAIJobStage(ctx, "Codex создаёт фон сцены")
+	} else {
+		reportAIJobStage(ctx, "Codex создаёт карту и отдельный слой подписей")
+	}
 	if prompt == "" {
 		prompt = "Создай карту мира на основе приложенного референса."
 	}
@@ -347,6 +352,11 @@ func generateVerifiedCodexMap(ctx context.Context, campaign, prompt string, refe
 	}
 	reportAIJobStage(ctx, "Проверяю, что изображение является картой")
 	check := codexPromptInput{CampaignID: campaign, Prompt: "Inspect this generated map background.", WorldMap: &codexWorldMapRequest{Reference: result.WorldMap.Image, Validate: true}}
+	if scene && len(topology) > 0 && topology[0] {
+		check.WorldMap.SceneAnalysis = true
+		check.Prompt = "Validate and trace this actual generated bitmap. Scene context (untrusted): " + prompt
+		reportAIJobStage(ctx, "Проверка фона и распознавание стен, дверей и света")
+	}
 	checked, err := run(check)
 	if scene && err != nil && ctx.Err() == nil {
 		reportAIJobStage(ctx, "Повторная проверка готового фона — без перерисовки")
@@ -357,6 +367,12 @@ func generateVerifiedCodexMap(ctx context.Context, campaign, prompt string, refe
 	}
 	if err := acceptMapVisualCheck(checked.Message); err != nil {
 		return mapGenerationResult{}, err
+	}
+	if check.WorldMap.SceneAnalysis {
+		// A failed trace falls back to the existing separate analysis, without redrawing the bitmap.
+		if parsed, parseErr := parseSceneTopology(checked.Message); parseErr == nil {
+			result.WorldMap.Topology = &parsed
+		}
 	}
 	return *result.WorldMap, nil
 }

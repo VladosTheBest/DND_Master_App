@@ -29,6 +29,27 @@ func waitAIJob(t *testing.T, m *aiJobManager, id string) aiJob {
 	return aiJob{}
 }
 
+func TestAIJobKeepsStartTimeAfterCompletion(t *testing.T) {
+	m, err := newAIJobManager(filepath.Join(t.TempDir(), "jobs.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	entered, release := make(chan struct{}), make(chan struct{})
+	job, err := m.start("owner", "timing", aiJob{Kind: "foundry-scene"}, func(context.Context) (int, []byte) { close(entered); <-release; return 200, []byte(`{}`) })
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-entered
+	m.mu.Lock()
+	started := *m.jobs[job.ID].StartedAt
+	m.mu.Unlock()
+	close(release)
+	completed := waitAIJob(t, m, job.ID)
+	if !completed.StartedAt.Equal(started) || completed.StartedAt == completed.FinishedAt || completed.FinishedAt.Before(started) {
+		t.Fatal("start time overwritten at completion")
+	}
+}
+
 func TestAIJobsDetachSessionFromRequestAndDeduplicate(t *testing.T) {
 	auth, store := newTestAuthManager(t, AuthOptions{})
 	user, err := store.createUser("background-owner", "password123")

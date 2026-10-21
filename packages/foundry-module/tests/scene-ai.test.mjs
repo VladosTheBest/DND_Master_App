@@ -84,6 +84,14 @@ test('failed generation retries immediately with preserved description and grid'
  await flow.launch();assert.equal(posts,1);assert.equal(state.sceneAI.jobId,'new');assert.equal(state.sceneAI.input.prompt,input.prompt);
 });
 import {replaceSceneTopology,topologySnapshot} from '../scripts/scene-topology.mjs';
+test('scene creation uses accepted map directly without downloading the whole campaign',async()=>{
+ const map={id:'fast',title:'Estate',levels:[{id:'g',name:'Estate',imageUrl:'/map.png',width:1200,height:600,columns:60,rows:30,grid:{size:1/60},gridDistance:5,weather:'storm',walls:[],lights:[]}]},state={title:'Campaign',base:'https://site',campaignId:'c',records:{},sceneAI:{jobId:'job',input:{title:'Estate'}}},paths=[];let created,viewed=0;
+ globalThis.ui={notifications:{info(){}}};globalThis.Image=class {naturalWidth=1200;async decode(){}};
+ globalThis.game={release:{generation:14},scenes:[],folders:[]};globalThis.Folder={create:async data=>({...data,id:'folder'})};
+ globalThis.Scene={create:async data=>{created={...data,uuid:'Scene.fast',levels:{contents:data.levels},view:async()=>viewed++};return created}};
+ const flow=createSceneAI({connected:async()=>state,saveState:async()=>{},localAsset:async()=>'/local.webp',waitClosed:async()=> 'create',request:async(_s,path)=>{paths.push(path);if(path.endsWith('/apply'))return map;if(path==='v1/scenes/ai/job')return {state:'succeeded',result:{data:map}};assert.fail('Unexpected campaign download: '+path)}});
+ await flow.launch();assert.deepEqual(paths,['v1/scenes/ai/job','v1/scenes/ai/job/apply']);assert.equal(created.width,3000);assert.equal(created.height,1500);assert.equal(created.weather,'rainStorm');assert.equal(created.active,false);assert.equal(viewed,1);assert.equal(state.sceneAI,undefined);assert.deepEqual(state.records['session-map:fast/g'].record.data,map);
+});
 test('Foundry cancel action cannot become a generation request and old corrupt pending is repaired',async()=>{
  for(const pending of [undefined,{input:'cancel'}]){const state={sceneAI:pending,sceneDraft:{prompt:'Saved description'}};let forms=0;const flow=createSceneAI({connected:async()=>state,saveState:async()=>{},request:async()=>assert.fail('Cancel must not request AI'),waitClosed:async()=>{forms++;return 'cancel'}});await flow.launch();assert.equal(forms,1);assert.equal(state.sceneAI,undefined);assert.equal(state.sceneDraft.prompt,'Saved description');}
 });

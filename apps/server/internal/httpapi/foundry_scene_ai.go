@@ -211,7 +211,7 @@ func (m *foundryManager) generateSceneImage(w http.ResponseWriter, ctx context.C
 	if len(reference) > 0 && !input.Improve {
 		result.Image = reference
 	} else if connected {
-		result, err = generateVerifiedCodexMap(ctx, c.CampaignID, prompt, reference, true, func(input codexPromptInput) (codexPromptResult, error) { return srv.codex.runPrompt(ctx, user, input) })
+		result, err = generateVerifiedCodexMap(ctx, c.CampaignID, prompt, reference, true, func(input codexPromptInput) (codexPromptResult, error) { return srv.codex.runPrompt(ctx, user, input) }, input.Topology)
 	} else {
 		if !subscriptionActive(account.Subscription, time.Now()) {
 			writeError(w, 402, "subscription_required", "Подключите Codex или активируйте подписку сайта для изображений.")
@@ -269,7 +269,13 @@ func (m *foundryManager) generateSceneImage(w http.ResponseWriter, ctx context.C
 	level.Columns, level.Rows, level.Weather = input.Columns, input.Rows, input.Weather
 	if input.Topology {
 		reportAIJobStage(ctx, "Распознавание стен, дверей и источников света")
-		topology, analysisErr := srv.analyzeSceneTopology(ctx, user, c.CampaignID, result.Image, connected, input)
+		var topology sessionMapLevelDocument
+		var analysisErr error
+		if result.Topology != nil {
+			topology = *result.Topology
+		} else {
+			topology, analysisErr = srv.analyzeSceneTopology(ctx, user, c.CampaignID, result.Image, connected, input)
+		}
 		if analysisErr != nil {
 			// A valid background remains usable even when a separate AI analysis fails.
 			scene.Generation.TopologyError = analysisErr.Error()
