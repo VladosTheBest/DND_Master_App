@@ -28,3 +28,23 @@ test('broken background fails before creating an empty scene',async()=>{
 });
 test('scene requests are saved before transport, so a lost response can reuse the same request ID',async()=>{const state={records:{}},input={requestId:'stable',title:'Map',prompt:'A ruined tavern',columns:30,rows:20,distance:5},events=[];const ui=createSceneAI({connected:async()=>state,saveState:async()=>events.push('save'),waitClosed:async()=>input,request:async(_s,path,options)=>{events.push('request');assert.deepEqual(JSON.parse(options.body),input);throw Error('lost response')}});await assert.rejects(ui.launch(),/lost response/);assert.deepEqual(events,['save','request']);assert.equal(state.sceneAI.input.requestId,'stable')});
 test('saved scene jobs resume without another generation request or synchronization timer',async()=>{const state={records:{},sceneAI:{jobId:'job',input:{title:'Map'}}},paths=[];const ui=createSceneAI({connected:async()=>state,saveState:async()=>{},waitClosed:async()=> 'later',request:async(_s,path)=>{paths.push(path);return {state:'running',stage:'Generating'}}});await ui.launch();assert.deepEqual(paths,['v1/scenes/ai/job']);assert.equal(state.sceneAI.jobId,'job');assert.deepEqual(sceneAIRecord({id:'map',title:'Map'}),{key:'session-map:map',id:'map',kind:'session-map',title:'Map',data:{id:'map',title:'Map'}})});
+import {scenePlan} from '../scripts/adapter.mjs';
+import {sceneLevel} from '../scripts/core.mjs';
+import {createSceneMonitor,sceneEstimate,scenePreviewHTML} from '../scripts/scene-job-ui.mjs';
+test('scene dimensions, doors, light radii and native weather survive projection and reverse',()=>{
+ const level={id:'ground',name:'Church',imageUrl:'/map.png',width:1024,height:1024,columns:30,rows:20,grid:{size:1/30,type:'square'},gridDistance:5,weather:'storm',darkness:.6,walls:[{id:'d',kind:'door',start:{x:.2,y:.3},end:{x:.3,y:.3}}],lights:[{id:'l',x:.4,y:.5,bright:10,dim:20,color:'#ffbb77'}]};
+ const plan=scenePlan(sceneAIRecord({id:'test',title:'Test'}),level);
+ assert.equal(plan.width/plan.grid.size,30);assert.equal(plan.height/plan.grid.size,20);assert.equal(plan.padding,0);assert.equal(plan.weather,'rainStorm');assert.equal(plan.environment.darknessLevel,.6);assert.equal(plan.walls[0].door,1);assert.equal(plan.walls[0].ds,0);assert.equal(plan.lights[0].x,600);assert.equal(plan.lights[0].config.dim,20);
+ const back=sceneLevel({...plan,lights:plan.lights.map(l=>({...l,id:'l'}))});assert.equal(back.weather,'storm');assert.equal(back.columns,30);assert.equal(back.rows,20);assert.equal(back.lights[0].x,.4);assert.equal(back.walls[0].kind,'door');
+ assert.match(scenePreviewHTML('" onerror="bad',level,plan),/&quot;/);assert.match(sceneEstimate({createdAt:new Date(0).toISOString()},600000),/Дольше/);
+});
+test('background scene watcher resumes only pending jobs, notifies once, stops after completion',async()=>{
+ let state={sceneAI:{jobId:'job'}},reads=0,notices=0,opened=0;
+ const monitor=createSceneMonitor({readState:async()=>state,request:async()=>{reads++;return {state:reads===1?'running':'succeeded'}},notify:()=>notices++,onOpen:()=>opened++,intervalMs:1});
+ await monitor.resume();await new Promise(resolve=>setTimeout(resolve,15));assert.equal(reads,2);assert.equal(notices,1);assert.equal(opened,0);await new Promise(resolve=>setTimeout(resolve,10));assert.equal(reads,2);
+ state={};await monitor.resume();await new Promise(resolve=>setTimeout(resolve,10));assert.equal(reads,2);monitor.stop();
+});
+test('closing a watcher aborts stale completion and disconnected jobs do not retry',async()=>{
+ let resolve,notices=0;const monitor=createSceneMonitor({readState:async()=>({sceneAI:{jobId:'job'}}),request:()=>new Promise(r=>resolve=r),notify:()=>notices++,onOpen:()=>{}});
+ const pending=monitor.resume();await new Promise(r=>setTimeout(r,1));monitor.stop();resolve({state:'succeeded'});await pending;assert.equal(notices,0);
+});

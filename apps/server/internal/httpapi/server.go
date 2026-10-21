@@ -395,6 +395,9 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 	}
 
 	switch {
+	case len(segments) >= 3 && len(segments) <= 5 && segments[1] == "scenes" && segments[2] == "ai":
+		manager := &foundryManager{srv: srv}
+		manager.sceneAI(writer, request, foundryConnection{ID: "web-" + user.ID + "-" + campaignID, OwnerID: user.ID, CampaignID: campaignID}, strings.Join(segments[3:], "/"))
 	case (len(segments) == 2 || len(segments) == 3) && segments[1] == "session-maps":
 		srv.handleSessionMaps(writer, request, user, campaign, segments)
 	case (len(segments) == 2 || len(segments) == 3) && segments[1] == "world-maps":

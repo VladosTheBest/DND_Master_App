@@ -25,6 +25,10 @@ export interface SessionMapDocument {
     walls: import("./index").PlayerDisplayWall[];
     grid?: import("./index").PlayerDisplayGridSettings;
     gridDistance?: number;
+    columns?: number; rows?: number;
+    weather?: "none" | "rain" | "storm" | "snow" | "fog";
+    darkness?: number;
+    lights?: Array<{id:string;x:number;y:number;bright:number;dim:number;color:string}>;
     roofZones?: import("./index").PlayerDisplayRoofZone[];
   }>;
 }

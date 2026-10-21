@@ -7,7 +7,21 @@ import (
 	"strings"
 )
 
+type sceneLight struct {
+	ID     string  `json:"id"`
+	X      float64 `json:"x"`
+	Y      float64 `json:"y"`
+	Bright float64 `json:"bright"`
+	Dim    float64 `json:"dim"`
+	Color  string  `json:"color"`
+}
+
 type sessionMapLevelDocument struct {
+	Lights       []sceneLight        `json:"lights,omitempty"`
+	Weather      string              `json:"weather,omitempty"`
+	Darkness     float64             `json:"darkness,omitempty"`
+	Columns      int                 `json:"columns,omitempty"`
+	Rows         int                 `json:"rows,omitempty"`
 	ID           string              `json:"id"`
 	Name         string              `json:"name"`
 	ImageURL     string              `json:"imageUrl"`
@@ -36,6 +50,9 @@ func validateSessionMap(v sessionMapDocument, c foundryConnection) error {
 			return fmt.Errorf("Некорректный этаж или фон не загружен в эту кампанию.")
 		}
 		ids[l.ID] = true
+		if err := validateSceneEnvironment(l); err != nil {
+			return err
+		}
 		if math.IsNaN(l.GridDistance) || math.IsInf(l.GridDistance, 0) || l.GridDistance < 0 || l.GridDistance > 10000 {
 			return fmt.Errorf("Некорректный масштаб.")
 		}

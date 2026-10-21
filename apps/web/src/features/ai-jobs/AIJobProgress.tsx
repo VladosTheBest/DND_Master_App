@@ -13,6 +13,7 @@ export function AIJobProgress({ job }: { job: AIJob }) {
       <strong>{job.title}</strong>
       <p role="status">{job.stage}</p>
       <div className="ai-background-track" aria-hidden="true"><i /></div>
+      {job.kind==="foundry-scene"&&<span>{seconds<300?`Ориентировочно ещё ${Math.max(1,Math.ceil((300-seconds)/60))} мин · обычно 2–8 мин`:'Дольше первоначальной оценки · задача продолжает выполняться'}</span>}
       <span>Можно переходить по сайту и закрывать вкладку. Результат сохранится автоматически.</span>
     </div>
     <time aria-label="Прошло времени">{Math.floor(seconds / 60)}:{String(seconds % 60).padStart(2,"0")}</time>

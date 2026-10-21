@@ -733,6 +733,9 @@ func (manager *codexBridgeManager) runPromptOnce(ctx context.Context, user authU
 		if input.WorldMap.Validate {
 			instructions = mapVisualCheckInstructions
 		}
+		if input.WorldMap.SceneAnalysis {
+			instructions = sceneTopologyInstructions
+		}
 	}
 	if input.SessionID != "" {
 		instructions = sessionAnalysisInstructions
@@ -822,6 +825,9 @@ func (manager *codexBridgeManager) runPromptOnce(ctx context.Context, user authU
 		turnParams["outputSchema"] = mapPlanSchema()
 		if input.WorldMap.Validate {
 			turnParams["outputSchema"] = mapVisualCheckSchema()
+		}
+		if input.WorldMap.SceneAnalysis {
+			turnParams["outputSchema"] = sceneTopologySchema()
 		}
 		if len(input.WorldMap.Reference) > 0 {
 			_, format, imageErr := mapImageConfig(input.WorldMap.Reference)
@@ -924,7 +930,7 @@ func (manager *codexBridgeManager) runPromptOnce(ctx context.Context, user authU
 				return codexPromptResult{}, errors.New(completion.detail)
 			}
 			if input.WorldMap != nil {
-				if input.WorldMap.Validate {
+				if input.WorldMap.Validate || input.WorldMap.SceneAnalysis {
 					return codexPromptResult{Message: observation.message, Status: "completed"}, nil
 				}
 				result, mapErr := readCodexWorldMap(bridge.homeDir, observation.message)

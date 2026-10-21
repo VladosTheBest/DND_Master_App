@@ -34,7 +34,12 @@ func TestFoundryAISceneImageJobReviewIdempotencyAndScopedApply(t *testing.T) {
 		json.NewDecoder(r.Body).Decode(&body)
 		raw, _ := json.Marshal(body)
 		plan, _ := json.Marshal(mapFixturePlan())
-		if strings.Contains(string(raw), "world_map_visual_check") {
+		if strings.Contains(string(raw), "scene_topology") {
+			if !strings.Contains(string(raw), "image_url") {
+				t.Error("topology must inspect bitmap")
+			}
+			plan = []byte(`{"walls":[{"id":"door","kind":"door","start":{"x":0.2,"y":0.3},"end":{"x":0.3,"y":0.3}}],"lights":[{"id":"torch","x":0.4,"y":0.5,"bright":10,"dim":20,"color":"#ffbb77"}],"darkness":0.6}`)
+		} else if strings.Contains(string(raw), "world_map_visual_check") {
 			plan = []byte(`{"isMap":true}`)
 		} else if !strings.Contains(string(raw), "orthographic top-down") || !strings.Contains(string(raw), "NO GRID") {
 			t.Error("battlemap prompt missing")
@@ -50,7 +55,7 @@ func TestFoundryAISceneImageJobReviewIdempotencyAndScopedApply(t *testing.T) {
 		t.Fatal(err)
 	}
 	m.srv.aiJobs = jobs
-	input := foundrySceneInput{RequestID: "scene-request-for-test", Title: "Battlemap", Prompt: "A ruined tavern with kitchen and courtyard", Columns: 30, Rows: 20, Distance: 5}
+	input := foundrySceneInput{RequestID: "scene-request-for-test", Title: "Battlemap", Prompt: "A ruined tavern with kitchen and courtyard", Columns: 30, Rows: 20, Distance: 5, Topology: true, Weather: "storm"}
 	start := foundryCall(t, m, "POST", "v1/scenes/ai", input)
 	if start.Code != 202 {
 		t.Fatal(start.Body.String())
@@ -78,6 +83,10 @@ func TestFoundryAISceneImageJobReviewIdempotencyAndScopedApply(t *testing.T) {
 	json.Unmarshal(b.Data.Result, &result)
 	if result.Data.Title != input.Title || len(result.Data.Levels) != 1 || result.Data.Levels[0].Width != 120 || result.Data.Levels[0].GridDistance != 5 {
 		t.Fatal("scene result")
+	}
+	level := result.Data.Levels[0]
+	if len(level.Walls) != 1 || level.Walls[0].Kind != "door" || len(level.Lights) != 1 || level.Darkness != 0.6 || level.Weather != "storm" || level.Columns != 30 || level.Rows != 20 {
+		t.Fatal("topology/environment lost")
 	}
 	campaign, _ := m.srv.store.getCampaignForUser(c.OwnerID, c.CampaignID)
 	if len(campaign.SessionMaps) != 0 || len(campaign.WorldMaps) != 0 {
