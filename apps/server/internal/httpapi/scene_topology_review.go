@@ -12,7 +12,7 @@ import (
 	"math"
 )
 
-const sceneTopologyReviewInstructions = `You are the final visual alignment reviewer. Image 1 is the authoritative original bitmap. Image 2 is that exact bitmap with candidate wall segments in cyan and door segments in magenta. Colored lines are annotations, NEVER evidence of architecture. Candidate JSON is provided for precise coordinates. Inspect every segment against IMAGE 1, including its midpoint and full length. Correct displaced lines onto the painted wall centerline; split at corners and real openings. Delete lines crossing open floors, stairs, furniture, shadows, paths or courtyards. Do not impose rectangles or a grid on irregular architecture. A door must span a visible narrow opening between real wall jambs, with endpoints on those jambs; remove floating doors, doors across intact walls, and doors across ordinary open arches or paths. Never retain a solid wall over a door. Do not assume the candidate is correct. Return the COMPLETE corrected walls/lights/darkness JSON, not a patch or a verdict. Preserve confirmed lights. Where visual evidence is insufficient, omit the segment; do not invent architecture to satisfy the description. Images 3/4, 5/6, 7/8, 9/10 are enlarged original/overlay pairs for top-left, top-right, bottom-left, bottom-right quadrants respectively. Inspect these details one quadrant at a time: (x,y) ranges are [0,.5]x[0,.5], [.5,1]x[0,.5], [0,.5]x[.5,1], [.5,1]x[.5,1]. Convert any local crop coordinates back to GLOBAL coordinates. Use masonry in each enlarged original to relocate every candidate endpoint; approximate bounding boxes are unacceptable. In each room, check that NO line crosses the walkable floor or furniture. Coordinates refer to the full original bitmap, with independent x/width and y/height normalization.`
+const sceneTopologyReviewInstructions = `You are the final visual alignment reviewer. In caves, trace only the rock-to-walkable-floor boundary: ice color, glowing crystal edges, snow, floor textures and lighting boundaries are NOT walls. Never close a cave mouth or bridge across a connecting tunnel to complete a polygon. Trace irregular boundaries with short segments instead of coarse room polygons. Also return walkablePaths: arrays of normalized {x,y} points following the CENTER of visibly open routes from outdoors through every cave mouth and between connected chambers. Use enough bends to stay entirely on walkable floor. Do not route through rock, closed doors or obstacles; return [] only when no open route is visible. These paths independently protect open entrances and corridors against accidental blocking segments. Image 1 is the authoritative original bitmap. Image 2 is that exact bitmap with candidate wall segments in cyan and door segments in magenta. Colored lines are annotations, NEVER evidence of architecture. Candidate JSON is provided for precise coordinates. Inspect every segment against IMAGE 1, including its midpoint and full length. Correct displaced lines onto the painted wall centerline; split at corners and real openings. Delete lines crossing open floors, stairs, furniture, shadows, paths or courtyards. Do not impose rectangles or a grid on irregular architecture. A door must span a visible narrow opening between real wall jambs, with endpoints on those jambs; remove floating doors, doors across intact walls, and doors across ordinary open arches or paths. Never retain a solid wall over a door. Do not assume the candidate is correct. Return the COMPLETE corrected walls/lights/darkness JSON, not a patch or a verdict. Preserve confirmed lights. Where visual evidence is insufficient, omit the segment; do not invent architecture to satisfy the description. Images 3/4, 5/6, 7/8, 9/10 are enlarged original/overlay pairs for top-left, top-right, bottom-left, bottom-right quadrants respectively. Inspect these details one quadrant at a time: (x,y) ranges are [0,.5]x[0,.5], [.5,1]x[0,.5], [0,.5]x[.5,1], [.5,1]x[.5,1]. Convert any local crop coordinates back to GLOBAL coordinates. Use masonry in each enlarged original to relocate every candidate endpoint; approximate bounding boxes are unacceptable. In each room, check that NO line crosses the walkable floor or furniture. Coordinates refer to the full original bitmap, with independent x/width and y/height normalization.`
 
 func (srv *server) reviewSceneTopology(ctx context.Context, user authUser, campaign string, bitmap []byte, connected bool, input foundrySceneInput, candidate sessionMapLevelDocument) (sessionMapLevelDocument, error) {
 	overlay, err := sceneTopologyOverlay(bitmap, candidate.Walls)
@@ -103,4 +103,70 @@ func sceneReviewDetails(overlay [][]byte) [][]byte {
 		return nil
 	}
 	return overlay[1:]
+}
+
+func sceneTopologyReviewSchema() map[string]any {
+	schema := sceneTopologySchema()
+	point := map[string]any{"type": "object", "additionalProperties": false, "properties": map[string]any{"x": map[string]any{"type": "number"}, "y": map[string]any{"type": "number"}}, "required": []string{"x", "y"}}
+	schema["properties"].(map[string]any)["walkablePaths"] = map[string]any{"type": "array", "maxItems": 100, "items": map[string]any{"type": "array", "minItems": 2, "maxItems": 128, "items": point}}
+	schema["required"] = append(schema["required"].([]string), "walkablePaths")
+	return schema
+}
+
+func protectSceneWalkablePaths(result sessionMapLevelDocument, message string) (sessionMapLevelDocument, error) {
+	var review struct {
+		Paths *[][]publicFogPoint `json:"walkablePaths"`
+	}
+	if json.Unmarshal([]byte(message), &review) != nil || review.Paths == nil || len(*review.Paths) > 100 {
+		return sessionMapLevelDocument{}, fmt.Errorf("AI не проверил открытые проходы.")
+	}
+	for _, path := range *review.Paths {
+		if len(path) < 2 || len(path) > 128 {
+			return sessionMapLevelDocument{}, fmt.Errorf("Некорректный маршрут прохода.")
+		}
+		for _, p := range path {
+			if !sceneNumber(p.X, 0, 1) || !sceneNumber(p.Y, 0, 1) {
+				return sessionMapLevelDocument{}, fmt.Errorf("Маршрут вне изображения.")
+			}
+		}
+	}
+	walls := make([]publicDisplayWall, 0, len(result.Walls))
+	for _, wall := range result.Walls {
+		// Confirmed door segments remain interactive; an openable door is not a solid barrier.
+		if wall.Kind == "door" {
+			walls = append(walls, wall)
+			continue
+		}
+		blocked := false
+		for _, path := range *review.Paths {
+			for i := 1; i < len(path); i++ {
+				if sceneSegmentsCross(wall.Start, wall.End, path[i-1], path[i]) {
+					blocked = true
+					break
+				}
+			}
+			if blocked {
+				break
+			}
+		}
+		// Paths describe already-open floor, never a doorway with a closed leaf.
+		// Omit an unsupported blocking segment rather than moving it onto guessed rock.
+		if !blocked {
+			walls = append(walls, wall)
+		}
+	}
+	result.Walls = walls
+	return result, nil
+}
+
+func sceneSegmentsCross(a, b, c, d publicFogPoint) bool {
+	cross := func(p, q, r publicFogPoint) float64 { return (q.X-p.X)*(r.Y-p.Y) - (q.Y-p.Y)*(r.X-p.X) }
+	if a == b || c == d {
+		return false
+	}
+	// Bounding boxes also handle collinear overlap without treating disjoint lines as crossings.
+	if math.Max(a.X, b.X) < math.Min(c.X, d.X) || math.Max(c.X, d.X) < math.Min(a.X, b.X) || math.Max(a.Y, b.Y) < math.Min(c.Y, d.Y) || math.Max(c.Y, d.Y) < math.Min(a.Y, b.Y) {
+		return false
+	}
+	return cross(a, b, c)*cross(a, b, d) <= 0 && cross(c, d, a)*cross(c, d, b) <= 0
 }

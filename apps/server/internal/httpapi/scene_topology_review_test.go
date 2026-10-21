@@ -15,7 +15,7 @@ import (
 
 func TestSceneReviewUsesOriginalAndOverlayAndReplacesCandidate(t *testing.T) {
 	m, c, _ := aiFixture(t)
-	candidate, err := parseSceneTopology(`{"walls":[{"id":"floating","kind":"door","start":{"x":0.4,"y":0.3},"end":{"x":0.5,"y":0.3}}],"lights":[],"darkness":0.2}`)
+	candidate, err := parseSceneTopology(`{"walls":[{"id":"floating","kind":"door","start":{"x":0.4,"y":0.3},"end":{"x":0.5,"y":0.3}}],"lights":[],"darkness":0.2,"walkablePaths":[]}`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +43,7 @@ func TestSceneReviewUsesOriginalAndOverlayAndReplacesCandidate(t *testing.T) {
 			return
 		}
 		// Reviewer removes a door in open floor. Unchecked candidate must not survive.
-		json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]any{"content": `{"walls":[],"lights":[],"darkness":0.2}`}}}})
+		json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]any{"content": `{"walls":[],"lights":[],"darkness":0.2,"walkablePaths":[]}`}}}})
 	}))
 	defer upstream.Close()
 	m.srv.generator = newEntityGenerator(AIOptions{Provider: "openai", BaseURL: upstream.URL, APIToken: "test", Model: "test"})
@@ -107,5 +107,30 @@ func TestSceneReviewDetailsKeepQuadrantOrder(t *testing.T) {
 		if color.RGBAModel.Convert(actual.At(2, 2)) != inks[i/2] {
 			t.Fatal("quadrant coordinates/order changed", i)
 		}
+	}
+}
+
+func TestSceneOpenCaveRouteRemovesEntranceAndTunnelBlockers(t *testing.T) {
+	result, err := parseSceneTopology(`{"walls":[{"kind":"wall","start":{"x":0.2,"y":0.3},"end":{"x":0.2,"y":0.7}},{"kind":"wall","start":{"x":0.6,"y":0.4},"end":{"x":0.6,"y":0.6}},{"kind":"wall","start":{"x":0.2,"y":0.2},"end":{"x":0.8,"y":0.2}}],"lights":[],"darkness":0}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	checked, err := protectSceneWalkablePaths(result, `{"walkablePaths":[[{"x":0.1,"y":0.5},{"x":0.8,"y":0.5}]]}`)
+	if err != nil || len(checked.Walls) != 1 || checked.Walls[0].Start.Y != 0.2 {
+		t.Fatal("entrance/tunnel blocked or rock boundary lost", err, checked.Walls)
+	}
+	door := result.Walls[0]
+	door.Kind = "door"
+	kept, err := protectSceneWalkablePaths(sessionMapLevelDocument{Walls: []publicDisplayWall{door}}, `{"walkablePaths":[[{"x":0.1,"y":0.5},{"x":0.8,"y":0.5}]]}`)
+	if err != nil || len(kept.Walls) != 1 || kept.Walls[0].Kind != "door" {
+		t.Fatal("interactive doorway removed", err)
+	}
+	for _, bad := range []string{`{}`, `{"walkablePaths":null}`, `{"walkablePaths":[[{"x":2,"y":0},{"x":0,"y":0}]]}`} {
+		if _, err := protectSceneWalkablePaths(result, bad); err == nil {
+			t.Fatal("unverified route accepted")
+		}
+	}
+	if sceneSegmentsCross(publicFogPoint{X: 0, Y: 0}, publicFogPoint{X: .1, Y: 0}, publicFogPoint{X: .2, Y: 0}, publicFogPoint{X: .3, Y: 0}) {
+		t.Fatal("disjoint collinear segments")
 	}
 }

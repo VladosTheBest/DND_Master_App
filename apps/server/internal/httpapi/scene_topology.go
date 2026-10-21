@@ -82,8 +82,10 @@ func (srv *server) analyzeSceneTopologyOnce(ctx context.Context, user authUser, 
 	var message string
 	var reviewImage []byte
 	instructions := sceneTopologyInstructions
+	schema := sceneTopologySchema()
 	if len(overlay) > 0 {
 		reviewImage = overlay[0]
+		schema = sceneTopologyReviewSchema()
 		instructions += "\n" + sceneTopologyReviewInstructions
 	}
 	if connected {
@@ -107,7 +109,7 @@ func (srv *server) analyzeSceneTopologyOnce(ctx context.Context, user authUser, 
 				content = append(content, map[string]any{"type": "image_url", "image_url": map[string]any{"url": "data:" + http.DetectContentType(bitmap) + ";base64," + base64.StdEncoding.EncodeToString(bitmap), "detail": "high"}})
 			}
 		}
-		body, _ := json.Marshal(map[string]any{"model": g.config.model, "messages": []map[string]any{{"role": "system", "content": instructions}, {"role": "user", "content": content}}, "response_format": map[string]any{"type": "json_schema", "json_schema": map[string]any{"name": "scene_topology", "strict": true, "schema": sceneTopologySchema()}}})
+		body, _ := json.Marshal(map[string]any{"model": g.config.model, "messages": []map[string]any{{"role": "system", "content": instructions}, {"role": "user", "content": content}}, "response_format": map[string]any{"type": "json_schema", "json_schema": map[string]any{"name": "scene_topology", "strict": true, "schema": schema}}})
 		raw, err := g.mapAPIRequest(ctx, "/chat/completions", "application/json", body, 2<<20)
 		if err != nil {
 			return sessionMapLevelDocument{}, fmt.Errorf("Не удалось распознать стены и свет. Повторите попытку.")
@@ -124,7 +126,11 @@ func (srv *server) analyzeSceneTopologyOnce(ctx context.Context, user authUser, 
 		}
 		message = chat.Choices[0].Message.Content
 	}
-	return parseSceneTopology(message)
+	result, err := parseSceneTopology(message)
+	if err == nil && len(reviewImage) > 0 {
+		return protectSceneWalkablePaths(result, message)
+	}
+	return result, err
 }
 
 func parseSceneTopology(message string) (sessionMapLevelDocument, error) {

@@ -41,7 +41,7 @@ func TestFoundryAISceneImageJobReviewIdempotencyAndScopedApply(t *testing.T) {
 			if !strings.Contains(string(raw), "image_url") {
 				t.Error("topology must inspect bitmap")
 			}
-			plan = []byte(`{"walls":[{"id":"door","kind":"door","start":{"x":0.2,"y":0.3},"end":{"x":0.3,"y":0.3}}],"lights":[{"id":"torch","x":0.4,"y":0.5,"bright":10,"dim":20,"color":"#ffbb77"}],"darkness":0.6}`)
+			plan = []byte(`{"walls":[{"id":"door","kind":"door","start":{"x":0.2,"y":0.3},"end":{"x":0.3,"y":0.3}}],"lights":[{"id":"torch","x":0.4,"y":0.5,"bright":10,"dim":20,"color":"#ffbb77"}],"darkness":0.6,"walkablePaths":[]}`)
 		} else if strings.Contains(string(raw), "world_map_visual_check") {
 			plan = []byte(`{"isMap":true}`)
 		} else if !strings.Contains(string(raw), "orthographic top-down") || !strings.Contains(string(raw), "NO GRID") {
@@ -88,7 +88,7 @@ func TestFoundryAISceneImageJobReviewIdempotencyAndScopedApply(t *testing.T) {
 		t.Fatal("scene result")
 	}
 	level := result.Data.Levels[0]
-	if level.Walls[0].DoorVisual == nil || level.Walls[0].DoorVisual.Style != "wood" {
+	if len(level.Walls) != 1 || level.Walls[0].DoorVisual == nil || level.Walls[0].DoorVisual.Style != "wood" {
 		t.Fatal("new AI scene lost separate door leaf")
 	}
 	if len(level.Walls) != 1 || level.Walls[0].Kind != "door" || len(level.Lights) != 1 || level.Darkness != 0.6 || level.Weather != "storm" || level.Columns != 30 || level.Rows != 20 {

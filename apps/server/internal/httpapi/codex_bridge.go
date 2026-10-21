@@ -837,6 +837,9 @@ func (manager *codexBridgeManager) runPromptOnce(ctx context.Context, user authU
 		}
 		if input.WorldMap.SceneAnalysis {
 			turnParams["outputSchema"] = sceneTopologySchema()
+			if len(input.WorldMap.TopologyOverlay) > 0 {
+				turnParams["outputSchema"] = sceneTopologyReviewSchema()
+			}
 			if input.WorldMap.Validate {
 				turnParams["outputSchema"] = sceneValidatedTopologySchema()
 			}

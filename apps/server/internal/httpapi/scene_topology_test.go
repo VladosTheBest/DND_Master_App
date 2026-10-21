@@ -163,7 +163,7 @@ func TestSceneTopologyFailureKeepsBackgroundAndRetryUsesOnlyBitmap(t *testing.T)
 		calls.Add(1)
 		message := `{"walls":[{"id":"bad","kind":"wall","start":{"x":4,"y":0},"end":{"x":0.1,"y":0.2}}],"lights":[],"darkness":0}`
 		if succeeds.Load() {
-			message = `{"walls":[{"id":"d","kind":"door","start":{"x":0.4,"y":0.3},"end":{"x":0.5,"y":0.3}}],"lights":[],"darkness":0.2}`
+			message = `{"walls":[{"id":"d","kind":"door","start":{"x":0.4,"y":0.3},"end":{"x":0.5,"y":0.3}}],"lights":[],"darkness":0.2,"walkablePaths":[]}`
 		}
 		json.NewEncoder(w).Encode(map[string]any{"choices": []any{map[string]any{"message": map[string]any{"content": message}}}})
 	}))
