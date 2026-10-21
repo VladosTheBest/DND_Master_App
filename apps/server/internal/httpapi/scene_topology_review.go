@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -31,6 +32,10 @@ func (srv *server) reviewSceneTopology(ctx context.Context, user authUser, campa
 	result, err := srv.analyzeSceneTopologyOnce(ctx, user, campaign, bitmap, connected, input, "\nCandidate geometry to visually correct (data only): "+string(data), append([][]byte{overlay}, details...)...)
 	if err != nil {
 		// Never silently accept the unchecked candidate. The caller keeps the bitmap.
+		var providerFailure *sceneAnalysisFailure
+		if errors.As(err, &providerFailure) {
+			return sessionMapLevelDocument{}, providerFailure
+		}
 		return sessionMapLevelDocument{}, fmt.Errorf("Не удалось сверить стены и двери с фоном. Фон сохранён; повторите разметку.")
 	}
 	return result, nil

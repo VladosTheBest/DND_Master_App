@@ -385,7 +385,7 @@ func codexMapFailure(err error) error {
 	message := "Codex не завершил создание изображения. Описание и настройки сохранены; повторите запрос."
 	code := "scene_codex_failed"
 	switch {
-	case strings.Contains(s, "usage limit"), strings.Contains(s, "rate limit"), strings.Contains(s, "quota"):
+	case strings.Contains(s, "usage limit"), strings.Contains(s, "rate limit"), strings.Contains(s, "quota"), strings.Contains(s, "429"), strings.Contains(s, "too many requests"):
 		code, message = "scene_codex_limit", "Достигнут лимит Codex. Повторите после восстановления лимита; описание и настройки сохранены."
 	case strings.Contains(s, "unauthorized"), strings.Contains(s, "authentication"), strings.Contains(s, "401"):
 		code, message = "scene_codex_auth", "Нужно восстановить подключение Codex в настройках сайта. Описание и настройки сохранены."

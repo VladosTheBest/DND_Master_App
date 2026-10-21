@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"math"
@@ -66,7 +67,8 @@ func validateSceneEnvironment(l sessionMapLevelDocument) error {
 
 func (srv *server) analyzeSceneTopology(ctx context.Context, user authUser, campaign string, image []byte, connected bool, input foundrySceneInput) (sessionMapLevelDocument, error) {
 	result, err := srv.analyzeSceneTopologyOnce(ctx, user, campaign, image, connected, input, "")
-	if err == nil || ctx.Err() != nil {
+	var providerFailure *sceneAnalysisFailure
+	if err == nil || ctx.Err() != nil || errors.As(err, &providerFailure) {
 		return result, err
 	}
 	log.Printf("scene topology first attempt: %v", err)
@@ -89,9 +91,11 @@ func (srv *server) analyzeSceneTopologyOnce(ctx context.Context, user authUser, 
 		instructions += "\n" + sceneTopologyReviewInstructions
 	}
 	if connected {
-		result, err := srv.codex.runPrompt(ctx, user, codexPromptInput{CampaignID: campaign, Prompt: prompt, WorldMap: &codexWorldMapRequest{Reference: image, SceneAnalysis: true, TopologyOverlay: reviewImage, TopologyDetails: sceneReviewDetails(overlay)}})
+		result, err := retrySceneAnalysis(ctx, func() (codexPromptResult, error) {
+			return srv.codex.runPrompt(ctx, user, codexPromptInput{CampaignID: campaign, Prompt: prompt, WorldMap: &codexWorldMapRequest{Reference: image, SceneAnalysis: true, TopologyOverlay: reviewImage, TopologyDetails: sceneReviewDetails(overlay)}})
+		}, waitSceneAnalysisRetry)
 		if err != nil {
-			return sessionMapLevelDocument{}, fmt.Errorf("Codex не смог распознать геометрию. Повторите попытку.")
+			return sessionMapLevelDocument{}, err
 		}
 		message = result.Message
 	} else {
