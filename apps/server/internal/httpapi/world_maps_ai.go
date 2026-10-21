@@ -41,6 +41,8 @@ type mapGenerationResult struct {
 }
 type codexWorldMapRequest struct {
 	Reference       []byte
+	TopologyOverlay []byte
+	TopologyDetails [][]byte
 	SceneBackground bool
 	SceneAnalysis   bool
 	Validate        bool

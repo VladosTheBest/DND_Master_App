@@ -189,7 +189,7 @@ func TestSceneTopologyFailureKeepsBackgroundAndRetryUsesOnlyBitmap(t *testing.T)
 	succeeds.Store(true)
 	input.ReferenceURL = failed.Levels[0].ImageURL
 	retried := run()
-	if calls.Load() != 3 || retried.Generation.TopologyError != "" || len(retried.Levels[0].Walls) != 1 || retried.Levels[0].Walls[0].DoorVisual == nil {
+	if calls.Load() != 4 || retried.Generation.TopologyError != "" || len(retried.Levels[0].Walls) != 1 || retried.Levels[0].Walls[0].DoorVisual == nil {
 		t.Fatal("topology-only retry failed")
 	}
 }

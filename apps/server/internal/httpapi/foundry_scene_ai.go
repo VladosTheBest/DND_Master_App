@@ -276,6 +276,10 @@ func (m *foundryManager) generateSceneImage(w http.ResponseWriter, ctx context.C
 		} else {
 			topology, analysisErr = srv.analyzeSceneTopology(ctx, user, c.CampaignID, result.Image, connected, input)
 		}
+		if analysisErr == nil {
+			reportAIJobStage(ctx, "Сверка стен и дверей с изображением карты")
+			topology, analysisErr = srv.reviewSceneTopology(ctx, user, c.CampaignID, result.Image, connected, input, topology)
+		}
 		if analysisErr != nil {
 			// A valid background remains usable even when a separate AI analysis fails.
 			scene.Generation.TopologyError = analysisErr.Error()

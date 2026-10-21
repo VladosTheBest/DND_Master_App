@@ -738,6 +738,9 @@ func (manager *codexBridgeManager) runPromptOnce(ctx context.Context, user authU
 		}
 		if input.WorldMap.SceneAnalysis {
 			instructions = sceneTopologyInstructions
+			if len(input.WorldMap.TopologyOverlay) > 0 {
+				instructions += "\n" + sceneTopologyReviewInstructions
+			}
 			if input.WorldMap.Validate {
 				instructions += "\n" + mapVisualCheckInstructions + "\nReturn a single JSON object containing isMap, walls, lights, darkness. For a rejected bitmap return isMap=false, empty walls/lights and darkness=0."
 			}
@@ -838,8 +841,12 @@ func (manager *codexBridgeManager) runPromptOnce(ctx context.Context, user authU
 				turnParams["outputSchema"] = sceneValidatedTopologySchema()
 			}
 		}
-		if len(input.WorldMap.Reference) > 0 {
-			_, format, imageErr := mapImageConfig(input.WorldMap.Reference)
+		imageInputs := []map[string]any{{"type": "text", "text": requestText}}
+		for _, reference := range append([][]byte{input.WorldMap.Reference, input.WorldMap.TopologyOverlay}, input.WorldMap.TopologyDetails...) {
+			if len(reference) == 0 {
+				continue
+			}
+			_, format, imageErr := mapImageConfig(reference)
 			if imageErr != nil {
 				return codexPromptResult{}, imageErr
 			}
@@ -848,7 +855,7 @@ func (manager *codexBridgeManager) runPromptOnce(ctx context.Context, user authU
 				return codexPromptResult{}, fileErr
 			}
 			defer os.Remove(file.Name())
-			_, fileErr = file.Write(input.WorldMap.Reference)
+			_, fileErr = file.Write(reference)
 			closeErr := file.Close()
 			if fileErr != nil {
 				return codexPromptResult{}, fileErr
@@ -856,8 +863,9 @@ func (manager *codexBridgeManager) runPromptOnce(ctx context.Context, user authU
 			if closeErr != nil {
 				return codexPromptResult{}, closeErr
 			}
-			turnParams["input"] = []map[string]any{{"type": "text", "text": requestText}, {"type": "localImage", "path": file.Name()}}
+			imageInputs = append(imageInputs, map[string]any{"type": "localImage", "path": file.Name()})
 		}
+		turnParams["input"] = imageInputs
 	}
 	err = bridge.client.call(callCtx, "turn/start", turnParams, &turnStarted)
 	cancel()
