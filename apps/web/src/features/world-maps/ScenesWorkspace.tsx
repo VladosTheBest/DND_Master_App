@@ -37,7 +37,7 @@ export function ScenesWorkspace({campaignId,readOnly}:{campaignId:string;readOnl
  });}
  const sceneJobs=jobs.filter(j=>j.kind==='foundry-scene');
  if(drawing)return <><button onClick={()=>{if(!drawingDirty||confirm('Закрыть холст без сохранения?'))setDrawing(false);}}>Вернуться к сценам</button><CreativeMapEditor campaignId={campaignId} onDirty={setDrawingDirty} onSaved={m=>{source(m);setSources(v=>[m,...v.filter(x=>x.id!==m.id)]);}} onVariant={m=>{source(m);setDrawing(false);}}/></>;
- return <section className="scene-workspace"><header><small>МАСТЕРСКАЯ СЦЕН</small><h2>От замысла до игрового стола</h2><p>Фон, стены, двери, свет и погода. Одна клетка — 5 футов.</p></header>
+ return <section className="scene-workspace"><header><small>МАСТЕРСКАЯ СЦЕН</small><h2>От замысла до игрового стола</h2><p>Фон, стены, двери, свет и погода. Одна клетка — 5 футов. Новые AI-фоны создаются с отдельными подвижными створками в Foundry; положение и петли настраиваются в модуле.</p></header>
  {!readOnly&&<form className="scene-create" onSubmit={e=>{e.preventDefault();void generate();}}><fieldset disabled={busy}>
  <label>Название<input value={title} onChange={e=>setTitle(e.target.value)} maxLength={160} placeholder="Заброшенная церковь"/></label>
  <label>Описание<textarea value={prompt} onChange={e=>setPrompt(e.target.value)} minLength={reference?undefined:10} required={!reference} maxLength={4000} rows={4} placeholder="Заброшенная церковь: разрушенный алтарь, боковые приделы, факелы у входа, двор. Вид сверху, без крыши."/></label>

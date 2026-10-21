@@ -30,6 +30,22 @@ test('scene requests are saved before transport, so a lost response can reuse th
 test('saved scene jobs resume without another generation request or synchronization timer',async()=>{const state={records:{},sceneAI:{jobId:'job',input:{title:'Map'}}},paths=[];const ui=createSceneAI({connected:async()=>state,saveState:async()=>{},waitClosed:async()=> 'later',request:async(_s,path)=>{paths.push(path);return {state:'running',stage:'Generating'}}});await ui.launch();assert.deepEqual(paths,['v1/scenes/ai/job']);assert.equal(state.sceneAI.jobId,'job');assert.deepEqual(sceneAIRecord({id:'map',title:'Map'}),{key:'session-map:map',id:'map',kind:'session-map',title:'Map',data:{id:'map',title:'Map'}})});
 import {scenePlan} from '../scripts/adapter.mjs';
 import {sceneLevel} from '../scripts/core.mjs';
+import {doorAnimation,doorPlacementUpdates} from '../scripts/door-visual.mjs';
+test('animated door survives export/import without adding visuals to old bitmaps',()=>{
+ const visual={style:'wood',direction:-1,double:true,flip:false,strength:1,duration:700};
+ const level={id:'g',name:'Map',width:1000,height:1000,walls:[{id:'d',kind:'door',start:{x:.4,y:.5},end:{x:.5,y:.5},doorVisual:visual},{id:'old',kind:'door',start:{x:.2,y:.5},end:{x:.3,y:.5}}]};
+ const plan=scenePlan(sceneAIRecord({id:'map',title:'Map'}),level);
+ assert.deepEqual(plan.walls[0].animation,doorAnimation(visual));assert.equal(plan.walls[1].animation,undefined);
+ const back=sceneLevel(plan);assert.deepEqual(back.walls[0].doorVisual,visual);assert.equal(back.walls[1].doorVisual,undefined);
+ const reopened=scenePlan(sceneAIRecord({id:'map',title:'Map'}),back);assert.deepEqual(reopened.walls[0].animation,plan.walls[0].animation);
+});
+test('door correction keeps connected jambs closed and does not move unrelated walls',()=>{
+ const walls=[{id:'d',door:1,c:[100,100,200,100]},{id:'left',c:[0,100,100,100]},{id:'right',c:[200,100,300,100]},{id:'other',c:[0,0,100,0]}];
+ const changes=doorPlacementUpdates(walls,'d',[110,120,210,120],{style:'iron'},true);
+ assert.deepEqual(changes.map(x=>[x._id,x.c]),[['left',[0,100,110,120]],['right',[210,120,300,100]],['d',[210,120,110,120]]]);
+ assert.equal(changes[2].animation.type,'swing');assert.deepEqual(walls[0].c,[100,100,200,100]);
+ assert.throws(()=>doorPlacementUpdates(walls,'d',[1,1,1,1],{}),/4 px/);
+});
 import {createSceneMonitor,sceneEstimate,scenePreviewHTML} from '../scripts/scene-job-ui.mjs';
 test('scene dimensions, doors, light radii and native weather survive projection and reverse',()=>{
  const level={id:'ground',name:'Church',imageUrl:'/map.png',width:1024,height:1024,columns:30,rows:20,grid:{size:1/30,type:'square'},gridDistance:5,weather:'storm',darkness:.6,walls:[{id:'d',kind:'door',start:{x:.2,y:.3},end:{x:.3,y:.3}}],lights:[{id:'l',x:.4,y:.5,bright:10,dim:20,color:'#ffbb77'}]};

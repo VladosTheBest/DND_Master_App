@@ -26,6 +26,37 @@ func TestSceneEnvironmentRejectsInvalidValues(t *testing.T) {
 	}
 }
 
+func TestSceneDoorVisualValidationAndCodec(t *testing.T) {
+	valid := sceneDoorVisual{Style: "iron", Direction: -1, Double: true, Strength: 1, Duration: 700}
+	level := sessionMapLevelDocument{Walls: []publicDisplayWall{{Kind: "door", DoorVisual: &valid}}}
+	if err := validateSceneEnvironment(level); err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := json.Marshal(level)
+	var copy sessionMapLevelDocument
+	if json.Unmarshal(raw, &copy) != nil || *copy.Walls[0].DoorVisual != valid {
+		t.Fatal("door visual lost in storage codec")
+	}
+	for _, change := range []func(*sceneDoorVisual){
+		func(v *sceneDoorVisual) { v.Style = "https://outside/door.png" },
+		func(v *sceneDoorVisual) { v.Direction = 0 },
+		func(v *sceneDoorVisual) { v.Strength = math.NaN() },
+		func(v *sceneDoorVisual) { v.Duration = 6000 },
+	} {
+		bad := valid
+		change(&bad)
+		level.Walls[0].DoorVisual = &bad
+		if validateSceneEnvironment(level) == nil {
+			t.Fatal("invalid door accepted")
+		}
+	}
+	level.Walls[0].DoorVisual = &valid
+	level.Walls[0].Kind = "wall"
+	if validateSceneEnvironment(level) == nil {
+		t.Fatal("door visual on solid wall")
+	}
+}
+
 func TestWebSceneUploadJobScopeAndApply(t *testing.T) {
 	t.Setenv("SHADOW_EDGE_IMAGE_OPTIMIZER", "off")
 	m, c, _ := aiFixture(t)

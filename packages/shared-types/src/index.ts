@@ -1112,6 +1112,7 @@ export interface PlayerDisplayRoofZone {
 }
 
 export interface PlayerDisplayWall {
+  doorVisual?: {style: "wood" | "iron"; direction: 1 | -1; double: boolean; flip: boolean; strength: number; duration: number};
   id: string;
   kind?: "wall" | "door";
   start: PlayerDisplayFogPoint;

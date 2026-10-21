@@ -215,6 +215,9 @@ func (g openAIGenerator) generatePlannedMap(ctx context.Context, prompt string, 
 	imagePrompt := mapRenderInstructions + "\n" + plan.ImagePrompt + "\nNO TEXT OR LETTERING AT ALL. Reserve uncluttered space for these externally rendered labels at normalized coordinates, but DO NOT paint them: " + string(coordinates)
 	if instructions == foundryScenePlanInstructions {
 		imagePrompt = "Strict orthographic top-down tactical battlemap. NO GRID, NO TOKENS, NO ROOFS, NO TEXT.\n" + imagePrompt
+		if len(reference) == 0 {
+			imagePrompt += sceneDoorBackgroundInstructions
+		}
 	}
 	reportAIJobStage(ctx, "Рисую фон карты без надписей")
 	endpoint, contentType := "/images/generations", "application/json"

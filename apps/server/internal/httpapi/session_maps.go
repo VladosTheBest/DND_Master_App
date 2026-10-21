@@ -16,6 +16,16 @@ type sceneLight struct {
 	Color  string  `json:"color"`
 }
 
+// Door visuals use bundled module assets, never arbitrary external URLs.
+type sceneDoorVisual struct {
+	Style     string  `json:"style"`
+	Direction int     `json:"direction"`
+	Double    bool    `json:"double"`
+	Flip      bool    `json:"flip"`
+	Strength  float64 `json:"strength"`
+	Duration  int     `json:"duration"`
+}
+
 type sessionMapLevelDocument struct {
 	Lights       []sceneLight        `json:"lights,omitempty"`
 	Weather      string              `json:"weather,omitempty"`

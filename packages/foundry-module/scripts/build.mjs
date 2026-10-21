@@ -8,7 +8,7 @@ await mkdir(output,{recursive:true});await mkdir(publicDir,{recursive:true});
 const catalog=JSON.parse(await readFile(path.join(repo,'apps/server/internal/httpapi/foundry_animation_catalog.json'),'utf8'));
 await writeFile(path.join(root,'scripts/animation-catalog.mjs'),'// Generated from apps/server/internal/httpapi/foundry_animation_catalog.json by build.mjs.\nexport const animationCatalog='+JSON.stringify(catalog,null,2)+';\n');
 const files=["module.json"];
-for(const f of (await readdir(path.join(root,'assets'))).sort())if(/\.png$/.test(f))files.push(`assets/${f}`);
+for(const f of (await readdir(path.join(root,'assets'))).sort())if(/\.(png|svg)$/.test(f))files.push(`assets/${f}`);
 for(const dir of ["scripts","styles"]){for(const f of await readdir(path.join(root,dir)))if(f!=="build.mjs"&&/\.(mjs|css)$/.test(f))files.push(`${dir}/${f}`)}
 const crc32=data=>{let crc=0xffffffff;for(const b of data){crc^=b;for(let i=0;i<8;i++)crc=(crc>>>1)^(crc&1?0xedb88320:0)}return (crc^0xffffffff)>>>0};
 const entries=[],central=[];let offset=0;

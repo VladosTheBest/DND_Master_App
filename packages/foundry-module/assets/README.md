@@ -1,5 +1,7 @@
 # Bundled effect artwork
 
+`door-wood.svg` and `door-iron.svg` are original hand-authored vector door leaves (200×36), shipped with the module for Foundry 14 native Wall animations. Their left edge is the hinge; placement and collision remain properties of the native wall. They do not contain external resources or scripts.
+
 Original PNG assets generated with the built-in imagegen tool for this module. User images were visual references only and are not distributed. No external animation module, media service or runtime image generation is required. All PNG files in this directory ship in the module ZIP; the game animates their GPU sprites with deterministic motion, particles and fades.
 
 - `weapons.png`: detailed sword, axe, hammer and dagger atlas. `effect-art.mjs` uses inspected pixel bounds rather than assuming equal cells.

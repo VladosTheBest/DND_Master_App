@@ -128,12 +128,13 @@ type publicRoofZone struct {
 }
 
 type publicDisplayWall struct {
-	ID       string           `json:"id"`
-	Kind     string           `json:"kind,omitempty"`
-	Start    publicFogPoint   `json:"start"`
-	End      publicFogPoint   `json:"end"`
-	Disabled bool             `json:"disabled,omitempty"`
-	Points   []publicFogPoint `json:"points,omitempty"`
+	DoorVisual *sceneDoorVisual `json:"doorVisual,omitempty"`
+	ID         string           `json:"id"`
+	Kind       string           `json:"kind,omitempty"`
+	Start      publicFogPoint   `json:"start"`
+	End        publicFogPoint   `json:"end"`
+	Disabled   bool             `json:"disabled,omitempty"`
+	Points     []publicFogPoint `json:"points,omitempty"`
 }
 
 type publicDisplayToken struct {

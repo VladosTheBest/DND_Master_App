@@ -27,6 +27,9 @@ func TestFoundryAISceneImageJobReviewIdempotencyAndScopedApply(t *testing.T) {
 			if body["model"] != "test-image" {
 				t.Error("image model changed")
 			}
+			if !strings.Contains(body["prompt"].(string), "NO DOOR LEAVES") {
+				t.Error("image renderer lost empty-doorway instructions")
+			}
 			json.NewEncoder(w).Encode(map[string]any{"data": []any{map[string]any{"b64_json": base64.StdEncoding.EncodeToString(mapFixturePNG())}}})
 			return
 		}
@@ -85,6 +88,9 @@ func TestFoundryAISceneImageJobReviewIdempotencyAndScopedApply(t *testing.T) {
 		t.Fatal("scene result")
 	}
 	level := result.Data.Levels[0]
+	if level.Walls[0].DoorVisual == nil || level.Walls[0].DoorVisual.Style != "wood" {
+		t.Fatal("new AI scene lost separate door leaf")
+	}
 	if len(level.Walls) != 1 || level.Walls[0].Kind != "door" || len(level.Lights) != 1 || level.Darkness != 0.6 || level.Weather != "storm" || level.Columns != 30 || level.Rows != 20 {
 		t.Fatal("topology/environment lost")
 	}
