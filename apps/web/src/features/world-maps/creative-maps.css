@@ -28,3 +28,19 @@
 .creative-studio .creative-tool-options input[type=checkbox]{flex:0 0 14px;width:14px;min-width:14px;padding:0}
 .creative-studio .creative-tool-options input[type=range]{width:80px;min-width:80px;flex:0 0 80px}
 .creative-studio .creative-tool-options select{width:auto;flex:0 0 auto}
+.creative-stamp-preview{display:none;position:absolute;pointer-events:none;opacity:.7;z-index:3;outline:1px dashed #d7c6fa;will-change:transform,left,top}
+.creative-stamp-preview img{width:100%;height:100%;object-fit:contain}
+.creative-stamp-preview.is-forest{border:2px dashed #c6e4a5;border-radius:50%;background:#789b4820;place-items:center;color:#fff;font-size:12px;outline:none}
+.creative-context-dismiss{position:fixed;inset:0;z-index:1099}
+.creative-context-menu{position:fixed;z-index:1100;width:220px;padding:6px;border:1px solid #686071;border-radius:9px;background:#252832;box-shadow:0 12px 40px #0009;display:grid;gap:2px}
+.creative-context-menu button{text-align:left;padding:7px 10px;font-size:12px;border:0;background:transparent}
+.creative-context-menu button:hover:enabled{background:#58456e}
+.creative-forest-brush{display:flex;gap:8px;text-align:left;align-items:center;margin:8px 0;padding:6px}
+.creative-forest-brush img{width:38px;height:38px;object-fit:contain}
+.creative-forest-brush small{display:block;font-size:10px;margin-top:4px}
+.creative-generators{padding:8px 12px;border-bottom:1px solid #41434f;font-size:12px}
+.creative-generators summary{cursor:pointer;color:#d2bddf}
+.creative-generators>div{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+.creative-generators select{width:auto;min-width:150px}
+.creative-generators small{color:#aaa5b3}
+.creative-tool-options output{min-width:36px;font-variant-numeric:tabular-nums}
