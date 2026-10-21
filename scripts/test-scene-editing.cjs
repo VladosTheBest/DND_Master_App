@@ -1,0 +1,25 @@
+const {build}=require('esbuild');
+const assert=require('node:assert/strict');
+(async()=>{
+ const b=await build({entryPoints:['apps/web/src/features/world-maps/scene-editing.ts'],bundle:true,platform:'node',format:'cjs',write:false});
+ const mod={exports:{}};new Function('module','exports',b.outputFiles[0].text)(mod,mod.exports);
+ const {snapSceneDoor,cutSceneOpenings,editableScene,publishScene}=mod.exports;
+ const level={width:1200,height:600,walls:[]};
+ const wall={id:'wall',kind:'wall',start:{x:.1,y:.5},end:{x:.9,y:.5}};
+ const door={id:'door',kind:'door',start:{x:.4,y:.52},end:{x:.5,y:.52}};
+ const snapped=snapSceneDoor(door,[wall],level);assert.equal(snapped.start.y,.5);assert.equal(snapped.end.y,.5);
+ let cut=cutSceneOpenings([wall,snapped],level);assert.equal(cut.length,3);assert.equal(cut[0].end.x,.4);assert.equal(cut[1].start.x,.5);
+ const map={id:'map',revision:1,title:'Test',levels:[{...level,walls:[wall,snapped]}]};
+ const reopened=editableScene(JSON.parse(JSON.stringify(publishScene(map))));assert.deepEqual(reopened.levels[0].walls,[wall,snapped]);
+ const moved=snapSceneDoor({...snapped,start:{x:.65,y:.51},end:{x:.75,y:.51}},[wall],level);
+ cut=cutSceneOpenings([wall,moved],level);assert.equal(cut[0].end.x,.65);assert.equal(cut[1].start.x,.75);
+ assert.deepEqual(cutSceneOpenings([wall],level),[wall]);
+ const diagonal={...wall,start:{x:.1,y:.1},end:{x:.8,y:.8}};
+ const d=snapSceneDoor({...door,start:{x:.35,y:.35},end:{x:.45,y:.45}},[diagonal],level);assert.ok(Math.abs(d.start.x-d.start.y)<1e-9);
+ assert.deepEqual(snapSceneDoor(door,[wall],level,1),door);
+ const two=cutSceneOpenings([wall,snapped,{...moved,id:"door2"}],level);assert.equal(two.length,5);assert.equal(new Set(two.map(w=>w.id)).size,5);
+ const imported={...map,levels:[{...level,walls:[{...wall,end:snapped.start},{...wall,id:'right',start:snapped.end},snapped]}]};
+ const restored=editableScene(imported).levels[0];assert.ok(restored.walls.some(w=>w.id==='door-host'));
+ assert.equal(cutSceneOpenings(restored.walls.filter(w=>w.kind!=='door'),level).length,3);
+ console.log('Scene editing: snap, diagonal/non-square geometry, multiple openings, move, delete and save/reopen passed');
+})();

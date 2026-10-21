@@ -22,6 +22,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/User/.cache/co
  if(p==='/maps')return route.fulfill({contentType:'text/html',body:'<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><div id="root"></div><link rel="stylesheet" href="/test.css"><script src="/test.js"></script>'});
  return route.fulfill({contentType:p.endsWith('.css')?'text/css':'application/javascript',body:bundle.outputFiles.find(f=>f.path.endsWith(p.endsWith('.css')?'.css':'.js')).text});});
  await page.goto('https://creative.local/maps?campaign=campaign');await page.getByRole('button',{name:'Креатив · рисовать карту'}).click();
+ assert.equal(await page.locator('.creative-studio.is-fullscreen').count(),0);await page.getByRole('button',{name:'Полный экран',exact:true}).click();
  await page.getByRole('button',{name:'Выйти из полного экрана',exact:true}).waitFor();assert.equal(await page.getByLabel('Набор ассетов').inputValue(),'painted');await page.getByLabel('Набор ассетов').selectOption('all');
  const canvas=page.getByLabel('Холст ручной карты');await canvas.waitFor();
  // Reproduce the wide screenshot: the editor fills both dimensions, including on tall screens.

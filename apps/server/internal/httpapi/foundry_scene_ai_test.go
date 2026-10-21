@@ -134,6 +134,18 @@ func TestFoundryAISceneImageJobReviewIdempotencyAndScopedApply(t *testing.T) {
 		t.Fatal("failed save persisted scene")
 	}
 	m.srv.store.atomicFileReplace = nil
+	edited := result.Data
+	edited.Levels = append([]sessionMapLevelDocument{}, result.Data.Levels...)
+	edited.Levels[0].Darkness = 0.25
+	edited.Levels[0].EditorWalls = append([]publicDisplayWall{}, edited.Levels[0].Walls...)
+	invalid := edited
+	invalid.ID = "foreign-scene"
+	if w := foundryCall(t, m, "POST", "v1/scenes/ai/"+id+"/apply", map[string]any{"scene": invalid}); w.Code != 400 {
+		t.Fatal("accepted foreign edited scene", w.Code)
+	}
+	if w := foundryCall(t, m, "POST", "v1/scenes/ai/"+id+"/apply", map[string]any{"scene": edited}); w.Code != 201 {
+		t.Fatal(w.Body.String())
+	}
 	for i := 0; i < 2; i++ {
 		if w := foundryCall(t, m, "POST", "v1/scenes/ai/"+id+"/apply", map[string]any{}); w.Code != 200 && w.Code != 201 {
 			t.Fatal(w.Body.String())
@@ -142,6 +154,9 @@ func TestFoundryAISceneImageJobReviewIdempotencyAndScopedApply(t *testing.T) {
 	campaign, _ = m.srv.store.getCampaignForUser(c.OwnerID, c.CampaignID)
 	if len(campaign.SessionMaps) != 1 {
 		t.Fatal("duplicate scenes")
+	}
+	if campaign.SessionMaps[0].Levels[0].Darkness != .25 {
+		t.Fatal("review changes lost")
 	}
 	rows, _ := foundryRecords(m.srv.store.data, c.CampaignID)
 	found := false

@@ -27,6 +27,7 @@ type sceneDoorVisual struct {
 }
 
 type sessionMapLevelDocument struct {
+	EditorWalls  []publicDisplayWall `json:"editorWalls,omitempty"`
 	Lights       []sceneLight        `json:"lights,omitempty"`
 	Weather      string              `json:"weather,omitempty"`
 	Darkness     float64             `json:"darkness,omitempty"`
@@ -67,11 +68,13 @@ func validateSessionMap(v sessionMapDocument, c foundryConnection) error {
 	}
 	ids := map[string]bool{}
 	for _, l := range v.Levels {
-		if l.ID == "" || len(l.ID) > 128 || ids[l.ID] || !foundryOwnedURL(l.ImageURL, c) || l.RoofURL != "" && !foundryOwnedURL(l.RoofURL, c) || l.Width < 1 || l.Width > 32000 || l.Height < 1 || l.Height > 32000 || len(l.Walls) > 10000 || len(l.RoofZones) > 100 {
+		if l.ID == "" || len(l.ID) > 128 || ids[l.ID] || !foundryOwnedURL(l.ImageURL, c) || l.RoofURL != "" && !foundryOwnedURL(l.RoofURL, c) || l.Width < 1 || l.Width > 32000 || l.Height < 1 || l.Height > 32000 || len(l.Walls) > 10000 || len(l.EditorWalls) > 10000 || len(l.RoofZones) > 100 {
 			return fmt.Errorf("Некорректный этаж или фон не загружен в эту кампанию.")
 		}
 		ids[l.ID] = true
-		if err := validateSceneEnvironment(l); err != nil {
+		environment := l
+		environment.Walls = append(append([]publicDisplayWall{}, l.Walls...), l.EditorWalls...)
+		if err := validateSceneEnvironment(environment); err != nil {
 			return err
 		}
 		if math.IsNaN(l.GridDistance) || math.IsInf(l.GridDistance, 0) || l.GridDistance < 0 || l.GridDistance > 10000 {
@@ -80,7 +83,7 @@ func validateSessionMap(v sessionMapDocument, c foundryConnection) error {
 		if l.Grid != nil && (l.Grid.Size <= 0 || l.Grid.Size > 1 || math.IsNaN(l.Grid.Size) || math.IsInf(l.Grid.Size, 0)) {
 			return fmt.Errorf("Некорректная сетка.")
 		}
-		for _, wall := range l.Walls {
+		for _, wall := range append(append([]publicDisplayWall{}, l.Walls...), l.EditorWalls...) {
 			for _, p := range append([]publicFogPoint{wall.Start, wall.End}, wall.Points...) {
 				if math.IsNaN(p.X) || math.IsNaN(p.Y) || math.IsInf(p.X, 0) || math.IsInf(p.Y, 0) || p.X < 0 || p.X > 1 || p.Y < 0 || p.Y > 1 {
 					return fmt.Errorf("Координаты стен должны быть нормализованы.")

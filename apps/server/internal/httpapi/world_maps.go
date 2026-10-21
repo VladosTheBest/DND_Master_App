@@ -39,6 +39,8 @@ type worldMapLabel struct {
 	Italic   bool    `json:"italic"`
 }
 type worldMapDocument struct {
+	Columns        int              `json:"columns,omitempty"`
+	Rows           int              `json:"rows,omitempty"`
 	Creative       string           `json:"creative,omitempty"`
 	SourceMapID    string           `json:"sourceMapId,omitempty"`
 	SourceRevision int              `json:"sourceRevision,omitempty"`
@@ -57,6 +59,8 @@ type worldMapDocument struct {
 	CreatedAt      time.Time        `json:"createdAt"`
 }
 type worldMapGenerateInput struct {
+	Columns        int              `json:"columns,omitempty"`
+	Rows           int              `json:"rows,omitempty"`
 	SourceMapID    string           `json:"sourceMapId,omitempty"`
 	SourceRevision int              `json:"sourceRevision,omitempty"`
 	Scale          string           `json:"scale,omitempty"`
@@ -269,6 +273,10 @@ func (srv *server) generateWorldMap(w http.ResponseWriter, r *http.Request, user
 	}
 	input.Prompt = strings.TrimSpace(input.Prompt)
 	input.Scale = normalizedMapScale(input.Scale)
+	if (input.Columns != 0 || input.Rows != 0) && (input.Columns < 10 || input.Columns > 100 || input.Rows < 10 || input.Rows > 100) {
+		writeError(w, 400, "invalid_map_size", "Размер карты: от 10 до 100 клеток по каждой стороне.")
+		return
+	}
 	if !validMapScale(input.Scale) {
 		writeError(w, 400, "invalid_map_scale", "Выбери масштаб карты.")
 		return
@@ -309,6 +317,7 @@ func (srv *server) generateWorldMap(w http.ResponseWriter, r *http.Request, user
 		}
 		input.ReferenceURL = source.ImageURL
 		input.Scale = normalizedMapScale(source.Scale)
+		input.Columns, input.Rows = source.Columns, source.Rows
 		scope = normalizedMapContext(source.Context)
 	}
 	generationPrompt, contextErr := scopedWorldMapPrompt(campaign, input.Prompt, scope, input.Scale)
@@ -316,10 +325,13 @@ func (srv *server) generateWorldMap(w http.ResponseWriter, r *http.Request, user
 		writeError(w, 400, "invalid_map_context", contextErr.Error())
 		return
 	}
+	if input.Columns > 0 {
+		generationPrompt += fmt.Sprintf("\nTactical extent: %d columns by %d rows, each cell is 5 feet. Compose the map with aspect ratio %d:%d. Do not paint grid lines.", input.Columns, input.Rows, input.Columns, input.Rows)
+	}
 	// Completed retries return their original result without another paid call.
 	for _, m := range campaign.WorldMaps {
 		if m.ID == id {
-			if m.Prompt != input.Prompt || m.ReferenceURL != input.ReferenceURL || normalizedMapContext(m.Context) != scope || normalizedMapScale(m.Scale) != input.Scale || m.SourceMapID != input.SourceMapID || m.SourceRevision != input.SourceRevision {
+			if m.Columns != input.Columns || m.Rows != input.Rows || m.Prompt != input.Prompt || m.ReferenceURL != input.ReferenceURL || normalizedMapContext(m.Context) != scope || normalizedMapScale(m.Scale) != input.Scale || m.SourceMapID != input.SourceMapID || m.SourceRevision != input.SourceRevision {
 				writeError(w, 409, "map_request_changed", "Создай новый запрос для другой карты.")
 				return
 			}
@@ -424,6 +436,7 @@ func (srv *server) generateWorldMap(w http.ResponseWriter, r *http.Request, user
 	doc := worldMapDocument{ID: id, Title: result.Plan.Title, Prompt: input.Prompt, ImageURL: "/uploads/" + sanitizeUploadPathSegment(user.ID) + "/" + sanitizeUploadPathSegment(campaign.ID) + "/" + filepath.Base(file), ReferenceURL: input.ReferenceURL, Labels: labels, Width: cfg.Width, Height: cfg.Height, Provider: result.Provider, CreatedAt: time.Now().UTC()}
 	doc.Context = &scope
 	doc.Scale = input.Scale
+	doc.Columns, doc.Rows = input.Columns, input.Rows
 	doc.SourceMapID = input.SourceMapID
 	doc.SourceRevision = input.SourceRevision
 	srv.store.mu.Lock()

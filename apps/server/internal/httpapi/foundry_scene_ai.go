@@ -65,6 +65,32 @@ func (m *foundryManager) sceneAI(w http.ResponseWriter, r *http.Request, c found
 				writeError(w, 500, "invalid_scene", "Некорректный результат сцены.")
 				return
 			}
+			var review struct {
+				Scene *sessionMapDocument `json:"scene"`
+			}
+			if !foundryRead(w, r, &review) {
+				return
+			}
+			if review.Scene != nil {
+				edited := review.Scene
+				if edited.ID != result.Data.ID || len(edited.Levels) != len(result.Data.Levels) {
+					writeError(w, 400, "invalid_scene", "Некорректный вариант сцены.")
+					return
+				}
+				for i, level := range edited.Levels {
+					original := result.Data.Levels[i]
+					if level.ID != original.ID || level.ImageURL != original.ImageURL || level.Width != original.Width || level.Height != original.Height {
+						writeError(w, 400, "invalid_scene", "Фон и этажи должны соответствовать результату генерации.")
+						return
+					}
+				}
+				edited.Generation = result.Data.Generation
+				if err := validateSessionMap(*edited, c); err != nil {
+					writeError(w, 400, "invalid_scene", err.Error())
+					return
+				}
+				result.Data = *edited
+			}
 			s := m.srv.store
 			s.mu.Lock()
 			defer s.mu.Unlock()

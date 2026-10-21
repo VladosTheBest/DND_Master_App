@@ -15,6 +15,7 @@ export interface WorldMapLabel {
   italic: boolean;
 }
 export interface WorldMapDocument {
+  columns?: number; rows?: number;
   creative?: string;
   sourceMapId?: string;
   sourceRevision?: number;

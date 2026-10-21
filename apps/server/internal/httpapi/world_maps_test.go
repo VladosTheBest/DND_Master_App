@@ -121,7 +121,7 @@ func TestWorldMapAPIStorageAccessAndReference(t *testing.T) {
 	cookie := call("POST", "/api/auth/login", `{"username":"map-user","password":"password123"}`, "http://localhost", nil).Result().Cookies()[0]
 	otherCookie := call("POST", "/api/auth/login", `{"username":"map-other","password":"password123"}`, "http://localhost", nil).Result().Cookies()[0]
 	base := "/api/campaigns/" + campaign.ID + "/world-maps"
-	body := `{"requestId":"request-map-0000001","prompt":"Нарисуй мир","referenceUrl":""}`
+	body := `{"requestId":"request-map-0000001","prompt":"Нарисуй мир","referenceUrl":"","columns":60,"rows":40}`
 	for _, test := range []struct {
 		cookie *http.Cookie
 		origin string
@@ -144,7 +144,7 @@ func TestWorldMapAPIStorageAccessAndReference(t *testing.T) {
 		Data worldMapDocument `json:"data"`
 	}
 	_ = json.Unmarshal(w.Body.Bytes(), &result)
-	if result.Data.Width != 120 || len(result.Data.Labels) != 1 || result.Data.Provider != "api" {
+	if result.Data.Columns != 60 || result.Data.Rows != 40 || result.Data.Width != 120 || len(result.Data.Labels) != 1 || result.Data.Provider != "api" {
 		t.Fatal("invalid map result")
 	}
 	w = call("POST", base+"/generate", body, "http://localhost", cookie)
@@ -153,6 +153,17 @@ func TestWorldMapAPIStorageAccessAndReference(t *testing.T) {
 	}
 	var changed map[string]any
 	_ = json.Unmarshal([]byte(body), &changed)
+	changed["columns"] = 0
+	invalidSize, _ := json.Marshal(changed)
+	if bad := call("POST", base+"/generate", string(invalidSize), "http://localhost", cookie); bad.Code != 400 || calls != 3 {
+		t.Fatal("invalid grid reached provider", bad.Code)
+	}
+	changed["columns"] = 30
+	changedSize, _ := json.Marshal(changed)
+	if bad := call("POST", base+"/generate", string(changedSize), "http://localhost", cookie); bad.Code != 409 {
+		t.Fatal("different grid reused request", bad.Code)
+	}
+	changed["columns"] = 60
 	changed["scale"] = "world"
 	scaleBody, _ := json.Marshal(changed)
 	if w = call("POST", base+"/generate", string(scaleBody), "http://localhost", cookie); w.Code != 409 {

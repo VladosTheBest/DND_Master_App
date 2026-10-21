@@ -44,3 +44,6 @@
 .creative-generators select{width:auto;min-width:150px}
 .creative-generators small{color:#aaa5b3}
 .creative-tool-options output{min-width:36px;font-variant-numeric:tabular-nums}
+
+/* Text labels make drawing tools distinguishable without hovering. */
+.creative-toolbar{max-height:148px;overflow:auto;align-content:start}.creative-toolbar button span{display:inline;font-size:10px}.creative-toolbar button{gap:5px;flex:0 0 auto}.creative-studio:not(.is-fullscreen) .creative-workbench,.creative-studio:not(.is-fullscreen) .creative-library{height:600px}.creative-studio:not(.is-fullscreen) .creative-viewport{min-height:220px}
