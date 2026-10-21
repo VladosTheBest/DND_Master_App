@@ -8,3 +8,11 @@
 .scene-preview-scroll{max-height:65vh;overflow:auto;border:1px solid #ffffff25;border-radius:10px;margin:16px 0}.scene-preview-scroll .scene-preview-canvas{margin:0}.scene-edit-tools p{font-size:13px;margin:10px 0 0}.scene-preview .map-primary{background:#436c66}.scene-preview-canvas svg{user-select:none}
 
 .scene-save-error{flex-basis:100%;color:#ffb6bc;margin:0}
+
+/* The application shell locks body scrolling: the maps route owns its scroll area. */
+.world-maps-page{height:100dvh;min-height:0;overflow:auto;align-items:start;scrollbar-gutter:stable}
+.scene-workspace{padding-top:0}.scene-tabs{display:flex;flex-wrap:wrap;gap:10px;position:sticky;top:0;z-index:2;background:#131019;padding:12px 0;border-bottom:1px solid #ffffff20;margin-bottom:20px}
+.scene-tabs button[aria-pressed=true]{border-color:#94dace;background:#34524e}.scene-tabs .map-primary{margin-left:auto}
+.scene-library button{min-width:0;align-content:start}.scene-library strong{overflow-wrap:anywhere}.scene-library img{max-height:180px}
+.scene-jobs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px}.scene-jobs article{margin:0;padding:18px}
+@media(max-width:760px){.scene-tabs{position:static}.scene-tabs .map-primary{margin-left:0}.scene-create{padding:16px}.scene-workspace h2{font-size:24px}}

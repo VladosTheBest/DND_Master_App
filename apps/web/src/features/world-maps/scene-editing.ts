@@ -11,6 +11,10 @@ function projection(p:Point,a:Point,b:Point){const dx=b.x-a.x,dy=b.y-a.y,t=Math.
 export function snapSceneDoor(door:Wall,walls:Wall[],level:SceneLevel,tolerance=20):Wall {
  if(door.kind!=='door')return door;
  const a=pixel(door.start,level),b=pixel(door.end,level),center={x:(a.x+b.x)/2,y:(a.y+b.y)/2},length=distance(a,b);
+ const candidates=walls.filter(w=>w.kind==='wall'&&w.id!==door.id);
+ const anchor=(p:Point)=>{let best:{point:Point;id:string}|undefined,d=tolerance;for(const w of candidates){const q=projection(p,pixel(w.start,level),pixel(w.end,level)),n=distance(p,q);if(n<d){d=n;best={point:q,id:w.id};}}return best;};
+ const start=anchor(a),end=anchor(b);
+ if(start&&end&&start.id!==end.id&&distance(start.point,end.point)>4)return {...door,start:normal(start.point,level),end:normal(end.point,level)};
  let best=door,nearest=tolerance;
  for(const wall of walls){if(wall.kind!=='wall'||wall.id===door.id)continue;const u=pixel(wall.start,level),v=pixel(wall.end,level),total=distance(u,v);if(total<length||!total)continue;const p=projection(center,u,v),d=distance(center,p);if(d>=nearest)continue;nearest=d;const t=Math.max(length/2,Math.min(total-length/2,distance(u,p))),dx=(v.x-u.x)/total,dy=(v.y-u.y)/total;best={...door,start:normal({x:u.x+dx*(t-length/2),y:u.y+dy*(t-length/2)},level),end:normal({x:u.x+dx*(t+length/2),y:u.y+dy*(t+length/2)},level)};}
  return best;
