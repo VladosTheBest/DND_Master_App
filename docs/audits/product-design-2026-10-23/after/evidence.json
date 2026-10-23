@@ -33,6 +33,26 @@
       "sha256": "64741b7a14184315dea16c718a10fd9292ebdd2968b3ff9926f4886ae535d068"
     },
     {
+      "path": "combat-saved-clean-exit.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1280,
+        720
+      ],
+      "sha256": "70940184592a9503e290b6093e64f807999f99af4dcc6878c4f5c58e4c0114c0"
+    },
+    {
+      "path": "combat-start-dirty-after-save.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1280,
+        720
+      ],
+      "sha256": "f8cf90083735a5cfd55ce9fc71e955f1785964a1858aac10a1e5e31e0426349d"
+    },
+    {
       "path": "directory.jpg",
       "kind": "browser-capture",
       "format": "JPEG",

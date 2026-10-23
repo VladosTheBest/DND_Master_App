@@ -2661,7 +2661,10 @@ export default function App() {
     toggleCampaignPreparedCombatPlayer,
     updateCampaignPreparedCombatDraftItem
   } = combatDraftController;
-  const combatSetupDirty=useEditorDirty(combatSetupOpen,{campaignPreparedCombatDraft,preparedCombatAllyInitiatives,preparedCombatEnemyInitiatives,preparedCombatPlayerInitiatives,combatPartyLevelsText});
+  const combatCompositionDirty=useEditorDirty(combatSetupOpen,campaignPreparedCombatDraft,campaignPreparedCombatNotice);
+  const nonDefaultInitiatives=(values:Record<string,number>)=>Object.fromEntries(Object.entries(values).filter(([,value])=>value!==0));
+  const combatStartDirty=useEditorDirty(combatSetupOpen,{allies:nonDefaultInitiatives(preparedCombatAllyInitiatives),enemies:nonDefaultInitiatives(preparedCombatEnemyInitiatives),players:nonDefaultInitiatives(preparedCombatPlayerInitiatives),combatPartyLevelsText});
+  const combatSetupDirty=combatCompositionDirty||combatStartDirty;
   useWorkspaceGuard(combatSetupDirty,"В настройках боя есть несохранённые изменения. Перейти без сохранения?");
   const combatPlayerCatalogItems = useMemo(
     () =>
