@@ -1,3 +1,5 @@
+import { useDeviceDraft } from "../../app/hooks/useDeviceDraft";
+import { isApiError } from "@shadow-edge/api-client";
 import "./shops.css";
 import { createPortal } from "react-dom";
 import builtInItemsRaw from "../../../../../dnd_items_150_ru_official_basic_rules_2014.json";
@@ -363,16 +365,25 @@ function ItemThumb({ item, category }: { item?: Item | null; category?: string }
 }
 
 export function ShopsPage({
+  ownerId,
   campaign,
   focusedShopId,
   hydrateCampaign
 }: {
+  ownerId: string;
   campaign: CampaignData;
   focusedShopId?: string;
   hydrateCampaign: (campaign: CampaignData) => void;
 }) {
   const [selectedShopId, setSelectedShopId] = useState(campaign.shops[0]?.id ?? "");
   const [draft, setDraft] = useState<ShopDraft>(() => shopToDraft(campaign.shops[0]));
+  const baselineDraft = useRef(JSON.stringify(draft));
+  const [draftRevision, setDraftRevision] = useState(campaign.revision ?? 0);
+  const [conflictCampaign, setConflictCampaign] = useState<CampaignData | null>(null);
+  const replaceDraft = (shop: CampaignShop | null | undefined, revision = campaign.revision ?? 0) => {
+    const next = shopToDraft(shop); baselineDraft.current = JSON.stringify(next);
+    setDraft(next); setDraftRevision(revision); setConflictCampaign(null);
+  };
   const [customItems, setCustomItems] = useState<Item[]>(() => loadCustomItems(campaign.id));
   const [itemQuery, setItemQuery] = useState("");
   const [shopQuery, setShopQuery] = useState("");
@@ -412,8 +423,9 @@ export function ShopsPage({
 
   useEffect(() => {
     const selected = campaign.shops.find((shop) => shop.id === selectedShopId) ?? campaign.shops[0] ?? null;
+    if (JSON.stringify(draft) !== baselineDraft.current && selectedShopId === selected?.id) return;
     setSelectedShopId(selected?.id ?? "");
-    setDraft(shopToDraft(selected));
+    replaceDraft(selected);
   }, [campaign.shops, selectedShopId]);
   useEffect(() => {
     let cancelled = false;
@@ -434,7 +446,7 @@ export function ShopsPage({
     }
     appliedFocusedShopIdRef.current = focusedShopId;
     setSelectedShopId(focused.id);
-    setDraft(shopToDraft(focused));
+    replaceDraft(focused);
   }, [campaign.shops, focusedShopId]);
 
   const allItems = useMemo(
@@ -486,7 +498,11 @@ export function ShopsPage({
   }, [allItems, categoryFilter, itemQuery, sourceFilter, rarityFilter, armorFilter, priceFilter, catalogSort]);
   useEffect(() => setVisibleCount(48), [categoryFilter, itemQuery, sourceFilter, rarityFilter, armorFilter, priceFilter, catalogSort]);
   const rarities = useMemo(() => [...new Set(allItems.map(item => rarityGroup(item.rarity)))].sort(), [allItems]);
-  const dirty = JSON.stringify(draft) !== JSON.stringify(shopToDraft(campaign.shops.find(shop => shop.id === selectedShopId) ?? { id: draft.id, name: "", inventory: [] }));
+  const dirty = JSON.stringify(draft) !== baselineDraft.current;
+  const deviceDraft = useDeviceDraft({ ownerId, campaignId: campaign.id, target: `shop:${selectedShopId || "new"}`,
+    revision: draftRevision, value: draft, dirty, enabled: true,
+    restore: ({value, baseRevision}) => { if (typeof value.name !== "string" || !Array.isArray(value.inventory)) return; setDraft(value); setDraftRevision(baseRevision); }
+  });
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => { if (dirty) event.preventDefault(); };
     window.addEventListener("beforeunload", beforeUnload);
@@ -592,12 +608,12 @@ export function ShopsPage({
     };
 
     try {
-      const updatedCampaign = await api.updateCampaign(campaign.id, {
+      const updatedCampaign = await api.updateCampaign(campaign.id, { expectedRevision: campaign.revision ?? 0,
         shops: [nextShop, ...campaign.shops]
       });
       hydrateCampaign(updatedCampaign);
       setSelectedShopId(nextShop.id);
-      setDraft(shopToDraft(nextShop));
+      replaceDraft(nextShop, updatedCampaign.revision ?? 0);
       startTransition(() => setNotice("Новый магазин создан."));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Не удалось создать магазин.");
@@ -611,13 +627,13 @@ export function ShopsPage({
     if (dirty && !window.confirm("Перейти в другой магазин? Несохранённые изменения будут потеряны.")) return;
     const shop = campaign.shops.find((entry) => entry.id === shopId) ?? null;
     setSelectedShopId(shop?.id ?? "");
-    setDraft(shopToDraft(shop));
+    replaceDraft(shop);
     setNotice("");
     setError("");
   };
 
   const handleResetDraft = () => {
-    setDraft(shopToDraft(selectedShop));
+    deviceDraft.discard(); replaceDraft(selectedShop);
     setNotice("");
     setError("");
   };
@@ -683,6 +699,7 @@ export function ShopsPage({
   };
 
   const handleSave = async () => {
+    if (deviceDraft.candidate || conflictCampaign) { setError("Сначала разберите найденный черновик или конфликт версий."); return; }
     if (!draft.name.trim()) {
       setError("Укажи название магазина.");
       return;
@@ -696,11 +713,13 @@ export function ShopsPage({
       const shops = selectedShop
         ? campaign.shops.map((shop) => (shop.id === nextShop.id ? nextShop : shop))
         : [nextShop, ...campaign.shops];
-      const updatedCampaign = await api.updateCampaign(campaign.id, { shops });
+      const updatedCampaign = await api.updateCampaign(campaign.id, { expectedRevision: draftRevision, shops });
+      deviceDraft.clear(); replaceDraft(nextShop, updatedCampaign.revision ?? 0);
       hydrateCampaign(updatedCampaign);
       setSelectedShopId(nextShop.id);
       startTransition(() => setNotice("Магазин сохранён."));
     } catch (reason) {
+      if (isApiError(reason) && reason.status === 409 && reason.current) setConflictCampaign(reason.current as CampaignData);
       setError(reason instanceof Error ? reason.message : "Не удалось сохранить магазин.");
     } finally {
       setSaving(false);
@@ -716,7 +735,7 @@ export function ShopsPage({
     setError("");
     setNotice("");
     try {
-      const updatedCampaign = await api.updateCampaign(campaign.id, {
+      const updatedCampaign = await api.updateCampaign(campaign.id, { expectedRevision: campaign.revision ?? 0,
         shops: campaign.shops.filter((shop) => shop.id !== selectedShop.id)
       });
       hydrateCampaign(updatedCampaign);
@@ -731,6 +750,15 @@ export function ShopsPage({
 
   return (
     <div className="shops-workspace">
+      <div className="card mini" role="status"><p>{deviceDraft.status || "Сохранено на сервере"}</p>
+        {deviceDraft.candidate && <><button className="ghost" onClick={deviceDraft.recover}>Восстановить черновик магазина</button><button className="ghost" onClick={deviceDraft.discard}>Удалить черновик с устройства</button></>}
+        <button className="ghost" onClick={deviceDraft.download}>Скачать черновик магазина</button>
+      </div>
+      {conflictCampaign && <section className="card mini"><h3>Конфликт версий магазина</h3>
+        <p>Проверьте текущий магазин на сервере. Подтверждение подготовит ваш магазин целиком поверх этой версии, включая ассортимент. Сохранение выполняется отдельно.</p>
+        <pre style={{whiteSpace:"pre-wrap"}}>{JSON.stringify(conflictCampaign.shops.find(s => s.id === selectedShopId) ?? null, null, 2)}</pre>
+        <button className="ghost" onClick={() => { hydrateCampaign(conflictCampaign); setDraftRevision(conflictCampaign.revision ?? 0); setConflictCampaign(null); setError(""); }}>Подготовить мой магазин поверх этой версии</button>
+      </section>}
       <aside className="shops-panel shops-directory-panel">
         <div className="shops-panel-header">
           <div className="shops-title-row">

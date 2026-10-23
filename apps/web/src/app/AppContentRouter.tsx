@@ -25,6 +25,7 @@ type RailAlias = "items" | "events" | "notes" | "shops" | "sessions";
 type ModuleId = "dashboard" | "combat" | "locations" | "players" | "npcs" | "monsters" | "quests" | "lore" | "rules";
 
 export function AppContentRouter({
+  ownerId,
   activeEntity,
   activeModule,
   activeRailAlias,
@@ -72,6 +73,7 @@ export function AppContentRouter({
   serializeWorldEventInput,
   worldEventToForm
 }: {
+  ownerId: string;
   activeEntity: KnowledgeEntity | null;
   activeModule: ModuleId;
   activeRailAlias: RailAlias | null;
@@ -136,7 +138,7 @@ export function AppContentRouter({
   }
 
   if (activeRailAlias === "shops") {
-    return <ShopsPage key={campaign.id} campaign={campaign} focusedShopId={focusedShopId} hydrateCampaign={hydrateCampaign} />;
+    return <ShopsPage ownerId={ownerId} key={campaign.id} campaign={campaign} focusedShopId={focusedShopId} hydrateCampaign={hydrateCampaign} />;
   }
 
   if (activeRailAlias === "events") {
@@ -162,6 +164,7 @@ export function AppContentRouter({
   if (activeModule === "lore") {
     return (
       <NotesPageContainer
+        ownerId={ownerId}
         activeCampaignId={campaign.id}
         campaign={campaign}
         editorRef={editorRef}

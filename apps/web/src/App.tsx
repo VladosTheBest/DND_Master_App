@@ -1,3 +1,4 @@
+import { browserStorage } from "./app/browser-storage";
 import { FinishCombatDialog } from "./features/combat/FinishCombatDialog";
 import { AIJobsPanel } from "./features/ai-jobs/AIJobsPanel";
 import "@shadow-edge/design-tokens/theme.css";
@@ -359,14 +360,14 @@ const activeCampaignStorageKey = "shadow-edge:active-campaign";
 
 const readStoredActiveCampaignId = () => {
   if (typeof window === "undefined") return "";
-  try { return window.localStorage.getItem(activeCampaignStorageKey)?.trim() ?? ""; } catch { return ""; }
+  try { return browserStorage.getItem(activeCampaignStorageKey)?.trim() ?? ""; } catch { return ""; }
 };
 
 const writeStoredActiveCampaignId = (campaignId: string) => {
   if (typeof window === "undefined") return;
   try {
-    if (campaignId) window.localStorage.setItem(activeCampaignStorageKey, campaignId);
-    else window.localStorage.removeItem(activeCampaignStorageKey);
+    if (campaignId) browserStorage.setItem(activeCampaignStorageKey, campaignId);
+    else browserStorage.removeItem(activeCampaignStorageKey);
   } catch {
     // The current session still works when browser storage is unavailable.
   }
@@ -391,7 +392,7 @@ const readCombatReturnTargets = (): Record<string, CombatReturnTarget> => {
   }
 
   try {
-    const parsed = JSON.parse(window.localStorage.getItem(combatReturnTargetsStorageKey) ?? "{}") as unknown;
+    const parsed = JSON.parse(browserStorage.getItem(combatReturnTargetsStorageKey) ?? "{}") as unknown;
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
       return {};
     }
@@ -413,7 +414,7 @@ const writeCombatReturnTargets = (targets: Record<string, CombatReturnTarget>) =
   }
 
   try {
-    window.localStorage.setItem(combatReturnTargetsStorageKey, JSON.stringify(targets));
+    browserStorage.setItem(combatReturnTargetsStorageKey, JSON.stringify(targets));
   } catch {
     // Navigation still works in the current session even if localStorage is unavailable.
   }
@@ -693,6 +694,7 @@ const entityToForm = (entity: KnowledgeEntity): CreateEntityInput => {
   );
 
   return {
+    expectedRevision: entity.revision ?? 0,
     kind: entity.kind,
     title: entity.title,
     subtitle: entity.subtitle,
@@ -906,6 +908,7 @@ const serializeEntityForm = (form: CreateEntityInput): CreateEntityInput => {
   const preparedCombats = sanitizePreparedCombatPlans(form.preparedCombats ?? [], form.preparedCombat);
   const primaryPreparedCombat = preparedCombats[0];
   const common = {
+    expectedRevision: form.expectedRevision,
     kind: form.kind,
     title: form.title.trim(),
     subtitle: form.subtitle.trim(),
@@ -1542,6 +1545,9 @@ export default function App() {
     typeof window === "undefined" ? { mode: "app" } : parseAppRoute(window.location.hash)
   );
   const [authState, setAuthState] = useState<"checking" | "authenticated" | "unauthenticated">("checking");
+  const [logoutPending, setLogoutPending] = useState(() => browserStorage.getItem("shadow-edge.logout-pending") === "1");
+  const logoutInFlight = useRef(false);
+  const [authUserId, setAuthUserId] = useState("");
   const [authUsername, setAuthUsername] = useState("");
   const [loginUsername, setLoginUsername] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -1632,6 +1638,7 @@ export default function App() {
           : "location";
 
   const entityEditor = useEntityEditorController({
+    ownerId: authUserId,
     readyCampaign: Boolean(campaign?.readyCampaign),
     activeCampaignId,
     applyCreatedEntity: (result) => applyCreatedEntity(result),
@@ -1971,8 +1978,10 @@ export default function App() {
   };
 
   const applyAuthSession = (session: AuthSessionResult) => {
+    if (logoutInFlight.current || browserStorage.getItem("shadow-edge.logout-pending") === "1") return;
     if (session.authenticated) {
       setAuthState("authenticated");
+      setAuthUserId(session.userId || "");
       setAuthUsername(session.username ?? loginUsername.trim());
       setAuthError("");
       return;
@@ -2015,21 +2024,37 @@ export default function App() {
   };
 
   const logout = async () => {
+    if (logoutInFlight.current) return;
+    logoutInFlight.current = true;
+    setLogoutPending(true);
+    browserStorage.setItem("shadow-edge.logout-pending", "1");
+    setAuthBusy(true);
     try {
-      setAuthBusy(true);
       await api.logout();
-    } catch {
-      // Even if the backend is already gone, we still clear the local shell state.
-    } finally {
-      setAuthBusy(false);
+      browserStorage.removeItem("shadow-edge.logout-pending");
+      setLogoutPending(false);
       setAuthState("unauthenticated");
       setAuthUsername("");
       setLoginPassword("");
       setRegisterPasswordConfirm("");
       resetCampaignState();
       setBooting(false);
+      setAuthError("");
+    } catch {
+      setAuthError("Сервер не подтвердил выход. Сессия может оставаться активной. Повторим при восстановлении связи.");
+    } finally {
+      logoutInFlight.current = false;
+      setAuthBusy(false);
     }
   };
+
+  useEffect(() => {
+    if (!logoutPending) return;
+    const retry = () => void logout();
+    window.addEventListener("online", retry);
+    const interval = window.setInterval(retry, 15000);
+    return () => { window.removeEventListener("online", retry); window.clearInterval(interval); };
+  }, [logoutPending]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -2045,6 +2070,7 @@ export default function App() {
     let cancelled = false;
 
     const checkSession = async () => {
+      if (browserStorage.getItem("shadow-edge.logout-pending") === "1") { await logout(); return; }
       try {
         const session = await api.getSession();
         if (cancelled) {
@@ -2206,7 +2232,7 @@ export default function App() {
     if (openedResultTarget.current === key) return;
     openedResultTarget.current = key;
     if (sessionId) {
-      try { localStorage.setItem(`session-selected:${campaign.id}`, sessionId); } catch { /* The server session remains readable without browser storage. */ }
+      try { browserStorage.setItem(`session-selected:${campaign.id}`, sessionId); } catch { /* The server session remains readable without browser storage. */ }
       setActiveRailAlias("sessions"); setActiveModule("lore"); setActiveTab("Все");
     }
     if (proposalId) void aiProposalController.openProposal(proposalId);
@@ -3344,6 +3370,7 @@ export default function App() {
       setSaving(true);
       const sanitized = sanitizePlaylistTracks(combatPlaylistDraft);
       const updated = await api.updateCampaign(activeCampaignId, {
+        expectedRevision: campaign?.revision ?? 0,
         combatPlaylist: sanitized
       });
       hydrateCampaign(updated);
@@ -4370,6 +4397,14 @@ export default function App() {
     );
   };
 
+  if (logoutPending) {
+    return <div className="boot"><div className="panel boot-card" role="status">
+      <h1>Завершаем сессию</h1>
+      <p>{authError || "Ожидаем подтверждения сервера."}</p>
+      <button className="primary" disabled={authBusy} onClick={() => void logout()}>Повторить выход</button>
+    </div></div>;
+  }
+
   if (authState === "checking") {
     return (
       <div className="boot">
@@ -4410,7 +4445,7 @@ export default function App() {
         </div>
         <AIJobsPanel campaignId={activeCampaignId} onOpenSession={(job) => {
         if (!job.campaignId || !job.sessionId) return;
-        localStorage.setItem(`session-selected:${job.campaignId}`, job.sessionId);
+        browserStorage.setItem(`session-selected:${job.campaignId}`, job.sessionId);
         void (async () => {
           if (job.campaignId !== activeCampaignId) await handleCampaignSelect(job.campaignId!);
           setActiveRailAlias("sessions");
@@ -4482,7 +4517,7 @@ export default function App() {
         />
         <AIJobsPanel campaignId={activeCampaignId} onOpenSession={(job) => {
         if (!job.campaignId || !job.sessionId) return;
-        localStorage.setItem(`session-selected:${job.campaignId}`, job.sessionId);
+        browserStorage.setItem(`session-selected:${job.campaignId}`, job.sessionId);
         void (async () => {
           if (job.campaignId !== activeCampaignId) await handleCampaignSelect(job.campaignId!);
           setActiveRailAlias("sessions");
@@ -4508,7 +4543,7 @@ export default function App() {
         />
         <AIJobsPanel campaignId={activeCampaignId} onOpenSession={(job) => {
         if (!job.campaignId || !job.sessionId) return;
-        localStorage.setItem(`session-selected:${job.campaignId}`, job.sessionId);
+        browserStorage.setItem(`session-selected:${job.campaignId}`, job.sessionId);
         void (async () => {
           if (job.campaignId !== activeCampaignId) await handleCampaignSelect(job.campaignId!);
           setActiveRailAlias("sessions");
@@ -4744,6 +4779,7 @@ export default function App() {
               activeModule === "lore" ||
               (activeEntity?.kind === "quest" && activeModule === "quests") ? (
               <AppContentRouter
+                ownerId={authUserId}
                 activeEntity={activeEntity}
                 activeModule={activeModule}
                 activeRailAlias={activeRailAlias}
@@ -5469,7 +5505,7 @@ export default function App() {
 
       <AIJobsPanel campaignId={activeCampaignId} onOpenSession={(job) => {
         if (!job.campaignId || !job.sessionId) return;
-        localStorage.setItem(`session-selected:${job.campaignId}`, job.sessionId);
+        browserStorage.setItem(`session-selected:${job.campaignId}`, job.sessionId);
         void (async () => {
           if (job.campaignId !== activeCampaignId) await handleCampaignSelect(job.campaignId!);
           setActiveRailAlias("sessions");

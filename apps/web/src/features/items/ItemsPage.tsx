@@ -1,3 +1,4 @@
+import { browserStorage } from "../../app/browser-storage";
 import "./items.css";
 import { ItemCategoryIcon } from "./ItemCategoryIcon";
 import builtInItemsRaw from "../../../../../dnd_items_150_ru_official_basic_rules_2014.json";
@@ -571,15 +572,9 @@ const customItemsRepository = {
     }
   },
   save(campaignId: string, items: Item[]) {
-    if (typeof window === "undefined") {
-      return;
-    }
-    try {
-      window.localStorage.setItem(buildCustomItemsStorageKey(campaignId), JSON.stringify(items));
-    } catch {
-      // Ignore storage failures and keep the in-memory session usable.
-    }
+    return browserStorage.setItem(buildCustomItemsStorageKey(campaignId), JSON.stringify(items));
   }
+
 };
 
 const itemsUiStateStorage = {
@@ -1312,6 +1307,7 @@ type ItemsPageProps = {
 export function ItemsPage({ campaignId }: ItemsPageProps) {
   const searchInputRef = usePageSearchHotkey<HTMLInputElement>();
   const [customItems, setCustomItems] = useState<Item[]>([]);
+  const [importPreview, setImportPreview] = useState<Item[] | null>(null);
   const [storageHydrated, setStorageHydrated] = useState(false);
   const [activeTab, setActiveTab] = useState<ItemTab>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -1357,12 +1353,6 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
     setStorageHydrated(true);
   }, [campaignId]);
 
-  useEffect(() => {
-    if (!storageHydrated) {
-      return;
-    }
-    customItemsRepository.save(campaignId, customItems);
-  }, [campaignId, customItems, storageHydrated]);
 
   useEffect(() => {
     if (!storageHydrated) {
@@ -1578,12 +1568,11 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
 
     const nextItem = createCustomItemFromDraft(editorDraft, editorMode === "edit" ? editingItemId : undefined);
 
-    setCustomItems((current) => {
-      if (editorMode === "edit") {
-        return current.map((item) => (item.id === nextItem.id ? nextItem : item));
-      }
-      return [nextItem, ...current];
-    });
+    const nextItems = editorMode === "edit" ? customItems.map(item => item.id === nextItem.id ? nextItem : item) : [nextItem, ...customItems];
+    if (!customItemsRepository.save(campaignId, nextItems)) {
+      setError("Предмет не сохранён: хранилище браузера недоступно или заполнено. Форма остаётся открытой."); return;
+    }
+    setCustomItems(nextItems);
 
     revealSavedItem(nextItem);
     setSelectedItemId(nextItem.id);
@@ -1600,7 +1589,9 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
       return;
     }
 
-    setCustomItems((current) => current.filter((entry) => entry.id !== item.id));
+    const nextItems = customItems.filter(entry => entry.id !== item.id);
+    if (!customItemsRepository.save(campaignId, nextItems)) { setError("Удаление не сохранено: хранилище браузера недоступно."); return; }
+    setCustomItems(nextItems);
     if (selectedItemId === item.id) {
       setSelectedItemId("");
     }
@@ -1611,6 +1602,26 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
     }
     setNotice("Кастомный предмет удалён.");
     setError("");
+  };
+
+  const exportCustomItems = () => {
+    const url = URL.createObjectURL(new Blob([JSON.stringify({version:1, items:customItems}, null, 2)], {type:"application/json"}));
+    const link = document.createElement("a"); link.href = url; link.download = "shadow-edge-custom-items.json"; link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const previewImport = async (file?: File) => {
+    if (!file) return;
+    setImportPreview(null);
+    try {
+      if (file.size > 2 * 1024 * 1024) throw new Error("Файл больше 2 МиБ.");
+      const parsed = JSON.parse(await file.text()); const rows = Array.isArray(parsed) ? parsed : parsed.items;
+      if (!Array.isArray(rows) || rows.length > 2000) throw new Error("Неверный файл предметов (не более 2000).");
+      const items = rows.map((raw: unknown) => normalizeCustomItem(raw && typeof raw === "object" ? { ...raw, source: "custom" } : raw));
+      if (items.some(item => !item)) throw new Error("Файл содержит некорректные предметы.");
+      const known = new Set(customItems.map(item => item.id));
+      const unique = (items as Item[]).filter(item => { if (known.has(item.id)) return false; known.add(item.id); return true; });
+      setImportPreview(unique); setError("");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : "Не удалось прочитать файл."); }
   };
 
   const armorFilterDisabled = categoryFilter !== "all" && categoryFilter !== "armor";
@@ -1630,6 +1641,13 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
         <div className="notes-workspace-copy">
           <h1>Предметы</h1>
           <p className="copy">Снаряжение, магические предметы и ваши находки</p>
+          <p>Пользовательские предметы хранятся только в этом браузере. Для переноса и резервной копии используйте экспорт.</p>
+          <button className="ghost" type="button" onClick={exportCustomItems}>Экспорт моих предметов</button>
+          <label className="ghost">Импорт предметов <input type="file" accept="application/json,.json" onChange={e => { void previewImport(e.target.files?.[0]); e.target.value = ""; }} /></label>
+          {importPreview && <div role="status"><p>Будет добавлено: {importPreview.length}. Совпадающие ID пропущены; существующие предметы сохранятся.</p>
+            <button className="ghost" onClick={() => { const next = [...customItems, ...importPreview]; if (!customItemsRepository.save(campaignId, next)) {setError("Импорт не сохранён: хранилище браузера недоступно."); return;} setCustomItems(next); setImportPreview(null); setNotice("Предметы импортированы на это устройство."); }}>Подтвердить импорт</button>
+            <button className="ghost" onClick={() => setImportPreview(null)}>Отмена импорта</button>
+          </div>}
         </div>
 
         <div className="actions">

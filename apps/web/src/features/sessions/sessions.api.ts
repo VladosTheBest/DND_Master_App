@@ -1,3 +1,4 @@
+import { requestJson } from "@shadow-edge/api-client";
 export interface PlayerAnalysis {
   name: string;
   actions: string[];
@@ -65,29 +66,12 @@ export interface ImportedSession {
   analysis?: SessionAnalysis;
 }
 
-async function request<T>(
-  path: string,
-  method = "GET",
-  body?: unknown,
-): Promise<T> {
-  const response = await fetch(
-    `${import.meta.env.VITE_API_BASE_URL || ""}/api${path}`,
-    {
-      method,
-      credentials: "include",
-      headers:
-        body === undefined ? undefined : { "Content-Type": "application/json" },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    },
-  );
-  const envelope = await response.json().catch(() => null);
-  if (!response.ok || envelope?.error)
-    throw new Error(
-      envelope?.error?.message ||
-        "Не удалось загрузить сессии. Повторите попытку.",
-    );
-  return envelope.data as T;
+function request<T>(path: string, method = "GET", body?: unknown, signal?: AbortSignal): Promise<T> {
+  return requestJson<T>(`${import.meta.env.VITE_API_BASE_URL || ""}/api${path}`, {
+    method, signal, body: body === undefined ? undefined : JSON.stringify(body)
+  });
 }
+
 const root = (campaignId: string) =>
   `/campaigns/${encodeURIComponent(campaignId)}/sessions`;
 export const sessionsApi = {

@@ -1,3 +1,4 @@
+import { requestJson } from "@shadow-edge/api-client";
 import type { CharacterDraft } from "./rules";
 
 export interface CharacterInvite {
@@ -23,29 +24,10 @@ export interface SavedCharacter {
   editToken?: string;
 }
 
-async function request<T>(
-  path: string,
-  method = "GET",
-  body?: unknown,
-): Promise<T> {
-  const response = await fetch(
-    `${import.meta.env.VITE_API_BASE_URL || ""}/api${path}`,
-    {
-      method,
-      credentials: "include",
-      headers:
-        body === undefined ? undefined : { "Content-Type": "application/json" },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    },
-  );
-  const result = await response.json().catch(() => null);
-  if (!response.ok || result?.error) {
-    throw new Error(
-      result?.error?.message ||
-        `Не удалось выполнить запрос (${response.status}). Попробуйте ещё раз.`,
-    );
-  }
-  return result.data as T;
+function request<T>(path: string, method = "GET", body?: unknown, signal?: AbortSignal): Promise<T> {
+  return requestJson<T>(`${import.meta.env.VITE_API_BASE_URL || ""}/api${path}`, {
+    method, signal, body: body === undefined ? undefined : JSON.stringify(body)
+  });
 }
 
 const campaignPath = (id: string) => `/campaigns/${encodeURIComponent(id)}`;

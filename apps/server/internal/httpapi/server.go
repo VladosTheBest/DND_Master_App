@@ -378,8 +378,19 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 				return
 			}
 
+			if campaign.ReadyCampaign != nil && input.Shops != nil {
+				writeError(writer, http.StatusForbidden, "ready_campaign_read_only", errReadyCampaignReadOnly.Error())
+				return
+			}
+			if input.ExpectedRevision == nil {
+				writeError(writer, http.StatusPreconditionRequired, "revision_required", "Обновите страницу перед сохранением: требуется версия кампании.")
+				return
+			}
 			campaign, err := srv.store.updateCampaign(campaignID, input)
 			if err != nil {
+				if writeAuthoringError(writer, err) {
+					return
+				}
 				status := http.StatusInternalServerError
 				if strings.Contains(err.Error(), "not found") {
 					status = http.StatusNotFound
@@ -596,14 +607,28 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 		entityID := segments[2]
 		switch request.Method {
 		case http.MethodPut, http.MethodPatch:
-			var input createEntityInput
-			if err := readJSON(request, &input); err != nil {
+			input, err := readEntityUpdate(request)
+			if err != nil {
 				writeError(writer, http.StatusBadRequest, "bad_request", err.Error())
 				return
 			}
 
+			if campaign.ReadyCampaign != nil {
+				_, _, entity := findEntityInCampaign(&campaign, entityID)
+				if entity.Kind != "player" {
+					writeError(writer, http.StatusForbidden, "ready_campaign_read_only", errReadyCampaignReadOnly.Error())
+					return
+				}
+			}
+			if input.ExpectedRevision == nil {
+				writeError(writer, http.StatusPreconditionRequired, "revision_required", "Обновите страницу перед сохранением: требуется версия записи.")
+				return
+			}
 			result, err := srv.store.updateEntity(campaignID, entityID, input)
 			if err != nil {
+				if writeAuthoringError(writer, err) {
+					return
+				}
 				status := http.StatusInternalServerError
 				if strings.Contains(err.Error(), "not found") {
 					status = http.StatusNotFound

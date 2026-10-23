@@ -392,6 +392,7 @@ export function usePreparedCombatController({
         })
       });
       const updated = await api.updateCampaign(activeCampaignId, {
+        expectedRevision: campaign?.revision ?? 0,
         preparedCombat: normalizedDraft,
         updatePreparedCombat: true
       });

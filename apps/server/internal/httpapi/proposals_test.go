@@ -574,6 +574,7 @@ func TestProposalHTTPApplyMapsStaleRevisionToConflict(t *testing.T) {
 
 	manualUpdate := entityCreateInputFromData(entity)
 	manualUpdate.Summary = "Manual summary"
+	manualUpdate.ExpectedRevision = &entity.Revision
 	updateEntity := accountTestRequest(t, handler, http.MethodPatch, "/api/campaigns/"+campaign.ID+"/entities/"+entity.ID, string(proposalTestJSON(t, manualUpdate)), cookies)
 	if updateEntity.Code != http.StatusOK {
 		t.Fatalf("manual entity update status=%d body=%s", updateEntity.Code, updateEntity.Body.String())

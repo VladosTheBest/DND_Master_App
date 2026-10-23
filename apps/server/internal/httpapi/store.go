@@ -659,6 +659,9 @@ func (store *campaignStore) updateCampaign(campaignID string, input updateCampai
 		if store.data.Campaigns[index].ID != campaignID {
 			continue
 		}
+		if input.ExpectedRevision != nil && *input.ExpectedRevision != store.data.Campaigns[index].Revision {
+			return campaignData{}, &authoringConflict{Current: store.data.Campaigns[index]}
+		}
 		originalState, err := cloneStorageState(store.data)
 		if err != nil {
 			return campaignData{}, err
@@ -908,6 +911,14 @@ func (store *campaignStore) updateEntity(campaignID string, entityID string, inp
 			return createEntityResult{}, errReadyCampaignReadOnly
 		}
 
+		if input.ExpectedRevision != nil && *input.ExpectedRevision != existing.Revision {
+			return createEntityResult{}, &authoringConflict{Current: existing}
+		}
+		merged, mergeErr := mergeEntityUpdate(existing, input)
+		if mergeErr != nil {
+			return createEntityResult{}, mergeErr
+		}
+		input = merged
 		if strings.TrimSpace(input.Kind) == "" {
 			input.Kind = existing.Kind
 		}

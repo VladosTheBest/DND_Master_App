@@ -1,3 +1,4 @@
+import { requestJson } from "@shadow-edge/api-client";
 import type { AIJob, WorldMapDocument, WorldMapLabel } from "@shadow-edge/shared-types";
 import { labelGeometry, labelTextSize } from "./map-label-geometry";
 import { arrangeMapLabels } from "./map-label-layout";
@@ -5,16 +6,11 @@ import { arrangeMapLabels } from "./map-label-layout";
 export const mapMediaURL = (url: string) => `${import.meta.env.VITE_API_BASE_URL || ""}${url}`;
 export const mapRoute = (campaign: string) => `/api/campaigns/${encodeURIComponent(campaign)}/world-maps`;
 export async function mapRequest<T>(path: string, method = "GET", body?: unknown, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(mapMediaURL(path), {method, credentials:"include", signal,
-    headers: body ? {"Content-Type":"application/json", ...(path.endsWith("/generate") ? {Prefer:"respond-async"} : {})} : {},
-    body: body ? JSON.stringify(body) : undefined});
-  const result = await response.json().catch(()=>null);
-  if (!response.ok) {
-    if(response.status===402)window.dispatchEvent(new Event("shadow-edge:subscription-required"));
-    throw new Error(result?.error?.message || "Не удалось выполнить запрос. Проверь соединение.");
-  }
-  return result.data;
+  return requestJson<T>(mapMediaURL(path), {method, signal,
+    headers: {"Content-Type":"application/json", ...(path.endsWith("/generate") ? {Prefer:"respond-async"} : {})},
+    body: body === undefined ? undefined : JSON.stringify(body)});
 }
+
 export const worldMapsAPI = {
   list: (campaign: string, signal?:AbortSignal) => mapRequest<WorldMapDocument[]>(mapRoute(campaign),"GET",undefined,signal),
   save: (campaign:string,map:WorldMapDocument) => mapRequest<WorldMapDocument>(`${mapRoute(campaign)}/${encodeURIComponent(map.id)}`,"PUT",{title:map.title,revision:map.revision,labels:map.labels}),

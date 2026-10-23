@@ -57,6 +57,23 @@ export function EntityEditorModal({
           </button>
         </div>
 
+        <div role="status" className="card mini">
+          <p>{controller.deviceDraft.status || (isEditingEntity ? "Сохранено на сервере" : "Новая запись · ещё не сохранена")}</p>
+          {controller.deviceDraft.candidate && <>
+            <p>Черновик от {new Date(controller.deviceDraft.candidate.savedAt).toLocaleString()}. Версия {controller.deviceDraft.candidate.baseRevision}.</p>
+            <button className="ghost" type="button" onClick={controller.deviceDraft.recover}>Восстановить черновик</button>
+            <button className="ghost" type="button" onClick={controller.deviceDraft.discard}>Удалить черновик с устройства</button>
+          </>}
+          <button className="ghost" type="button" onClick={controller.deviceDraft.download}>Скачать черновик</button>
+        </div>
+        {controller.conflict && <section className="card mini" aria-label="Сравнение версий">
+          <h3>Конфликт: запись изменилась на сервере</h3>
+          <p>Сравните версии. Подготовка объединения сохранит остальные серверные поля; изменённые вами поля (включая списки целиком) возьмём из черновика. Сохранение выполняется отдельной кнопкой.</p>
+          <details><summary>Мой черновик</summary><pre style={{whiteSpace:"pre-wrap"}}>{JSON.stringify(controller.entityForm, null, 2)}</pre></details>
+          <details><summary>Актуальная серверная версия</summary><pre style={{whiteSpace:"pre-wrap"}}>{JSON.stringify(controller.conflict, null, 2)}</pre></details>
+          <button className="ghost" type="button" onClick={controller.useComparedDraft}>Подготовить объединение с моими правками</button>
+        </section>}
+
         <details className="editor-disclosure">
           <summary>Заполнить с помощью AI</summary>
         <div className="field field-full">
@@ -81,7 +98,7 @@ export function EntityEditorModal({
 
         {error ? (
           <div className="card mini form-error" role="status">
-            <strong>Не удалось собрать AI-черновик</strong>
+            <strong>Изменения не сохранены</strong>
             <p>{error}</p>
           </div>
         ) : null}
@@ -109,7 +126,7 @@ export function EntityEditorModal({
               Удалить
             </button>
           ) : null}
-          <button className="primary" disabled={saving || generating || entityFormImageUploading} onClick={() => void submitEntity()} type="button">
+          <button className="primary" disabled={saving || generating || entityFormImageUploading || Boolean(controller.conflict) || Boolean(controller.deviceDraft.candidate)} onClick={() => void submitEntity()} type="button">
             {saving ? "Сохраняю..." : entitySubmitLabel}
           </button>
         </div>

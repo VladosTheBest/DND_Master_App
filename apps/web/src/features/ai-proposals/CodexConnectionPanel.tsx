@@ -1,3 +1,4 @@
+import { browserStorage } from "../../app/browser-storage";
 import type {
   CodexConnectionStatus,
   CodexDeviceCodeResult,
@@ -393,7 +394,7 @@ export function CodexConnectionPanel({
   const [copied, setCopied] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [includeImages, setIncludeImages] = useState(false);
-  const [selectedModel, setSelectedModel] = useState(() => window.localStorage.getItem(selectedModelStorageKey) || "");
+  const [selectedModel, setSelectedModel] = useState(() => browserStorage.getItem(selectedModelStorageKey) || "");
   const [promptBusy, setPromptBusy] = useState(false);
   const [promptNotice, setPromptNotice] = useState("");
   const [promptWarning, setPromptWarning] = useState("");
@@ -452,12 +453,12 @@ export function CodexConnectionPanel({
       ? selectedModel
       : (models.find((model) => model.isDefault) ?? models[0]).model;
     if (next !== selectedModel) setSelectedModel(next);
-    window.localStorage.setItem(selectedModelStorageKey, next);
+    browserStorage.setItem(selectedModelStorageKey, next);
   }, [models, selectedModel]);
 
   const chooseModel = (model: string) => {
     setSelectedModel(model);
-    window.localStorage.setItem(selectedModelStorageKey, model);
+    browserStorage.setItem(selectedModelStorageKey, model);
   };
 
   const detectedPromptKinds = useMemo(() => detectPromptKinds(prompt), [prompt]);

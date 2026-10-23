@@ -1,3 +1,5 @@
+import { useDeviceDraft } from "../../app/hooks/useDeviceDraft";
+import { isApiError } from "@shadow-edge/api-client";
 import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
 import type {
   CampaignData,
@@ -16,6 +18,7 @@ import { emptyEntityForm } from "../entities/entity.utils";
 type LoreNoteEntity = Extract<KnowledgeEntity, { kind: "lore" }>;
 
 export function NotesPageContainer({
+  ownerId,
   activeCampaignId,
   campaign,
   editorRef,
@@ -29,6 +32,7 @@ export function NotesPageContainer({
   onOpenPreview,
   serializeEntityForm
 }: {
+  ownerId: string;
   activeCampaignId: string;
   campaign: CampaignData;
   editorRef: RefObject<HTMLTextAreaElement | null>;
@@ -50,6 +54,19 @@ export function NotesPageContainer({
   const [noteEditorContent, setNoteEditorContent] = useState("");
   const [noteEditorDirty, setNoteEditorDirty] = useState(false);
   const [noteEditorNotice, setNoteEditorNotice] = useState("");
+
+  const [baseRevision, setBaseRevision] = useState(0);
+  const [conflict, setConflict] = useState<KnowledgeEntity | null>(null);
+  const deviceDraft = useDeviceDraft({
+    ownerId, campaignId: activeCampaignId, target: `note:${noteEditorEntityId}`,
+    enabled: Boolean(noteEditorEntityId), revision: baseRevision, dirty: noteEditorDirty,
+    value: { title: noteEditorTitle, content: noteEditorContent },
+    restore: ({ value, baseRevision }) => {
+      if (typeof value.title !== "string" || typeof value.content !== "string") return;
+      setNoteEditorTitle(value.title); setNoteEditorContent(value.content);
+      setBaseRevision(baseRevision); setNoteEditorDirty(true);
+    }
+  });
 
   const activeLoreNote = useMemo(() => {
     if (!noteEditorEntityId || noteEditorEntityId === NEW_LORE_NOTE_ID) {
@@ -76,6 +93,7 @@ export function NotesPageContainer({
 
       const nextNote = entityMap.get(nextId);
       if (nextNote?.kind === "lore") {
+        setBaseRevision(nextNote.revision ?? 0);
         setNoteEditorEntityId(nextNote.id);
         setNoteEditorTitle(nextNote.title);
         setNoteEditorContent(nextNote.content);
@@ -89,6 +107,7 @@ export function NotesPageContainer({
       return;
     }
 
+    setBaseRevision(activeLoreNote.revision ?? 0);
     setNoteEditorTitle(activeLoreNote.title);
     setNoteEditorContent(activeLoreNote.content);
   }, [activeLoreNote, noteEditorDirty]);
@@ -109,6 +128,7 @@ export function NotesPageContainer({
 
     setNoteEditorNotice("");
     setError("");
+    setBaseRevision(nextNote.revision ?? 0); setConflict(null);
     setNoteEditorEntityId(nextNote.id);
     setNoteEditorTitle(nextNote.title);
     setNoteEditorContent(nextNote.content);
@@ -120,6 +140,7 @@ export function NotesPageContainer({
       return;
     }
 
+    setBaseRevision(0); setConflict(null);
     setNoteEditorEntityId(NEW_LORE_NOTE_ID);
     setNoteEditorTitle("");
     setNoteEditorContent("");
@@ -133,6 +154,7 @@ export function NotesPageContainer({
       return;
     }
 
+    if (deviceDraft.candidate || conflict) { setError("Сначала разберите найденный черновик или конфликт версий."); return; }
     const resolvedTitle = resolveLoreNoteTitle(noteEditorTitle, noteEditorContent);
     const resolvedContent = noteEditorContent.trim();
 
@@ -145,6 +167,7 @@ export function NotesPageContainer({
     const baseForm = currentNote?.kind === "lore" ? entityToForm(currentNote) : emptyEntityForm("lore");
     const payload = serializeEntityForm({
       ...baseForm,
+      expectedRevision: baseRevision,
       kind: "lore",
       title: resolvedTitle,
       summary: loreNoteExcerpt({ summary: "", content: resolvedContent || resolvedTitle }, 150),
@@ -161,6 +184,8 @@ export function NotesPageContainer({
         currentNote?.kind === "lore"
           ? await api.updateEntity(activeCampaignId, currentNote.id, payload)
           : await api.createEntity(activeCampaignId, payload);
+      deviceDraft.clear();
+      setBaseRevision(result.entity.revision ?? 0);
       hydrateCampaign(result.campaign, result.entity.id);
       setNoteEditorEntityId(result.entity.id);
       setNoteEditorTitle(result.entity.title);
@@ -168,6 +193,7 @@ export function NotesPageContainer({
       setNoteEditorDirty(false);
       setNoteEditorNotice(currentNote?.kind === "lore" ? "Заметка сохранена." : "Заметка создана.");
     } catch (saveError) {
+      if (isApiError(saveError) && saveError.status === 409 && saveError.current) setConflict(saveError.current as KnowledgeEntity);
       setError(saveError instanceof Error ? saveError.message : "Не удалось сохранить заметку.");
     } finally {
       setSaving(false);
@@ -175,6 +201,17 @@ export function NotesPageContainer({
   };
 
   return (
+    <>
+    <div className="card mini" role="status">
+      <p>{deviceDraft.status || "Сохранено на сервере"}</p>
+      {deviceDraft.candidate && <><button className="ghost" onClick={deviceDraft.recover}>Восстановить черновик заметки</button><button className="ghost" onClick={deviceDraft.discard}>Удалить черновик с устройства</button></>}
+      <button className="ghost" onClick={deviceDraft.download}>Скачать черновик заметки</button>
+    </div>
+    {conflict && <div className="card mini"><h3>Конфликт версий заметки</h3>
+      <p>Сравните с текущим текстом. После подтверждения заголовок, краткое описание и текст будут заменены вашим вариантом; остальные серверные поля сохранятся.</p>
+      <pre style={{whiteSpace:"pre-wrap"}}>{conflict.title}{"\n"}{conflict.content}</pre>
+      <button className="ghost" onClick={() => { setBaseRevision(conflict.revision ?? 0); hydrateCampaign({ ...campaign, lore: campaign.lore.map(n => n.id === conflict.id ? conflict as LoreNoteEntity : n) }); setConflict(null); setError(""); }}>Подготовить мой текст поверх этой версии</button>
+    </div>}
     <NotesWorkspace
       entityByTitle={new Map([...entityMap.values()].map((entity) => [entity.title, entity]))}
       campaignId={activeCampaignId}
@@ -208,5 +245,6 @@ export function NotesPageContainer({
       searchQuery={searchQuery}
       selectedNoteId={activeLoreNote?.id ?? ""}
     />
+    </>
   );
 }

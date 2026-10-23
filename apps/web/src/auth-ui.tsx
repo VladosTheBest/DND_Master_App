@@ -1,3 +1,4 @@
+import { browserStorage } from "./app/browser-storage";
 import { useEffect, useState, type FormEvent } from "react";
 import loginBgUrl from "./assets/login-bg.jpg";
 import { OAuthControls } from "./app/OAuthControls";
@@ -183,7 +184,7 @@ export function LoginScreen({
       return;
     }
 
-    const storedUsername = window.localStorage.getItem("shadow_edge_login_username");
+    const storedUsername = browserStorage.getItem("shadow_edge_login_username");
     if (storedUsername && !username.trim()) {
       onUsernameChange(storedUsername);
     }
@@ -192,9 +193,9 @@ export function LoginScreen({
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     if (typeof window !== "undefined") {
       if (rememberMe && username.trim()) {
-        window.localStorage.setItem("shadow_edge_login_username", username.trim());
+        browserStorage.setItem("shadow_edge_login_username", username.trim());
       } else {
-        window.localStorage.removeItem("shadow_edge_login_username");
+        browserStorage.removeItem("shadow_edge_login_username");
       }
     }
     onSubmit(event, authMode);

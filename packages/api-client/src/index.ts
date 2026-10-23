@@ -63,7 +63,7 @@ export class ApiError extends Error {
   status: number;
   code?: string;
 
-  constructor(message: string, status: number, code?: string) {
+  constructor(message: string, status: number, code?: string, public current?: unknown) {
     super(message);
     this.name = "ApiError";
     this.status = status;
@@ -100,7 +100,7 @@ const codexBridgeRoutes = (baseUrl: string) => {
   };
 };
 
-const ensureJson = async <T>(response: Response): Promise<T> => {
+export const ensureJson = async <T>(response: Response): Promise<T> => {
   // A restart/proxy failure can legitimately return an empty HTML/body. Do not
   // leak a JSON parser exception to the GM UI in that case.
   const body = await response.text();
@@ -116,14 +116,14 @@ const ensureJson = async <T>(response: Response): Promise<T> => {
     }
   }
 
-  if (!response.ok) {
+  if (!response.ok || payload?.error) {
     if (payload?.error?.code === "subscription_required" && typeof window !== "undefined") {
       window.dispatchEvent(new Event("shadow-edge:subscription-required"));
     }
-    throw new ApiError(payload?.error?.message ?? `Request failed with status ${response.status}`, response.status, payload?.error?.code);
+    throw new ApiError(payload?.error?.message ?? `Request failed with status ${response.status}`, response.status, payload?.error?.code, payload?.data);
   }
 
-  if (!payload) {
+  if (!payload || typeof payload !== "object" || !("data" in payload)) {
     throw new ApiError("Server returned an empty response", response.status);
   }
 
@@ -142,52 +142,52 @@ const resolveRequestUrl = (input: RequestInfo | URL) => {
 
 const isAuthEndpoint = (input: RequestInfo | URL) => resolveRequestUrl(input).includes("/api/auth/");
 
+export const fetchWithSessionRecovery = async (input: RequestInfo | URL, init?: RequestInit) => {
+  const execute = async () => {
+    try { return await fetch(input, { credentials: "include", ...init }); }
+    catch (error) {
+      if (error instanceof Error && error.name === "AbortError") throw error;
+      throw new ApiError("Не удалось связаться с сервером. Изменения не отправлены повторно; проверьте соединение.", 0, "network_error");
+    }
+  };
+
+  const response = await execute();
+  if (response.status !== 401 || isAuthEndpoint(input) || /\/api\/character-(?:invites|sheets)\//.test(resolveRequestUrl(input)) || !["GET", "HEAD"].includes((init?.method ?? "GET").toUpperCase())) {
+    return response;
+  }
+
+  try {
+    const sessionResponse = await fetch(new URL("/api/auth/session", new URL(resolveRequestUrl(input), typeof location === "undefined" ? "http://localhost" : location.href)).href, {
+      credentials: "include", signal: init?.signal
+    });
+
+    if (sessionResponse.ok) {
+      const payload = (await sessionResponse.json()) as ApiEnvelope<AuthSessionResult>;
+      if (payload.data?.authenticated) {
+        return execute();
+      }
+    }
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") throw error;
+    // Let the original 401 bubble up if session recovery fails.
+  }
+
+  return response;
+};
+
+
+export const requestJson = async <T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> => {
+  const headers = new Headers(init?.headers);
+  if (!headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  const response = await fetchWithSessionRecovery(input, { ...init, headers });
+  return ensureJson<T>(response);
+};
+
+
 export const createHttpApiClient = (baseUrl: string): ApiClient => {
   const sessionUrl = `${baseUrl}/api/auth/session`;
   const proposalRoutes = aiProposalRoutes(baseUrl);
   const codexRoutes = codexBridgeRoutes(baseUrl);
-
-  const fetchWithSessionRecovery = async (input: RequestInfo | URL, init?: RequestInit) => {
-    const execute = () =>
-      fetch(input, {
-        credentials: "include",
-        ...init
-      });
-
-    const response = await execute();
-    if (response.status !== 401 || isAuthEndpoint(input)) {
-      return response;
-    }
-
-    try {
-      const sessionResponse = await fetch(sessionUrl, {
-        credentials: "include"
-      });
-
-      if (sessionResponse.ok) {
-        const payload = (await sessionResponse.json()) as ApiEnvelope<AuthSessionResult>;
-        if (payload.data?.authenticated) {
-          return execute();
-        }
-      }
-    } catch {
-      // Let the original 401 bubble up if session recovery fails.
-    }
-
-    return response;
-  };
-
-  const requestJson = async <T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> => {
-    const response = await fetchWithSessionRecovery(input, {
-      headers: {
-        "Content-Type": "application/json",
-        ...(init?.headers ?? {})
-      },
-      ...init
-    });
-
-    return ensureJson<T>(response);
-  };
 
   const requestFormData = async <T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> => {
     const response = await fetchWithSessionRecovery(input, init);

@@ -1,3 +1,4 @@
+import { browserStorage } from "./app/browser-storage";
 import {
   useEffect,
   useRef,
@@ -72,7 +73,7 @@ export function FloatingPlaylistPlayer({
     if (typeof window === "undefined") {
       return 72;
     }
-    const stored = Number.parseInt(window.localStorage.getItem("shadow-edge-player-volume") ?? "72", 10);
+    const stored = Number.parseInt(browserStorage.getItem("shadow-edge-player-volume") ?? "72", 10);
     return clamp(Number.isFinite(stored) ? stored : 72, 0, 100);
   });
   const sourceKey = source.kind === "youtube" ? source.videoId : source.url;
@@ -84,7 +85,7 @@ export function FloatingPlaylistPlayer({
   useEffect(() => {
     volumeRef.current = volume;
     if (typeof window !== "undefined") {
-      window.localStorage.setItem("shadow-edge-player-volume", String(volume));
+      browserStorage.setItem("shadow-edge-player-volume", String(volume));
     }
     if (audioRef.current) {
       audioRef.current.volume = volume / 100;

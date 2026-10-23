@@ -1,3 +1,4 @@
+import { browserStorage } from "../../app/browser-storage";
 import { combineTranscripts, maxImportBytes, type TranscriptFile } from "./session-import";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../app/api";
@@ -102,7 +103,7 @@ export function SessionsPage({
   const select = async (id: string) => {
     const version = ++loadVersion.current;
     currentId.current = id;
-    localStorage.setItem(`session-selected:${campaignId}`, id);
+    browserStorage.setItem(`session-selected:${campaignId}`, id);
     setLoading(true);
     setError("");
     setNotice("");
@@ -119,7 +120,7 @@ export function SessionsPage({
       const session = await sessionsApi.get(campaignId, id);
       if (mounted.current && loadVersion.current === version) {
         setSelected(session);
-        setMaster(localStorage.getItem(`session-gm:${campaignId}:${id}`) || "");
+        setMaster(browserStorage.getItem(`session-gm:${campaignId}:${id}`) || "");
       }
     } catch (e) {
       if (mounted.current && loadVersion.current === version)
@@ -135,7 +136,7 @@ export function SessionsPage({
       .then((items) => {
         if (!active) return;
         setSessions(items);
-        const remembered = localStorage.getItem(`session-selected:${campaignId}`);
+        const remembered = browserStorage.getItem(`session-selected:${campaignId}`);
         if (items[0]) void select(items.find(item => item.id === remembered)?.id || items[0].id);
         else setLoading(false);
       })
@@ -296,7 +297,7 @@ export function SessionsPage({
         onOpenAI();
         return;
       }
-      const model = localStorage.getItem("dnd-master.codex-model") || undefined;
+      const model = browserStorage.getItem("dnd-master.codex-model") || undefined;
       await api.startCodexPrompt({
         campaignId,
         sessionId: id,
@@ -630,7 +631,7 @@ export function SessionsPage({
                 ))}
               </nav>
               <div className="session-tab-content" key={tab}>
-                {tab === "Мастеру" && <SessionDMReport session={selected} master={master} onMaster={name => { setMaster(name); localStorage.setItem(`session-gm:${campaignId}:${selected.id}`, name); }} onSource={openSource} sourceLabel={sourceLabel} onAnalyze={() => void analyze()} busy={analysisUnavailable} />}
+                {tab === "Мастеру" && <SessionDMReport session={selected} master={master} onMaster={name => { setMaster(name); browserStorage.setItem(`session-gm:${campaignId}:${selected.id}`, name); }} onSource={openSource} sourceLabel={sourceLabel} onAnalyze={() => void analyze()} busy={analysisUnavailable} />}
                 {tab === "Обзор" && (
                   <>
                     <SessionRecap analysis={selected.analysis} busy={analysisUnavailable} onAnalyze={() => void analyze()} />
@@ -751,7 +752,7 @@ export function SessionsPage({
                           value={master}
                           onChange={(e) => {
                             setMaster(e.target.value);
-                            localStorage.setItem(
+                            browserStorage.setItem(
                               `session-gm:${campaignId}:${selected.id}`,
                               e.target.value,
                             );

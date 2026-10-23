@@ -1,3 +1,5 @@
+import { isApiError } from "@shadow-edge/api-client";
+import { useDeviceDraft } from "../../app/hooks/useDeviceDraft";
 import { useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import type {
   AbilityKey,
@@ -54,6 +56,7 @@ type PersistEntityPayload = (args: {
 }) => Promise<CreateEntityResult>;
 
 type UseEntityEditorControllerParams = {
+  ownerId: string;
   readyCampaign?: boolean;
   activeCampaignId: string;
   applyCreatedEntity: (result: CreateEntityResult) => void;
@@ -73,6 +76,7 @@ type UseEntityEditorControllerParams = {
 export type EntityEditorController = ReturnType<typeof useEntityEditorController>;
 
 export function useEntityEditorController({
+  ownerId,
   readyCampaign,
   activeCampaignId,
   applyCreatedEntity,
@@ -105,6 +109,37 @@ export function useEntityEditorController({
     if (entityModalOpen) baseline.current = JSON.stringify({ entityForm, draftPrompt });
   }, [entityModalOpen]);
   const hasUnsavedEntityChanges = () => entityArtUploading || Boolean(galleryUploadKey) || JSON.stringify({ entityForm, draftPrompt }) !== baseline.current;
+
+  const baseForm = useRef<CreateEntityInput>(entityForm);
+  const [conflict, setConflict] = useState<KnowledgeEntity | null>(null);
+  useLayoutEffect(() => {
+    if (entityModalOpen) { baseForm.current = entityForm; setConflict(null); }
+  }, [entityModalOpen]);
+  const deviceDraft = useDeviceDraft({
+    ownerId, campaignId: activeCampaignId, target: `entity:${editingEntityId || `new:${entityForm.kind}`}`,
+    revision: entityForm.expectedRevision ?? 0, enabled: entityModalOpen,
+    dirty: entityModalOpen && hasUnsavedEntityChanges(),
+    value: { entityForm, baseForm: baseForm.current, draftPrompt, generatedQuestIssuerDraft, generatedQuestIssuerNote, draftNotes },
+    restore: ({ value }) => {
+      if (!value.entityForm || value.entityForm.kind !== entityForm.kind) { setBootError("Черновик повреждён или относится к другому типу записи."); return; }
+      baseForm.current = value.baseForm || value.entityForm;
+      setEntityForm(value.entityForm); setDraftPrompt(value.draftPrompt || "");
+      setGeneratedQuestIssuerDraft(value.generatedQuestIssuerDraft ?? null);
+      setGeneratedQuestIssuerNote(value.generatedQuestIssuerNote || ""); setDraftNotes(value.draftNotes || []);
+    }
+  });
+  const useComparedDraft = () => {
+    if (!conflict) return;
+    const server = entityToForm(conflict);
+    const merged = { ...server };
+    for (const key of Object.keys(entityForm) as (keyof CreateEntityInput)[]) {
+      if (key !== "expectedRevision" && JSON.stringify(entityForm[key]) !== JSON.stringify(baseForm.current[key])) {
+        Object.assign(merged, { [key]: entityForm[key] });
+      }
+    }
+    baseForm.current = server;
+    setEntityForm(merged); setConflict(null); setBootError("");
+  };
 
   const entityContentRef = useRef<HTMLTextAreaElement | null>(null);
   const entityPlayerContentRef = useRef<HTMLTextAreaElement | null>(null);
@@ -567,6 +602,7 @@ export function useEntityEditorController({
       return;
     }
 
+    if (deviceDraft.candidate) { setBootError("Сначала восстановите или удалите найденный черновик."); return; }
     try {
       setSaving(true);
       const result = await persistEntityPayload({
@@ -576,8 +612,10 @@ export function useEntityEditorController({
         linkedIssuerDraft: generatedQuestIssuerDraft
       });
       applyCreatedEntity(result);
+      deviceDraft.clear();
       closeEntityModal();
     } catch (error) {
+      if (isApiError(error) && error.status === 409 && error.current) setConflict(error.current as KnowledgeEntity);
       setBootError(
         error instanceof Error
           ? error.message
@@ -650,6 +688,7 @@ export function useEntityEditorController({
   const entitySubmitLabel = isEditingEntity ? "Сохранить изменения" : "Создать";
 
   return {
+    deviceDraft, conflict, useComparedDraft,
     hasUnsavedEntityChanges,
     addEntityGalleryItem,
     addEntityPlayerCard,

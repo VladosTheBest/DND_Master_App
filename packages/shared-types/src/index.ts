@@ -570,6 +570,7 @@ export interface ReadyCampaignTemplate {
 }
 
 export interface UpdateCampaignInput {
+  expectedRevision?: number;
   combatPlaylist?: PlaylistTrack[];
   shops?: CampaignShop[];
   preparedCombat?: CampaignPreparedCombat | null;
@@ -591,6 +592,7 @@ export interface WorldEventInput {
 }
 
 export interface CreateEntityInput {
+  expectedRevision?: number;
   kind: EntityKind;
   title: string;
   subtitle: string;
