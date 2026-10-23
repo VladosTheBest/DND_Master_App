@@ -2036,3 +2036,5 @@
 @media (max-width: 600px) {
   .ch-feature-choice .ch-choices { grid-template-columns: minmax(0, 1fr); }
 }
+
+.ch-coverage{padding:12px 14px;border:1px solid var(--line);border-radius:12px;font-size:.85rem;line-height:1.5;margin:12px 0}.ch-coverage summary{cursor:pointer;font-weight:600}.ch-coverage p{margin:8px 0}.ch-coverage li{margin:6px 0}

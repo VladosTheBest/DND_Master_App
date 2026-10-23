@@ -335,7 +335,7 @@ func (srv *server) handleCampaignChat(w http.ResponseWriter, r *http.Request, us
 			return
 		}
 	}
-	generator, ok := srv.generator.(chatCompletion)
+	generator, ok := srv.generatorFor(user.ID).(chatCompletion)
 	if !ok {
 		writeError(w, 503, "chat_unavailable", "Для чата нужен настроенный AI-провайдер.")
 		return

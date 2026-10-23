@@ -60,7 +60,7 @@ func (srv *server) handleAIProposals(writer http.ResponseWriter, request *http.R
 			writeProposalHTTPError(writer, err)
 			return
 		}
-		if err := srv.prepareGeneratedCampaignProposal(&input); err != nil {
+		if err := srv.prepareGeneratedCampaignProposal(user.ID, &input); err != nil {
 			writeProposalHTTPError(writer, err)
 			return
 		}
@@ -486,7 +486,7 @@ func (srv *server) prepareGeneratedEntityProposal(ownerID, campaignID string, in
 		current := entityCreateInputFromData(existing)
 		generateInput.Kind = existing.Kind
 		generateInput.Current = &current
-		generated, generateErr := srv.generator.GenerateEntityPatch(campaign, generateInput)
+		generated, generateErr := srv.generatorFor(ownerID).GenerateEntityPatch(campaign, generateInput)
 		if generateErr != nil {
 			return proposalFailure(http.StatusInternalServerError, "generate_proposal_failed", generateErr.Error())
 		}
@@ -504,7 +504,7 @@ func (srv *server) prepareGeneratedEntityProposal(ownerID, campaignID string, in
 		}
 		return nil
 	}
-	generated, err := srv.generator.Generate(campaign, generateInput)
+	generated, err := srv.generatorFor(ownerID).Generate(campaign, generateInput)
 	if err != nil {
 		return proposalFailure(http.StatusInternalServerError, "generate_proposal_failed", err.Error())
 	}
@@ -526,17 +526,17 @@ func (srv *server) prepareGeneratedEntityProposal(ownerID, campaignID string, in
 	return nil
 }
 
-func (srv *server) prepareGeneratedCampaignProposal(input *campaignProposalInput) error {
+func (srv *server) prepareGeneratedCampaignProposal(ownerID string, input *campaignProposalInput) error {
 	if input == nil || campaignBlueprintSupplied(input.Blueprint) {
 		return nil
 	}
 	if strings.TrimSpace(input.Prompt) == "" {
 		return proposalFailure(http.StatusBadRequest, "missing_blueprint", "prompt or blueprint is required")
 	}
-	if srv.generator == nil {
+	if srv.generatorFor(ownerID) == nil {
 		return proposalFailure(http.StatusServiceUnavailable, "generator_unavailable", "Campaign generator is unavailable")
 	}
-	generated, err := srv.generator.GenerateCampaignBlueprint(generateCampaignBlueprintInput{Prompt: strings.TrimSpace(input.Prompt)})
+	generated, err := srv.generatorFor(ownerID).GenerateCampaignBlueprint(generateCampaignBlueprintInput{Prompt: strings.TrimSpace(input.Prompt)})
 	if err != nil {
 		return proposalFailure(http.StatusInternalServerError, "generate_campaign_proposal_failed", err.Error())
 	}
@@ -597,7 +597,7 @@ func (srv *server) prepareGeneratedEventProposal(ownerID, campaignID string, inp
 		generateInput.Current = &current
 		generateInput.LocationID = existing.LocationID
 		generateInput.Type = existing.Type
-		generated, generateErr := srv.generator.GenerateWorldEventPatch(campaign, generateInput)
+		generated, generateErr := srv.generatorFor(ownerID).GenerateWorldEventPatch(campaign, generateInput)
 		if generateErr != nil {
 			return proposalFailure(http.StatusInternalServerError, "generate_proposal_failed", generateErr.Error())
 		}
@@ -614,7 +614,7 @@ func (srv *server) prepareGeneratedEventProposal(ownerID, campaignID string, inp
 		}
 		return nil
 	}
-	generated, err := srv.generator.GenerateWorldEvent(campaign, generateInput)
+	generated, err := srv.generatorFor(ownerID).GenerateWorldEvent(campaign, generateInput)
 	if err != nil {
 		return proposalFailure(http.StatusInternalServerError, "generate_proposal_failed", err.Error())
 	}

@@ -1,3 +1,4 @@
+import {AIConnectionSummary} from "../ai-jobs/PersonalAISettings";
 import { useWorkspaceGuard, useWorkspaceRoute } from "../../app/workspace-route";
 import { sessionBrowserStorage } from "../../app/browser-storage";
 import { useDraftOwner } from "../../app/hooks/useDraftOwner";
@@ -13,6 +14,7 @@ import "./world-maps.css";
 import { notifyAICompletion, prepareAISound } from "../ai-jobs/ai-completion-sound";
 
 export function MapCreateForm({campaignId, initialPrompt="", onCreated, storageKey="composer", sourceMap,initialSize,onSizeChange}:{campaignId:string;initialPrompt?:string;onCreated?:(map:WorldMapDocument)=>void;storageKey?:string;sourceMap?:WorldMapDocument;initialSize?:{columns:number;rows:number};onSizeChange?:(size:{columns:number;rows:number})=>void}){
+  const [aiAvailable,setAIAvailable]=useState(false);
   const route=useWorkspaceRoute();
   let contextLocation="";try{const value=JSON.parse(route.context||"null");if(!sourceMap&&typeof value?.locationId==="string")contextLocation=value.locationId;}catch{}
   const key=`shadow-edge:map-job:${campaignId}:${storageKey}`;
@@ -71,6 +73,7 @@ export function MapCreateForm({campaignId, initialPrompt="", onCreated, storageK
     try{file=await prepareMapImage(file);const result=await api.uploadImage(campaignId,file);setReference(new URL(result.url,location.origin).pathname);}catch(e){setError((e as Error).message);}finally{lock.current=false;setBusy(false);if(input.current)input.current.value="";}
   }
   async function generate(){
+    if(!aiAvailable)return;
     if(lock.current||jobId||deviceDraft.candidate)return;lock.current=true;setBusy(true);setError("");setCreated(null);setStage("Запускаю генерацию…");
     try{
 		const context={includeCampaign,locationId:useLocation?locationId:""};
@@ -103,7 +106,7 @@ export function MapCreateForm({campaignId, initialPrompt="", onCreated, storageK
     <div className="world-map-create-actions">
       <input ref={input} type="file" accept="image/*" hidden onChange={e=>{if(e.target.files?.[0])void upload(e.target.files[0]);}}/>
       {!sourceMap&&<button type="button" disabled={disabled} onClick={()=>input.current?.click()}><ImagePlus size={17}/>{reference?"Заменить референс":"Референс"}</button>}
-      <button type="button" className="map-primary" disabled={disabled||(!sourceMap&&(!Number.isInteger(columns)||!Number.isInteger(rows)||columns<10||columns>100||rows<10||rows>100))||(!!sourceMap&&!prompt.trim())||prompt.length>6000||(useLocation&&!locationId)||(!prompt.trim()&&!reference&&!includeCampaign&&!useLocation)} onClick={()=>void generate()}><Sparkles size={17}/>{sourceMap?"Создать новый вариант":"Создать карту"}</button>
+      <AIConnectionSummary feature="images" onAvailable={setAIAvailable}/><button type="button" className="map-primary" disabled={!aiAvailable||disabled||(!sourceMap&&(!Number.isInteger(columns)||!Number.isInteger(rows)||columns<10||columns>100||rows<10||rows>100))||(!!sourceMap&&!prompt.trim())||prompt.length>6000||(useLocation&&!locationId)||(!prompt.trim()&&!reference&&!includeCampaign&&!useLocation)} onClick={()=>void generate()}><Sparkles size={17}/>{sourceMap?"Создать новый вариант":"Создать карту"}</button>
     </div>
     {prompt.length>6000&&<p role="alert">Описание слишком длинное: {prompt.length} из 6000 символов.</p>}
     {reference&&<div className="world-map-reference"><img src={mapMediaURL(reference)} alt="Референс карты"/><button type="button" title="Убрать референс" aria-label="Убрать референс" disabled={disabled} onClick={()=>setReference("")}><X size={16}/></button></div>}

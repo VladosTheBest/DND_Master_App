@@ -190,6 +190,10 @@ func (m *foundryManager) sceneAI(w http.ResponseWriter, r *http.Request, c found
 }
 
 func (m *foundryManager) generateSceneImage(w http.ResponseWriter, ctx context.Context, c foundryConnection, input foundrySceneInput) {
+	if m.srv.usesPersonalAI(c.OwnerID) {
+		writeError(w, 422, "ai_image_unsupported", "Для AI-сцены выберите Codex. Личный API пока работает с текстом.")
+		return
+	}
 	srv := m.srv
 	campaign, err := srv.store.getCampaignForUser(c.OwnerID, c.CampaignID)
 	if err != nil || campaign.ReadyCampaign != nil {
@@ -214,7 +218,7 @@ func (m *foundryManager) generateSceneImage(w http.ResponseWriter, ctx context.C
 		writeError(w, 403, "account_unavailable", "Владелец подключения больше недоступен.")
 		return
 	}
-	user := authUser{ID: c.OwnerID, Username: account.Username}
+	user := authUser{ID: c.OwnerID, Username: account.Username, AuthVersion: account.AuthVersion}
 	connected := false
 	if srv.codex != nil && !(input.ReferenceURL != "" && !input.Improve && input.Topology && usesCaveRaster(input)) {
 		status := srv.codex.status(ctx, user)
@@ -224,6 +228,10 @@ func (m *foundryManager) generateSceneImage(w http.ResponseWriter, ctx context.C
 			return
 		}
 		connected = status.State == "connected" && status.AuthMode == "chatgpt"
+	}
+	if srv.usesCodexAI(c.OwnerID) && !connected && !(input.ReferenceURL != "" && !input.Improve && (!input.Topology || usesCaveRaster(input))) {
+		writeError(w, 422, "codex_not_connected", "Подключите Codex в настройках AI. Платный API автоматически не включён.")
+		return
 	}
 	var reference []byte
 	if input.ReferenceURL != "" {

@@ -31,6 +31,7 @@ type Options struct {
 }
 
 type server struct {
+	requireSubscription bool
 	foundry             *foundryManager
 	mapGenerationOwners sync.Map
 	cloud               *cloudDatabase
@@ -123,20 +124,21 @@ func NewServer(options Options) (http.Handler, error) {
 	}
 
 	srv := &server{
-		cloud:     cloud,
-		assets:    assets,
-		store:     store,
-		bestiary:  bestiary,
-		items:     items,
-		generator: newEntityGenerator(options.AI),
-		shares:    newInitiativeShareManager(store, options.PublicBaseURL),
-		auth:      auth,
-		web:       webHandler,
-		webDir:    options.WebDir,
-		uploads:   uploadHandler,
-		uploadDir: options.UploadDir,
-		proposals: newProposalService(store, options.UploadDir),
-		codex:     newCodexBridgeManager(options.Codex, auth),
+		cloud:               cloud,
+		assets:              assets,
+		store:               store,
+		bestiary:            bestiary,
+		items:               items,
+		generator:           newEntityGenerator(options.AI),
+		requireSubscription: options.RequireSubscription,
+		shares:              newInitiativeShareManager(store, options.PublicBaseURL),
+		auth:                auth,
+		web:                 webHandler,
+		webDir:              options.WebDir,
+		uploads:             uploadHandler,
+		uploadDir:           options.UploadDir,
+		proposals:           newProposalService(store, options.UploadDir),
+		codex:               newCodexBridgeManager(options.Codex, auth),
 	}
 	srv.proposals.assets = assets
 	srv.surveys = newSurveyManager(store, options.PublicBaseURL)
@@ -148,6 +150,10 @@ func NewServer(options Options) (http.Handler, error) {
 	}
 
 	mux := http.NewServeMux()
+	mux.HandleFunc("/api/account/recovery-codes", srv.handleRecoveryCodes)
+	mux.HandleFunc("/api/auth/recover", srv.handlePasswordRecovery)
+	mux.HandleFunc("/api/account/ai", srv.handlePersonalAI)
+	mux.HandleFunc("/api/account/ai/check", srv.handlePersonalAI)
 	mux.HandleFunc("/healthz", srv.handleHealth)
 	mux.HandleFunc("/livez", srv.handleHealth)
 	mux.HandleFunc("/foundry/connect", srv.foundry.connectPage)
@@ -228,7 +234,7 @@ func NewServer(options Options) (http.Handler, error) {
 					return
 				}
 				account, found := srv.store.getUserByID(user.ID)
-				if !found || !subscriptionActive(account.Subscription, time.Now()) {
+				if !found || !subscriptionActive(account.Subscription, time.Now()) && !srv.usesPersonalAI(user.ID) && !srv.usesCodexAI(user.ID) {
 					writeError(writer, http.StatusPaymentRequired, "subscription_required", "Генерации доступны только с активной подпиской Shadow Edge GM.")
 					return
 				}
@@ -419,6 +425,10 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 	}
 
 	switch {
+	case len(segments) == 2 && segments[1] == "export" && request.Method == http.MethodGet:
+		srv.exportCampaign(writer, request, user, campaignID)
+	case len(segments) == 2 && segments[1] == "capabilities" && request.Method == http.MethodGet:
+		writeJSON(writer, 200, map[string]bool{"atlasEdit": campaign.ReadyCampaign == nil, "manualScenes": true, "aiScenes": campaign.ReadyCampaign == nil, "immutableSource": campaign.ReadyCampaign != nil})
 	case len(segments) == 2 && segments[1] == "entities" && request.Method == http.MethodGet:
 		serveDirectory(writer, request, campaign)
 	case len(segments) >= 2 && segments[1] == "custom-items":
@@ -505,7 +515,7 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 			return
 		}
 
-		result, err := srv.generator.GenerateWorldEvent(campaign, input)
+		result, err := srv.generatorFor(user.ID).GenerateWorldEvent(campaign, input)
 		if err != nil {
 			writeError(writer, http.StatusInternalServerError, "generate_event_failed", err.Error())
 			return
@@ -711,7 +721,7 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 			return
 		}
 
-		result, err := srv.generator.Generate(campaign, input)
+		result, err := srv.generatorFor(user.ID).Generate(campaign, input)
 		if err != nil {
 			writeError(writer, http.StatusInternalServerError, "generate_draft_failed", err.Error())
 			return
@@ -738,7 +748,7 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 			return
 		}
 
-		result, err := srv.generator.FormatPlayerFacingCard(campaign, input)
+		result, err := srv.generatorFor(user.ID).FormatPlayerFacingCard(campaign, input)
 		if err != nil {
 			writeError(writer, http.StatusInternalServerError, "format_player_facing_failed", err.Error())
 			return

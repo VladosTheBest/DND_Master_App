@@ -229,7 +229,7 @@ func (m *authManager) handleOAuth(w http.ResponseWriter, r *http.Request) {
 		expiry := time.Now().Add(m.sessionTTL)
 		m.mu.Lock()
 		m.cleanupExpiredLocked(time.Now())
-		m.sessions[token] = authSession{UserID: user.ID, Username: user.Username, ExpiresAt: expiry, AuthenticatedAt: time.Now()}
+		m.sessions[token] = authSession{UserID: user.ID, Username: user.Username, AuthVersion: user.AuthVersion, ExpiresAt: expiry, AuthenticatedAt: time.Now()}
 		if attempt.Admin {
 			session := m.sessions[token]
 			session.AdminEmail = strings.ToLower(strings.TrimSpace(subject.Email))

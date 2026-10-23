@@ -296,13 +296,17 @@ type combatRewardShare struct {
 }
 
 type userAccount struct {
-	Subscription    *accountSubscription `json:"subscription,omitempty"`
-	OAuthIdentities []oauthIdentity      `json:"oauthIdentities,omitempty"`
-	ID              string               `json:"id"`
-	Username        string               `json:"username"`
-	UsernameKey     string               `json:"usernameKey"`
-	PasswordHash    string               `json:"passwordHash"`
-	CreatedAt       string               `json:"createdAt"`
+	AuthVersion          int                   `json:"authVersion,omitempty"`
+	RecoveryCodes        []recoveryCode        `json:"recoveryCodes,omitempty"`
+	AIConnection         *personalAIConnection `json:"aiConnection,omitempty"`
+	AIConnectionRevision int                   `json:"aiConnectionRevision,omitempty"`
+	Subscription         *accountSubscription  `json:"subscription,omitempty"`
+	OAuthIdentities      []oauthIdentity       `json:"oauthIdentities,omitempty"`
+	ID                   string                `json:"id"`
+	Username             string                `json:"username"`
+	UsernameKey          string                `json:"usernameKey"`
+	PasswordHash         string                `json:"passwordHash"`
+	CreatedAt            string                `json:"createdAt"`
 }
 
 type campaignData struct {

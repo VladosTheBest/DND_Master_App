@@ -1,3 +1,4 @@
+import {AIConnectionSummary} from "./PersonalAISettings";
 import { requestJson } from "@shadow-edge/api-client";
 import { useEffect, useRef, useState } from "react";
 import { Send, RefreshCw, MessageSquare, Sparkles, UserRound, MapPin, BookOpen, Plus, Check, ScrollText, Store, CalendarDays, ShieldCheck, Compass, Pencil, Save } from "lucide-react";
@@ -94,6 +95,7 @@ function DraftCard({draft,turnId,campaignId,onSaved,onRefine,busy}:{draft:Draft;
 }
 
 export function AIChat({campaignId, jobs, refreshJobs, initialContext, onContextChange}: {campaignId: string; jobs: AIJob[]; refreshJobs: () => void;initialContext?:ChatContext;onContextChange?:(context:ChatContext)=>void}) {
+ const [aiAvailable,setAIAvailable]=useState(false);
   const [mapComposer,setMapComposer]=useState(false);
   const [includeCampaign,setIncludeCampaign] = useState(initialContext?.includeCampaign ?? true);
   const [sessionIds,setSessionIds] = useState<string[]>(initialContext?.sessionIds ?? []);
@@ -134,7 +136,7 @@ export function AIChat({campaignId, jobs, refreshJobs, initialContext, onContext
   useEffect(()=>{end.current?.scrollIntoView({block:"nearest"});},[data?.turns.length,scope,pending?.id,busy]);
 
   async function send(retry?: Pending) {
-    if (lock.current || busy || (!retry && question.trim().length<2)) return;
+    if (!aiAvailable || lock.current || busy || (!retry && question.trim().length<2)) return;
     const next: Pending = retry ? {...retry,error:undefined,jobId:undefined} : {id:crypto.randomUUID(),question:question.trim(),createdAt:new Date().toISOString()};
     lock.current = true;
     setPending(next); setQuestion(""); setError("");
@@ -191,7 +193,7 @@ export function AIChat({campaignId, jobs, refreshJobs, initialContext, onContext
       <div ref={end}/>
     </div>
     {error && <p role="alert" className="ai-job-error">{error}</p>}
-    <form className="ai-chat-compose" onSubmit={e=>{e.preventDefault();if(includeCampaign||sessionIds.length)void send();}}><textarea ref={composer} aria-label="Вопрос AI" placeholder="Спросить о кампании или создать сущность…" onKeyDown={event=>{if(event.key==="Enter"&&(event.ctrlKey||event.metaKey)){event.preventDefault();if(!loading&&(includeCampaign||sessionIds.length))void send();}}} rows={2} maxLength={4000} required minLength={2} disabled={busy} value={question} onChange={e=>setQuestion(e.target.value)}/><button type="submit" title="Отправить вопрос" aria-label="Отправить вопрос" disabled={busy||loading||question.trim().length<2||(!includeCampaign&&!sessionIds.length)}><Send size={20}/></button></form><small className="ai-chat-disclaimer">{!includeCampaign&&!sessionIds.length ? "Выбери материалы кампании или хотя бы одну сессию." : "AI может ошибаться. Записи добавляются только после подтверждения."}</small>
+    <AIConnectionSummary onAvailable={setAIAvailable}/><form className="ai-chat-compose" onSubmit={e=>{e.preventDefault();if(includeCampaign||sessionIds.length)void send();}}><textarea ref={composer} aria-label="Вопрос AI" placeholder="Спросить о кампании или создать сущность…" onKeyDown={event=>{if(event.key==="Enter"&&(event.ctrlKey||event.metaKey)){event.preventDefault();if(!loading&&(includeCampaign||sessionIds.length))void send();}}} rows={2} maxLength={4000} required minLength={2} disabled={busy} value={question} onChange={e=>setQuestion(e.target.value)}/><button type="submit" title="Отправить вопрос" aria-label="Отправить вопрос" disabled={!aiAvailable||busy||loading||question.trim().length<2||(!includeCampaign&&!sessionIds.length)}><Send size={20}/></button></form><small className="ai-chat-disclaimer">{!includeCampaign&&!sessionIds.length ? "Выбери материалы кампании или хотя бы одну сессию." : "AI может ошибаться. Записи добавляются только после подтверждения."}</small>
     </div><aside className="ai-chat-inspector" aria-label="Материалы ответа">
       <header><Compass size={20}/><div><h3>Рабочая панель</h3><small>Материалы текущего ответа</small></div></header>
       <section><h4><BookOpen size={17}/>Найдено в контексте <span>{related.length}</span></h4>

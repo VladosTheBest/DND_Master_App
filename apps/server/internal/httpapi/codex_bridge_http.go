@@ -69,6 +69,10 @@ func (srv *server) handleCodexPrompt(writer http.ResponseWriter, request *http.R
 		return
 	}
 	input.CampaignID = strings.TrimSpace(input.CampaignID)
+	if srv.usesPersonalAI(user.ID) {
+		writeError(writer, 422, "codex_not_selected", "Сейчас выбран личный AI. Для этого действия выберите Codex в настройках.")
+		return
+	}
 	if err := srv.validateCodexImageTarget(user.ID, &input); err != nil {
 		writeProposalHTTPError(writer, err)
 		return

@@ -37,6 +37,8 @@ func ResetAccountPassword(dataFile string, username string, password string) err
 				return err
 			}
 			store.data.Users[index].PasswordHash = passwordHash
+			store.data.Users[index].AuthVersion++
+			store.data.Users[index].RecoveryCodes = nil
 			return store.saveMutationLocked(originalState)
 		}
 	}

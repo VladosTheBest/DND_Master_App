@@ -5,10 +5,10 @@ import "./session-dm-report.css";
 
 import { sections, basis, status, clock } from "./dm-report-content";
 
-export function SessionDMReport({ session, master, onMaster, onSource, sourceLabel, onAnalyze, busy }: {
+export function SessionDMReport({ session, master, onMaster, onSource, sourceLabel, onAnalyze, busy, unavailable = false }: {
   session: ImportedSession; master: string; onMaster: (name: string) => void;
   onSource: (source: SourceRange) => void; sourceLabel: (source: SourceRange) => string;
-  onAnalyze: () => void; busy: boolean;
+  onAnalyze: () => void; busy: boolean; unavailable?: boolean;
 }) {
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState("");
@@ -38,7 +38,7 @@ export function SessionDMReport({ session, master, onMaster, onSource, sourceLab
       {[["dm-summary", "За две минуты"], ["dm-statistics", "Статистика"], ...(report ? [["dm-scenes", "Хронология"], ["dm-feedback", "Отзывы"], ["dm-preparation", "К следующей игре"]] : [])].map(([id, title]) => <button key={id} onClick={() => document.getElementById(id)?.scrollIntoView({ block: "start", behavior: "auto" })}>{title}</button>)}
     </nav>
     <section id="dm-summary"><h3>Сессия за две минуты</h3><p className="dm-lead">{analysis?.summary || "Текст импортирован. Запустите анализ, чтобы получить итоги сессии и рекомендации."}</p></section>
-    {!report && <div className="dm-upgrade dm-no-print"><p>{analysis ? "Этот отчёт создан в прежнем формате. Повторный анализ добавит сцены, отзывы, сюжетные линии и рекомендации с источниками." : "Статистика доступна сразу. AI-разбор заполнит остальные разделы по содержанию расшифровки."}</p><button className="primary" disabled={busy} onClick={onAnalyze}>{busy ? "Анализируем…" : "Подготовить отчёт мастера"}</button></div>}
+    {!report && <div className="dm-upgrade dm-no-print"><p>{analysis ? "Этот отчёт создан в прежнем формате. Повторный анализ добавит сцены, отзывы, сюжетные линии и рекомендации с источниками." : "Статистика доступна сразу. AI-разбор заполнит остальные разделы по содержанию расшифровки."}</p><button className="primary" disabled={busy||unavailable} onClick={onAnalyze}>{busy ? "Анализируем…" : "Подготовить отчёт мастера"}</button></div>}
     <section id="dm-statistics"><h3>Запись и участие в разговоре</h3>
       <div className="dm-metrics"><div><strong>{diagnostics.lastSecond === null ? "—" : clock(diagnostics.lastSecond)}</strong><span>до последней реплики</span></div><div><strong>{diagnostics.utterances.toLocaleString("ru-RU")}</strong><span>реплик без точных дублей</span></div><div><strong>{allStats.length}</strong><span>говорящих в записи</span></div></div>
       <label className="dm-master dm-no-print">Мастер <select value={master} onChange={e => onMaster(e.target.value)}><option value="">Не выбран — показаны все</option>{allStats.map(s => <option key={s.name}>{s.name}</option>)}</select></label>

@@ -388,6 +388,7 @@ export function CodexConnectionPanel({
 }) {
   const [open, setOpen] = useState(connectionOnly);
   const [status, setStatus] = useState<CodexConnectionStatus | null>(null);
+  useEffect(()=>{if(status)window.dispatchEvent(new Event("shadow-edge:ai-settings"));},[status?.state,status?.authMode]);
   const [ceremony, setCeremony] = useState<CodexDeviceCodeResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -590,7 +591,7 @@ export function CodexConnectionPanel({
         <span className="codex-connection-orb" />
         <span>
           <small>Мой Codex · подписка ChatGPT</small>
-          <strong>{promptBusy ? `Codex готовит черновик · ${formatElapsed(elapsedSeconds)}` : promptOutcomeLabel || (status ? stateLabel[status.state] : "Проверяю Codex App Server…")}</strong>
+          <strong>{promptBusy ? `Codex готовит черновик · ${formatElapsed(elapsedSeconds)}` : promptOutcomeLabel || (status ? stateLabel[status.state] : "Проверяю подключение…")}</strong>
         </span>
         {status?.planType ? <em>{status.planType}</em> : null}
         <b aria-hidden="true">{open ? "⌃" : "⌄"}</b>
@@ -598,6 +599,7 @@ export function CodexConnectionPanel({
 
       {open ? (
         <div className="codex-connection-body">
+          {connectionOnly&&<ol className="copy"><li>Нажмите «Подключить ChatGPT».</li><li>Откройте официальный вход, вставьте одноразовый код и подтвердите свой аккаунт.</li><li>Вернитесь сюда: надпись «Подключено» подтвердит готовность. Окно можно закрыть.</li></ol>}
           <p className="codex-connection-message">Подключи свой ChatGPT один раз: анализ TXT сессий и генерация изображений через Codex будут использовать доступные лимиты этого аккаунта. API-ключ не нужен, автоматического перехода на платный API нет.</p>
           <p className="codex-connection-message">Доступность изображений зависит от аккаунта и инструментов Codex. Аудиозапись сначала нужно расшифровать в TXT — распознавание аудио этим подключением не выполняется.</p>
           {status?.message ? <p className="codex-connection-message">{status.message}</p> : null}

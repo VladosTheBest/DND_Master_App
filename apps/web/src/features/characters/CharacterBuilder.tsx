@@ -1,3 +1,4 @@
+import {CoverageStatus} from "./CoverageStatus";
 import { useDeviceDraft } from "../../app/hooks/useDeviceDraft";
 import { DeviceDraftControls } from "../../app/DeviceDraftControls";
 import { isEquipmentCombatSettings } from "./combat-equipment";
@@ -985,6 +986,7 @@ export function CharacterBuilder({
                 <h2>Выберите класс</h2>
                 <span>{CLASSES.length} путей</span>
               </div>
+              <CoverageStatus draft={draft} className={classOption?.name||"Выбранный класс"} features={derived.features}/>
               <div className="ch-choices ch-classes">
                 {CLASSES.filter((item) =>
                   item.editions.includes(draft.edition),

@@ -99,6 +99,9 @@ func (srv *server) analyzeSceneTopologyOnce(ctx context.Context, user authUser, 
 		}
 		message = result.Message
 	} else {
+		if srv.usesPersonalAI(user.ID) || srv.usesCodexAI(user.ID) {
+			return sessionMapLevelDocument{}, fmt.Errorf("Для распознавания карты выберите и подключите Codex. Другой платный API автоматически не включён.")
+		}
 		account, ok := srv.store.getUserByID(user.ID)
 		if !ok || !subscriptionActive(account.Subscription, time.Now()) {
 			return sessionMapLevelDocument{}, fmt.Errorf("Для анализа подключите Codex или активируйте подписку сайта.")

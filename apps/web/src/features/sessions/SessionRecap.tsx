@@ -1,8 +1,8 @@
 import type { SessionAnalysis } from "./sessions.api";
 
-export function SessionRecap({ analysis, busy, onAnalyze }: {
+export function SessionRecap({ analysis, busy, onAnalyze, unavailable = false }: {
   analysis?: SessionAnalysis;
-  busy: boolean;
+  busy: boolean; unavailable?: boolean;
   onAnalyze: () => void;
 }) {
   const recap = analysis?.recap?.trim();
@@ -16,7 +16,7 @@ export function SessionRecap({ analysis, busy, onAnalyze }: {
     {analysis?.summary && <div className="session-recap-lead"><span className="session-eyebrow">В ДВУХ СЛОВАХ</span><p>{analysis.summary}</p></div>}
     {recap ? <div className="session-recap-prose">{paragraphs.map((paragraph, index) => <p key={index}>{paragraph}</p>)}</div> : <div className="session-recap-empty">
       <p>{analysis ? "Краткий итог уже готов. Обновите анализ, чтобы прочитать всю историю сессии: от первых событий до того, на чём остановилась партия." : "Здесь будет связный рассказ о вашей игре: важные события, решения, встречи и их последствия. Его удобно перечитать перед следующей сессией."}</p>
-      <button className="primary" disabled={busy} onClick={onAnalyze}>{busy ? "Готовим разбор…" : analysis ? "Дополнить общим разбором" : "Создать разбор сессии"}</button>
+      <button className="primary" disabled={busy||unavailable} onClick={onAnalyze}>{busy ? "Готовим разбор…" : analysis ? "Дополнить общим разбором" : "Создать разбор сессии"}</button>
       <small>Разбор создаётся из сохранённой расшифровки вместе с хроникой и локациями.</small>
     </div>}
   </article>;

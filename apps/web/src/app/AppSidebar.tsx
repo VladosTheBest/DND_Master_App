@@ -110,6 +110,7 @@ export function AppSidebar({
         <div className="meta rail-meta">
           <small>{settingName} · {inWorldDate}</small>
           <AccountSettings />
+          {activeCampaignId&&<details><summary>Экспорт кампании</summary><small>JSON: записи, сцены, сессии и листы. Картинки и аудио остаются ссылками. Автоматическое восстановление из файла пока недоступно.</small><a href={`${import.meta.env.VITE_API_BASE_URL||""}/api/campaigns/${encodeURIComponent(activeCampaignId)}/export`} download>Скачать JSON</a></details>}
           <SubscriptionButton/><FeedbackButton/>
           <button className="ghost rail-logout" disabled={authBusy} onClick={onLogout} type="button">
             {authBusy ? "Выходим..." : "Выйти"}

@@ -92,6 +92,10 @@ func (m *foundryManager) actorPortrait(w http.ResponseWriter, r *http.Request, c
 }
 
 func (m *foundryManager) generateActorPortrait(w http.ResponseWriter, ctx context.Context, c foundryConnection, e knowledgeEntity) {
+	if m.srv.usesPersonalAI(c.OwnerID) || m.srv.usesCodexAI(c.OwnerID) {
+		writeError(w, 422, "ai_image_unsupported", "Это подключение не создаёт Foundry-портреты. Загрузите изображение вручную.")
+		return
+	}
 	g, ok := m.srv.generator.(openAIGenerator)
 	if !ok || g.config.apiToken == "" {
 		writeError(w, 503, "image_api_unavailable", "Провайдер изображений не настроен.")

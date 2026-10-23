@@ -35,15 +35,18 @@ type authManager struct {
 	mu sync.Mutex
 	// sessions is the authoritative allowlist for both browser and ephemeral
 	// bridge tokens. Cookies are opaque references and are never self-validating.
-	sessions map[string]authSession
+	sessions         map[string]authSession
+	recoveryAttempts map[string]recoveryWindow
 }
 
 type authUser struct {
-	ID       string
-	Username string
+	ID          string
+	Username    string
+	AuthVersion int
 }
 
 type authSession struct {
+	AuthVersion     int
 	AdminEmail      string
 	AdminUntil      time.Time
 	AuthenticatedAt time.Time
@@ -138,8 +141,12 @@ func (manager *authManager) currentUser(request *http.Request) (authUser, bool) 
 	if !ok {
 		return authUser{}, false
 	}
+	account, exists := manager.accounts.getUserByID(session.UserID)
+	if !exists || account.AuthVersion != session.AuthVersion {
+		return authUser{}, false
+	}
 
-	return authUser{ID: session.UserID, Username: session.Username}, true
+	return authUser{ID: session.UserID, Username: session.Username, AuthVersion: session.AuthVersion}, true
 }
 
 func (manager *authManager) handleSession(writer http.ResponseWriter, request *http.Request) {
@@ -167,6 +174,7 @@ func (manager *authManager) handleSession(writer http.ResponseWriter, request *h
 			if previous, exists := manager.sessions[cookie.Value]; exists && previous.UserID == user.ID {
 				delete(manager.sessions, cookie.Value)
 				manager.sessions[token] = authSession{
+					AuthVersion:     previous.AuthVersion,
 					AdminEmail:      previous.AdminEmail,
 					AdminUntil:      previous.AdminUntil,
 					AuthenticatedAt: previous.AuthenticatedAt,
@@ -209,7 +217,7 @@ func (manager *authManager) handleLogin(writer http.ResponseWriter, request *htt
 		return
 	}
 
-	manager.writeAuthenticatedSession(writer, request, authUser{ID: user.ID, Username: user.Username})
+	manager.writeAuthenticatedSession(writer, request, authUser{ID: user.ID, Username: user.Username, AuthVersion: user.AuthVersion})
 }
 
 func (manager *authManager) handleRegister(writer http.ResponseWriter, request *http.Request) {
@@ -235,7 +243,7 @@ func (manager *authManager) handleRegister(writer http.ResponseWriter, request *
 		return
 	}
 
-	manager.writeAuthenticatedSession(writer, request, authUser{ID: user.ID, Username: user.Username})
+	manager.writeAuthenticatedSession(writer, request, authUser{ID: user.ID, Username: user.Username, AuthVersion: user.AuthVersion})
 }
 
 func (manager *authManager) writeAuthenticatedSession(writer http.ResponseWriter, request *http.Request, user authUser) {
@@ -249,6 +257,7 @@ func (manager *authManager) writeAuthenticatedSession(writer http.ResponseWriter
 	manager.mu.Lock()
 	manager.cleanupExpiredLocked(time.Now())
 	manager.sessions[token] = authSession{
+		AuthVersion:     user.AuthVersion,
 		AuthenticatedAt: time.Now(),
 		UserID:          user.ID,
 		Username:        user.Username,
@@ -277,7 +286,7 @@ func (manager *authManager) issueEphemeralSession(user authUser, expiresAt time.
 	token := "ephemeral_" + random
 	manager.mu.Lock()
 	manager.cleanupExpiredLocked(time.Now())
-	manager.sessions[token] = authSession{UserID: user.ID, Username: user.Username, ExpiresAt: expiresAt}
+	manager.sessions[token] = authSession{UserID: user.ID, Username: user.Username, AuthVersion: user.AuthVersion, ExpiresAt: expiresAt}
 	manager.mu.Unlock()
 	return token, nil
 }

@@ -232,10 +232,10 @@ export default function CharacterPublicApp({ hash }: { hash: string }) {
       </header>
       {mode === "new" && !invalidRoute && (
         <section className="ch-local-library">
-          <h2>Мои готовые персонажи</h2>
+          <h2>Персонажи на этом устройстве</h2>
           <p>
             Откройте сохранённого героя, чтобы скачать PDF, поделиться им или
-            экспортировать в Foundry. Этот список хранится в текущем браузере.
+            экспортировать в Foundry. Список хранится только в текущем браузере и не переносится входом в аккаунт. Для другого устройства скачайте JSON листа и откройте его кнопкой ниже. Лист по приглашению мастера хранится отдельно в его кампании.
           </p>
           <div className="ch-inline-actions">
             {legacyDraft && localCharacters.length === 0 && (
@@ -407,7 +407,7 @@ export default function CharacterPublicApp({ hash }: { hash: string }) {
                 setNotice("");
               }
             }}
-            savedLabel={saved ? "Сохранён в кампании" : "Готовый персонаж"}
+            savedLabel={saved ? "В кампании мастера" : "На этом устройстве"}
           />
         </div>
       ) : (

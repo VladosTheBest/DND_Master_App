@@ -1,3 +1,4 @@
+import {AIConnectionSummary} from "../ai-jobs/PersonalAISettings";
 import { useWorkspaceListState, readWorkspaceRoute } from "../../app/workspace-route";
 import { useDeviceDraft } from "../../app/hooks/useDeviceDraft";
 import { useDraftOwner } from "../../app/hooks/useDraftOwner";
@@ -98,6 +99,7 @@ export function SessionsPage({
   const sessionJobs = background.jobs.filter(job => job.kind === "session");
   const activeJobs = sessionJobs.filter(isActiveJob);
   const busyId = startingId || activeJobs.find(job => job.sessionId === selected?.id)?.sessionId || "";
+  const [aiAvailable,setAIAvailable]=useState(false);
   const analysisUnavailable = Boolean(busyId || background.loading || background.error);
   const observedJobs = useRef(new Set<string>());
   const [speechFilter, setSpeechFilter] = useWorkspaceListState<SpeechKind | "all">("sessions.speech","all");
@@ -294,7 +296,7 @@ export function SessionsPage({
     }
   };
   const analyze = async () => {
-    if (!selected || analysisUnavailable) return;
+    if (!selected || analysisUnavailable || !aiAvailable) return;
     const id = selected.id;
     setStartingId(id);
     setError("");
@@ -426,14 +428,14 @@ export function SessionsPage({
       <nav className={workspaceStyles.steps} aria-label="Работа с сессией">
         <div aria-current={!selected&&!draft?"step":undefined}><button onClick={()=>fileRef.current?.click()}>1. Загрузить текст</button><small>Один или несколько TXT</small></div>
         <div aria-current={draft?"step":undefined}><button disabled={!draft&&!selected} onClick={()=>{if(draft)document.querySelector(".session-import-parts")?.scrollIntoView({block:"center"});else setTab("Полный текст");}}>2. Проверить текст и участников</button></div>
-        <div aria-current={selected&&!selected.analysis?"step":undefined}><button disabled={!selected||analysisUnavailable} onClick={()=>void analyze()}>3. Анализировать</button><small>Запускается только по нажатию</small></div>
+        <div aria-current={selected&&!selected.analysis?"step":undefined}><button disabled={!selected||analysisUnavailable||!aiAvailable} onClick={()=>void analyze()}>3. Анализировать</button><small>Запускается только по нажатию</small></div>
         <div aria-current={selected?.analysis?"step":undefined}><button disabled={!selected?.analysis} onClick={()=>setTab("Обзор")}>4. Проверить изменения</button><small>Отчёт сохранён отдельно; предложения применяются вручную</small></div>
         <div><button disabled={!selected?.analysis} onClick={()=>setTab("Мастеру")}>5. Подготовить следующую игру</button></div>
       </nav>
       <header className="sessions-heading">
         <div>
           <span className="session-eyebrow">ХРОНИКИ КАМПАНИИ</span>
-          <h1>
+          <AIConnectionSummary feature="sessionAnalysis" onAvailable={setAIAvailable}/><h1>
             Сессии<span>{sessions.length}</span>
           </h1>
           <p>Всё, что случилось за игровым столом.</p>
@@ -625,7 +627,7 @@ export function SessionsPage({
                 </div>
                 <button
                   className="primary"
-                  disabled={analysisUnavailable}
+                  disabled={analysisUnavailable||!aiAvailable}
                   onClick={() => void analyze()}
                 >
                   {busyId === selected.id
@@ -652,10 +654,10 @@ export function SessionsPage({
                 ))}
               </nav>
               <div className="session-tab-content" key={tab}>
-                {tab === "Мастеру" && <SessionDMReport session={selected} master={master} onMaster={name => { setMaster(name); browserStorage.setItem(`session-gm:${campaignId}:${selected.id}`, name); }} onSource={openSource} sourceLabel={sourceLabel} onAnalyze={() => void analyze()} busy={analysisUnavailable} />}
+                {tab === "Мастеру" && <SessionDMReport session={selected} master={master} onMaster={name => { setMaster(name); browserStorage.setItem(`session-gm:${campaignId}:${selected.id}`, name); }} onSource={openSource} sourceLabel={sourceLabel} onAnalyze={() => void analyze()} busy={analysisUnavailable} unavailable={!aiAvailable} />}
                 {tab === "Обзор" && (
                   <>
-                    <SessionRecap analysis={selected.analysis} busy={analysisUnavailable} onAnalyze={() => void analyze()} />
+                    <SessionRecap analysis={selected.analysis} busy={analysisUnavailable} unavailable={!aiAvailable} onAnalyze={() => void analyze()} />
                     <div className="session-detail-intro"><h3>Подробнее о приключении</h3><p className="session-muted">Выберите раздел: внутри — детали и ссылки на исходные реплики.</p></div>
                     <div className="session-overview-categories">
                       {journalKinds.map(category => <button key={category.id} onClick={() => { setJournalCategory(category.id); setTab("Хроника"); }}><span>{category.icon}</span><strong>{selected.analysis?.journal?.entries.filter(entry => entry.kind === category.id).length ?? "—"}</strong><small>{category.label}</small></button>)}
@@ -717,7 +719,7 @@ export function SessionsPage({
                     )}
                   </>
                 )}
-                {(tab === "Хроника" || tab === "Локации") && <SessionJournal key={`${selected.id}:${tab}`} journal={selected.analysis?.journal} byLocation={tab === "Локации"} onSource={openSource} sourceLabel={sourceLabel} onAnalyze={() => void analyze()} busy={analysisUnavailable} initialKind={tab === "Хроника" ? journalCategory : ""} />}
+                {(tab === "Хроника" || tab === "Локации") && <SessionJournal key={`${selected.id}:${tab}`} journal={selected.analysis?.journal} byLocation={tab === "Локации"} onSource={openSource} sourceLabel={sourceLabel} onAnalyze={() => void analyze()} busy={analysisUnavailable} unavailable={!aiAvailable} initialKind={tab === "Хроника" ? journalCategory : ""} />}
                 {tab === "Игроки" && (
                   <>
                     <div className="session-player-tabs" aria-label="Участники">

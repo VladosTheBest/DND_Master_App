@@ -187,7 +187,7 @@ func TestOAuthLinkReplacePreservesLegacyOwnership(t *testing.T) {
 		t.Fatal(e)
 	}
 	rec := httptest.NewRecorder()
-	m.writeAuthenticatedSession(rec, httptest.NewRequest("POST", "https://app.example", nil), authUser{legacy.ID, legacy.Username})
+	m.writeAuthenticatedSession(rec, httptest.NewRequest("POST", "https://app.example", nil), authUser{ID: legacy.ID, Username: legacy.Username})
 	session := sessionCookie(rec)
 	owner := store.data.Campaigns[0].OwnerID
 	fakeOAuthIdentity(t, m, "google", "old-subject")
@@ -228,7 +228,7 @@ func TestOAuthLinkConflictAndChangedSession(t *testing.T) {
 		t.Fatal("identity stolen")
 	}
 	rec := httptest.NewRecorder()
-	m.writeAuthenticatedSession(rec, httptest.NewRequest("POST", "https://app.example", nil), authUser{b.ID, b.Username})
+	m.writeAuthenticatedSession(rec, httptest.NewRequest("POST", "https://app.example", nil), authUser{ID: b.ID, Username: b.Username})
 	session := sessionCookie(rec)
 	calls := fakeOAuthIdentity(t, m, "google", "other")
 	state, binding := oauthStart(t, m, "google", "?link=1", session)
@@ -362,9 +362,13 @@ func TestOAuthReplacementRollbackAndNoCredentialPersistence(t *testing.T) {
 }
 
 func TestOAuthSessionRotationDoesNotRenewReplacementAuthentication(t *testing.T) {
-	m, _ := oauthTestManager(t)
+	m, store := oauthTestManager(t)
+	account, err := store.createUser("test-user", "secret123")
+	if err != nil {
+		t.Fatal(err)
+	}
 	rec := httptest.NewRecorder()
-	m.writeAuthenticatedSession(rec, httptest.NewRequest("POST", "https://app.example", nil), authUser{"test-id", "test-user"})
+	m.writeAuthenticatedSession(rec, httptest.NewRequest("POST", "https://app.example", nil), authUser{ID: account.ID, Username: account.Username})
 	cookie := sessionCookie(rec)
 	m.mu.Lock()
 	session := m.sessions[cookie.Value]

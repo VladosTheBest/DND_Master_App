@@ -250,11 +250,11 @@ func (m *foundryManager) actorAI(w http.ResponseWriter, r *http.Request, c found
 	cached := !input.Force && profile != nil && profile.Version >= 10 && profile.Language == input.Language && profile.SourceHash == hash && profile.Mode == input.Mode && profile.Edition == input.Edition && profile.Instructions == input.Instructions && profile.AnimationCatalogHash == foundryHash(input.AnimationOptions)
 	if !cached {
 		account, ok := s.getUserByID(c.OwnerID)
-		if !ok || !subscriptionActive(account.Subscription, time.Now()) {
+		if !ok || !subscriptionActive(account.Subscription, time.Now()) && !m.srv.usesPersonalAI(c.OwnerID) && !m.srv.usesCodexAI(c.OwnerID) {
 			writeError(w, 402, "subscription_required", "AI-настройка доступна с активной подпиской сайта.")
 			return
 		}
-		generator, ok := m.srv.generator.(chatCompletion)
+		generator, ok := m.srv.generatorFor(c.OwnerID).(chatCompletion)
 		if !ok {
 			writeError(w, 503, "ai_unavailable", "На сайте не настроен текстовый AI-провайдер.")
 			return

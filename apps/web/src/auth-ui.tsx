@@ -1,3 +1,4 @@
+import {PasswordRecovery} from "./app/PasswordRecovery";
 import { browserStorage } from "./app/browser-storage";
 import { useEffect, useState, type FormEvent } from "react";
 import loginBgUrl from "./assets/login-bg.jpg";
@@ -348,7 +349,7 @@ export function LoginScreen({
                 <span />
               </div>
 
-              <OAuthControls />
+              <PasswordRecovery/><OAuthControls />
               <p className="copy login-player-hint">Играете у другого мастера? Откройте его ссылку-приглашение.</p>
             </form>
           </div>

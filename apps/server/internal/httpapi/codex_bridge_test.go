@@ -1524,6 +1524,7 @@ func TestCodexBridgeHelperProcess(t *testing.T) {
 	_, connectedMarkerErr := os.Stat(filepath.Join(homeDir, "helper-connected"))
 	connected := connectedMarkerErr == nil
 	terminalOnInterrupt := false
+	textOnlyThread := false
 	scanner := bufio.NewScanner(os.Stdin)
 	for scanner.Scan() {
 		var request struct {
@@ -1584,8 +1585,10 @@ func TestCodexBridgeHelperProcess(t *testing.T) {
 			}})
 		case "thread/start":
 			var params struct {
-				Ephemeral bool   `json:"ephemeral"`
-				Model     string `json:"model"`
+				Ephemeral             bool           `json:"ephemeral"`
+				Model                 string         `json:"model"`
+				DeveloperInstructions string         `json:"developerInstructions"`
+				Config                map[string]any `json:"config"`
 			}
 			if json.Unmarshal(request.Params, &params) != nil || !params.Ephemeral {
 				writeCodexHelperError(request.ID, -32602, "thread must be ephemeral")
@@ -1594,6 +1597,13 @@ func TestCodexBridgeHelperProcess(t *testing.T) {
 			if params.Model != "" && params.Model != "gpt-5.3-codex-spark" {
 				writeCodexHelperError(request.ID, -32602, "unexpected model")
 				continue
+			}
+			textOnlyThread = strings.Contains(params.DeveloperInstructions, "read-only D&D assistant")
+			if textOnlyThread {
+				if params.Config["mcp_servers.dnd_master.enabled"] != false || params.Config["mcp_servers.dnd_master.required"] != false {
+					writeCodexHelperError(request.ID, -32602, "write tools enabled for text turn")
+					continue
+				}
 			}
 			writeCodexHelperMessage(request.ID, map[string]any{"thread": map[string]any{"id": "thread-test"}})
 		case "thread/resume":
@@ -1609,6 +1619,19 @@ func TestCodexBridgeHelperProcess(t *testing.T) {
 			inputText := ""
 			if len(turnParams.Input) > 0 {
 				inputText = turnParams.Input[0].Text
+			}
+			if strings.Contains(inputText, "structured-text-fixture") {
+				var params struct {
+					OutputSchema map[string]any `json:"outputSchema"`
+				}
+				_ = json.Unmarshal(request.Params, &params)
+				status := "completed"
+				if !textOnlyThread || params.OutputSchema == nil {
+					status = "failed"
+				}
+				writeCodexHelperNotification("item/completed", map[string]any{"threadId": "thread-test", "turnId": "turn-test", "item": map[string]any{"type": "agentMessage", "text": `{"answer":"ok"}`}})
+				writeCodexHelperNotification("turn/completed", map[string]any{"threadId": "thread-test", "turn": map[string]any{"id": "turn-test", "status": status}})
+				continue
 			}
 			if inputText == "Inspect this generated map background." {
 				var params struct {
@@ -1832,5 +1855,38 @@ func TestCodexSessionExtractionSendsBoundedSchemaOverRPC(t *testing.T) {
 	}
 	if _, err := extractSessionNotes(result.Message, 1000); err != nil {
 		t.Fatal(err)
+	}
+}
+func TestCodexStructuredTextUsesNoWriteTools(t *testing.T) {
+	t.Setenv("GO_WANT_CODEX_BRIDGE_HELPER", "1")
+	store, err := newCampaignStore(filepath.Join(t.TempDir(), "store.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	account, err := store.createUser("structured-codex", "a-valid-password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	auth, err := newAuthManager(AuthOptions{SessionTTL: time.Hour}, store)
+	if err != nil {
+		t.Fatal(err)
+	}
+	manager := newCodexBridgeManager(CodexBridgeOptions{Enabled: true, Command: os.Args[0], Args: []string{"-test.run=TestCodexBridgeHelperProcess"}, HomeRoot: filepath.Join(t.TempDir(), "homes"), MCPCommand: os.Args[0], MCPArgs: []string{"fake-mcp"}, InternalBaseURL: "http://127.0.0.1:8080", RequestTimeout: 5 * time.Second, MaxUserProcesses: 2}, auth)
+	user := authUser{ID: account.ID, Username: account.Username}
+	defer manager.stopBridge(user.ID)
+	if _, err = manager.startDeviceCode(context.Background(), user); err != nil {
+		t.Fatal(err)
+	}
+	result, err := manager.runPromptOnce(context.Background(), user, codexPromptInput{Prompt: "structured-text-fixture", TextSchema: map[string]any{"type": "object", "properties": map[string]any{"answer": map[string]any{"type": "string"}}, "required": []string{"answer"}, "additionalProperties": false}})
+	if err != nil || result.Message != `{"answer":"ok"}` {
+		t.Fatal(result.Message, err)
+	}
+	if len(store.data.AIProposals) != 0 {
+		t.Fatal("text turn wrote proposals")
+	}
+	var input codexPromptInput
+	_ = json.Unmarshal([]byte(`{"prompt":"x","TextSchema":{"type":"object"}}`), &input)
+	if input.TextSchema != nil {
+		t.Fatal("internal text schema exposed")
 	}
 }

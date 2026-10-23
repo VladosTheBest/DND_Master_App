@@ -78,7 +78,7 @@ export function SubscriptionDialog() {
           <p className="subscription-coming"><CreditCard size={16} /> Подключение скоро</p>
         </article>)}
       </div>
-      <footer className="subscription-footer"><strong>Готовим запуск оплаты</strong><p>Сейчас оформить подписку нельзя. Показаны планируемые месячные пакеты; числовые квоты ещё не включены. Изображения и длинный AI-анализ будут учитываться отдельно. Облачная запись и расшифровка пока недоступны.</p><p>Личная подписка ChatGPT не заменяет подписку Shadow Edge GM.</p></footer>
+      <footer className="subscription-footer"><strong>Готовим запуск оплаты</strong><p>Сейчас оформить подписку нельзя. Показаны планируемые месячные пакеты; числовые квоты ещё не включены. Изображения и длинный AI-анализ будут учитываться отдельно. Облачная запись и расшифровка пока недоступны.</p><p>AI уже можно использовать через Codex с вашим ChatGPT или через личный ключ другого сервиса. Для этих подключений подписка сайта не нужна.</p><button type="button" onClick={()=>{setOpen(false);window.dispatchEvent(new Event("shadow-edge:open-account-settings"));}}>Подключить свой AI</button></footer>
     </>}
   </dialog>, document.body);
 }

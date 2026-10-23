@@ -211,7 +211,7 @@ func generateEncounterFallback(input generateCombatInput, challenge string, chal
 }
 
 func (srv *server) generateEncounterRoster(campaign campaignData, input generateCombatInput, challenge string, challengeXP int) (generateEncounterDraftResult, error) {
-	if generator, ok := srv.generator.(encounterGenerator); ok {
+	if generator, ok := srv.generatorFor(campaign.OwnerID).(encounterGenerator); ok {
 		return generator.GenerateEncounter(campaign, input)
 	}
 

@@ -1,10 +1,11 @@
+import {RecoveryCodes} from "./PasswordRecovery";
+const PersonalAISettings=lazy(()=>import("../features/ai-jobs/PersonalAISettings").then(module=>({default:module.PersonalAISettings})));
 import googleIcon from "../assets/oauth/google-g.png";
 import discordIcon from "../assets/oauth/discord-symbol.svg";
-import { useEffect, useRef, useState } from "react";
+import {lazy,Suspense, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { OAuthProviderStatus } from "@shadow-edge/shared-types";
 import { api } from "./api";
-import { CodexConnectionPanel } from "../features/ai-proposals/CodexConnectionPanel";
 import "../features/ai-proposals/ai-proposals.css";
 import "./oauth.css";
 import { SubscriptionButton } from "./SubscriptionDialog";
@@ -66,6 +67,7 @@ export function OAuthControls({ account = false }: { account?: boolean }) {
 
 export function AccountSettings() {
   const [open, setOpen] = useState(new URLSearchParams(window.location.search).has("oauth"));
+  useEffect(()=>{const show=()=>setOpen(true);window.addEventListener("shadow-edge:open-account-settings",show);return()=>window.removeEventListener("shadow-edge:open-account-settings",show);},[]);
   const dialog = useRef<HTMLDialogElement>(null);
   const close = () => {
     setOpen(false);
@@ -82,9 +84,9 @@ export function AccountSettings() {
     {createPortal(<dialog ref={dialog} className="panel oauth-settings" aria-label="Настройки аккаунта" onCancel={close}>
       {open ? <>
         <h2>Настройки аккаунта</h2>
-        <CodexConnectionPanel connectionOnly />
-        <h3>Вход в приложение</h3>
-        <OAuthControls account />
+        <Suspense fallback={<p role="status">Открываю подключения AI…</p>}><PersonalAISettings/></Suspense>
+        <Suspense fallback={<p>Открываю настройки восстановления…</p>}><RecoveryCodes/></Suspense>
+        <details open={new URLSearchParams(window.location.search).has("oauth")||undefined}><summary>Способы входа · Google / Discord</summary><OAuthControls account /></details>
         <button className="ghost" type="button" onClick={close}>Закрыть</button>
       </> : null}
     </dialog>, document.body)}

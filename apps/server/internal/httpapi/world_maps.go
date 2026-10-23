@@ -293,6 +293,10 @@ func (srv *server) handleWorldMaps(w http.ResponseWriter, r *http.Request, user 
 }
 
 func (srv *server) generateWorldMap(w http.ResponseWriter, r *http.Request, user authUser, campaign campaignData) {
+	if srv.usesPersonalAI(user.ID) {
+		writeError(w, 422, "ai_image_unsupported", "Личное подключение пока работает с текстом. Для изображения выберите Codex в настройках AI.")
+		return
+	}
 	var input worldMapGenerateInput
 	if !boundedMutationInput(w, r, &input, 32768) {
 		return
@@ -396,6 +400,10 @@ func (srv *server) generateWorldMap(w http.ResponseWriter, r *http.Request, user
 			return
 		}
 		connected = s.State == "connected" && s.AuthMode == "chatgpt"
+	}
+	if srv.usesCodexAI(user.ID) && !connected {
+		writeError(w, 422, "codex_required", "Подключите ChatGPT в настройках AI. Платный API автоматически не включён.")
+		return
 	}
 	var result mapGenerationResult
 	var err error

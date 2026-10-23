@@ -42,6 +42,10 @@ func (srv *server) handleCharacterPortrait(w http.ResponseWriter, r *http.Reques
 		writeError(w, 403, "origin_not_allowed", "Источник запроса не разрешён.")
 		return
 	}
+	if srv.usesPersonalAI(user.ID) || srv.usesCodexAI(user.ID) {
+		writeError(w, 422, "ai_image_unsupported", "Это подключение пока не создаёт портреты персонажей. Можно загрузить готовое изображение.")
+		return
+	}
 	account, ok := srv.store.getUserByID(user.ID)
 	if !ok || !subscriptionActive(account.Subscription, time.Now()) {
 		writeError(w, 402, "subscription_required", "Для генерации портрета войдите в аккаунт с активной подпиской. Загрузка изображения доступна всем.")

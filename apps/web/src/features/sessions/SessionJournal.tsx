@@ -4,13 +4,13 @@ import { filterJournal, journalKinds } from "./session-journal";
 
 const statusLabels = { confirmed: "Произошло", planned: "Только план", uncertain: "Нужно уточнить" };
 
-export function SessionJournal({ journal, byLocation, onSource, sourceLabel, onAnalyze, busy, initialKind = "" }: {
+export function SessionJournal({ journal, byLocation, onSource, sourceLabel, onAnalyze, busy, unavailable = false, initialKind = "" }: {
   journal?: Journal;
   byLocation: boolean;
   onSource: (source: SourceRange) => void;
   sourceLabel: (source: SourceRange) => string;
   onAnalyze: () => void;
-  busy: boolean;
+  busy: boolean; unavailable?: boolean;
   initialKind?: string;
 }) {
   const [kind, setKind] = useState(initialKind);
@@ -22,7 +22,7 @@ export function SessionJournal({ journal, byLocation, onSource, sourceLabel, onA
       <span className="session-empty-icon">✦</span>
       <h3>Соберём приключение по главам</h3>
       <p>События, важные диалоги, добыча, открытия и встречи — отдельно для каждого места. Обновите анализ, чтобы добавить хронику и разделение игровой речи.</p>
-      <button className="primary" disabled={busy} onClick={onAnalyze}>✦ Собрать хронику</button>
+      <button className="primary" disabled={busy||unavailable} onClick={onAnalyze}>✦ Собрать хронику</button>
     </section>
   );
   const activeLocation = journal.locations.find(item => item.id === location);
