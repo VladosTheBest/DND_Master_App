@@ -1,3 +1,4 @@
+import { AIJobsFeed } from "./ai-jobs-feed";
 import type {
   AIJob,
   AIProposal,
@@ -184,7 +185,30 @@ export const requestJson = async <T>(input: RequestInfo | URL, init?: RequestIni
 };
 
 
-export const createHttpApiClient = (baseUrl: string): ApiClient => {
+export const createHttpApiClient = (baseUrl: string, options:{workspace?:boolean}={}): ApiClient => {
+ const campaignCache=new Map<string,CampaignData>();
+ const validators=new Map<string,string>();
+ const request = async<T>(url:string,init?:RequestInit):Promise<T>=>{
+  if(!options.workspace||!url.includes("/api/campaigns/"))return requestJson<T>(url,init);
+  const headers=new Headers(init?.headers);headers.set("X-Workspace-View","compact");
+  const campaignId=decodeURIComponent(url.split("/api/campaigns/")[1].split(/[/?]/)[0]);
+  const isCampaignGet=(init?.method||"GET")==="GET"&&url===`${baseUrl}/api/campaigns/${campaignId}`;
+  if(isCampaignGet&&campaignCache.has(campaignId)&&validators.has(campaignId))headers.set("If-None-Match",validators.get(campaignId)!);
+  const response=await fetchWithSessionRecovery(url,{...init,headers});
+  if(response.status===304&&isCampaignGet)return campaignCache.get(campaignId) as T;
+  let data=await ensureJson<any>(response);
+  async function expand(value:any){if(!value||value.id!==campaignId||typeof value.revision!=="number")return value;
+   if(typeof value.__baseRevision==="number"){const cached=campaignCache.get(campaignId);if(!cached||cached.revision!==value.__baseRevision){return request<CampaignData>(`${baseUrl}/api/campaigns/${campaignId}`);}
+    const {__baseRevision,__collections,...delta}=value;value={...cached,...delta};
+    if(__collections)for(const [key,patch] of Object.entries(__collections) as [string,{upsert:any[];remove:string[];order?:string[]}][]){const byId=new Map((cached as any)[key]?.map((item:any)=>[item.id,item])||[]);for(const id of patch.remove)byId.delete(id);for(const item of patch.upsert)byId.set(item.id,item);value[key]=patch.order?patch.order.map(id=>byId.get(id)):[...byId.values()];}
+   }
+   campaignCache.set(campaignId,value);return value;
+  }
+  if(data?.campaign)data.campaign=await expand(data.campaign);else if(data?.id===campaignId)data=await expand(data);
+  if(isCampaignGet&&response.headers.get("ETag"))validators.set(campaignId,response.headers.get("ETag")!);else if((init?.method||"GET")!=="GET")validators.delete(campaignId);
+  return data as T;
+ };
+
   const sessionUrl = `${baseUrl}/api/auth/session`;
   const proposalRoutes = aiProposalRoutes(baseUrl);
   const codexRoutes = codexBridgeRoutes(baseUrl);
@@ -194,67 +218,72 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
     return ensureJson<T>(response);
   };
 
-  const startGeneration = (url: string, init?: RequestInit) => requestJson<AIJob>(url, {
+  const startGeneration = (url: string, init?: RequestInit) => request<AIJob>(url, {
     ...init, headers: { "Content-Type": "application/json", ...init?.headers, Prefer: "respond-async" }
   });
+  const jobsFeed=new AIJobsFeed(()=>request<AIJob[]>(`${baseUrl}/api/ai/jobs`));
+  let owner="";
   const requestGeneration = async <T>(url: string, init?: RequestInit): Promise<T> => {
-    let job = await startGeneration(url, init);
-    let pollFailures = 0;
-    while (job.state === "queued" || job.state === "running") {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      try {
-        job = await requestJson<AIJob>(`${baseUrl}/api/ai/jobs/${encodeURIComponent(job.id)}`);
-        pollFailures = 0;
-      } catch (error) {
-        if (++pollFailures < 5 && !(isApiError(error) && (error.status === 401 || error.status === 404))) continue;
-        throw new ApiError("Задача принята сервером, но её статус сейчас недоступен. Не запускай её повторно: после восстановления связи открой «Задачи AI».", 503, "ai_job_status_unavailable");
-      }
+    let job=await startGeneration(url,init);
+    if(job.state==="queued"||job.state==="running"){
+      try { await jobsFeed.wait(job.id,init?.signal||undefined); job=await request<AIJob>(`${baseUrl}/api/ai/jobs/${encodeURIComponent(job.id)}`,{signal:init?.signal}); }
+      catch(error){if(error instanceof Error&&error.name==="AbortError")throw error;throw new ApiError("Задача принята сервером, но её статус сейчас недоступен. Не запускай её повторно: после восстановления связи открой «Задачи AI».",503,"ai_job_status_unavailable");}
     }
-    if (job.state === "failed" || job.result?.error) {
-      throw new ApiError(job.result?.error?.message || job.stage, job.httpStatus || 500, job.result?.error?.code || "ai_job_failed");
-    }
+    if(job.state==="failed"||job.result?.error)throw new ApiError(job.result?.error?.message||job.stage,job.httpStatus||500,job.result?.error?.code||"ai_job_failed");
     return job.result?.data as T;
   };
 
   return {
+    subscribeAIJobs:jobsFeed.subscribe,
+    getAIJobsSnapshot:jobsFeed.getSnapshot,
+    refreshAIJobs:jobsFeed.refresh,
+    resetAIJobs:()=>jobsFeed.reset(),
     async getSession() {
-      return requestJson<AuthSessionResult>(sessionUrl);
+      const session=await request<AuthSessionResult>(sessionUrl);const next=session.userId||"";if(next!==owner){owner=next;campaignCache.clear();validators.clear();jobsFeed.reset();}return session;
     },
     async getOAuthProviders() {
-      return requestJson<OAuthProviderStatus[]>(`${baseUrl}/api/auth/oauth/providers`);
+      return request<OAuthProviderStatus[]>(`${baseUrl}/api/auth/oauth/providers`);
     },
     async startOAuth(provider, link = false, replace = false) {
       const query = new URLSearchParams();
       if (link) query.set("link", "1");
       if (replace) query.set("replace", "1");
-      return requestJson<{ url: string }>(`${baseUrl}/api/auth/oauth/${provider}/start?${query}`, { method: "POST" });
+      return request<{ url: string }>(`${baseUrl}/api/auth/oauth/${provider}/start?${query}`, { method: "POST" });
     },
   async login(input) {
-    return requestJson<AuthSessionResult>(`${baseUrl}/api/auth/login`, {
+    jobsFeed.reset();
+    return request<AuthSessionResult>(`${baseUrl}/api/auth/login`, {
       method: "POST",
       body: JSON.stringify(input satisfies LoginInput)
     });
   },
   async register(input) {
-    return requestJson<AuthSessionResult>(`${baseUrl}/api/auth/register`, {
+    jobsFeed.reset();
+    return request<AuthSessionResult>(`${baseUrl}/api/auth/register`, {
       method: "POST",
       body: JSON.stringify(input satisfies RegisterInput)
     });
   },
   async logout() {
-    return requestJson<AuthSessionResult>(`${baseUrl}/api/auth/logout`, {
+    owner="";campaignCache.clear();validators.clear();jobsFeed.reset();
+    return request<AuthSessionResult>(`${baseUrl}/api/auth/logout`, {
       method: "POST"
     });
   },
   async listCampaigns() {
-    return requestJson<CampaignSummary[]>(`${baseUrl}/api/campaigns`);
+    return request<CampaignSummary[]>(`${baseUrl}/api/campaigns`);
   },
 
   async listReadyCampaignTemplates() {
-    return requestJson<ReadyCampaignTemplate[]>(`${baseUrl}/api/campaign-templates`);
+    return request<ReadyCampaignTemplate[]>(`${baseUrl}/api/campaign-templates`);
+  },
+  async getCombatSnapshot(campaignId,etag) {
+   const headers:Record<string,string>={};if(etag)headers["If-None-Match"]=etag;
+   const response=await fetchWithSessionRecovery(`${baseUrl}/api/campaigns/${encodeURIComponent(campaignId)}/combat-snapshot`,{headers});
+   if(response.status===304)return {etag:etag!,snapshot:null};return {etag:response.headers.get("ETag")||"",snapshot:await ensureJson<import("@shadow-edge/shared-types").CombatSnapshot>(response)};
   },
   async getCampaign(campaignId) {
-    return requestJson<CampaignData>(`${baseUrl}/api/campaigns/${campaignId}`);
+    return request<CampaignData>(`${baseUrl}/api/campaigns/${campaignId}`);
   },
   async browseBestiary(params) {
     const search = new URLSearchParams();
@@ -264,10 +293,10 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
     if (params?.namedNpc) search.set("namedNpc", "true");
     if (params?.classic) search.set("classic", "true");
     const suffix = search.toString() ? `?${search.toString()}` : "";
-    return requestJson<BestiaryBrowseResult>(`${baseUrl}/api/bestiary${suffix}`);
+    return request<BestiaryBrowseResult>(`${baseUrl}/api/bestiary${suffix}`);
   },
   async getBestiaryMonster(monsterId) {
-    return requestJson<BestiaryMonsterDetail>(`${baseUrl}/api/bestiary/${monsterId}`);
+    return request<BestiaryMonsterDetail>(`${baseUrl}/api/bestiary/${monsterId}`);
   },
   async browseItemCatalog(params) {
     const search = new URLSearchParams();
@@ -275,22 +304,23 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
     if (params?.source) search.set("source", params.source);
     if (params?.category) search.set("category", params.category);
     if (params?.armorType) search.set("armorType", params.armorType);
+    for(const key of ["limit","cursor","sort","price","rarity"] as const)if(params?.[key])search.set(key,String(params[key]));
     const suffix = search.toString() ? `?${search.toString()}` : "";
-    return requestJson<ItemCatalogBrowseResult>(`${baseUrl}/api/items-catalog${suffix}`);
+    return request<ItemCatalogBrowseResult>(`${baseUrl}/api/items-catalog${suffix}`);
   },
   async getCatalogItem(itemId) {
-    return requestJson<ItemCatalogDetail>(`${baseUrl}/api/items-catalog/${itemId}`);
+    return request<ItemCatalogDetail>(`${baseUrl}/api/items-catalog/${itemId}`);
   },
   async importBestiaryMonster(campaignId, monsterId) {
-    return requestJson<CreateEntityResult>(`${baseUrl}/api/campaigns/${campaignId}/bestiary/${monsterId}/import`, {
+    return request<CreateEntityResult>(`${baseUrl}/api/campaigns/${campaignId}/bestiary/${monsterId}/import`, {
       method: "POST"
     });
   },
   async listSessionMaps(campaignId) {
-    return requestJson<import("@shadow-edge/shared-types").SessionMapDocument[]>(`${baseUrl}/api/campaigns/${encodeURIComponent(campaignId)}/session-maps`);
+    return request<import("@shadow-edge/shared-types").SessionMapDocument[]>(`${baseUrl}/api/campaigns/${encodeURIComponent(campaignId)}/session-maps`);
   },
   async saveSessionMap(campaignId, map) {
-    return requestJson<import("@shadow-edge/shared-types").SessionMapDocument>(`${baseUrl}/api/campaigns/${encodeURIComponent(campaignId)}/session-maps${map.id ? `/${encodeURIComponent(map.id)}` : ""}`, {
+    return request<import("@shadow-edge/shared-types").SessionMapDocument>(`${baseUrl}/api/campaigns/${encodeURIComponent(campaignId)}/session-maps${map.id ? `/${encodeURIComponent(map.id)}` : ""}`, {
       method: map.id ? "PUT" : "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify(map)
     });
   },
@@ -304,37 +334,37 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
     });
   },
   async createCampaign(input) {
-    return requestJson<CampaignData>(`${baseUrl}/api/campaigns`, {
+    return request<CampaignData>(`${baseUrl}/api/campaigns`, {
       method: "POST",
       body: JSON.stringify(input satisfies CreateCampaignInput)
     });
   },
   async updateCampaign(campaignId, input) {
-    return requestJson<CampaignData>(`${baseUrl}/api/campaigns/${campaignId}`, {
+    return request<CampaignData>(`${baseUrl}/api/campaigns/${campaignId}`, {
       method: "PATCH",
       body: JSON.stringify(input satisfies UpdateCampaignInput)
     });
   },
   async createEntity(campaignId, input) {
-    return requestJson<CreateEntityResult>(`${baseUrl}/api/campaigns/${campaignId}/entities`, {
+    return request<CreateEntityResult>(`${baseUrl}/api/campaigns/${campaignId}/entities`, {
       method: "POST",
       body: JSON.stringify(input satisfies CreateEntityInput)
     });
   },
   async updateEntity(campaignId, entityId, input) {
-    return requestJson<CreateEntityResult>(`${baseUrl}/api/campaigns/${campaignId}/entities/${entityId}`, {
+    return request<CreateEntityResult>(`${baseUrl}/api/campaigns/${campaignId}/entities/${entityId}`, {
       method: "PATCH",
       body: JSON.stringify(input)
     });
   },
   async deleteEntity(campaignId, entityId, expectedRevision) {
-    return requestJson<DeleteEntityResult>(`${baseUrl}/api/campaigns/${campaignId}/entities/${entityId}?expectedRevision=${expectedRevision}`, {
+    return request<DeleteEntityResult>(`${baseUrl}/api/campaigns/${campaignId}/entities/${entityId}?expectedRevision=${expectedRevision}`, {
       method: "DELETE"
     });
   },
-  async generateEntityDraft(campaignId, input) {
+  async generateEntityDraft(campaignId, input, options) {
     return requestGeneration<GenerateEntityDraftResult>(`${baseUrl}/api/campaigns/${campaignId}/ai/drafts`, {
-      method: "POST",
+      method: "POST", signal:options?.signal,
       body: JSON.stringify(input satisfies GenerateEntityDraftInput)
     });
   },
@@ -343,67 +373,67 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
     if (params?.status) search.set("status", params.status);
     if (params?.campaignId) search.set("campaignId", params.campaignId);
     const suffix = search.size ? `?${search.toString()}` : "";
-    return requestJson<AIProposal[]>(`${proposalRoutes.root}${suffix}`);
+    return request<AIProposal[]>(`${proposalRoutes.root}${suffix}`);
   },
   async getAIProposal(proposalId) {
-    return requestJson<AIProposal>(proposalRoutes.detail(proposalId));
+    return request<AIProposal>(proposalRoutes.detail(proposalId));
   },
-  async proposeEntity(campaignId, input) {
+  async proposeEntity(campaignId, input, options) {
     return requestGeneration<AIProposal>(proposalRoutes.entity(campaignId), {
-      method: "POST",
+      method: "POST", signal:options?.signal,
       body: JSON.stringify(input satisfies ProposeEntityInput)
     });
   },
-  async proposeCampaign(input) {
+  async proposeCampaign(input, options) {
     return requestGeneration<AIProposal>(proposalRoutes.campaign, {
-      method: "POST",
+      method: "POST", signal:options?.signal,
       body: JSON.stringify(input satisfies ProposeCampaignInput)
     });
   },
-  async proposeWorldEvent(campaignId, input) {
+  async proposeWorldEvent(campaignId, input, options) {
     return requestGeneration<AIProposal>(proposalRoutes.event(campaignId), {
-      method: "POST",
+      method: "POST", signal:options?.signal,
       body: JSON.stringify(input satisfies ProposeWorldEventInput)
     });
   },
   async applyAIProposal(proposalId, input = {}) {
-    return requestJson<AIProposalMutationResult>(proposalRoutes.action(proposalId, "apply"), {
+    return request<AIProposalMutationResult>(proposalRoutes.action(proposalId, "apply"), {
       method: "POST",
       body: JSON.stringify(input satisfies ApplyAIProposalInput)
     });
   },
   async rejectAIProposal(proposalId) {
-    return requestJson<AIProposalMutationResult>(proposalRoutes.action(proposalId, "reject"), {
+    return request<AIProposalMutationResult>(proposalRoutes.action(proposalId, "reject"), {
       method: "POST"
     });
   },
   async undoAIProposal(proposalId) {
-    return requestJson<AIProposalMutationResult>(proposalRoutes.action(proposalId, "undo"), {
+    return request<AIProposalMutationResult>(proposalRoutes.action(proposalId, "undo"), {
       method: "POST"
     });
   },
   async attachAIProposalMedia(proposalId, input) {
-    return requestJson<AIProposalMediaResult>(proposalRoutes.mediaAttachments(proposalId), {
+    return request<AIProposalMediaResult>(proposalRoutes.mediaAttachments(proposalId), {
       method: "POST",
       body: JSON.stringify(input satisfies AttachAIProposalMediaInput)
     });
   },
   async getCodexConnectionStatus() {
-    return requestJson<CodexConnectionStatus>(codexRoutes.status);
+    return request<CodexConnectionStatus>(codexRoutes.status);
   },
   async connectCodexChatGPT() {
-    return requestJson<CodexDeviceCodeResult>(codexRoutes.connect, {
+    return request<CodexDeviceCodeResult>(codexRoutes.connect, {
       method: "POST"
     });
   },
   async disconnectCodexChatGPT() {
-    return requestJson<CodexConnectionStatus>(codexRoutes.disconnect, {
+    return request<CodexConnectionStatus>(codexRoutes.disconnect, {
       method: "POST"
     });
   },
-  async runCodexPrompt(input) {
+  async runCodexPrompt(input, options) {
     return requestGeneration<CodexPromptResult>(codexRoutes.prompts, {
-      method: "POST",
+      method: "POST", signal:options?.signal,
       body: JSON.stringify(input satisfies CodexPromptInput)
     });
   },
@@ -411,97 +441,97 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
     return startGeneration(codexRoutes.prompts, { method: "POST", body: JSON.stringify(input) });
   },
   async listAIJobs(campaignId) {
-    return requestJson<AIJob[]>(`${baseUrl}/api/ai/jobs${campaignId ? `?campaignId=${encodeURIComponent(campaignId)}` : ""}`);
+    return request<AIJob[]>(`${baseUrl}/api/ai/jobs${campaignId ? `?campaignId=${encodeURIComponent(campaignId)}` : ""}`);
   },
   async getAIJob(id) {
-    return requestJson<AIJob>(`${baseUrl}/api/ai/jobs/${encodeURIComponent(id)}`);
+    return request<AIJob>(`${baseUrl}/api/ai/jobs/${encodeURIComponent(id)}`);
   },
-  async formatPlayerFacingCard(campaignId, input) {
+  async formatPlayerFacingCard(campaignId, input, options) {
     return requestGeneration<FormatPlayerFacingCardResult>(`${baseUrl}/api/campaigns/${campaignId}/ai/player-facing/format`, {
-      method: "POST",
+      method: "POST", signal:options?.signal,
       body: JSON.stringify(input satisfies FormatPlayerFacingCardInput)
     });
   },
   async createWorldEvent(campaignId, input) {
-    return requestJson<WorldEventResult>(`${baseUrl}/api/campaigns/${campaignId}/events`, {
+    return request<WorldEventResult>(`${baseUrl}/api/campaigns/${campaignId}/events`, {
       method: "POST",
       body: JSON.stringify(input satisfies WorldEventInput)
     });
   },
   async updateWorldEvent(campaignId, eventId, input) {
-    return requestJson<WorldEventResult>(`${baseUrl}/api/campaigns/${campaignId}/events/${eventId}`, {
+    return request<WorldEventResult>(`${baseUrl}/api/campaigns/${campaignId}/events/${eventId}`, {
       method: "PATCH",
       body: JSON.stringify(input satisfies WorldEventInput)
     });
   },
   async deleteWorldEvent(campaignId, eventId, expectedRevision) {
-    return requestJson<DeleteWorldEventResult>(`${baseUrl}/api/campaigns/${campaignId}/events/${eventId}?expectedRevision=${expectedRevision}`, {
+    return request<DeleteWorldEventResult>(`${baseUrl}/api/campaigns/${campaignId}/events/${eventId}?expectedRevision=${expectedRevision}`, {
       method: "DELETE"
     });
   },
-  async generateWorldEvent(campaignId, input) {
+  async generateWorldEvent(campaignId, input, options) {
     return requestGeneration<GenerateWorldEventResult>(`${baseUrl}/api/campaigns/${campaignId}/events/generate`, {
-      method: "POST",
+      method: "POST", signal:options?.signal,
       body: JSON.stringify(input satisfies GenerateWorldEventInput)
     });
   },
   async startCombat(campaignId, input) {
-    return requestJson<CombatResult>(`${baseUrl}/api/campaigns/${campaignId}/combat/entries`, {
+    return request<CombatResult>(`${baseUrl}/api/campaigns/${campaignId}/combat/entries`, {
       method: "POST",
       body: JSON.stringify(input satisfies StartCombatInput)
     });
   },
   async updateCombatState(campaignId, input) {
-    return requestJson<CombatResult>(`${baseUrl}/api/campaigns/${campaignId}/combat`, {
+    return request<CombatResult>(`${baseUrl}/api/campaigns/${campaignId}/combat`, {
       method: "PATCH",
       body: JSON.stringify(input satisfies UpdateCombatStateInput)
     });
   },
   async updateCombatEntry(campaignId, entryId, input) {
-    return requestJson<CombatResult>(`${baseUrl}/api/campaigns/${campaignId}/combat/entries/${entryId}`, {
+    return request<CombatResult>(`${baseUrl}/api/campaigns/${campaignId}/combat/entries/${entryId}`, {
       method: "PATCH",
       body: JSON.stringify(input satisfies UpdateCombatEntryInput)
     });
   },
   async finishCombat(campaignId) {
-    return requestJson<FinishCombatResult>(`${baseUrl}/api/campaigns/${campaignId}/combat/finish`, {
+    return request<FinishCombatResult>(`${baseUrl}/api/campaigns/${campaignId}/combat/finish`, {
       method: "POST"
     });
   },
   async createInitiativeShare(campaignId) {
-    return requestJson<InitiativeShareResult>(`${baseUrl}/api/campaigns/${campaignId}/initiative-share`, {
+    return request<InitiativeShareResult>(`${baseUrl}/api/campaigns/${campaignId}/initiative-share`, {
       method: "POST"
     });
   },
   async publishInitiativeShare(campaignId) {
-    return requestJson<InitiativeShareResult>(`${baseUrl}/api/campaigns/${campaignId}/initiative-share/publish`, {
+    return request<InitiativeShareResult>(`${baseUrl}/api/campaigns/${campaignId}/initiative-share/publish`, {
       method: "POST"
     });
   },
   async showPlayerDisplayImage(campaignId, input) {
-    return requestJson<PlayerDisplayShareResult>(`${baseUrl}/api/campaigns/${campaignId}/player-display`, {
+    return request<PlayerDisplayShareResult>(`${baseUrl}/api/campaigns/${campaignId}/player-display`, {
       method: "POST",
       body: JSON.stringify(input satisfies PlayerDisplayImageInput)
     });
   },
   async rotatePlayerDisplayLink(campaignId) {
-    return requestJson<PlayerDisplayShareResult>(`${baseUrl}/api/campaigns/${campaignId}/player-display/rotate`, {
+    return request<PlayerDisplayShareResult>(`${baseUrl}/api/campaigns/${campaignId}/player-display/rotate`, {
       method: "POST"
     });
   },
-  async generateCombat(campaignId, input) {
+  async generateCombat(campaignId, input, options) {
     return requestGeneration<GenerateCombatResult>(`${baseUrl}/api/campaigns/${campaignId}/combat/generate`, {
-      method: "POST",
+      method: "POST", signal:options?.signal,
       body: JSON.stringify(input satisfies GenerateCombatInput)
     });
   },
     async search(campaignId, query, signal) {
-      return requestJson<SearchResult[]>(
+      return request<SearchResult[]>(
         `${baseUrl}/api/campaigns/${campaignId}/search?q=${encodeURIComponent(query)}`, { signal }
       );
     }
   };
 };
 
-export const createApiClient = (baseUrl = ""): ApiClient =>
-  createHttpApiClient(baseUrl);
+export const createApiClient = (baseUrl = "",options:{workspace?:boolean}={}): ApiClient =>
+  createHttpApiClient(baseUrl,options);

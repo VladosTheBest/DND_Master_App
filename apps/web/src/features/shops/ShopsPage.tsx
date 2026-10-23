@@ -386,8 +386,8 @@ export function ShopsPage({
     catalogLoading,
     catalogError,
     loadingCatalogItemIds,
-    ensureCatalogItemDetail, detailErrors, retryCatalog
-  } = useItemsCatalogController({ campaignId: campaign.id });
+    ensureCatalogItemDetail, detailErrors, retryCatalog,hasMore,loadMore,catalogTotal
+  } = useItemsCatalogController({ campaignId: campaign.id,filters:{q:itemQuery,category:categoryFilter==="all"?undefined:categoryFilter,source:sourceFilter==="dndsu-magic"||sourceFilter==="dndsu-equipment"?sourceFilter:undefined,armorType:(["light","medium","heavy","shield"] as const).find(value=>value===armorFilter),price:priceFilter,rarity:rarityFilter,sort:catalogSort==="name"?"name-asc":catalogSort},enabled:sourceFilter!=="builtin"&&sourceFilter!=="custom" });
 
 
   useEffect(() => {
@@ -919,8 +919,8 @@ export function ShopsPage({
 
                     <button
                       className="shops-stock-product shops-stock-product-button"
-                      disabled={!liveItem}
-                      onClick={() => handleOpenItemInfo(liveItem)}
+                      disabled={!liveItem&&!entry.itemSource?.startsWith("dndsu-")}
+                      onClick={() => {if(liveItem)handleOpenItemInfo(liveItem);else {setSelectedInfoItemId(entry.itemId);ensureCatalogItemDetail(entry.itemId);}}}
                       title={liveItem ? "Открыть карточку предмета" : "Предмет не найден в каталоге"}
                       type="button"
                     >
@@ -1044,8 +1044,8 @@ export function ShopsPage({
         </div>
 
         {!filteredItems.length ? <p role="status">Товаров не найдено. Измени запрос или сбрось фильтры.</p> : null}
-        <div className="shops-catalog-foot" aria-live="polite">{catalogLoading ? "Загружаю внешний каталог…" : `Показано ${Math.min(visibleCount, filteredItems.length)} из ${filteredItems.length} товаров`}</div>
-        {visibleCount < filteredItems.length ? <button className="shops-secondary-action" type="button" onClick={() => setVisibleCount(count => count + 48)}>Показать ещё 48</button> : null}
+        <div className="shops-catalog-foot" aria-live="polite">{catalogLoading ? "Загружаю внешний каталог…" : `Показано ${Math.min(visibleCount, filteredItems.length)} · внешний каталог ${catalogTotal} товаров`}</div>
+        {visibleCount < filteredItems.length || hasMore ? <button className="shops-secondary-action" type="button" disabled={catalogLoading} onClick={() => {setVisibleCount(count => count + 48);if(hasMore)void loadMore();}}>Показать ещё 48</button> : null}
       </aside>
       {imageViewer ? <ShopImageViewer src={imageViewer.src} alt={imageViewer.alt} onClose={() => setImageViewer(null)} /> : null}
       {selectedInfoItem ? (

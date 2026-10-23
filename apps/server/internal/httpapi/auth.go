@@ -442,7 +442,8 @@ func applyCORSHeaders(writer http.ResponseWriter, request *http.Request) {
 	writer.Header().Set("Access-Control-Allow-Origin", origin)
 	writer.Header().Set("Access-Control-Allow-Credentials", "true")
 	writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
-	writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Prefer")
+	writer.Header().Set("Access-Control-Expose-Headers", "ETag")
+	writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Prefer, X-Workspace-View, If-None-Match")
 	writer.Header().Add("Vary", "Origin")
 }
 

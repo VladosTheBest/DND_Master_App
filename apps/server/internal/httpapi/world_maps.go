@@ -196,10 +196,32 @@ func (srv *server) handleWorldMaps(w http.ResponseWriter, r *http.Request, user 
 		srv.saveCreativeMap(w, r, user, campaign)
 		return
 	}
+	if action != "" && action != "generate" && r.Method == http.MethodGet {
+		for _, m := range campaign.WorldMaps {
+			if m.ID == action {
+				if r.URL.Query().Get("thumbnail") == "1" {
+					srv.serveMapThumbnail(w, r, user, campaign, m)
+				} else {
+					writeJSON(w, 200, m)
+				}
+				return
+			}
+		}
+		writeError(w, 404, "not_found", "Карта не найдена.")
+		return
+	}
 	if action == "" && r.Method == http.MethodGet {
 		maps := campaign.WorldMaps
 		if maps == nil {
 			maps = []worldMapDocument{}
+		}
+		if r.URL.Query().Get("view") == "summary" {
+			items := make([]worldMapSummary, 0, len(maps))
+			for _, m := range maps {
+				items = append(items, mapSummary(campaign.ID, m))
+			}
+			writeJSON(w, 200, items)
+			return
 		}
 		writeJSON(w, 200, maps)
 		return

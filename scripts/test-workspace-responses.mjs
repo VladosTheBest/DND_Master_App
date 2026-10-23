@@ -1,0 +1,12 @@
+import {build} from 'esbuild';import assert from 'node:assert/strict';
+const bundled=await build({entryPoints:['packages/api-client/src/index.ts'],bundle:true,write:false,format:'esm',platform:'node'});const {createHttpApiClient}=await import(`data:text/javascript;base64,${Buffer.from(bundled.outputFiles[0].text).toString('base64')}`);
+const campaign={id:'c',revision:1,title:'Original',locations:[{id:'e',title:'Place'}],players:[],npcs:[],monsters:[],quests:[],lore:[]};let responses=[],calls=[];
+globalThis.fetch=async(url,init)=>{calls.push({url,init});const result=responses.shift();assert.ok(result,`unexpected fetch ${url}`);return result;};
+const reply=(data,etag)=>new Response(JSON.stringify({data,error:null}),{status:200,headers:etag?{ETag:etag}:undefined});
+const api=createHttpApiClient('http://test',{workspace:true});responses=[reply(campaign,'one')];assert.deepEqual(await api.getCampaign('c'),campaign);assert.equal(new Headers(calls[0].init.headers).get('X-Workspace-View'),'compact');
+responses=[new Response(null,{status:304})];assert.deepEqual(await api.getCampaign('c'),campaign);assert.equal(new Headers(calls.at(-1).init.headers).get('If-None-Match'),'one');
+responses=[reply({campaign:{id:'c',revision:2,__baseRevision:1,title:'Changed'},entity:{id:'e'}})];const result=await api.updateEntity('c','e',{});assert.equal(result.campaign.title,'Changed');assert.deepEqual(result.campaign.locations,campaign.locations);assert.equal(result.campaign.__baseRevision,undefined);
+responses=[reply({campaign:{id:'c',revision:3,__baseRevision:2,__collections:{locations:{upsert:[{id:'e',title:'Updated'}],remove:[]}}},entity:{id:'e'}})];assert.equal((await api.updateEntity('c','e',{})).campaign.locations[0].title,'Updated');
+responses=[reply({campaign:{id:'c',revision:6,__baseRevision:5,title:'Concurrent'},entity:{id:'e'}}),reply({...campaign,revision:4,title:'Latest'})];assert.equal((await api.updateEntity('c','e',{})).campaign.title,'Latest','unknown base triggers a safe GET, not a mutation replay');
+responses=[reply({authenticated:true,userId:'new-owner'})];await api.getSession();responses=[reply({...campaign,revision:5})];await api.getCampaign('c');assert.equal(new Headers(calls.at(-1).init.headers).has('If-None-Match'),false,'validators cleared on owner change');
+console.log('Passed: compact opt-in, conditional GET, delta reconstruction, concurrent-base recovery and owner cache isolation.');

@@ -328,6 +328,7 @@ export interface ItemCatalogSummary {
 }
 
 export interface ItemCatalogBrowseResult {
+ nextCursor?:string;
   items: ItemCatalogSummary[];
   filters: {
     sources: ItemCatalogFilterOption[];
@@ -1219,7 +1220,13 @@ export interface RegisterInput {
   password: string;
 }
 
+export type CombatSnapshot={campaignId:string;revision:number;activeCombat:CampaignData["activeCombat"]|null;lastCombatSummary:CampaignData["lastCombatSummary"]|null};
 export interface ApiClient {
+ getCombatSnapshot(campaignId:string,etag?:string):Promise<{etag:string;snapshot:CombatSnapshot|null}>;
+  subscribeAIJobs(listener:()=>void):()=>void;
+  getAIJobsSnapshot():{jobs:AIJob[];loading:boolean;error:string};
+  refreshAIJobs():Promise<AIJob[]>;
+  resetAIJobs():void;
 	listSessionMaps(campaignId: string): Promise<SessionMapDocument[]>;
 	saveSessionMap(campaignId: string, map: SessionMapDocument): Promise<SessionMapDocument>;
   getSession(): Promise<AuthSessionResult>;
@@ -1245,6 +1252,7 @@ export interface ApiClient {
   }): Promise<BestiaryBrowseResult>;
   getBestiaryMonster(monsterId: string): Promise<BestiaryMonsterDetail>;
   browseItemCatalog(params?: {
+    limit?:number; cursor?:string; sort?:string; price?:string; rarity?:string;
     q?: string;
     source?: ItemCatalogSource;
     category?: ItemCatalogCategory;
@@ -1272,19 +1280,16 @@ export interface ApiClient {
   ): Promise<DeleteEntityResult>;
   generateEntityDraft(
     campaignId: string,
-    input: GenerateEntityDraftInput,
-  ): Promise<GenerateEntityDraftResult>;
+    input: GenerateEntityDraftInput, options?:{signal?:AbortSignal}): Promise<GenerateEntityDraftResult>;
   listAIProposals(params?: AIProposalListParams): Promise<AIProposal[]>;
   getAIProposal(proposalId: string): Promise<AIProposal>;
   proposeEntity(
     campaignId: string,
-    input: ProposeEntityInput,
-  ): Promise<AIProposal>;
-  proposeCampaign(input: ProposeCampaignInput): Promise<AIProposal>;
+    input: ProposeEntityInput, options?:{signal?:AbortSignal}): Promise<AIProposal>;
+  proposeCampaign(input: ProposeCampaignInput, options?:{signal?:AbortSignal}): Promise<AIProposal>;
   proposeWorldEvent(
     campaignId: string,
-    input: ProposeWorldEventInput,
-  ): Promise<AIProposal>;
+    input: ProposeWorldEventInput, options?:{signal?:AbortSignal}): Promise<AIProposal>;
   applyAIProposal(
     proposalId: string,
     input?: ApplyAIProposalInput,
@@ -1298,14 +1303,13 @@ export interface ApiClient {
   getCodexConnectionStatus(): Promise<CodexConnectionStatus>;
   connectCodexChatGPT(): Promise<CodexDeviceCodeResult>;
   disconnectCodexChatGPT(): Promise<CodexConnectionStatus>;
-  runCodexPrompt(input: CodexPromptInput): Promise<CodexPromptResult>;
+  runCodexPrompt(input: CodexPromptInput, options?:{signal?:AbortSignal}): Promise<CodexPromptResult>;
   startCodexPrompt(input: CodexPromptInput): Promise<AIJob>;
   listAIJobs(campaignId?: string): Promise<AIJob[]>;
   getAIJob(id: string): Promise<AIJob>;
   formatPlayerFacingCard(
     campaignId: string,
-    input: FormatPlayerFacingCardInput,
-  ): Promise<FormatPlayerFacingCardResult>;
+    input: FormatPlayerFacingCardInput, options?:{signal?:AbortSignal}): Promise<FormatPlayerFacingCardResult>;
   createWorldEvent(
     campaignId: string,
     input: WorldEventInput,
@@ -1322,8 +1326,7 @@ export interface ApiClient {
   ): Promise<DeleteWorldEventResult>;
   generateWorldEvent(
     campaignId: string,
-    input: GenerateWorldEventInput,
-  ): Promise<GenerateWorldEventResult>;
+    input: GenerateWorldEventInput, options?:{signal?:AbortSignal}): Promise<GenerateWorldEventResult>;
   startCombat(
     campaignId: string,
     input: StartCombatInput,
@@ -1340,8 +1343,7 @@ export interface ApiClient {
   finishCombat(campaignId: string): Promise<FinishCombatResult>;
   generateCombat(
     campaignId: string,
-    input: GenerateCombatInput,
-  ): Promise<GenerateCombatResult>;
+    input: GenerateCombatInput, options?:{signal?:AbortSignal}): Promise<GenerateCombatResult>;
   createInitiativeShare(campaignId: string): Promise<InitiativeShareResult>;
   publishInitiativeShare(campaignId: string): Promise<InitiativeShareResult>;
   showPlayerDisplayImage(

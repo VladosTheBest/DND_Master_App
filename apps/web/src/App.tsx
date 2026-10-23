@@ -4,13 +4,13 @@ import { useWorkspaceGuard } from "./app/workspace-route";
 import { AppModal } from "./app/AppModal";
 import workspaceStyles from "./app/Workspace.module.css";
 import { useWorkspaceRoute, workspaceURL, navigateWorkspace, restoreWorkspaceScroll, allowWorkspaceNavigation, type WorkspaceSection } from "./app/workspace-route";
-import { ChatWorkspace } from "./features/ai-jobs/AIChatPage";
+const ChatWorkspace = lazy(()=>import("./features/ai-jobs/AIChatPage").then(module=>({default:module.ChatWorkspace})));
 import { confirmAction } from "./app/confirm-action";
 import { browserStorage } from "./app/browser-storage";
 import { FinishCombatDialog } from "./features/combat/FinishCombatDialog";
 import { AIJobsPanel } from "./features/ai-jobs/AIJobsPanel";
 import "@shadow-edge/design-tokens/theme.css";
-import { SessionsPage } from "./features/sessions/SessionsPage";
+const SessionsPage = lazy(()=>import("./features/sessions/SessionsPage").then(module=>({default:module.SessionsPage})));
 import {
   CollapsibleSection,
   EntityVisual,
@@ -48,14 +48,14 @@ import { api } from "./app/api";
 import { AccountSettings } from "./app/OAuthControls";
 import { AppContentRouter } from "./app/AppContentRouter";
 import { CampaignCreateModal } from "./app/CampaignCreateModal";
-import { ReadyAdventureReader } from "./features/campaigns/ReadyAdventureReader";
+const ReadyAdventureReader = lazy(()=>import("./features/campaigns/ReadyAdventureReader").then(module=>({default:module.ReadyAdventureReader})));
 import { CloseConfirmDialog } from "./app/CloseConfirmDialog";
 import { AppHeader } from "./app/AppHeader";
 import { AppPreviewContent } from "./app/AppPreviewContent";
 import { AppPreviewPanel } from "./app/AppPreviewPanel";
 import { AppSidebar } from "./app/AppSidebar";
 import { OfflinePage, OfflineBetaNotice } from "./features/offline/OfflinePage";
-import { SessionMapModal } from "./app/SessionMapModal";
+const SessionMapModal = lazy(()=>import("./app/SessionMapModal").then(module=>({default:module.SessionMapModal})));
 import { EntityDirectoryScreen } from "./app/EntityDirectoryScreen";
 import { useCampaignCreationController } from "./app/hooks/useCampaignCreationController";
 import { useModalController } from "./app/hooks/useModalController";
@@ -103,12 +103,12 @@ import {
   pickRandomTrackIndex,
   resolvePlaylistSource
 } from "./playback";
-import { CombatPage } from "./features/combat/CombatPage";
-import { CombatPrepPage } from "./features/combat/CombatPrepPage";
+const CombatPage = lazy(()=>import("./features/combat/CombatPage").then(module=>({default:module.CombatPage})));
+const CombatPrepPage = lazy(()=>import("./features/combat/CombatPrepPage").then(module=>({default:module.CombatPrepPage})));
 import "./features/combat/combat.css";
 import "./features/combat/combat-modern.css";
 import "./features/combat/combat-prep-modern.css";
-import { BestiaryPageContainer } from "./features/bestiary/BestiaryPageContainer";
+const BestiaryPageContainer = lazy(()=>import("./features/bestiary/BestiaryPageContainer").then(module=>({default:module.BestiaryPageContainer})));
 import { BestiaryPreviewPanel } from "./features/bestiary/BestiaryPreviewPanel";
 import { useBestiaryController } from "./features/bestiary/useBestiaryController";
 import { isBestiaryBrowseTab } from "./features/bestiary/bestiary.utils";
@@ -150,7 +150,7 @@ import {
   sanitizePreparedCombatPlans,
   targetThresholdValue
 } from "./features/combat/combat.utils";
-import { EntityEditorModal } from "./features/entities/EntityEditorModal";
+const EntityEditorModal = lazy(()=>import("./features/entities/EntityEditorModal").then(module=>({default:module.EntityEditorModal})));
 import { EntityDetailsPage, EntityDetailsRenderer } from "./features/entities/EntityDetailsPage";
 import "./features/entities/entities.css";
 import { EntityActionMenu } from "./features/entity-actions/EntityActionMenu";
@@ -196,7 +196,7 @@ import { RandomEventModal } from "./features/events/RandomEventModal";
 import { useRandomEventController } from "./features/events/useRandomEventController";
 import { AIProposalCenter } from "./features/ai-proposals/AIProposalCenter";
 import { useAIProposalController } from "./features/ai-proposals/useAIProposalController";
-import { QuestPageContainer } from "./features/quests/QuestPageContainer";
+const QuestPageContainer = lazy(()=>import("./features/quests/QuestPageContainer").then(module=>({default:module.QuestPageContainer})));
 import { GlobalSearchModal } from "./features/global-search/GlobalSearchModal";
 import { useGlobalSearchController } from "./features/global-search/useGlobalSearchController";
 import { PlayerFacingController } from "./features/player-facing/PlayerFacingController";
@@ -2242,16 +2242,14 @@ export default function App() {
       });
     }
 
-    const timer = window.setInterval(() => {
-      api
-        .getCampaign(appRoute.campaignId)
-        .then((data) => hydrateCampaign(data))
-        .catch((error) => {
-          setBootError(error instanceof Error ? error.message : "Не удалось обновить трекер инициативы.");
-        });
-    }, 2500);
-
-    return () => window.clearInterval(timer);
+    let cancelled=false,busy=false,etag="";
+    const tick=async()=>{if(busy||document.hidden)return;busy=true;try{const result=await api.getCombatSnapshot(appRoute.campaignId,etag);if(cancelled)return;etag=result.etag;if(!result.snapshot)return;const snapshot=result.snapshot;
+      const current=campaignSnapshot.current;if(!current||current.id!==snapshot.campaignId)return;
+      if(current.revision!==snapshot.revision){const latest=await api.getCampaign(snapshot.campaignId);if(!cancelled)hydrateCampaign(latest);}
+      else hydrateCampaign({...current,activeCombat:snapshot.activeCombat||undefined,lastCombatSummary:snapshot.lastCombatSummary||undefined});
+    }catch(error){if(!cancelled)setBootError(error instanceof Error?error.message:"Не удалось обновить трекер инициативы.");}finally{busy=false;}};
+    const timer=window.setInterval(()=>void tick(),2500);window.addEventListener("focus",tick);
+    return()=>{cancelled=true;window.clearInterval(timer);window.removeEventListener("focus",tick);};
   }, [activeCampaignId, appRoute]);
 
   // Close editors while their owner/campaign scope is still the source scope.
@@ -4624,7 +4622,7 @@ export default function App() {
   }
 
   return (
-    <DraftOwnerContext.Provider value={authUserId}>
+    <DraftOwnerContext.Provider value={authUserId}><Suspense fallback={<p role="status">Открываю раздел…</p>}>
       <div
         className={`shell ${activeModule === "dashboard" && !activeRailAlias ? "home-shell" : ""} ${!previewEntity && !(bestiaryController.isBrowseMode && bestiaryController.selectedBestiaryMonster) ? "without-preview" : ""} ${activeModule === "dashboard" || activeRailAlias ? "dashboard-shell" : ""} ${isCombatScreen ? "combat-layout" : ""} ${isCombatPrepScreen ? "combat-prep-shell" : ""} ${isItemsRail || isShopsRail ? "items-shell" : ""} ${isShopsRail ? "shops-shell" : ""} ${workspaceArea ? "external-workspace dashboard-shell without-preview" : ""} ${hasFeatureOwnedDetailsPanel ? "feature-owned-details-shell" : ""}`.trim()}
         style={shellStyle}
@@ -4971,7 +4969,7 @@ export default function App() {
                 preparedCombatSection={isPreparedCombatHostEntity(activeEntity) ? renderPreparedCombatSection(activeEntity) : null}
               />
             ) : (
-              <EntityDirectoryScreen
+              <EntityDirectoryScreen activeTab={activeTab}
                 campaignId={campaign.id}
                 activeModule={activeModule}
                 activeSectionLabel={activeSectionLabel}
@@ -5502,7 +5500,7 @@ export default function App() {
         </AppModal>
       ) : null}
 
-      <EntityEditorModal
+      {entityEditor.entityModalOpen&&<EntityEditorModal
         campaign={campaign}
         controller={entityEditor}
         entityGenerationSteps={entityGenerationSteps}
@@ -5511,7 +5509,7 @@ export default function App() {
         onClose={requestEntityModalClose}
         onContentContextMenu={entityLinkController.handleEntityContentContextMenu}
         saving={saving}
-      />
+      />}
 
       <RandomEventModal
         campaign={campaign}
@@ -5605,11 +5603,11 @@ export default function App() {
         state={closeConfirmState}
       />
 
-      <SessionMapModal
+      {sessionMapOpen&&<SessionMapModal
         campaignId={activeCampaignId}
         onClose={() => setSessionMapOpen(false)}
         open={sessionMapOpen}
-      />
-    </DraftOwnerContext.Provider>
+      />}
+    </Suspense></DraftOwnerContext.Provider>
   );
 }

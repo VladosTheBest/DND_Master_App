@@ -9,4 +9,4 @@ const resolveApiBaseUrl = () => {
   return "";
 };
 
-export const api = createApiClient(resolveApiBaseUrl());
+export const api = createApiClient(resolveApiBaseUrl(),{workspace:true});

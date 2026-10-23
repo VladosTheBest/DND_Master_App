@@ -1,3 +1,4 @@
+import {WorkspaceEntry} from "./WorkspaceEntry";
 import { lazy, Suspense, useEffect, useState } from "react";
 const App = lazy(() => import("../../App"));
 
@@ -21,14 +22,6 @@ export function CharacterRoutes() {
       <CharacterPublicApp key={hash} hash={hash} />
     </Suspense>
   ) : (
-    <Suspense
-      fallback={
-        <div className="boot" role="status">
-          Открываем кабинет мастера…
-        </div>
-      }
-    >
-      <App />
-    </Suspense>
+    <WorkspaceEntry><Suspense fallback={<div className="boot" role="status">Открываем кабинет мастера…</div>}><App /></Suspense></WorkspaceEntry>
   );
 }

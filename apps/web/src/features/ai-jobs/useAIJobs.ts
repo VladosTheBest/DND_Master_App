@@ -1,40 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { AIJob } from "@shadow-edge/shared-types";
-import { api } from "../../app/api";
-import { observeAIJobs, prepareAISound } from "./ai-completion-sound";
-
-export const isActiveJob = (job: AIJob) => job.state === "queued" || job.state === "running";
-
-export function useAIJobs(campaignId?: string) {
-  const [jobs, setJobs] = useState<AIJob[]>([]);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
-  const generation = useRef(0);
-  const inFlight = useRef(0);
-  const refresh = useCallback(async (force = true) => {
-    if (!force && inFlight.current) return;
-    inFlight.current++;
-    const version = ++generation.current;
-    try {
-      const next = await api.listAIJobs(campaignId);
-      if (version !== generation.current) return;
-      observeAIJobs(next);
-      setJobs(next); setError(""); setLoading(false);
-    } catch {
-      if (version !== generation.current) return;
-      setError("Не удалось обновить статус. Работа на сервере может продолжаться."); setLoading(false);
-    } finally {
-      inFlight.current--;
-    }
-  }, [campaignId]);
-  useEffect(() => {
-    prepareAISound();
-    setJobs([]); setLoading(true);
-    void refresh();
-    const timer = window.setInterval(() => void refresh(false), 2500);
-    const focused = () => void refresh(false);
-    window.addEventListener("focus", focused);
-    return () => { generation.current++; clearInterval(timer); window.removeEventListener("focus", focused); };
-  }, [refresh]);
-  return { jobs, error, loading, refresh };
+import {useCallback,useEffect,useMemo,useSyncExternalStore} from "react";
+import type {AIJob} from "@shadow-edge/shared-types";
+import {api} from "../../app/api";
+import {observeAIJobs,prepareAISound} from "./ai-completion-sound";
+export const isActiveJob=(job:AIJob)=>job.state==="queued"||job.state==="running";
+export function useAIJobs(campaignId?:string){
+ const snapshot=useSyncExternalStore(api.subscribeAIJobs,api.getAIJobsSnapshot);
+ const jobs=useMemo(()=>campaignId?snapshot.jobs.filter(job=>job.campaignId===campaignId):snapshot.jobs,[snapshot.jobs,campaignId]);
+ useEffect(()=>{prepareAISound();observeAIJobs(snapshot.jobs);},[snapshot.jobs]);
+ const refresh=useCallback(async()=>{try{return await api.refreshAIJobs();}catch{return [];}},[]);
+ return {jobs,error:snapshot.error,loading:snapshot.loading,refresh};
 }

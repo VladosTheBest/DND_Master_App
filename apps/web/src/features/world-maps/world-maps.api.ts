@@ -11,7 +11,10 @@ export async function mapRequest<T>(path: string, method = "GET", body?: unknown
     body: body === undefined ? undefined : JSON.stringify(body)});
 }
 
+export type WorldMapSummary=Pick<WorldMapDocument,"id"|"title"|"revision"|"width"|"height">&{creative:boolean;thumbnailUrl:string};
 export const worldMapsAPI = {
+ summary:(campaign:string,signal?:AbortSignal)=>mapRequest<WorldMapSummary[]>(mapRoute(campaign)+"?view=summary","GET",undefined,signal),
+ detail:(campaign:string,id:string,signal?:AbortSignal)=>mapRequest<WorldMapDocument>(`${mapRoute(campaign)}/${encodeURIComponent(id)}`,"GET",undefined,signal),
   list: (campaign: string, signal?:AbortSignal) => mapRequest<WorldMapDocument[]>(mapRoute(campaign),"GET",undefined,signal),
   save: (campaign:string,map:WorldMapDocument) => mapRequest<WorldMapDocument>(`${mapRoute(campaign)}/${encodeURIComponent(map.id)}`,"PUT",{title:map.title,revision:map.revision,labels:map.labels}),
   generate: (campaign:string,input:{columns?:number;rows?:number;requestId:string;prompt:string;referenceUrl:string;context?:WorldMapDocument["context"];scale?:WorldMapDocument["scale"];sourceMapId?:string;sourceRevision?:number}) => mapRequest<AIJob|WorldMapDocument>(`${mapRoute(campaign)}/generate`,"POST",input),

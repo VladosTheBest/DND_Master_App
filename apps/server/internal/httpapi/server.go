@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"path"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -367,10 +368,21 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 		}
 	}
 
+	if request.Header.Get("X-Workspace-View") == "compact" {
+		writer = &workspaceResponseWriter{ResponseWriter: writer, base: campaign}
+	}
+	if len(segments) == 2 && segments[1] == "combat-snapshot" && request.Method == http.MethodGet {
+		conditionalJSON(writer, request, map[string]any{"campaignId": campaign.ID, "revision": campaign.Revision, "activeCombat": campaign.ActiveCombat, "lastCombatSummary": campaign.LastCombatSummary})
+		return
+	}
 	if len(segments) == 1 {
 		switch request.Method {
 		case http.MethodGet:
-			writeJSON(writer, http.StatusOK, campaign)
+			result := campaign
+			if request.Header.Get("X-Workspace-View") == "compact" {
+				result = workspaceCampaign(result)
+			}
+			conditionalJSON(writer, request, result)
 		case http.MethodPut, http.MethodPatch:
 			var input updateCampaignInput
 			if err := readJSON(request, &input); err != nil {
@@ -407,6 +419,8 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 	}
 
 	switch {
+	case len(segments) == 2 && segments[1] == "entities" && request.Method == http.MethodGet:
+		serveDirectory(writer, request, campaign)
 	case len(segments) >= 2 && segments[1] == "custom-items":
 		srv.handleCustomItems(writer, request, user, campaignID, segments)
 	case len(segments) >= 3 && len(segments) <= 5 && segments[1] == "scenes" && segments[2] == "ai":
@@ -786,12 +800,21 @@ func (srv *server) handleItemCatalog(writer http.ResponseWriter, request *http.R
 		return
 	}
 
-	writeJSON(writer, http.StatusOK, srv.items.browse(itemCatalogQuery{
-		Query:     request.URL.Query().Get("q"),
-		Source:    request.URL.Query().Get("source"),
-		Category:  request.URL.Query().Get("category"),
-		ArmorType: request.URL.Query().Get("armorType"),
-	}))
+	limit := 0
+	if raw := request.URL.Query().Get("limit"); raw != "" {
+		n, err := strconv.Atoi(raw)
+		if err != nil || n < 1 || n > 100 {
+			writeError(writer, 400, "invalid_page", "limit must be 1..100")
+			return
+		}
+		limit = n
+	}
+	result := srv.items.browse(itemCatalogQuery{Query: request.URL.Query().Get("q"), Source: request.URL.Query().Get("source"), Category: request.URL.Query().Get("category"), ArmorType: request.URL.Query().Get("armorType"), Limit: limit, Cursor: request.URL.Query().Get("cursor"), Sort: request.URL.Query().Get("sort"), Price: request.URL.Query().Get("price"), Rarity: request.URL.Query().Get("rarity")})
+	if result.CursorInvalid {
+		writeError(writer, 409, "catalog_cursor_expired", "Каталог или фильтры изменились. Обновите список.")
+		return
+	}
+	writeJSON(writer, 200, result)
 }
 
 func (srv *server) handleItemCatalogByPath(writer http.ResponseWriter, request *http.Request) {
@@ -849,6 +872,9 @@ func readJSON(request *http.Request, target any) error {
 }
 
 func writeJSON(writer http.ResponseWriter, status int, data any) {
+	if scoped, ok := writer.(*workspaceResponseWriter); ok && status < 400 {
+		data = scoped.project(data)
+	}
 	writer.Header().Set("Content-Type", "application/json")
 	writer.WriteHeader(status)
 	_ = json.NewEncoder(writer).Encode(envelope{Data: data, Meta: map[string]any{}})

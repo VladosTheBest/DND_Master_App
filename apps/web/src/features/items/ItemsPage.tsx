@@ -1343,8 +1343,8 @@ export function ItemsPage({ campaignId, ownerId, onCampaignChanged }: ItemsPageP
     catalogLoading,
     catalogError,
     loadingCatalogItemIds,
-    ensureCatalogItemDetail, detailErrors, retryCatalog
-  } = useItemsCatalogController({ campaignId, filters:{q:deferredSearchQuery,category:categoryFilter==="all"?undefined:categoryFilter,armorType:armorTypeFilter==="all"?undefined:armorTypeFilter||undefined,source:sourceFilter==="dndsu-magic"||sourceFilter==="dndsu-equipment"?sourceFilter:undefined},enabled:sourceFilter!=="custom"&&sourceFilter!=="builtin" });
+    ensureCatalogItemDetail, detailErrors, retryCatalog, hasMore, loadMore, catalogTotal
+  } = useItemsCatalogController({ campaignId, filters:{q:deferredSearchQuery,sort:sortMode,price:priceFilter,category:categoryFilter==="all"?undefined:categoryFilter,armorType:armorTypeFilter==="all"?undefined:armorTypeFilter||undefined,source:sourceFilter==="dndsu-magic"||sourceFilter==="dndsu-equipment"?sourceFilter:undefined},enabled:sourceFilter!=="custom"&&sourceFilter!=="builtin" });
 
   useEffect(() => {
     setStorageHydrated(false);
@@ -1442,6 +1442,7 @@ export function ItemsPage({ campaignId, ownerId, onCampaignChanged }: ItemsPageP
       .sort(compareItems(sortMode));
   }, [activeTab, armorTypeFilter, categoryFilter, deferredSearchQuery, priceFilter, scopedItems, sortMode, sourceFilter]);
 
+  useEffect(()=>{if(selectedItemId&&/^dndsu-/.test(selectedItemId))ensureCatalogItemDetail(selectedItemId);},[selectedItemId,ensureCatalogItemDetail]);
   const selectedItem = useMemo(
     () => allItems.find((item) => item.id === selectedItemId) ?? null,
     [allItems, selectedItemId]
@@ -1868,10 +1869,10 @@ export function ItemsPage({ campaignId, ownerId, onCampaignChanged }: ItemsPageP
             </div>
           )}
 
-          {visibleCount < filteredItems.length && (
+          {(visibleCount < filteredItems.length || hasMore) && (
             <div className="catalog-load-more">
-              <span className="muted">Показано {visibleCount} из {filteredItems.length}</span>
-              <button className="ghost" type="button" onClick={() => setVisibleCount((count) => count + 48)}>Показать ещё</button>
+              <span className="muted">Показано {Math.min(visibleCount,filteredItems.length)} · внешний каталог: {catalogTotal}</span>
+              <button className="ghost" type="button" disabled={catalogLoading} onClick={() => {setVisibleCount((count) => count + 48);if(hasMore)void loadMore();}}>Показать ещё</button>
             </div>
           )}
 

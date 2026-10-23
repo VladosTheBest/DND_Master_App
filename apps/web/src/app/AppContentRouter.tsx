@@ -1,3 +1,4 @@
+import {lazy,Suspense} from "react";
 import type {
   CampaignData,
   CreateEntityInput,
@@ -13,18 +14,18 @@ import type {
   ReactNode,
   RefObject
 } from "react";
-import { ItemsPage } from "../features/items/ItemsPage";
-import { ShopsPage } from "../features/shops/ShopsPage";
-import { EventsPageContainer } from "../features/events/EventsPageContainer";
-import { NotesPageContainer } from "../features/notes/NotesPageContainer";
-import { QuestPageContainer } from "../features/quests/QuestPageContainer";
-import { RulesPage } from "../features/rules/RulesPage";
+const ItemsPage=lazy(()=>import("../features/items/ItemsPage").then(module=>({default:module.ItemsPage})));
+const ShopsPage=lazy(()=>import("../features/shops/ShopsPage").then(module=>({default:module.ShopsPage})));
+const EventsPageContainer=lazy(()=>import("../features/events/EventsPageContainer").then(module=>({default:module.EventsPageContainer})));
+const NotesPageContainer=lazy(()=>import("../features/notes/NotesPageContainer").then(module=>({default:module.NotesPageContainer})));
+const QuestPageContainer=lazy(()=>import("../features/quests/QuestPageContainer").then(module=>({default:module.QuestPageContainer})));
+const RulesPage=lazy(()=>import("../features/rules/RulesPage").then(module=>({default:module.RulesPage})));
 import type { PlayerFacingCardsController } from "../features/player-facing/usePlayerFacingCards";
 
 type RailAlias = "items" | "events" | "notes" | "shops" | "sessions";
 type ModuleId = "dashboard" | "combat" | "locations" | "players" | "npcs" | "monsters" | "quests" | "lore" | "rules";
 
-export function AppContentRouter({
+function ContentRouter({
   ownerId,
   activeEntity,
   activeModule,
@@ -214,3 +215,5 @@ export function AppContentRouter({
 
   return <>{legacyContent}</>;
 }
+
+export function AppContentRouter(props:Parameters<typeof ContentRouter>[0]){return <Suspense fallback={<p role="status">Загружаю раздел…</p>}><ContentRouter {...props}/></Suspense>;}

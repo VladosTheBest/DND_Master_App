@@ -1,0 +1,28 @@
+{
+  "baselineRelease": 182,
+  "date": "2026-10-23",
+  "method": "Static JS dependency graphs; raw bytes and gzip level 9. No CPU trace or field Core Web Vitals.",
+  "beforeLogin": {
+    "raw": 1806451,
+    "gzip": 461347
+  },
+  "afterLogin": {
+    "raw": 481784,
+    "gzip": 146133
+  },
+  "afterWorkspace": {
+    "raw": 1355295,
+    "gzip": 345432
+  },
+  "appChunk": {
+    "file": "assets/App-CGthqhHA.js",
+    "raw": 869066,
+    "gzip": 197300
+  },
+  "fixtureBytes": {
+    "mutationFull": 5616,
+    "mutationDelta": 214,
+    "campaign": 352955,
+    "directoryPage": 7715
+  }
+}

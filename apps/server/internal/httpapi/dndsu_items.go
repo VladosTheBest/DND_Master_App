@@ -2,6 +2,8 @@ package httpapi
 
 import (
 	"bufio"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -82,10 +84,12 @@ type itemCatalogSummary struct {
 }
 
 type itemCatalogListResult struct {
-	Items   []itemCatalogSummary  `json:"items"`
-	Filters itemCatalogFilters    `json:"filters"`
-	Status  itemCatalogSyncStatus `json:"status"`
-	Total   int                   `json:"total"`
+	NextCursor    string                `json:"nextCursor,omitempty"`
+	CursorInvalid bool                  `json:"-"`
+	Items         []itemCatalogSummary  `json:"items"`
+	Filters       itemCatalogFilters    `json:"filters"`
+	Status        itemCatalogSyncStatus `json:"status"`
+	Total         int                   `json:"total"`
 }
 
 type itemCatalogDetail struct {
@@ -104,6 +108,11 @@ type itemCatalogDetail struct {
 }
 
 type itemCatalogQuery struct {
+	Limit     int
+	Cursor    string
+	Sort      string
+	Price     string
+	Rarity    string
 	Query     string
 	Source    string
 	Category  string
@@ -386,12 +395,74 @@ func (catalog *itemCatalog) browse(query itemCatalogQuery) itemCatalogListResult
 
 	filtered := make([]itemCatalogSummary, 0, len(entries))
 	for _, entry := range entries {
-		if !matchItemCatalogQuery(entry, query) {
+		if !matchItemCatalogQuery(entry, query) || !catalogPriceMatches(entry.BuyPriceGP, query.Price) || query.Rarity != "" && query.Rarity != "all" && catalogRarity(entry.Rarity) != query.Rarity {
 			continue
 		}
 		filtered = append(filtered, summaryFromItemCache(entry))
 	}
 
+	if query.Limit > 0 {
+		sort.SliceStable(filtered, func(i, j int) bool {
+			a, b := filtered[i], filtered[j]
+			if query.Sort == "price-asc" || query.Sort == "price-desc" {
+				if a.BuyPriceGP == nil {
+					return false
+				}
+				if b.BuyPriceGP == nil {
+					return true
+				}
+				if *a.BuyPriceGP != *b.BuyPriceGP {
+					if query.Sort == "price-desc" {
+						return *a.BuyPriceGP > *b.BuyPriceGP
+					}
+					return *a.BuyPriceGP < *b.BuyPriceGP
+				}
+			}
+			left, right := strings.ToLower(a.Title), strings.ToLower(b.Title)
+			if left == right {
+				return a.ID < b.ID
+			}
+			if query.Sort == "name-desc" {
+				return left > right
+			}
+			return left < right
+		})
+		fingerprint := sha256.New()
+		copyQuery := query
+		copyQuery.Cursor = ""
+		raw, _ := json.Marshal(copyQuery)
+		fingerprint.Write(raw)
+		for _, item := range filtered {
+			raw, _ = json.Marshal(item)
+			fingerprint.Write(raw)
+		}
+		version := fmt.Sprintf("%x", fingerprint.Sum(nil))[:20]
+		offset := 0
+		if query.Cursor != "" {
+			decoded, err := base64.RawURLEncoding.DecodeString(query.Cursor)
+			parts := strings.Split(string(decoded), ":")
+			if err != nil || len(parts) != 2 || parts[0] != version {
+				return itemCatalogListResult{CursorInvalid: true}
+			}
+			offset, err = strconv.Atoi(parts[1])
+			if err != nil || offset < 0 || offset > len(filtered) {
+				return itemCatalogListResult{CursorInvalid: true}
+			}
+		}
+		limit := query.Limit
+		if limit > 100 {
+			limit = 100
+		}
+		end := offset + limit
+		if end > len(filtered) {
+			end = len(filtered)
+		}
+		result := itemCatalogListResult{Items: filtered[offset:end], Filters: buildItemCatalogFilters(entries), Status: status, Total: len(filtered)}
+		if end < len(filtered) {
+			result.NextCursor = base64.RawURLEncoding.EncodeToString([]byte(fmt.Sprintf("%s:%d", version, end)))
+		}
+		return result
+	}
 	return itemCatalogListResult{
 		Items:   filtered,
 		Filters: buildItemCatalogFilters(entries),
@@ -1532,4 +1603,35 @@ func intPointer(value int) *int {
 func boolPointer(value bool) *bool {
 	copy := value
 	return &copy
+}
+
+func catalogPriceMatches(p *float64, filter string) bool {
+	switch filter {
+	case "unknown":
+		return p == nil
+	case "under-10":
+		return p != nil && *p < 10
+	case "10-100":
+		return p != nil && *p >= 10 && *p <= 100
+	case "100-500":
+		return p != nil && *p > 100 && *p <= 500
+	case "500-plus":
+		return p != nil && *p > 500
+	}
+	return true
+}
+func catalogRarity(value string) string {
+	s := strings.ToLower(value)
+	for _, pair := range [][2]string{{"очень редк", "Очень редкие"}, {"необычн", "Необычные"}, {"обычн", "Обычные"}, {"редк", "Редкие"}, {"легендарн", "Легендарные"}} {
+		if strings.HasPrefix(s, pair[0]) && !strings.Contains(s, "варьируется") {
+			return pair[1]
+		}
+	}
+	if strings.Contains(s, "артефакт") {
+		return "Артефакты"
+	}
+	if value == "" {
+		return "Не указана"
+	}
+	return value
 }

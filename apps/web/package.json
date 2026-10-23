@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "prebuild": "node ../../packages/foundry-module/scripts/build.mjs",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && node compress-assets.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

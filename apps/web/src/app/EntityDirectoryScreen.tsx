@@ -1,3 +1,7 @@
+import {useEffect,useRef,useState} from "react";
+import {apiBaseURL} from "./directory-data";
+import {requestJson} from "@shadow-edge/api-client";
+import {useWorkspaceListState} from "./workspace-route";
 import { workspaceURL } from "./workspace-route";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import type {
@@ -22,6 +26,7 @@ import { resolveQuestSceneArtwork, questStatusTone, questStatusLabels, questUrge
 
 type EntityDirectoryScreenProps = {
   campaignId:string;
+  activeTab:string;
   activeModule: ModuleId;
   activeSectionLabel: string;
   defaultCreateKind: EntityKind;
@@ -40,11 +45,11 @@ type EntityDirectoryScreenProps = {
 };
 
 export function EntityDirectoryScreen({
-  campaignId,
+  campaignId,activeTab,
   activeModule,
   activeSectionLabel,
   defaultCreateKind,
-  moduleDirectoryEntities,
+  moduleDirectoryEntities:initialEntities,
   moduleEntitySearch,
   onChangeSearch,
   onOpenEntity,
@@ -57,6 +62,14 @@ export function EntityDirectoryScreen({
   resolveQuestLocation,
   resolveQuestPreparedCombatEntries
 }: EntityDirectoryScreenProps) {
+  const [requestedRows,setRequestedRows]=useWorkspaceListState<number>("directory.rows",48);
+  const [page,setPage]=useState<{items:KnowledgeEntity[];total:number;nextCursor:string}>({items:[],total:0,nextCursor:""}),[loading,setLoading]=useState(true),[error,setError]=useState(""),[retry,setRetry]=useState(0);
+  const generation=useRef(0);
+  const endpoint=`${apiBaseURL}/api/campaigns/${encodeURIComponent(campaignId)}/entities?kind=${defaultCreateKind}&limit=48&tab=${encodeURIComponent(activeTab)}&q=${encodeURIComponent(moduleEntitySearch)}`;
+  const moduleDirectoryEntities=page.items;
+  useEffect(()=>{const abort=new AbortController();const version=++generation.current;setPage({items:[],total:0,nextCursor:""});setLoading(true);setError("");const timer=setTimeout(()=>{void requestJson<typeof page>(endpoint,{signal:abort.signal}).then(result=>{if(version===generation.current)setPage(result);}).catch(reason=>{if(!abort.signal.aborted)setError(reason instanceof Error?reason.message:"Не удалось загрузить записи.");}).finally(()=>{if(!abort.signal.aborted)setLoading(false);});},moduleEntitySearch?250:0);return()=>{abort.abort();clearTimeout(timer);};},[endpoint,retry,initialEntities]);
+  const more=async()=>{if(loading||!page.nextCursor)return;const version=generation.current;setLoading(true);setError("");try{const result=await requestJson<typeof page>(endpoint+`&cursor=${encodeURIComponent(page.nextCursor)}`);if(version===generation.current)setPage(old=>({...result,items:[...old.items,...result.items]}));}catch(reason){if(version===generation.current)setError(reason instanceof Error?reason.message:"Страница недоступна.");}finally{if(version===generation.current)setLoading(false);}};
+  useEffect(()=>{if(!loading&&!error&&page.nextCursor&&page.items.length<Math.min(1000,Math.max(48,requestedRows)))void more();},[requestedRows,page.items.length,page.nextCursor,loading,error]);
   const searchInputRef = usePageSearchHotkey<HTMLInputElement>();
 
   return (
@@ -65,7 +78,7 @@ export function EntityDirectoryScreen({
         <div className="directory-head">
           <div>
             <h1>{activeSectionLabel}</h1>
-            <p className="copy">{moduleEntitySearch ? "Найдено" : "Записей в кампании"}: {moduleDirectoryEntities.length}</p>
+            <p className="copy">{moduleEntitySearch ? "Найдено" : "Записей в кампании"}: {page.total}</p>
           </div>
           <div className="actions">
             {activeModule === "quests" ? (
@@ -84,12 +97,14 @@ export function EntityDirectoryScreen({
           <input
             className="input"
             ref={searchInputRef}
-            onChange={(event) => onChangeSearch(event.target.value)}
+            onChange={(event) => {setRequestedRows(48);onChangeSearch(event.target.value);}}
             placeholder={`Поиск по разделу «${activeSectionLabel}»`}
             value={moduleEntitySearch}
           />
         </label>
 
+        {error&&<p role="alert">{error} <button onClick={()=>setRetry(value=>value+1)}>Обновить список</button></p>}
+        {loading&&<p role="status">Загружаю записи…</p>}
         {moduleDirectoryEntities.length ? (
           <div className="directory-grid">
             {activeModule === "quests"
@@ -172,13 +187,14 @@ export function EntityDirectoryScreen({
                   );
                 })}
           </div>
-        ) : (
+        ) : !loading&&!error ? (
           <div className="directory-empty">
             <h3>{moduleEntitySearch ? "Ничего не найдено" : "Здесь пока пусто"}</h3>
             <p className="copy">{moduleEntitySearch ? "Попробуйте другое название или очистите поиск." : "Добавьте первую запись — описание можно дополнить позже."}</p>
             {moduleEntitySearch ? <button className="ghost" onClick={() => onChangeSearch("")} type="button">Очистить поиск</button> : null}
           </div>
-        )}
+        ):null}
+        {page.nextCursor&&<button disabled={loading} onClick={()=>{if(error)void more();else setRequestedRows(page.items.length+48);}}>Показать ещё записи</button>}
       </section>
     </div>
   );
