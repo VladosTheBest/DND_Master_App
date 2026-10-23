@@ -1,0 +1,192 @@
+{
+  "date": "2026-10-23",
+  "baselineCommit": "bb9c7ba9bda626d758a1c7d064b9dc424d09d195",
+  "scope": "Local source and production build. Static dependency closure is not a measured browser transfer or timing.",
+  "verification": {
+    "webBuild": "PASS: npm run build --workspace @shadow-edge/web; 2583 modules; large-chunk warning",
+    "serverTests": "PASS: go test ./apps/server/...; cmd/server cached; internal/httpapi 44.240s",
+    "productionReadOnly": {
+      "rootStatus": 200,
+      "authSessionStatus": 200,
+      "health": "First request timed out after 20 seconds; subsequent request 200 with status ok. Cause not established.",
+      "indexAssetNamesMatchLocalBuild": true,
+      "authenticatedCampaignTesting": false
+    },
+    "uiFixture": {
+      "source": "Built dist; synthetic empty campaign; GET-only mock API; no backend storage or AI",
+      "desktopViewport": "1440x1000",
+      "mobileViewport": "390x844",
+      "observed": [
+        "Locations navigation keeps root URL; reload returns dashboard",
+        "Mobile menu expands and selection closes it",
+        "New campaign action absent from expanded mobile menu; CSS hides rail-group-head below 1120px",
+        "Entity editor opens; initial focus stays on background Add record control",
+        "Tab moves to background Search input while entity editor remains open",
+        "Closing unchanged new entity form opens unsaved-changes confirmation",
+        "World maps navigation and empty creation form are accessible"
+      ],
+      "limitations": "Local screenshot capture timed out; no full visual, overflow, contrast, Lighthouse or screen-reader conformance claim"
+    }
+  },
+  "source": {
+    "fileCount": 302,
+    "cssBytes": 620556,
+    "largest": [
+      {
+        "file": "apps/web/src/features/characters/rules-data.ts",
+        "lines": 11600,
+        "bytes": 831820
+      },
+      {
+        "file": "apps/web/src/App.tsx",
+        "lines": 5482,
+        "bytes": 218893
+      },
+      {
+        "file": "apps/web/src/features/characters/rules.ts",
+        "lines": 5421,
+        "bytes": 224748
+      },
+      {
+        "file": "apps/web/src/app.css",
+        "lines": 4867,
+        "bytes": 107419
+      },
+      {
+        "file": "apps/web/src/app/SessionMapModal.tsx",
+        "lines": 3191,
+        "bytes": 119322
+      },
+      {
+        "file": "apps/web/src/features/characters/rule-creatures.ts",
+        "lines": 2223,
+        "bytes": 260938
+      },
+      {
+        "file": "apps/web/src/features/characters/artificer-replicas-2024-general.ts",
+        "lines": 2186,
+        "bytes": 191665
+      },
+      {
+        "file": "apps/web/src/features/characters/CharacterBuilder.tsx",
+        "lines": 2102,
+        "bytes": 83813
+      },
+      {
+        "file": "apps/web/src/features/characters/random-effect-tables.ts",
+        "lines": 2053,
+        "bytes": 94207
+      },
+      {
+        "file": "apps/web/src/features/characters/characters.css",
+        "lines": 2039,
+        "bytes": 41878
+      },
+      {
+        "file": "apps/web/src/features/characters/rules.test.ts",
+        "lines": 1947,
+        "bytes": 89400
+      },
+      {
+        "file": "apps/web/src/quests.tsx",
+        "lines": 1909,
+        "bytes": 74319
+      }
+    ]
+  },
+  "api": {
+    "methodCount": 54,
+    "methodsWithoutDirectWebCall": [
+      "generateWorldEvent",
+      "publishInitiativeShare"
+    ],
+    "note": "Textual scan only; dynamic calls and endpoints outside shared client require manual review."
+  },
+  "build": {
+    "largestAssets": [
+      {
+        "file": "apps/web/dist/assets/character-rules-CvIaXI71.js",
+        "bytes": 3570453,
+        "gzipBytes": 821360
+      },
+      {
+        "file": "apps/web/dist/assets/App-BR1zti2e.js",
+        "bytes": 1275687,
+        "gzipBytes": 298493
+      },
+      {
+        "file": "apps/web/dist/assets/jspdf.es.min-B2KnIbNm.js",
+        "bytes": 383741,
+        "gzipBytes": 125385
+      },
+      {
+        "file": "apps/web/dist/assets/index-DLOsnHOJ.js",
+        "bytes": 268584,
+        "gzipBytes": 87111
+      },
+      {
+        "file": "apps/web/dist/assets/characters.api-BzI4CLeF.js",
+        "bytes": 245936,
+        "gzipBytes": 68112
+      },
+      {
+        "file": "apps/web/dist/assets/index-DAG_js_j.css",
+        "bytes": 229874,
+        "gzipBytes": 45765
+      },
+      {
+        "file": "apps/web/dist/assets/App-B7S6pnFR.css",
+        "bytes": 220247,
+        "gzipBytes": 40459
+      },
+      {
+        "file": "apps/web/dist/assets/html2canvas.esm-CBrSDip1.js",
+        "bytes": 202301,
+        "gzipBytes": 48033
+      },
+      {
+        "file": "apps/web/dist/assets/feature-notes-events-Bpz4QtLG.js",
+        "bytes": 160839,
+        "gzipBytes": 47542
+      },
+      {
+        "file": "apps/web/dist/assets/index.es-D9R3I4bD.js",
+        "bytes": 151000,
+        "gzipBytes": 51677
+      },
+      {
+        "file": "apps/web/dist/assets/vendor-react-u7NqBe2v.js",
+        "bytes": 141963,
+        "gzipBytes": 45489
+      },
+      {
+        "file": "apps/web/dist/assets/CharacterPublicApp-BnfZ_P5l.js",
+        "bytes": 108141,
+        "gzipBytes": 30126
+      }
+    ],
+    "entry": "index-DLOsnHOJ.js",
+    "initialStaticImports": [
+      "index-DLOsnHOJ.js",
+      "vendor-react-u7NqBe2v.js",
+      "feature-notes-events-Bpz4QtLG.js"
+    ],
+    "initialStaticTotal": {
+      "bytes": 571386,
+      "gzipBytes": 180142
+    },
+    "withLazyAppStaticImports": [
+      "index-DLOsnHOJ.js",
+      "vendor-react-u7NqBe2v.js",
+      "feature-notes-events-Bpz4QtLG.js",
+      "App-BR1zti2e.js",
+      "feature-media-Cl3LMKWe.js",
+      "feature-quests-BL1zRABQ.js",
+      "feature-combat-DwNeTaGv.js"
+    ],
+    "withLazyAppStaticTotal": {
+      "bytes": 1944677,
+      "gzipBytes": 506912
+    }
+  }
+}
