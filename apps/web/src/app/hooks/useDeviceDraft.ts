@@ -24,7 +24,7 @@ export function useDeviceDraft<T>({ownerId,campaignId,target,revision,value,dirt
   },[scope,enabled]);
   useLayoutEffect(()=>{
     if(timer.current)clearTimeout(timer.current);pending.current=null;
-    if(!enabled||!dirty||!ownerId||!campaignId||bound.current!==scope||waiting.current)return;
+    if(!enabled||!dirty||!ownerId||!campaignId||bound.current!==scope)return;
     const save=(report=true)=>{
       const key=writeDeviceDraft(ownerId,campaignId,target,writer.current,{version:2,baseRevision:revision,savedAt:new Date().toISOString(),value});
       written.current.add(deviceDraftKey(ownerId,campaignId,target,writer.current,revision));
@@ -50,7 +50,14 @@ export function useDeviceDraft<T>({ownerId,campaignId,target,revision,value,dirt
   };
   const recover=()=>{
     if(!candidate)return;
-    try {if(restore(candidate)===false)return;recovered.current=candidate.key;waiting.current=false;setCandidates([]);setCandidateKey("");}
+    try {
+      if(restore(candidate)===false)return;
+      // Preserve text entered before choosing a recovered copy as its own branch.
+      if(timer.current)clearTimeout(timer.current);
+      pending.current?.(false);pending.current=null;
+      writer.current=crypto.randomUUID();written.current=new Set();
+      recovered.current=candidate.key;waiting.current=false;setCandidates([]);setCandidateKey("");
+    }
     catch(reason){setStatus(reason instanceof Error?reason.message:"Не удалось восстановить черновик. Скачайте копию.");}
   };
   const discard=()=>{
