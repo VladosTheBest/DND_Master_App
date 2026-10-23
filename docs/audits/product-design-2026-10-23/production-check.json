@@ -1,0 +1,61 @@
+{
+  "checkedOn": "2026-10-24",
+  "base": "https://dnd-master-app.fly.dev",
+  "release": 187,
+  "image": "registry.fly.io/dnd-master-app:deployment-01M5NEV0FEWB0H15YC9651V8DM",
+  "machine": "d89064ef0e3758",
+  "healthCheck": "passing",
+  "sourceCommits": [
+    "a79638a",
+    "caae0cf",
+    "cccafde"
+  ],
+  "checks": [
+    {
+      "path": "/healthz",
+      "status": 200,
+      "cacheControl": null
+    },
+    {
+      "path": "/livez",
+      "status": 200,
+      "cacheControl": null
+    },
+    {
+      "path": "/",
+      "status": 200,
+      "cacheControl": "no-cache"
+    },
+    {
+      "path": "/api/account/ai",
+      "status": 401,
+      "cacheControl": null
+    },
+    {
+      "path": "/api/account/recovery-codes",
+      "status": 401,
+      "cacheControl": null
+    },
+    {
+      "path": "/api/campaigns/_/capabilities",
+      "status": 401,
+      "cacheControl": null
+    }
+  ],
+  "assets": [
+    {
+      "path": "assets/App-Ct0AAYtY.js",
+      "status": 200,
+      "sha256": "7153d38aa3a8aa455e25a887f34525917e574680c7d588e100323966e873a82d",
+      "bytes": 871939,
+      "cacheControl": "public, max-age=31536000, immutable"
+    },
+    {
+      "path": "assets/index-D261K7gD.css",
+      "status": 200,
+      "sha256": "b9ce4881a1d0c28cb8676d97c10f1b2556674c6cbdce22cd254e1fd97429f98d",
+      "bytes": 220678,
+      "cacheControl": "public, max-age=31536000, immutable"
+    }
+  ]
+}

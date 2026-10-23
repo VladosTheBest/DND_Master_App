@@ -93,6 +93,16 @@
       "sha256": "64e354979b6ae562d3f1c8110915fccc206a1b9feb4f54362540831ecb371273"
     },
     {
+      "path": "login-short-window-scroll.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1280,
+        720
+      ],
+      "sha256": "23ffaf2660b6ae41cb235c16dd2f9d4eef03ec57f364dc9e201d5c8149f050f7"
+    },
+    {
       "path": "maps-initial.jpg",
       "kind": "browser-capture",
       "format": "JPEG",
@@ -243,6 +253,16 @@
       "sha256": "eac0675a5360fe0eff2ce8e58f04d5fdf282fb35488d12a6930e23fcd3ecd234"
     },
     {
+      "path": "production-login.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1209,
+        1234
+      ],
+      "sha256": "20491b05bf2ea32df9207b36c1f62b2731063fc378260375eca9543d0285ef04"
+    },
+    {
       "path": "quests.jpg",
       "kind": "browser-capture",
       "format": "JPEG",
@@ -351,16 +371,6 @@
         892
       ],
       "sha256": "6fe00c7e46d008deac7e37a0870e05184d1e4c55e4fbf9c6fc9bec10f8ec7ec2"
-    },
-    {
-      "path": "login-short-window-scroll.jpg",
-      "kind": "browser-capture",
-      "format": "JPEG",
-      "pixels": [
-        1280,
-        720
-      ],
-      "sha256": "23ffaf2660b6ae41cb235c16dd2f9d4eef03ec57f364dc9e201d5c8149f050f7"
     }
   ]
 }

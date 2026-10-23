@@ -200,3 +200,5 @@
 Критерии и итерации сравнения, реальные размеры снимков, принятые отличия от иллюстративного содержимого макета и оставшиеся границы проверки: [design-qa.md](../../../design-qa.md). Новый UI не закрывает отдельные backend/product задачи исходного аудита: inventory, облачная библиотека, полный coverage D&D, история/архив и недоступные интеграции. Полный WCAG, все сценарии боя/TV/Foundry и каждый экран правил/мастерской этим пакетом не сертифицируются.
 
 Исходные 27 снимков и три концепта сохранены без перезаписи, их SHA/форматы — `evidence.json`; новые browser captures — `after/evidence.json`. PNG-концепты не выдаются за работающий интерфейс. Проверки исходников: web TypeScript/production build, workspace routes, device drafts, authoring transport, compact workspace responses, diff check.
+
+Итоговое внедрение опубликовано как Fly release187. Анонимные health/access и совпадение JS/CSS подтверждены в [production-check.json](production-check.json); сценарии редактирования/боя выполнялись только на изолированном стенде.

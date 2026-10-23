@@ -55,6 +55,10 @@
 
 P3 follow-up: локализация legacy enum фактов (City/Tense), дальнейшая унификация специальных handout-типографик. За рамками: все уровни/classes/PDF мастера, активный бой и TV на реальном втором устройстве, Foundry, live provider inference, все admin/ready-reader состояния, screen reader и полная 200% zoom/WCAG проверка. Product gaps исходного аудита не объявлены закрытыми визуальным обновлением.
 
+## Production
+
+Fly release **187**, image `deployment-01M5NEV0FEWB0H15YC9651V8DM`, машина `d89064ef0e3758`, service health check passing. GET `/healthz`, `/livez`, `/` —200; anonymous account AI/recovery/campaign capabilities —401. SHA-256 App JS и общего CSS точно совпадают с последней локальной сборкой, hashed assets имеют immutable cache, `/` —no-cache. Полные безопасные метаданные: [production-check.json](docs/audits/product-design-2026-10-23/production-check.json). [Публичный экран входа](docs/audits/product-design-2026-10-23/after/production-login.jpg) снят после последнего деплоя; overflow login:auto, console errors[]. Авторизованные production кампании/сохранения этим прогоном не изменялись.
+
 ## Checklist
 
 - [x] Выбранное направление реализовано в существующем приложении.
