@@ -1,0 +1,218 @@
+{
+  "date": "2026-10-23",
+  "sourceCommit": "676143f",
+  "environment": "isolated-local-fixture",
+  "screenshots": [
+    {
+      "file": "01-login.jpg",
+      "format": "jpeg",
+      "width": 1440,
+      "height": 1024,
+      "sha256": "cc1606770e677b9b370775a8b482b27d7bb5616a7f734991e8f0ecdcb6f0b97a"
+    },
+    {
+      "file": "02-dashboard.jpg",
+      "format": "jpeg",
+      "width": 1440,
+      "height": 1024,
+      "sha256": "927e8193a49cde41a3e7dbcbdc4b5f6793e196f9ef9c43a692cd063ec0e4c0e1"
+    },
+    {
+      "file": "03-directory.jpg",
+      "format": "jpeg",
+      "width": 1440,
+      "height": 1024,
+      "sha256": "9d32d720e74e35737922b8d7b24d8b412e418a70c87cec1318b0f43ad4270ea2"
+    },
+    {
+      "file": "04-entity-detail.jpg",
+      "format": "jpeg",
+      "width": 1440,
+      "height": 1024,
+      "sha256": "f3a3c453b9a7721283cd9d17f34b70919ada98f81125095accd32db918faf557"
+    },
+    {
+      "file": "05-editor.jpg",
+      "format": "jpeg",
+      "width": 1440,
+      "height": 1024,
+      "sha256": "f3feefd8a515dd401ce9aa8ea26437a2ed0bddb5606b7aeccbed3d83b8f4d853"
+    },
+    {
+      "file": "06-sessions.jpg",
+      "format": "jpeg",
+      "width": 1440,
+      "height": 1024,
+      "sha256": "fba867b9bd22354c63157daecab8ffb253202b1b076124cdd976e0d7c48538b3"
+    },
+    {
+      "file": "07-session-open.jpg",
+      "format": "jpeg",
+      "width": 1440,
+      "height": 1024,
+      "sha256": "c10c90eb2e0bd0525a64b4038534950d6c6a9eb697957dab3ddfd08825c5332e"
+    },
+    {
+      "file": "08-items.jpg",
+      "format": "jpeg",
+      "width": 1440,
+      "height": 1024,
+      "sha256": "65a34ef98a85771f6ea747696473036c29cd66cf0e95ff732a9b1ac9f2a447b9"
+    },
+    {
+      "file": "09-map-editor.jpg",
+      "format": "jpeg",
+      "width": 1440,
+      "height": 1024,
+      "sha256": "fccff081f83f5b70ef71e8f75228c0955ceac9c39d9f8020966b5a3f2b42fe57"
+    },
+    {
+      "file": "10-scenes.jpg",
+      "format": "jpeg",
+      "width": 1440,
+      "height": 1024,
+      "sha256": "2e7a2edc6fd49ec4e90006f8a57004e0fbf21381036a08b7be76caaa38e04dd7"
+    },
+    {
+      "file": "11-ai-chat.jpg",
+      "format": "jpeg",
+      "width": 1440,
+      "height": 1024,
+      "sha256": "4a15c73bacc3620edb2379e8c860e9107f844a566c714a4c2ce2456f5b724fef"
+    },
+    {
+      "file": "12-offline.jpg",
+      "format": "jpeg",
+      "width": 1440,
+      "height": 1024,
+      "sha256": "4a71dd33e8fa415b4d575c17644cd41352f1ac1bcf938ad45674d082f8d5fbdb"
+    },
+    {
+      "file": "13-combat.jpg",
+      "format": "jpeg",
+      "width": 1440,
+      "height": 1024,
+      "sha256": "f39214fed2088334c7f3ba2b27e287a6ef8063795d05fcc721c8d26f31a8aaa9"
+    },
+    {
+      "file": "14-combat-leave.jpg",
+      "format": "jpeg",
+      "width": 1440,
+      "height": 1024,
+      "sha256": "66c25da4f0ba82d9130098764b405295cf5d1c65627a5c7324cab68d4c6332b8"
+    },
+    {
+      "file": "15-shops.jpg",
+      "format": "jpeg",
+      "width": 1440,
+      "height": 1024,
+      "sha256": "6d34e59f7967af7715f873ffce3614fe0777d149a7d4c63e444058dc86f6b92e"
+    },
+    {
+      "file": "16-settings.jpg",
+      "format": "jpeg",
+      "width": 1440,
+      "height": 1024,
+      "sha256": "9f55b80268bd5c9c549e39ea85365761b482d5b4024ca6d7012e36d4c74c262f"
+    },
+    {
+      "file": "17-mobile-settings.jpg",
+      "format": "jpeg",
+      "width": 390,
+      "height": 844,
+      "sha256": "de94a6c634e85e2867973e88de386904bacee38c142eaae1abb09d08e79e3854"
+    },
+    {
+      "file": "18-mobile-shop.jpg",
+      "format": "jpeg",
+      "width": 381,
+      "height": 825,
+      "sha256": "a3d662001c366e34c8e45b10eb3707871b608aaa54c7c473dc30992d0039fa8e"
+    },
+    {
+      "file": "19-mobile-navigation.jpg",
+      "format": "jpeg",
+      "width": 381,
+      "height": 825,
+      "sha256": "a1820cf6a7c3c6cd84924011cc9ee60c194d32c1f1afad90413d7615a96c5221"
+    },
+    {
+      "file": "20-mobile-directory.jpg",
+      "format": "jpeg",
+      "width": 381,
+      "height": 825,
+      "sha256": "69d180fb62444be3603ccb6143ef2be51366ba8125c6806b1f67511e55f7cf39"
+    },
+    {
+      "file": "21-characters-start.jpg",
+      "format": "jpeg",
+      "width": 1440,
+      "height": 1024,
+      "sha256": "74fe83404ee1dfec6ef81c9ad618e5499afcd5a046d356415320e38bc89ce8c4"
+    },
+    {
+      "file": "22-character-builder.jpg",
+      "format": "jpeg",
+      "width": 1440,
+      "height": 1024,
+      "sha256": "a0f68d1354d045353298f46a73c094027c05d07f0873a805dc2165b82777091a"
+    },
+    {
+      "file": "23-mobile-builder.jpg",
+      "format": "jpeg",
+      "width": 390,
+      "height": 844,
+      "sha256": "9346e3635269976fb00d60b47615f0461b2c9967fbb086cd0a61a2c8b57a02a0"
+    },
+    {
+      "file": "24-character-return.jpg",
+      "format": "jpeg",
+      "width": 1440,
+      "height": 1024,
+      "sha256": "2c5d3f2853a0b854a12dcb9aaa8f950202e71eb7f93b54bbf20725381a0c5a1f"
+    },
+    {
+      "file": "25-players.jpg",
+      "format": "jpeg",
+      "width": 1280,
+      "height": 720,
+      "sha256": "ebfb29899d935a5a3b0e7b5c57639ea04c2b634cfe5c630447d40cbadbeeff81"
+    },
+    {
+      "file": "26-rules.jpg",
+      "format": "jpeg",
+      "width": 1280,
+      "height": 720,
+      "sha256": "7e2f7e3ff06a8bf987b500b664df2461d667e01c7e631236bc982cd45483f2c8"
+    },
+    {
+      "file": "27-bestiary.jpg",
+      "format": "jpeg",
+      "width": 1280,
+      "height": 720,
+      "sha256": "784b00f2d9e9a5466150864ec38971e8c212d43b7627cd4f9c58c255bfb1ff7b"
+    },
+    {
+      "file": "concept-1.png",
+      "format": "png",
+      "width": 1487,
+      "height": 1058,
+      "sha256": "20b4f5f59726f72116dd3697c1e69eb6e44dc98df4aca91e9d6d90101c05cfec"
+    },
+    {
+      "file": "concept-2.png",
+      "format": "png",
+      "width": 1487,
+      "height": 1058,
+      "sha256": "e1322804ff71aa38bc9d9e14411f71f42b8ac65525f14dffc71e93b38b1af65c"
+    },
+    {
+      "file": "concept-3.png",
+      "format": "png",
+      "width": 1487,
+      "height": 1058,
+      "sha256": "f23382bbfbdcd6bb308bf3d46492ab4a9547d0ca75cb0dd7861f4faad0a3f0e8"
+    }
+  ],
+  "completedDate": "2026-10-24"
+}
