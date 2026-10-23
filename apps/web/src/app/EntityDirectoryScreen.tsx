@@ -77,7 +77,8 @@ export function EntityDirectoryScreen({
       <section className="card section-card directory-screen">
         <div className="directory-head">
           <div>
-            <h1>{activeSectionLabel}</h1>
+            <h1>{activeModule === "players" ? "Карточки группы" : activeSectionLabel}</h1>
+            {activeModule === "players" && <p className="copy">Краткие записи мастера. Полные листы и приглашения игроков — выше.</p>}
             <p className="copy">{moduleEntitySearch ? "Найдено" : "Записей в кампании"}: {page.total}</p>
           </div>
           <div className="actions">
@@ -182,7 +183,7 @@ export function EntityDirectoryScreen({
                         <small>{entity.subtitle}</small>
                         <p>{truncateInlineText(entity.summary, 150)}</p><small>{({location:"Открыть место и связи",npc:"Открыть НПС и связи",player:"Открыть персонажа и лист",monster:"Открыть характеристики",quest:"Продолжить квест",lore:"Открыть заметку"})[entity.kind]}</small>
                       </button>
-                      {entity.kind==="location"&&<a className="ghost" href={workspaceURL({campaignId,section:"maps",view:"new",context:JSON.stringify({locationId:entity.id})})}>Карта или сцена места →</a>}
+                      {entity.kind==="location"&&<a className="ghost directory-map-link" href={workspaceURL({campaignId,section:"maps",view:"new",context:JSON.stringify({locationId:entity.id})})}>Карта или сцена места →</a>}
                     </article>
                   );
                 })}

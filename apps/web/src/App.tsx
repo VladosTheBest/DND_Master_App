@@ -1007,7 +1007,8 @@ const railAliasTitle: Partial<Record<RailAlias, string>> = {
   sessions: "Сессии",
   items: "Предметы",
   events: "События",
-  notes: "Заметки"
+  notes: "Заметки",
+  shops: "Магазины"
 };
 
 const railNavKeyFromView = (moduleId: ModuleId, alias: RailAlias | null): RailNavKey => {
@@ -1746,8 +1747,9 @@ export default function App() {
 
   const modalController = useModalController({
     hasUnsavedEntityChanges: entityEditor.hasUnsavedEntityChanges,
+    hasUnsavedCombatChanges: () => combatSetupDirty,
     closeCombatPlaylistModal: () => closeCombatPlaylistModal(),
-    closeCombatSetupModal: () => closeCombatSetupModal(),
+    closeCombatSetupModal: () => { closeCombatSetupModal(); if (activeModule === "combat" && !activeCombat?.entries.length) navigateWorkspace(workspaceURL({campaignId: activeCampaignId, section: "offline"})); },
     closeEntityGalleryModal: () => entityMedia.closeEntityGalleryModal(),
     closeEntityLinkModal: () => entityLinkController.closeEntityLinkModal(),
     closeEntityModal: () => entityEditor.closeEntityModal(),
@@ -2288,8 +2290,10 @@ export default function App() {
     const section=(workspaceArea||activeRailAlias||(activeModule==="lore"?"notes":activeModule)) as WorkspaceSection;
     // Feature-owned selections are already written by their editor, not inferred from an unrelated entity.
     const catalog=section==="monsters"&&isBestiaryBrowseTab(activeModule,activeTab);
-    const target=catalog?(workspaceRoute.view==="catalog"?workspaceRoute.target:""):workspaceArea?workspaceRoute.target:section==="events"?selectedWorldEventId:section==="shops"?focusedShopId:section==="sessions"||section==="items"?workspaceRoute.target:section==="rules"?rulesNavigationState.ruleId:["locations","players","npcs","monsters","quests","notes"].includes(section)?activeEntityId:"";
-    const next=workspaceURL({campaignId:campaign.id,section,target,tab:!workspaceArea&&!activeRailAlias&&activeTab!==tabs[activeModule][0]?activeTab:"",query:section==="rules"?rulesNavigationState.query:moduleEntitySearch,view:catalog?"catalog":workspaceArea?workspaceRoute.view:"",filters:workspaceRoute.section===section?workspaceRoute.filters:undefined,context:workspaceArea?workspaceRoute.context:undefined});
+    const sameSection=workspaceRoute.section===section;
+    const ownedTarget=sameSection?workspaceRoute.target:"";
+    const target=catalog?(sameSection&&workspaceRoute.view==="catalog"?ownedTarget:""):workspaceArea?ownedTarget:section==="events"?selectedWorldEventId:section==="shops"?focusedShopId:section==="sessions"||section==="items"?ownedTarget:section==="rules"?rulesNavigationState.ruleId:["locations","players","npcs","monsters","quests","notes"].includes(section)?activeEntityId:"";
+    const next=workspaceURL({campaignId:campaign.id,section,target,tab:!workspaceArea&&!activeRailAlias&&activeTab!==tabs[activeModule][0]?activeTab:"",query:section==="rules"?rulesNavigationState.query:moduleEntitySearch,view:catalog?"catalog":workspaceArea&&sameSection?workspaceRoute.view:"",filters:sameSection?workspaceRoute.filters:undefined,context:workspaceArea&&sameSection?workspaceRoute.context:undefined});
     const current=location.pathname+location.search;
     if(next!==current){const old=workspaceRoute;const replace=old.section===section&&old.target===target&&old.tab===(activeTab!==tabs[activeModule][0]?activeTab:"")&&old.campaignId===campaign.id; navigateWorkspace(next,replace);}
   },[routeKey,booting,campaign?.id,appRoute.mode,workspaceArea,activeModule,activeRailAlias,activeTab,activeEntityId,selectedWorldEventId,focusedShopId,moduleEntitySearch,rulesNavigationState.ruleId,rulesNavigationState.query]);
@@ -2657,6 +2661,8 @@ export default function App() {
     toggleCampaignPreparedCombatPlayer,
     updateCampaignPreparedCombatDraftItem
   } = combatDraftController;
+  const combatSetupDirty=useEditorDirty(combatSetupOpen,{campaignPreparedCombatDraft,preparedCombatAllyInitiatives,preparedCombatEnemyInitiatives,preparedCombatPlayerInitiatives,combatPartyLevelsText});
+  useWorkspaceGuard(combatSetupDirty,"В настройках боя есть несохранённые изменения. Перейти без сохранения?");
   const combatPlayerCatalogItems = useMemo(
     () =>
       (campaign?.players ?? []).filter((player) =>
@@ -4712,7 +4718,7 @@ export default function App() {
                 variant="default"
               />
 
-              {!workspaceArea && (!campaign.readyCampaign || activeModule === "players") && !hasFeatureOwnedDetailsPanel && !activeRailAlias && activeModule !== "dashboard" ? (
+              {!workspaceArea && (!campaign.readyCampaign || activeModule === "players") && !hasFeatureOwnedDetailsPanel && !activeEntity && !activeRailAlias && activeModule !== "dashboard" ? (
                 <div className="panel tabs">
                   {tabs[activeModule].map((tab) => (
                     <button

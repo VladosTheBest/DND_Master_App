@@ -226,13 +226,13 @@ export default function CharacterPublicApp({ hash }: { hash: string }) {
           </span>
         </a>
         <span className="ch-public-header-label">Мастерская персонажа</span>
-        <a href="#" className="ch-text-button">
+        <a href="/" className="ch-text-button">
           Кабинет мастера <span aria-hidden="true">↗</span>
         </a>
       </header>
       {mode === "new" && !invalidRoute && (
-        <section className="ch-local-library">
-          <h2>Персонажи на этом устройстве</h2>
+        <details className="ch-local-library" open={localCharacters.length > 0 || !!legacyDraft || undefined}>
+          <summary>Персонажи на этом устройстве · открыть или импортировать</summary>
           <p>
             Откройте сохранённого героя, чтобы скачать PDF, поделиться им или
             экспортировать в Foundry. Список хранится только в текущем браузере и не переносится входом в аккаунт. Для другого устройства скачайте JSON листа и откройте его кнопкой ниже. Лист по приглашению мастера хранится отдельно в его кампании.
@@ -298,7 +298,7 @@ export default function CharacterPublicApp({ hash }: { hash: string }) {
               {error}
             </p>
           )}
-        </section>
+        </details>
       )}
       {invalidRoute ? (
         <div className="ch-status-page">

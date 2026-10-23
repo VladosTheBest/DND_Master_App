@@ -55,7 +55,7 @@ export function CombatPrepPage({
       <section className="combat-prep-reference-header">
         <button className="combat-prep-back" onClick={onBack} type="button">
           <span aria-hidden="true">←</span>
-          <span>{hasHostEntity ? "К карточкам боя" : "Назад к кампании"}</span>
+          <span>{hasHostEntity ? "К карточкам боя" : "К разделу Оффлайн"}</span>
         </button>
 
         <div className="combat-prep-title-block"><span className="combat-prep-context">{campaignTitle} · {sceneTitle}</span><h1>Подготовка боя</h1><p className="muted">Выберите группу и противников, затем задайте инициативу.</p></div>

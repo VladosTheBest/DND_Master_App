@@ -9,7 +9,13 @@ export function CharacterRoutes() {
   useEffect(() => {
     const update = () => setHash(window.location.hash);
     window.addEventListener("hashchange", update);
-    return () => window.removeEventListener("hashchange", update);
+    window.addEventListener("workspace-navigation", update);
+    window.addEventListener("popstate", update);
+    return () => {
+      window.removeEventListener("hashchange", update);
+      window.removeEventListener("workspace-navigation", update);
+      window.removeEventListener("popstate", update);
+    };
   }, []);
   return /^#characters(?:\/|$)/.test(hash) ? (
     <Suspense

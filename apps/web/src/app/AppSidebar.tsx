@@ -1,7 +1,7 @@
 import { SubscriptionButton } from "./SubscriptionDialog";
 import { FeedbackButton } from "./FeedbackDialog";
-import { useState } from "react";
-import { Map, MessageSquare, MonitorPlay } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Map, MessageSquare, MonitorPlay, Home, Settings, Users, X, Menu } from "lucide-react";
 import { AccountSettings } from "./OAuthControls";
 import type { CampaignSummary } from "@shadow-edge/shared-types";
 import { RailIcon, type RailIconName } from "../rail-icon";
@@ -44,6 +44,16 @@ export function AppSidebar({
   onLogout
 }: AppSidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const activeLabel = activeRailKey === "maps" ? "Карты и сцены" : activeRailKey === "chat" ? "AI-чат" : items.find(item => item.key === activeRailKey)?.label ?? "Кампания";
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const close = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { setMobileOpen(false); toggleRef.current?.focus(); }
+    };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [mobileOpen]);
   const groups = [
     { label: "За столом", keys: ["dashboard", "sessions", "players"] },
     { label: "Мир и история", keys: ["quests", "locations", "npcs", "events", "notes", "shops"] },
@@ -51,7 +61,15 @@ export function AppSidebar({
   ];
   return (
     <aside className={`panel rail ${mobileOpen ? "rail-open" : ""}`}>
-      <button className="ghost rail-mobile-toggle" type="button" aria-expanded={mobileOpen} aria-controls="campaign-navigation" onClick={() => setMobileOpen(!mobileOpen)}>Меню · {items.find(item => item.key === activeRailKey)?.label ?? "Кампания"} <span aria-hidden="true">⌄</span></button>
+      <nav className="workspace-switcher" aria-label="Быстрые переходы">
+        <span className="workspace-logo" title="Shadow Edge GM"><RailIcon name="brand" /></span>
+        <button type="button" title="Стол мастера" aria-label="Стол мастера" aria-current={activeRailKey === "dashboard" ? "page" : undefined} onClick={() => items.find(item => item.key === "dashboard")?.onClick()}><Home size={20}/></button>
+        <a href={`/maps?campaign=${encodeURIComponent(activeCampaignId)}`} title="Карты и сцены" aria-label="Карты и сцены" aria-current={activeRailKey === "maps" ? "page" : undefined}><Map size={20}/></a>
+        <button type="button" title="Игроки" aria-label="Игроки" onClick={() => items.find(item => item.key === "players")?.onClick()}><Users size={20}/></button>
+        <a href={`/chat?campaign=${encodeURIComponent(activeCampaignId)}`} title="AI-чат" aria-label="AI-чат" aria-current={activeRailKey === "chat" ? "page" : undefined}><MessageSquare size={20}/></a>
+        <button className="workspace-account" type="button" title="Настройки аккаунта" aria-label="Настройки аккаунта" onClick={() => window.dispatchEvent(new Event("shadow-edge:open-account-settings"))}><Settings size={20}/></button>
+      </nav>
+      <button ref={toggleRef} className="ghost rail-mobile-toggle" type="button" aria-expanded={mobileOpen} aria-controls="campaign-navigation" onClick={() => setMobileOpen(!mobileOpen)}><Menu size={18}/> {activeLabel} {mobileOpen ? <X size={18}/> : <span>Меню</span>}</button>
       <div className="rail-shell" id="campaign-navigation">
         <div className="rail-brand">
           <span className="rail-brand-mark">
@@ -90,10 +108,10 @@ export function AppSidebar({
         </section>
 
         <nav className="rail-group-nav" aria-label="Разделы кампании">
-          <a aria-current={activeRailKey==="chat"?"page":undefined} className={`rail-nav-item ${activeRailKey==="chat"?"active":""}`} href={`/chat?campaign=${encodeURIComponent(activeCampaignId)}`} style={{textDecoration:"none"}}>
+          <a aria-current={activeRailKey==="chat"?"page":undefined} className={`rail-nav-item ${activeRailKey==="chat"?"active":""}`} href={`/chat?campaign=${encodeURIComponent(activeCampaignId)}`} onClick={() => setMobileOpen(false)} style={{textDecoration:"none"}}>
             <span className="rail-nav-icon"><MessageSquare size={19}/></span><span className="rail-nav-label">AI-чат</span>
           </a>
-          <a aria-current={activeRailKey==="maps"?"page":undefined} className={`rail-nav-item ${activeRailKey==="maps"?"active":""}`} href={`/maps?campaign=${encodeURIComponent(activeCampaignId)}`} style={{textDecoration:"none"}}>
+          <a aria-current={activeRailKey==="maps"?"page":undefined} className={`rail-nav-item ${activeRailKey==="maps"?"active":""}`} href={`/maps?campaign=${encodeURIComponent(activeCampaignId)}`} onClick={() => setMobileOpen(false)} style={{textDecoration:"none"}}>
             <span className="rail-nav-icon"><Map size={19}/></span><span className="rail-nav-label">Карты и сцены</span>
           </a>
           {items.find(item => item.key === "offline") && <button className={`rail-nav-item ${activeRailKey === "offline" ? "active" : ""}`} aria-current={activeRailKey === "offline" ? "page" : undefined} type="button" onClick={() => { items.find(item => item.key === "offline")?.onClick(); setMobileOpen(false); }}><span className="rail-nav-icon"><MonitorPlay size={19}/></span><span className="rail-nav-label">Оффлайн <span className="beta-badge">Beta</span></span></button>}
@@ -111,10 +129,11 @@ export function AppSidebar({
           <small>{settingName} · {inWorldDate}</small>
           <AccountSettings />
           {activeCampaignId&&<details><summary>Экспорт кампании</summary><small>JSON: записи, сцены, сессии и листы. Картинки и аудио остаются ссылками. Автоматическое восстановление из файла пока недоступно.</small><a href={`${import.meta.env.VITE_API_BASE_URL||""}/api/campaigns/${encodeURIComponent(activeCampaignId)}/export`} download>Скачать JSON</a></details>}
-          <SubscriptionButton/><FeedbackButton/>
+          <details className="rail-account-more"><summary>Аккаунт и помощь</summary><SubscriptionButton/><FeedbackButton/>
           <button className="ghost rail-logout" disabled={authBusy} onClick={onLogout} type="button">
             {authBusy ? "Выходим..." : "Выйти"}
           </button>
+          </details>
         </div>
       </div>
     </aside>

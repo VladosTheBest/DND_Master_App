@@ -1635,8 +1635,10 @@ export function ItemsPage({ campaignId, ownerId, onCampaignChanged }: ItemsPageP
           <h1>Предметы</h1>
           <p className="copy">Снаряжение, магические предметы и ваши находки</p>
           <p>Ваши предметы хранятся на сервере и доступны в этой кампании с других устройств.</p>
+          <details className="items-transfer"><summary>Импорт и экспорт JSON</summary><div>
           <button className="ghost" type="button" disabled={!serverItems.document} onClick={exportCustomItems}>Экспорт моих предметов</button>
           <label>Импорт JSON <input style={{maxWidth:"100%",display:"block"}} disabled={busy} type="file" accept="application/json,.json" onChange={e=>{void previewImport(e.target.files?.[0]);e.target.value="";}}/></label>
+          </div></details>
           {legacyStorageError&&<p role="alert">Браузер не даёт прочитать старую локальную копию. Для её переноса разрешите хранилище или импортируйте ранее скачанный JSON. Серверные предметы доступны.</p>}
           {legacyRaw && <div className="card mini"><p>В этом браузере найдена прежняя локальная копия предметов этой кампании. Перенос выполняется только после предпросмотра и подтверждения; исходник останется на устройстве.</p>
             <button className="ghost" disabled={busy} onClick={()=>void requestImportPreview(legacyRaw)}>Предпросмотр переноса на сервер</button><button className="ghost" onClick={exportLegacy}>Скачать исходную локальную копию</button>

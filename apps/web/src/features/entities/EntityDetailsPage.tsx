@@ -1,6 +1,5 @@
-import { AppModal } from "../../app/AppModal";
-import { useEffect, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
-import { createPortal } from "react-dom";
+import { type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { useWorkspaceRoute, workspaceURL } from "../../app/workspace-route";
 import type {
   CampaignShop,
   GalleryImage,
@@ -15,11 +14,8 @@ import {
   badge,
   buildEntityGalleryAlbum,
   EntityVisual,
-  createHeroPanelStyle,
-  gradients,
   isRewardableEntity,
   kindTitle,
-  sigil,
   toneClass
 } from "../../app-shared";
 import { CombatEntityStatSheet, RewardSection } from "../../combat-ui";
@@ -113,56 +109,11 @@ function MasterKnowledgeCard({
   summary: string;
   title?: string;
 }) {
-  const [open, setOpen] = useState(false);
-  const excerpt = (summary.trim() || content.replace(/\s+/g, " ").trim() || "Информация пока не заполнена.").slice(0, 240);
-
-  useEffect(() => {
-    if (!open) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => {
-      window.removeEventListener("keydown", onKeyDown);
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [open]);
-
   return (
-    <>
-      <section className="card section-card master-knowledge-card">
-        <div className="master-knowledge-card-icon">✦</div>
-        <div className="master-knowledge-card-copy">
-          <small>Только для мастера</small>
-          <strong>{title}</strong>
-          <p>{excerpt}{excerpt.length >= 240 ? "…" : ""}</p>
-        </div>
-        <button className="primary" onClick={() => setOpen(true)} type="button">Открыть полностью</button>
-      </section>
-
-      {open ? createPortal(
-        <AppModal label="Информация для мастера" onClose={()=>setOpen(false)}>
-          <section
-            aria-label={title}
-
-            className="master-knowledge-dialog"
-            onMouseDown={(event) => event.stopPropagation()}
-
-          >
-            <header className="master-knowledge-dialog-head">
-              <div><small>Досье мастера</small><h2>{title}</h2></div>
-              <button aria-label="Закрыть" className="ghost" onClick={() => setOpen(false)} type="button">Закрыть</button>
-            </header>
-            <div className="master-knowledge-scroll" onContextMenu={onContextMenu}>
-              <RichParagraphs content={content} entityByTitle={entityByTitle} onMentionClick={onMentionClick} />
-            </div>
-          </section>
-        </AppModal>,
-        document.body
-      ) : null}
-    </>
+    <section className="master-knowledge-reading" onContextMenu={onContextMenu}>
+      <h2>{title}</h2>
+      {content.trim() ? <RichParagraphs content={content} entityByTitle={entityByTitle} onMentionClick={onMentionClick} /> : <p className="copy">{summary.trim() || "Описание пока не добавлено."}</p>}
+    </section>
   );
 }
 
@@ -217,7 +168,7 @@ export function EntityDetailsRenderer({
           ["npc-quests", "Квесты"],
           ["npc-media", "Медиа"],
           ["npc-master-notes", "Мастеру"],
-          ["npc-relations", "Связи"],
+          ["record-relations", "Связи"],
           ["npc-stats", "Статы"]
         ]
       : activeEntity.kind === "location"
@@ -227,14 +178,14 @@ export function EntityDetailsRenderer({
             ["location-shops", "Магазины"],
             ["location-media", "Медиа"],
             ["location-master-notes", "Мастеру"],
-            ["location-relations", "Связи"]
+            ["record-relations", "Связи"]
           ]
         : [
             ["player-summary", "Сводка"],
             ["player-handouts", "Игроки видят"],
             ["player-media", "Медиа"],
             ["player-master-notes", "Мастеру"],
-            ["player-relations", "Связи"],
+            ["record-relations", "Связи"],
             ["player-stats", "Статы"]
           ];
 
@@ -263,7 +214,7 @@ export function EntityDetailsRenderer({
                 <button className="ghost" onClick={onOpenGallery} type="button">
                   {monsterGalleryAlbum.length ? "Изменить альбом" : "Галерея"}
                 </button>
-                <button className="ghost" onClick={onEditEntity} type="button">
+                <button className="primary" onClick={onEditEntity} type="button">
                   Редактировать
                 </button>
                 {onEditWithAI ? (
@@ -274,7 +225,7 @@ export function EntityDetailsRenderer({
                 <button className="ghost" onClick={onTogglePin} type="button">
                   {activeEntityPinned ? "Убрать закладку" : "В закладки"}
                 </button>
-                <button className="primary" onClick={onOpenPreview} type="button">
+                <button className="ghost" onClick={onOpenPreview} type="button">
                   Быстрый просмотр
                 </button>
               </div>
@@ -346,13 +297,12 @@ export function EntityDetailsRenderer({
   return (
     <div className={`stack wide entity-details-page ${dossierKind ? `${dossierKind}-details-page` : ""}`.trim()}>
       <section
-        className="card hero"
+        className={`card hero record-hero ${activeEntity.art?.url ? "record-with-art" : ""}`}
         onContextMenu={onOpenEntityActionMenu}
-        style={createHeroPanelStyle(gradients[activeEntity.kind], activeEntity.art?.url)}
       >
         <div className="hero-head">
-          <EntityVisual entity={activeEntity} onOpenEntityImage={onOpenEntityImage} variant="hero" />
           <div className="hero-copy-block">
+            <h1>{activeEntity.title}</h1>
             <div className="hero-tags">
               <span className={badge("accent")}>{kindTitle[activeEntity.kind]}</span>
               {activeEntity.tags.map((tag) => (
@@ -361,34 +311,22 @@ export function EntityDetailsRenderer({
                 </span>
               ))}
             </div>
-            <h1>{activeEntity.title}</h1>
-            <p className="hero-subtitle">{activeEntity.subtitle}</p>
-            <p className="copy">{activeEntity.summary}</p>
+            {activeEntity.subtitle && <p className="hero-subtitle">{activeEntity.subtitle}</p>}
           </div>
         </div>
 
-        {!readOnly ? <div className="actions">
-          {activeEntity.playlist?.length ? (
-            <button className="ghost" onClick={() => onPlayPlaylist()} type="button">
-              {isEntityPlaylistActive(activeEntity.id) ? "Следующий трек" : "Случайный трек"}
-            </button>
-          ) : null}
-          <button className="ghost" onClick={onEditEntity} type="button">
-            Редактировать
-          </button>
-          {onEditWithAI ? (
-            <button className="ghost ai-edit-button" onClick={onEditWithAI} type="button">
-              Изменить с AI
-            </button>
-          ) : null}
-          <button className="ghost" onClick={onTogglePin} type="button">
-            {activeEntityPinned ? "Убрать закладку" : "В закладки"}
-          </button>
-          <button className="primary" onClick={onOpenPreview} type="button">
-            Быстрый просмотр
-          </button>
+        {!readOnly ? <div className="actions record-actions">
+          <button className="primary" onClick={onEditEntity} type="button">Редактировать</button>
+          <details className="record-actions-more"><summary aria-label="Другие действия с записью">Действия</summary><div>
+            {onEditWithAI ? <button className="ghost" onClick={onEditWithAI} type="button">Изменить с AI</button> : null}
+            <button className="ghost" onClick={onTogglePin} type="button">{activeEntityPinned ? "Убрать закладку" : "В закладки"}</button>
+            <button className="ghost" onClick={onOpenPreview} type="button">Быстрый просмотр</button>
+            {activeEntity.playlist?.length ? <button className="ghost" onClick={() => onPlayPlaylist()} type="button">{isEntityPlaylistActive(activeEntity.id) ? "Следующий трек" : "Случайный трек"}</button> : null}
+          </div></details>
         </div> : null}
       </section>
+      {activeEntity.art?.url ? <button type="button" className="record-banner" aria-label={`Открыть изображение «${activeEntity.title}»`} onClick={() => onOpenEntityImage?.(activeEntity)} disabled={!onOpenEntityImage}><img src={activeEntity.art.url} alt={activeEntity.art.caption || activeEntity.title} /></button> : null}
+      {activeEntity.summary.trim() ? <p className="record-summary">{activeEntity.summary}</p> : null}
 
       {dossierKind ? (
         <nav aria-label="Быстрые переходы по карточке" className="player-details-jumpbar">
@@ -399,32 +337,9 @@ export function EntityDetailsRenderer({
         </nav>
       ) : null}
 
-      {visibleFacts.length ? (
-        <div id={dossierKind ? `${dossierKind}-summary` : undefined}>
-        <CollapsibleSection
-          key={`${activeEntity.id}-facts`}
-          hint="Ключевые данные, которые стоит держать перед глазами"
-          summary={
-            <p className="copy">
-              {visibleFacts
-                .slice(0, 3)
-                .map((fact) => `${fact.label}: ${fact.value}`)
-                .join(" • ")}
-            </p>
-          }
-          title="Быстрая сводка"
-        >
-          <div className="facts">
-            {visibleFacts.map((fact) => (
-              <article key={fact.label} className="card mini fact-box">
-                <small>{fact.label}</small>
-                <strong className={`fact-value ${toneClass[fact.tone ?? "default"]}`}>{fact.value}</strong>
-              </article>
-            ))}
-          </div>
-        </CollapsibleSection>
-        </div>
-      ) : null}
+      {visibleFacts.length ? <dl className="record-facts" id={dossierKind ? `${dossierKind}-summary` : undefined}>
+        {visibleFacts.map(fact => <div key={fact.label}><dt>{fact.label}</dt><dd className={toneClass[fact.tone ?? "default"]}>{fact.value}</dd></div>)}
+      </dl> : null}
 
       <div id={dossierKind ? `${dossierKind}-master-notes` : undefined}>
       <MasterKnowledgeCard
@@ -593,49 +508,6 @@ export function EntityDetailsRenderer({
 
       {isRewardableEntity(activeEntity) ? <RewardSection kind={activeEntity.kind} rewardProfile={activeEntity.rewardProfile} /> : null}
 
-      <div id={dossierKind ? `${dossierKind}-relations` : undefined}>
-      <CollapsibleSection
-        key={`${activeEntity.id}-related`}
-        defaultCollapsed={!activeEntity.related.length}
-        hint="Быстрые переходы без перегруза интерфейса"
-        summary={
-          <p className="copy">
-            {activeEntity.related.length ? `${activeEntity.related.length} связанных сущностей` : "Связей пока не добавлено."}
-          </p>
-        }
-        title="Связанные сущности"
-      >
-        {activeEntity.related.length ? (
-          <div className="grid">
-            {activeEntity.related.map((item) => {
-              const linkedEntity = onResolveRelatedEntity(item);
-              return (
-                <article
-                  key={`${item.id}-${item.label}`}
-                  className="card mini fill relation-card relation-card-with-visual"
-                >
-                  {linkedEntity ? (
-                    <EntityVisual entity={linkedEntity} onOpenEntityImage={onOpenEntityImage} variant="relation" />
-                  ) : (
-                    <span className="sigil" style={{ backgroundImage: gradients[item.kind] }}>
-                      {sigil(item.label)}
-                    </span>
-                  )}
-                  <button className="relation-card-body" onClick={() => onOpenRelatedEntity(item)} type="button">
-                    <span className={badge()}>{kindTitle[item.kind]}</span>
-                    <strong>{item.label}</strong>
-                    <p>{item.reason}</p>
-                  </button>
-                </article>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="copy">Пока здесь пусто. Связи можно добавлять через редактор или wiki-ссылки в тексте.</p>
-        )}
-      </CollapsibleSection>
-      </div>
-
       <div id={dossierKind ? `${dossierKind}-stats` : undefined}>
         {combatProfileEntity ? (
           <CombatEntityStatSheet
@@ -654,5 +526,22 @@ export function EntityDetailsRenderer({
 }
 
 export function EntityDetailsPage(props: EntityDetailsRendererProps) {
-  return <EntityDetailsRenderer {...props} />;
+  const route = useWorkspaceRoute();
+  if (props.activeEntity.kind === "monster") return <EntityDetailsRenderer {...props} />;
+  return <div className="entity-dossier-layout">
+    <EntityDetailsRenderer {...props} />
+    <aside id="record-relations" className="record-context" aria-label="Связи записи">
+      <h2>Связи</h2>
+      {props.activeEntity.related.length ? props.activeEntity.related.map(item => {
+        const entity = props.onResolveRelatedEntity(item);
+        return <button className="record-context-link" type="button" key={`${item.id}-${item.label}`} onClick={() => props.onOpenRelatedEntity(item)}>
+          {entity?.art?.url ? <img src={entity.art.url} alt="" loading="lazy"/> : null}
+          <span><small>{kindTitle[item.kind]}</small><strong>{item.label}</strong>{item.reason && <small>{item.reason}</small>}</span>
+        </button>;
+      }) : <p className="copy">Связей пока нет. Добавьте их в редакторе или через ссылки в тексте.</p>}
+      {props.activeEntity.kind === "location" ? <section><h3>Карта и сцена</h3><p className="copy">Откройте атлас или создайте карту для этого места.</p><a className="ghost record-map-action" href={workspaceURL({campaignId: route.campaignId, section: "maps", view: "new", context: JSON.stringify({locationId: props.activeEntity.id})})}>Открыть карты и сцены</a></section> : null}
+      {props.activeNpcQuests.length ? <section><h3>Квесты НПС</h3>{props.activeNpcQuests.map(quest => <button className="record-context-link" type="button" key={quest.id} onClick={() => props.onPeekQuest(quest.id)}><span><strong>{quest.title}</strong><small>{quest.summary}</small></span></button>)}</section> : null}
+      <small className="record-context-state">{props.readOnly ? "Готовая кампания · только чтение" : "Сохранённая запись · изменения через редактор"}</small>
+    </aside>
+  </div>;
 }

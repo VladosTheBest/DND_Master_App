@@ -1,0 +1,336 @@
+{
+  "capturedOn": "2026-10-24",
+  "source": "concept-3.png",
+  "screenshots": [
+    {
+      "path": "ai-chat.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1487,
+        1058
+      ],
+      "sha256": "fa6e49f82d81a8d4484673e41013e47875d7e365c8b5af78df7ac255dccf2649"
+    },
+    {
+      "path": "characters-start-final.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1487,
+        1058
+      ],
+      "sha256": "eb6ba0767b732c8c23e9a6c89038c783ed9379d4021d570d58c3fa809fe142d8"
+    },
+    {
+      "path": "combat-dirty-confirm.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1487,
+        1058
+      ],
+      "sha256": "64741b7a14184315dea16c718a10fd9292ebdd2968b3ff9926f4886ae535d068"
+    },
+    {
+      "path": "directory.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1487,
+        1058
+      ],
+      "sha256": "920c23fb1215f9af5aa587a6bfd46a01838c3bae123338cfc6cf0e8fbd986972"
+    },
+    {
+      "path": "events.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1487,
+        1058
+      ],
+      "sha256": "d553800bc83bfeb8b364bad5518c890e7572020dbcf2c9780c55221962932e91"
+    },
+    {
+      "path": "items-initial.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1487,
+        1058
+      ],
+      "sha256": "5c944daea9bc0f3eacd7cb26abc5781ac18ed01364346cd023093e7a36e40588"
+    },
+    {
+      "path": "items.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1487,
+        1058
+      ],
+      "sha256": "64e354979b6ae562d3f1c8110915fccc206a1b9feb4f54362540831ecb371273"
+    },
+    {
+      "path": "maps-initial.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1487,
+        1058
+      ],
+      "sha256": "966b8bbe9c46da6b142cfa08e9b097f34c2ea8543e959340e67167f505ed2a92"
+    },
+    {
+      "path": "maps.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1487,
+        1058
+      ],
+      "sha256": "26db1ffc99c46c9a43d4cfefc97111cf7a4407918de37fcc7972d67e844fb2cb"
+    },
+    {
+      "path": "mobile-ai-chat.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        381,
+        825
+      ],
+      "sha256": "781683ac28e66ad66eb60260972df11a3ecfc00aba6907e19ecbf1355d136814"
+    },
+    {
+      "path": "mobile-directory.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        381,
+        825
+      ],
+      "sha256": "7d70dd2a3479a8fa1d33b3e952d307fe1a6b4f2a3b29eb15041e4d73b8663467"
+    },
+    {
+      "path": "mobile-navigation.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        381,
+        825
+      ],
+      "sha256": "0f46055093a8a1238a98e185cebd214e3992cf3f8c054ba3e87142468bd03008"
+    },
+    {
+      "path": "mobile-record-final.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        381,
+        825
+      ],
+      "sha256": "c0aac4e199d3dcc2ec8d8d42ba614e720a9ce52a09c54463e448002458bf4d8a"
+    },
+    {
+      "path": "mobile-record-with-media.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        381,
+        825
+      ],
+      "sha256": "2f2cfe19cef78b0c5ef582033dd3a520f4103793556f7563c0ac2f2c0ad4fb7c"
+    },
+    {
+      "path": "mobile-record.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        381,
+        825
+      ],
+      "sha256": "b1f599ace48bac980e58c7e48b10a4565f5803f93134f70ae67671109bd09cba"
+    },
+    {
+      "path": "mobile-settings-final.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        390,
+        844
+      ],
+      "sha256": "d77a4aa0dcb684a5f25593e5dfd8edc4335a54cef84fc7d1626f854e45b4c96c"
+    },
+    {
+      "path": "mobile-settings.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        390,
+        844
+      ],
+      "sha256": "e6381ffdddbec847609a4afe282ee7db99cacd694e614d16f85cc623b08fe730"
+    },
+    {
+      "path": "notes.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1487,
+        1058
+      ],
+      "sha256": "2570cd134ce0227285f8b9eae170242d88bd0680f831efd1170f1861e7dc9260"
+    },
+    {
+      "path": "npcs.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1487,
+        1058
+      ],
+      "sha256": "54a31ae2cd173e5e230e246296df418158aa31abeebe322c3eac93beecbd6580"
+    },
+    {
+      "path": "offline-after-confirm.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1487,
+        1058
+      ],
+      "sha256": "c9ab92534504d3aac3d23424265b22d3d23f7b510abeedb73ce1093f1d7c7891"
+    },
+    {
+      "path": "players-final.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1487,
+        1058
+      ],
+      "sha256": "25dd64c13e4747a7cd91cfb6b1c9894b146d4e982ba022f37a03250050d8fdf8"
+    },
+    {
+      "path": "players.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1487,
+        1058
+      ],
+      "sha256": "eac0675a5360fe0eff2ce8e58f04d5fdf282fb35488d12a6930e23fcd3ecd234"
+    },
+    {
+      "path": "quests.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1487,
+        1058
+      ],
+      "sha256": "19c188a86f407069f96151f1439d137749a1138b685ed87d339802034e968814"
+    },
+    {
+      "path": "record-final.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1487,
+        1058
+      ],
+      "sha256": "d31d7d296f4362db4860fffb59392eb98b116db53cb86caecd7e4dc03ffe90bf"
+    },
+    {
+      "path": "record-header-comparison.jpg",
+      "kind": "analysis-crop-comparison",
+      "format": "JPEG",
+      "pixels": [
+        850,
+        340
+      ],
+      "sha256": "8aa5c15b40fc90699f1ee8b3056b9b9505cd5614dbcd2878b81c3c54ecbccbab"
+    },
+    {
+      "path": "record-pass-1.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1487,
+        1058
+      ],
+      "sha256": "16997611f5a8bf2d6a80bb1b8cf45625be9b3775baceadafea7f3606ccb214c8"
+    },
+    {
+      "path": "record-with-media.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1487,
+        1058
+      ],
+      "sha256": "c54abaef286547dacb2c5e4744b7adf4475dd0d0131eb98415f4d1b6e89d5c47"
+    },
+    {
+      "path": "relation-preview-final.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1487,
+        1058
+      ],
+      "sha256": "58f2b6e38bf3f274e271b0527f6325c5df5f2e225f4c70824f35062ace320b0d"
+    },
+    {
+      "path": "relation-preview-initial.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1487,
+        1058
+      ],
+      "sha256": "3d268cd50afb09ea954f2cca7d7bfa5532fea50a400d7b8f7298f25fdd62b88f"
+    },
+    {
+      "path": "rules.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1487,
+        1058
+      ],
+      "sha256": "4127e6241939ca2bf9a55164a92225f65b06c2c0e5ba91b794271ea409c4a06e"
+    },
+    {
+      "path": "sessions.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1487,
+        1058
+      ],
+      "sha256": "f7d7c727f1ef79b2442773d523bccd1498196fe8b81ff41d6ebf8f7dab9d25fe"
+    },
+    {
+      "path": "shops.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1487,
+        1058
+      ],
+      "sha256": "80e89bcc4a10183efe36cfc208c6c8f0bceca95eee6f5d10b41ea0e1d8beb577"
+    },
+    {
+      "path": "tablet-record.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1015,
+        892
+      ],
+      "sha256": "6fe00c7e46d008deac7e37a0870e05184d1e4c55e4fbf9c6fc9bec10f8ec7ec2"
+    }
+  ]
+}

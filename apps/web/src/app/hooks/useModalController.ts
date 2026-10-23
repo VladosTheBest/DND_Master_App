@@ -8,6 +8,7 @@ export type CloseConfirmState = {
 
 type UseModalControllerParams = {
   hasUnsavedEntityChanges?: () => boolean;
+  hasUnsavedCombatChanges?: () => boolean;
   closeEntityModal: () => void;
   closeRandomEventModal: () => void;
   closeCombatPlaylistModal: () => void;
@@ -25,6 +26,7 @@ type UseModalControllerParams = {
 
 export function useModalController({
   hasUnsavedEntityChanges,
+  hasUnsavedCombatChanges,
   closeEntityModal,
   closeRandomEventModal,
   closeCombatPlaylistModal,
@@ -95,6 +97,7 @@ export function useModalController({
   };
 
   const requestCombatSetupModalClose = () => {
+    if (hasUnsavedCombatChanges && !hasUnsavedCombatChanges()) { closeCombatSetupModal(); return; }
     requestModalClose(
       "Закрыть настройку боя?",
       closeCombatSetupModal,

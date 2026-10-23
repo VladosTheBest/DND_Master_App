@@ -10,6 +10,7 @@ import { FeedbackDialog } from "./app/FeedbackDialog";
 import "./app.css";
 import "./styles/fantasy-theme.css";
 import "./styles/workspace.css";
+import "./styles/product-design.css";
 
 installWorkspaceLinks();
 
