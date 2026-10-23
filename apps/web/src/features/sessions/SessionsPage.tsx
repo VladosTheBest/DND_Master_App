@@ -1,5 +1,13 @@
+import { useWorkspaceListState, readWorkspaceRoute } from "../../app/workspace-route";
+import { useDeviceDraft } from "../../app/hooks/useDeviceDraft";
+import { useDraftOwner } from "../../app/hooks/useDraftOwner";
+import { DeviceDraftControls } from "../../app/DeviceDraftControls";
+import { useWorkspaceGuard } from "../../app/workspace-route";
+import workspaceStyles from "../../app/Workspace.module.css";
+import { navigateWorkspace, workspaceURL } from "../../app/workspace-route";
+import { confirmAction } from "../../app/confirm-action";
 import { browserStorage } from "../../app/browser-storage";
-import { combineTranscripts, maxImportBytes, type TranscriptFile } from "./session-import";
+import { combineTranscripts, prepareTranscriptImport, maxImportBytes, type TranscriptFile } from "./session-import";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../../app/api";
 import { sessionsApi, type ImportedSession, type SourceRange, type SpeechKind } from "./sessions.api";
@@ -55,10 +63,12 @@ function BulletList({ items, empty }: { items?: string[]; empty: string }) {
 
 export function SessionsPage({
   campaignId,
+  initialSessionId,
   onOpenAI,
   onOpenProposal,
 }: {
   campaignId: string;
+  initialSessionId?: string;
   onOpenAI: () => void;
   onOpenProposal: (id: string) => void;
 }) {
@@ -67,13 +77,13 @@ export function SessionsPage({
   const [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
     [notice, setNotice] = useState("");
-  const [filter, setFilter] = useState(""),
-    [query, setQuery] = useState(""),
-    [tab, setTab] = useState<SessionTab>("Мастеру"),
-    [speaker, setSpeaker] = useState("");
+  const [filter,setFilter]=useWorkspaceListState<string>("sessions.filter","");
+  const [query,setQuery]=useWorkspaceListState<string>("q","");
+  const [tab,setTab]=useWorkspaceListState<SessionTab>("sessions.tab","Мастеру");
+  const [speaker,setSpeaker]=useWorkspaceListState<string>("sessions.speaker","");
   const [master, setMaster] = useState(""),
-    [metric, setMetric] = useState<"words" | "time">("words"),
-    [page, setPage] = useState(0);
+    [metric, setMetric] = useWorkspaceListState<"words" | "time">("sessions.metric","words"),
+    [page, setPage] = useWorkspaceListState<number>("sessions.page",0);
   const [draft, setDraft] = useState<{
       text: string;
       title: string;
@@ -81,15 +91,18 @@ export function SessionsPage({
     } | null>(null),
     [saving, setSaving] = useState(false),
     [startingId, setStartingId] = useState("");
+  const draftOwner=useDraftOwner();
+  useWorkspaceGuard(Boolean(draft));
+  const importDraft=useDeviceDraft({ownerId:draftOwner,campaignId,target:"session-import",revision:0,enabled:true,dirty:Boolean(draft),value:{draft},restore:({value})=>{const saved=value?.draft;if(!saved||typeof saved.title!=="string"||typeof saved.text!=="string"||!Array.isArray(saved.files)||saved.files.some(file=>typeof file.name!=="string"||typeof file.text!=="string"))return false;setDraft(saved);}});
   const background = useAIJobs(campaignId);
   const sessionJobs = background.jobs.filter(job => job.kind === "session");
   const activeJobs = sessionJobs.filter(isActiveJob);
   const busyId = startingId || activeJobs.find(job => job.sessionId === selected?.id)?.sessionId || "";
   const analysisUnavailable = Boolean(busyId || background.loading || background.error);
   const observedJobs = useRef(new Set<string>());
-  const [speechFilter, setSpeechFilter] = useState<SpeechKind | "all">("all");
+  const [speechFilter, setSpeechFilter] = useWorkspaceListState<SpeechKind | "all">("sessions.speech","all");
   const [sourceFocus, setSourceFocus] = useState<SourceRange | null>(null);
-  const [journalCategory, setJournalCategory] = useState("");
+  const [journalCategory, setJournalCategory] = useWorkspaceListState<string>("sessions.category","");
   const fileRef = useRef<HTMLInputElement>(null),
     currentId = useRef(""),
     loadVersion = useRef(0),
@@ -100,22 +113,25 @@ export function SessionsPage({
       mounted.current = false;
     };
   }, []);
-  const select = async (id: string) => {
+  const select = async (id: string, syncRoute=true) => {
     const version = ++loadVersion.current;
     currentId.current = id;
+    if(syncRoute||!initialSessionId)navigateWorkspace(workspaceURL({...readWorkspaceRoute(),campaignId,section:"sessions",target:id}),!syncRoute);
     browserStorage.setItem(`session-selected:${campaignId}`, id);
     setLoading(true);
     setError("");
     setNotice("");
     setSelected(null);
+    setMaster("");
+    if(syncRoute){
     setSpeaker("");
     setQuery("");
-    setMaster("");
     setPage(0);
     setSpeechFilter("all");
     setSourceFocus(null);
     setJournalCategory("");
     setTab("Мастеру");
+    }
     try {
       const session = await sessionsApi.get(campaignId, id);
       if (mounted.current && loadVersion.current === version) {
@@ -136,8 +152,9 @@ export function SessionsPage({
       .then((items) => {
         if (!active) return;
         setSessions(items);
-        const remembered = browserStorage.getItem(`session-selected:${campaignId}`);
-        if (items[0]) void select(items.find(item => item.id === remembered)?.id || items[0].id);
+        if(initialSessionId&&!items.some(item=>item.id===initialSessionId)){setLoading(false);setError("Сессия не найдена или недоступна. Выберите запись из журнала.");return;}
+        const remembered = initialSessionId || browserStorage.getItem(`session-selected:${campaignId}`);
+        if (items[0]) void select(items.find(item => item.id === remembered)?.id || items[0].id,false);
         else setLoading(false);
       })
       .catch((e) => {
@@ -150,6 +167,7 @@ export function SessionsPage({
       active = false;
     };
   }, [campaignId]);
+  useEffect(()=>{if(initialSessionId&&initialSessionId!==currentId.current&&sessions.some(item=>item.id===initialSessionId))void select(initialSessionId,false);},[initialSessionId,sessions]);
   useEffect(() => {
     const completed = background.jobs.filter(job => job.kind === "session" && !isActiveJob(job) && !observedJobs.current.has(job.id));
     if (!completed.length) return;
@@ -236,22 +254,14 @@ export function SessionsPage({
     setError("");
     setNotice("");
     try {
-      if (selectedFiles.some(file => !/\.txt$/i.test(file.name)) || selectedFiles.reduce((sum, file) => sum + file.size, 0) > maxImportBytes)
-        throw new Error("Выберите TXT-файлы общим размером до 4 МБ.");
-      const files = await Promise.all(selectedFiles.map(async file => ({
-        name: file.name,
-        text: new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer()),
-      })));
-      files.sort((a, b) => a.name.localeCompare(b.name, "ru", { numeric: true }));
-      const text = combineTranscripts(files);
-      const sourceDate = files[0].text.match(/^Quill — (\d{4}-\d{2}-\d{2})/);
-      setDraft({ text, files, title: sourceDate ? `Игра ${dateLabel(sourceDate[1])}` : files[0].name.replace(/\.txt$/i, "") });
+      setDraft(await prepareTranscriptImport(selectedFiles));
     } catch (e) {
       setError(errorMessage(e));
     }
   };
-  const changeParts = (files: TranscriptFile[]) => {
+  const changeParts = async (files: TranscriptFile[]) => {
     if (!draft) return;
+    if(draft.text!==combineTranscripts(draft.files)&&!await confirmAction("Собрать текст заново из файлов? Ручные изменения текста будут заменены."))return;
     try {
       setDraft(files.length ? { ...draft, files, text: combineTranscripts(files) } : null);
       setError("");
@@ -267,7 +277,8 @@ export function SessionsPage({
         draft.title,
         draft.text,
       );
-      setDraft(null);
+      setDraft(null);importDraft.clear();
+      if(!mounted.current)return;
       setSessions(await sessionsApi.list(campaignId));
       await select(result.session.id);
       setTab("Обзор");
@@ -316,7 +327,7 @@ export function SessionsPage({
   const remove = async () => {
     if (!selected || busyId) return;
     if (
-      !window.confirm(
+      !await confirmAction(
         `Удалить «${selected.title}» из журнала сайта? Копия в Quill и сущности кампании останутся.`,
       )
     )
@@ -411,6 +422,14 @@ export function SessionsPage({
   );
   return (
     <div className="sessions-page">
+      <DeviceDraftControls draft={importDraft} label="черновик импорта"/>
+      <nav className={workspaceStyles.steps} aria-label="Работа с сессией">
+        <div aria-current={!selected&&!draft?"step":undefined}><button onClick={()=>fileRef.current?.click()}>1. Загрузить текст</button><small>Один или несколько TXT</small></div>
+        <div aria-current={draft?"step":undefined}><button disabled={!draft&&!selected} onClick={()=>{if(draft)document.querySelector(".session-import-parts")?.scrollIntoView({block:"center"});else setTab("Полный текст");}}>2. Проверить текст и участников</button></div>
+        <div aria-current={selected&&!selected.analysis?"step":undefined}><button disabled={!selected||analysisUnavailable} onClick={()=>void analyze()}>3. Анализировать</button><small>Запускается только по нажатию</small></div>
+        <div aria-current={selected?.analysis?"step":undefined}><button disabled={!selected?.analysis} onClick={()=>setTab("Обзор")}>4. Проверить изменения</button><small>Отчёт сохранён отдельно; предложения применяются вручную</small></div>
+        <div><button disabled={!selected?.analysis} onClick={()=>setTab("Мастеру")}>5. Подготовить следующую игру</button></div>
+      </nav>
       <header className="sessions-heading">
         <div>
           <span className="session-eyebrow">ХРОНИКИ КАМПАНИИ</span>
@@ -488,9 +507,11 @@ export function SessionsPage({
               autoFocus
               maxLength={160}
               value={draft.title}
+              disabled={saving}
               onChange={(e) => setDraft({ ...draft, title: e.target.value })}
             />
           </label>
+          <details><summary>Проверить участников и исходный текст</summary><p>{speakerStatistics(parseSessionText(draft.text)).map(person=>person.name).join(", ")}</p><label>Текст перед импортом<textarea aria-label="Текст перед импортом" disabled={saving} value={draft.text} onChange={event=>setDraft({...draft,text:event.target.value})} rows={12}/></label></details>
           <p className="session-muted">
             Сохраним полный текст в этой кампании. Нейросеть получит его только
             после нажатия «Анализировать».
@@ -506,7 +527,7 @@ export function SessionsPage({
             <button
               className="ghost"
               disabled={saving}
-              onClick={() => setDraft(null)}
+              onClick={() => {importDraft.flush();setDraft(null);}}
             >
               Отмена
             </button>

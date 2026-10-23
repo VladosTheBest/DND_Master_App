@@ -5,36 +5,7 @@
  * behaviour to legacy and feature-owned screens alike.
  */
 
-:root {
-  --text: #f5f0ff;
-  --text-soft: #c9bfdc;
-  --text-muted: #948aa9;
-  --accent: #b992ff;
-  --accent-strong: #e7bb69;
-  --accent-cool: #a879ff;
-  --success: #7ed5a4;
-  --warning: #e7bb69;
-  --danger: #ff8f97;
-  --surface-strong: rgba(18, 14, 29, .98);
-  --surface: rgba(15, 12, 25, .94);
-  --surface-soft: rgba(181, 135, 255, .07);
-  --bg-panel:
-    radial-gradient(circle at 8% 0%, rgba(147, 86, 255, .11), transparent 34%),
-    linear-gradient(160deg, rgba(24, 19, 39, .97), rgba(10, 10, 18, .96));
-  --line: rgba(199, 171, 239, .15);
-  --line-strong: rgba(187, 139, 255, .36);
-  --focus: rgba(190, 143, 255, .68);
-  --radius-xl: 18px;
-  --radius-lg: 13px;
-  --radius-md: 9px;
-  --shadow-sm: 0 10px 24px rgba(4, 2, 10, .25);
-  --shadow-md: 0 20px 48px rgba(4, 2, 10, .34);
-  --shadow-lg: 0 34px 80px rgba(3, 1, 8, .52);
-  --fantasy-purple: #9a62f0;
-  --fantasy-purple-bright: #c48cff;
-  --fantasy-gold: #e7bb69;
-  --fantasy-ink: #090812;
-}
+
 
 body {
   background:
@@ -437,8 +408,6 @@ body::before {
 }
 
 /* Forms and modal surfaces */
-.overlay,
-.gallery-lightbox-backdrop,
 .entity-action-backdrop,
 .entity-link-context-backdrop {
   background: rgba(5, 3, 10, .79);
@@ -935,11 +904,6 @@ select.input option,
     grid-column: auto;
   }
 
-  .overlay {
-    align-items: end;
-    padding: .45rem;
-  }
-
   .palette,
   .form-modal {
     width: 100%;
@@ -1220,17 +1184,6 @@ select.input option,
   -webkit-line-clamp: 2;
 }
 
-.master-knowledge-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 1000;
-  display: grid;
-  place-items: center;
-  padding: clamp(.7rem, 2vw, 1.5rem);
-  background: rgba(4, 3, 8, .78);
-  backdrop-filter: blur(12px);
-}
-
 .master-knowledge-dialog {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
@@ -1294,11 +1247,6 @@ select.input option,
   .master-knowledge-card .primary {
     grid-column: 1 / -1;
     width: 100%;
-  }
-
-  .master-knowledge-overlay {
-    align-items: end;
-    padding: .35rem;
   }
 
   .master-knowledge-dialog {

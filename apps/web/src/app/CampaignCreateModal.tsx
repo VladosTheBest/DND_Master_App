@@ -1,3 +1,4 @@
+import { AppModal } from "./AppModal";
 import type { CreateCampaignInput, ReadyCampaignTemplate } from "@shadow-edge/shared-types";
 import { useEffect, useState } from "react";
 import { api } from "./api";
@@ -42,8 +43,8 @@ export function CampaignCreateModal({
   }
 
   return (
-    <div className="overlay" role="presentation">
-      <div className="panel palette form-modal" onClick={(event) => event.stopPropagation()} role="dialog">
+    <AppModal label="Новая или готовая кампания" onClose={onClose}>
+      <div className="panel palette form-modal" onClick={(event) => event.stopPropagation()} >
         <div className="row">
           <div>
             <p className="eyebrow">Кампании</p>
@@ -124,6 +125,6 @@ export function CampaignCreateModal({
           </button>
         </div>}
       </div>
-    </div>
+    </AppModal>
   );
 }

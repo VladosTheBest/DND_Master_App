@@ -1,3 +1,7 @@
+import { readWorkspaceRoute, workspaceURL, navigateWorkspace } from "../../app/workspace-route";
+import { useWorkspaceGuard } from "../../app/workspace-route";
+import { useWorkspaceListState } from "../../app/workspace-route";
+import { confirmAction } from "../../app/confirm-action";
 import { isApiError } from "@shadow-edge/api-client";
 import { useDeviceDraft } from "../../app/hooks/useDeviceDraft";
 import { DeviceDraftControls } from "../../app/DeviceDraftControls";
@@ -43,7 +47,7 @@ export function EventsPageContainer({
   worldEventToForm: (event: WorldEvent) => WorldEventInput;
 }) {
   const [legacyDraft]=useState<{id:string;draft:WorldEventInput}|null>(()=>{try{const raw=JSON.parse(sessionStorage.getItem(`event-draft:${activeCampaignId}`)||"null");return raw?.id&&typeof raw.draft?.sceneText==="string"?raw:null;}catch{return null;}});
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useWorkspaceListState<string>("q","");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [eventEditorId, setEventEditorId] = useState("");
@@ -62,6 +66,7 @@ export function EventsPageContainer({
     for(const key of Object.keys(eventEditorDraft) as (keyof WorldEventInput)[])if(key!=="expectedRevision"&&JSON.stringify(eventEditorDraft[key])!==JSON.stringify(eventBase[key]))Object.assign(merged,{[key]:eventEditorDraft[key]});
     setEventBase(current);setEventEditorDraft(merged);setConflict(null);setError("");
   };
+  useWorkspaceGuard(eventEditorDirty);
   const activeWorldEvent =
     eventEditorId && eventEditorId !== NEW_WORLD_EVENT_ID
       ? campaign.events.find((event) => event.id === eventEditorId) ?? null
@@ -87,6 +92,7 @@ export function EventsPageContainer({
     }
   }, [campaign.events, emptyWorldEventInput, eventEditorId, initialEventId, worldEventToForm]);
 
+  useEffect(()=>{const next=campaign.events.find(event=>event.id===initialEventId);if(next&&next.id!==eventEditorId){setEventEditorId(next.id);setEventEditorDraft(worldEventToForm(next));setEventBase(worldEventToForm(next));setEventEditorDirty(false);setConflict(null);}},[initialEventId]);
   useEffect(() => {
     if (!activeWorldEvent || eventEditorDirty) {
       return;
@@ -96,7 +102,7 @@ export function EventsPageContainer({
   }, [activeWorldEvent, eventEditorDirty, worldEventToForm]);
 
   useEffect(() => {
-    onActiveEventChange?.(eventEditorId === NEW_WORLD_EVENT_ID ? "" : eventEditorId);
+    if(eventEditorId){const target=eventEditorId===NEW_WORLD_EVENT_ID?"":eventEditorId;const current=readWorkspaceRoute();if(current.section==="events"&&current.target!==target)navigateWorkspace(workspaceURL({...current,target}),!initialEventId);onActiveEventChange?.(target);}
   }, [eventEditorId, onActiveEventChange]);
 
   const updateWorldEventDraft = (updater: (current: WorldEventInput) => WorldEventInput) => {
@@ -105,12 +111,12 @@ export function EventsPageContainer({
     setEventEditorNotice("");
   };
 
-  const requestWorldEventSwitch = (nextEventId: string) => {
+  const requestWorldEventSwitch = async (nextEventId: string) => {
     if (!nextEventId || nextEventId === eventEditorId) {
       return;
     }
 
-    if (eventEditorDirty && !window.confirm("Есть несохранённые изменения в событии. Переключиться без сохранения?")) {
+    if (eventEditorDirty && !await confirmAction("Есть несохранённые изменения в событии. Переключиться без сохранения?")) {
       return;
     }
 
@@ -126,8 +132,8 @@ export function EventsPageContainer({
     setError("");
   };
 
-  const startNewWorldEvent = () => {
-    if (eventEditorDirty && !window.confirm("Есть несохранённые изменения в событии. Открыть новый черновик без сохранения?")) {
+  const startNewWorldEvent = async () => {
+    if (eventEditorDirty && !await confirmAction("Есть несохранённые изменения в событии. Открыть новый черновик без сохранения?")) {
       return;
     }
 
@@ -193,7 +199,7 @@ export function EventsPageContainer({
     if (!activeCampaignId || !activeWorldEvent) {
       return;
     }
-    if (!window.confirm("Удалить это событие из кампании?")) {
+    if (!await confirmAction("Удалить это событие из кампании?")) {
       return;
     }
 

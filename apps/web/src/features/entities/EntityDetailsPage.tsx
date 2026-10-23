@@ -1,3 +1,4 @@
+import { AppModal } from "../../app/AppModal";
 import { useEffect, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type {
@@ -142,13 +143,13 @@ function MasterKnowledgeCard({
       </section>
 
       {open ? createPortal(
-        <div className="master-knowledge-overlay" onMouseDown={() => setOpen(false)} role="presentation">
+        <AppModal label="Информация для мастера" onClose={()=>setOpen(false)}>
           <section
             aria-label={title}
-            aria-modal="true"
+
             className="master-knowledge-dialog"
             onMouseDown={(event) => event.stopPropagation()}
-            role="dialog"
+
           >
             <header className="master-knowledge-dialog-head">
               <div><small>Досье мастера</small><h2>{title}</h2></div>
@@ -158,7 +159,7 @@ function MasterKnowledgeCard({
               <RichParagraphs content={content} entityByTitle={entityByTitle} onMentionClick={onMentionClick} />
             </div>
           </section>
-        </div>,
+        </AppModal>,
         document.body
       ) : null}
     </>

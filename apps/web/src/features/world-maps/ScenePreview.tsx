@@ -1,3 +1,6 @@
+import { useNativeDialog } from "../../app/hooks/useNativeDialog";
+import { useWorkspaceGuard } from "../../app/workspace-route";
+import { confirmAction } from "../../app/confirm-action";
 import {useEffect,useRef,useState,type PointerEvent} from 'react';
 import type {SessionMapDocument,WorldMapDocument} from '@shadow-edge/shared-types';
 import {drawingWithSceneDoors} from './scene-creative';
@@ -12,16 +15,17 @@ export function ScenePreview({map,creativeSources=[],editable,busy,error,onClose
  const [doc,setDoc]=useState(()=>editableScene(map)),[levelIndex,setLevelIndex]=useState(0);
  const [tool,setTool]=useState<'inspect'|'wall'|'door'|'light'|'delete'>('inspect'),[start,setStart]=useState<Point|null>(null);
  const [history,setHistory]=useState<SessionMapDocument[]>([]),[selected,setSelected]=useState(''),[zoom,setZoom]=useState(1);
- const dialog=useRef<HTMLDialogElement>(null),svg=useRef<SVGSVGElement>(null);
+ const dialog=useNativeDialog(true),svg=useRef<SVGSVGElement>(null);
  const drag=useRef<{id:string;part:'start'|'end'|'body'|'light';origin:Point;before:SessionMapDocument}|null>(null);
  const latest=useRef(doc);latest.current=doc;
  const level=doc.levels[levelIndex],dirty=JSON.stringify(doc)!==JSON.stringify(editableScene(map));
+ useWorkspaceGuard(dirty,"Есть несохранённые правки разметки сцены. Перейти без сохранения?");
  const [background,setBackground]=useState(''),[renderError,setRenderError]=useState(''),[drawingId,setDrawingId]=useState('');
  const doorKey=JSON.stringify(level.walls.filter(w=>w.kind==='door'));
  useEffect(()=>{let active=true,url='';setBackground('');setRenderError('');if(!level.creative)return;const timer=setTimeout(()=>{void Promise.resolve().then(()=>creativePNG(drawingWithSceneDoors(level),1,true)).then(blob=>{if(!active)return;url=URL.createObjectURL(blob);setBackground(url);}).catch(e=>{if(active)setRenderError(e.message);});},100);return()=>{active=false;clearTimeout(timer);if(url)URL.revokeObjectURL(url);};},[levelIndex,level.creative,doorKey]);
  const wall=level.walls.find(w=>w.id===selected);
- useEffect(()=>{dialog.current?.showModal();},[]);
- function close(){if(!dirty||confirm('Закрыть без сохранения правок сцены?'))onClose();}
+
+ async function close(){if(!dirty||await confirmAction('Закрыть без сохранения правок сцены?'))onClose();}
  function change(patch:Partial<SceneLevel>){setHistory(h=>[...h.slice(-49),doc]);setDoc({...doc,levels:doc.levels.map((l,i)=>i===levelIndex?{...l,...patch}:l)});}
  function point(e:{clientX:number;clientY:number}):Point{const matrix=svg.current!.getScreenCTM()!,p=new DOMPoint(e.clientX,e.clientY).matrixTransform(matrix.inverse());return {x:Math.max(0,Math.min(1,p.x/level.width)),y:Math.max(0,Math.min(1,p.y/level.height))};}
  function begin(e:PointerEvent,id:string,part:'start'|'end'|'body'|'light'){
@@ -42,7 +46,7 @@ export function ScenePreview({map,creativeSources=[],editable,busy,error,onClose
   if(start){if(Math.hypot(p.x-start.x,p.y-start.y)>.002){let w:SceneLevel['walls'][number]={id:crypto.randomUUID(),kind:tool,start,end:p};if(tool==='door'){w=snapSceneDoor(w,level.walls,level,24*level.width/svg.current!.getBoundingClientRect().width);if(map.generation?.animatedDoors)w.doorVisual={style:'wood',direction:1,double:false,flip:false,strength:1,duration:700};}change({walls:[...level.walls,w]});setSelected(w.id);}setStart(null);}else setStart(p);
  }
  const line=(w:SceneLevel['walls'][number],interactive:boolean)=> <line key={`${interactive?'hit':'visible'}-${w.id}`} x1={w.start.x*level.width} y1={w.start.y*level.height} x2={w.end.x*level.width} y2={w.end.y*level.height} stroke={interactive?'transparent':w.kind==='door'?'#ff9e45':'#52e8d4'} strokeWidth={interactive?16:3} vectorEffect="non-scaling-stroke" pointerEvents={interactive?'stroke':'none'} onPointerDown={interactive?e=>{if(tool==='delete'){e.stopPropagation();remove(w.id);}else begin(e,w.id,'body');}:undefined}/>;
- return <dialog ref={dialog} className="scene-preview" onCancel={e=>{e.preventDefault();close();}}>
+ return <dialog ref={dialog} className="scene-preview" aria-label={`Сцена: ${map.title}`} onCancel={e=>{e.preventDefault();close();}}>
  <header><h2>{doc.title}</h2><button aria-label="Закрыть предпросмотр" onClick={close}>✕</button></header>
  {map.generation?.topologyError&&<p role="alert">Фон сохранён, но AI-разметка не завершена: {map.generation.topologyError} Можно повторить распознавание или расставить элементы вручную.</p>}
  <p>Стены — бирюзовые, двери — оранжевые, свет — жёлтый. Проверьте расположение перед сохранением.</p>
@@ -61,6 +65,6 @@ export function ScenePreview({map,creativeSources=[],editable,busy,error,onClose
  {start&&<circle cx={start.x*level.width} cy={start.y*level.height} r={6} fill="white"/>}</svg></div></div>
  <p>{level.columns||'—'} × {level.rows||'—'} клеток · 1 клетка = {level.gridDistance||5} футов · {level.walls.filter(w=>w.kind!=='door').length} стен · {level.walls.filter(w=>w.kind==='door').length} дверей · {level.lights?.length||0} источников света {dirty?'· Есть несохранённые правки':''}</p>
  {editable&&<details><summary>Погода и освещение</summary><fieldset disabled={busy}><label>Темнота<input type="range" min={0} max={1} step={.05} value={level.darkness||0} onChange={e=>change({darkness:+e.target.value})}/></label><label>Погода<select aria-label="Погода сцены" value={level.weather||'none'} onChange={e=>change({weather:e.target.value as SceneLevel['weather']})}>{Object.entries(weatherNames).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></label></fieldset></details>}
- <footer>{error&&<p role="alert" className="scene-save-error">{error}</p>}{busy&&<span role="status">Сохраняем / подготавливаем сцену…</span>}{onAccept?<button className="map-primary" disabled={busy} onClick={()=>onAccept(publishScene(doc))}>Сохранить сцену с разметкой</button>:editable&&<button className="map-primary" disabled={busy||(!dirty&&map.revision>0)} onClick={()=>onSave(publishScene(doc))}>{map.revision?'Сохранить правки':'Сохранить сцену'}</button>}<button disabled={busy||!editable} onClick={()=>{if(!dirty||confirm('Запустить повторную разметку без несохранённых правок?'))onTopology(level);}}>Заново стены, двери и свет</button><button disabled={busy||!editable} onClick={()=>{if(!dirty||confirm('Продолжить без сохранения правок?'))onRegenerate();}}>Новый вариант</button><button onClick={close}>Закрыть</button></footer>
+ <footer>{error&&<p role="alert" className="scene-save-error">{error}</p>}{busy&&<span role="status">Сохраняем / подготавливаем сцену…</span>}{onAccept?<button className="map-primary" disabled={busy} onClick={()=>onAccept(publishScene(doc))}>Сохранить сцену с разметкой</button>:editable&&<button className="map-primary" disabled={busy||(!dirty&&map.revision>0)} onClick={()=>onSave(publishScene(doc))}>{map.revision?'Сохранить правки':'Сохранить сцену'}</button>}<button disabled={busy||!editable} onClick={async ()=>{if(!dirty||await confirmAction('Запустить повторную разметку без несохранённых правок?'))onTopology(level);}}>Заново стены, двери и свет</button><button disabled={busy||!editable} onClick={async ()=>{if(!dirty||await confirmAction('Продолжить без сохранения правок?'))onRegenerate();}}>Новый вариант</button><button onClick={close}>Закрыть</button></footer>
  </dialog>;
 }

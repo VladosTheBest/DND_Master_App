@@ -1,3 +1,5 @@
+import { AppModal } from "./app/AppModal";
+import { confirmAction } from "./app/confirm-action";
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import type {
   CombatThresholds,
@@ -1710,16 +1712,16 @@ export function PlayerFacingEntityModal({
     setDraftContent(extractPlainTextFromPlayerFacingHTML(nextHtml));
   };
 
-  const handleRequestClose = () => {
-    if (editMode && hasDraftChanges && !window.confirm("Закрыть карточку без сохранения?")) {
+  const handleRequestClose = async () => {
+    if (editMode && hasDraftChanges && !await confirmAction("Закрыть карточку без сохранения?")) {
       return;
     }
 
     onClose();
   };
 
-  const handleCancelEdit = () => {
-    if (hasDraftChanges && !window.confirm("Отменить изменения в карточке?")) {
+  const handleCancelEdit = async () => {
+    if (hasDraftChanges && !await confirmAction("Отменить изменения в карточке?")) {
       return;
     }
 
@@ -1767,8 +1769,8 @@ export function PlayerFacingEntityModal({
   };
 
   return (
-    <div className="overlay" role="presentation">
-      <div className="panel palette player-facing-modal" onClick={(event) => event.stopPropagation()} role="dialog">
+    <AppModal label="Текст и карточки игроков" onClose={onClose}>
+      <div className="panel palette player-facing-modal" onClick={(event) => event.stopPropagation()} >
         <div className="stack wide player-facing-modal-layout">
           <div className="row player-facing-modal-head">
             <div>
@@ -1903,6 +1905,6 @@ export function PlayerFacingEntityModal({
           </section>
         </div>
       </div>
-    </div>
+    </AppModal>
   );
 }

@@ -1,5 +1,4 @@
-.link-context-backdrop,
-.link-picker-backdrop {
+.link-context-backdrop {
   position: fixed;
   inset: 0;
   z-index: 70;
@@ -14,12 +13,6 @@
   border-radius: var(--radius-md);
   background: rgba(14, 18, 28, .98);
   box-shadow: var(--shadow-md);
-}
-
-.link-picker-backdrop {
-  display: grid;
-  place-items: center;
-  background: rgba(5, 8, 14, .52);
 }
 
 .link-picker-modal {

@@ -1,3 +1,4 @@
+import { useNativeDialog } from "../../app/hooks/useNativeDialog";
 import type { KnowledgeEntity } from "@shadow-edge/shared-types";
 import type { GlobalSearchDisplayResult } from "./globalSearch.types";
 import { GlobalSearchInput } from "./GlobalSearchInput";
@@ -5,6 +6,7 @@ import { GlobalSearchResults } from "./GlobalSearchResults";
 import "./global-search.css";
 
 type GlobalSearchModalProps = {
+  loading:boolean; error:string; scope:"all"|"campaign"|"rules"; onScope:(scope:"all"|"campaign"|"rules")=>void; onRetry:()=>void;
   entityMap: Map<string, KnowledgeEntity>;
   open: boolean;
   query: string;
@@ -18,6 +20,7 @@ type GlobalSearchModalProps = {
 
 export function GlobalSearchModal({
   entityMap,
+  loading,error,scope,onScope,onRetry,
   open,
   query,
   results,
@@ -27,24 +30,27 @@ export function GlobalSearchModal({
   onOpenPrimaryResult,
   onOpenSecondaryResult
 }: GlobalSearchModalProps) {
+  const dialog=useNativeDialog(open,"input");
   if (!open) {
     return null;
   }
 
   return (
-    <div className="overlay" role="presentation">
-      <div className="panel palette" onClick={(event) => event.stopPropagation()} role="dialog">
+    <dialog ref={dialog} className="app-native-dialog" aria-label="Поиск в кампании и правилах" onCancel={event=>{event.preventDefault();onClose();}}>
+      <div className="panel palette" onClick={(event) => event.stopPropagation()}>
         <div className="row">
           <div>
-            <p className="eyebrow">Global Search</p>
-            <strong>Ищет сущности и правила, а затем открывает нужный модуль без ручной навигации</strong>
+            <p className="eyebrow">Поиск</p>
+            <strong>Записи, события, магазины, предметы, карты, сессии и правила</strong>
           </div>
           <button className="ghost" onClick={onClose} type="button">
             Esc
           </button>
         </div>
 
+        <label>Область поиска<select aria-label="Область поиска" value={scope} onChange={event=>onScope(event.target.value as typeof scope)}><option value="all">Кампания и правила</option><option value="campaign">Только кампания</option><option value="rules">Только правила</option></select></label>
         <GlobalSearchInput onChange={onChangeQuery} query={query} />
+        {loading&&<p role="status">Ищу…</p>}{error&&<p role="alert">{error} <button onClick={onRetry}>Повторить поиск</button></p>}{!loading&&!error&&!results.length&&<p role="status">Ничего не найдено. Попробуйте другой запрос или область поиска.</p>}
         <GlobalSearchResults
           entityMap={entityMap}
           onOpenEntityImage={onOpenEntityImage}
@@ -53,6 +59,6 @@ export function GlobalSearchModal({
           results={results}
         />
       </div>
-    </div>
+    </dialog>
   );
 }

@@ -1,3 +1,4 @@
+import { AppModal } from "../../app/AppModal";
 import { EntityVisual, hasVisibleArt, kindTitle } from "../../app-shared";
 import type { EntityLinkPickerModalProps } from "./entityLink.types";
 import "./entity-links.css";
@@ -12,8 +13,8 @@ export function EntityLinkPickerModal({
   }
 
   return (
-    <div className="link-picker-backdrop" role="presentation">
-      <div className="panel link-picker-modal" onClick={(event) => event.stopPropagation()} role="dialog">
+    <AppModal label="Выбор связанной записи" onClose={onClose} fullscreen={false} >
+      <div className="panel link-picker-modal" onClick={(event) => event.stopPropagation()} >
         <div className="row">
           <div>
             <p className="eyebrow">Create Hyperlink</p>
@@ -86,6 +87,6 @@ export function EntityLinkPickerModal({
           </button>
         </div>
       </div>
-    </div>
+    </AppModal>
   );
 }

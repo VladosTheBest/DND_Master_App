@@ -1,3 +1,4 @@
+import { useWorkspaceRoute, workspaceURL, navigateWorkspace, workspaceFilters } from "../../app/workspace-route";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import type {
   BestiaryBrowseResult,
@@ -20,6 +21,7 @@ export function useBestiaryController({
   onImportSuccess,
   setBootError
 }: BestiaryControllerArgs) {
+  const route=useWorkspaceRoute();
   const [bestiary, setBestiary] = useState<BestiaryBrowseResult | null>(null);
   const [bestiarySearch, setBestiarySearch] = useState("");
   const [bestiaryChallenge, setBestiaryChallenge] = useState("");
@@ -38,6 +40,15 @@ export function useBestiaryController({
   const isNamedNpcTab = activeTab === "Именные НПС" || activeTab === "Named NPC";
   const isClassicTab = activeTab === "Классика" || activeTab === "Classic";
 
+  useEffect(()=>{
+    if(route.section!=="monsters")return;
+    const filters=workspaceFilters(route.filters);
+    setBestiarySearch(route.view==="catalog"?route.query:"");setImportedMonsterSearch(route.view!=="catalog"?route.query:"");
+    setBestiaryChallenge(String(filters["bestiary.challenge"]||""));setBestiaryType(String(filters["bestiary.type"]||""));setImportedMonsterChallenge(String(filters["bestiary.importedChallenge"]||""));
+    setSelectedBestiaryId(route.view==="catalog"?route.target:"");
+  },[JSON.stringify(route)]);
+  function listFilter(key:string,value:string,set:(value:string)=>void){set(value);if(route.section!=="monsters")return;const next={...route};if(key==="q")next.query=value;else{const filters=workspaceFilters(next.filters);if(value)filters[key]=value;else delete filters[key];next.filters=Object.keys(filters).length?JSON.stringify(filters):undefined;}navigateWorkspace(workspaceURL(next),true);}
+  function selectCatalog(id:string){setSelectedBestiaryId(id);navigateWorkspace(workspaceURL({...route,campaignId:activeCampaignId,section:"monsters",view:"catalog",target:id}));}
   const filteredImportedMonsters = useMemo(
     () => filterImportedMonsters(campaignMonsters, importedMonsterSearch, importedMonsterChallenge),
     [campaignMonsters, importedMonsterChallenge, importedMonsterSearch]
@@ -86,7 +97,7 @@ export function useBestiaryController({
           return;
         }
         setBestiary(result);
-        setSelectedBestiaryId((current) => (result.items.some((item) => item.id === current) ? current : ""));
+
       } catch (error) {
         if (cancelled) {
           return;
@@ -161,7 +172,7 @@ export function useBestiaryController({
         })
         .then((result) => {
           setBestiary(result);
-          setSelectedBestiaryId((current) => (result.items.some((item) => item.id === current) ? current : ""));
+
         })
         .catch(() => undefined);
     }, 5000);
@@ -203,12 +214,12 @@ export function useBestiaryController({
     selectedBestiaryImported,
     selectedBestiaryMonster,
     selectedBestiarySummary,
-    setBestiaryChallenge,
-    setBestiarySearch,
-    setBestiaryType,
-    setImportedMonsterChallenge,
-    setImportedMonsterSearch,
-    setSelectedBestiaryId,
+    setBestiaryChallenge:(value:string)=>listFilter("bestiary.challenge",value,setBestiaryChallenge),
+    setBestiarySearch:(value:string)=>listFilter("q",value,setBestiarySearch),
+    setBestiaryType:(value:string)=>listFilter("bestiary.type",value,setBestiaryType),
+    setImportedMonsterChallenge:(value:string)=>listFilter("bestiary.importedChallenge",value,setImportedMonsterChallenge),
+    setImportedMonsterSearch:(value:string)=>listFilter("q",value,setImportedMonsterSearch),
+    setSelectedBestiaryId:selectCatalog,
     importSelectedBestiaryMonster
   };
 }

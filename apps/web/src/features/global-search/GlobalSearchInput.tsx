@@ -6,6 +6,9 @@ type GlobalSearchInputProps = {
 export function GlobalSearchInput({ query, onChange }: GlobalSearchInputProps) {
   return (
     <input
+      maxLength={300}
+      type="search"
+      aria-label="Поисковый запрос"
       autoFocus
       className="input"
       onChange={(event) => onChange(event.target.value)}

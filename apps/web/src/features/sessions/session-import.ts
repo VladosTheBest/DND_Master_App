@@ -1,5 +1,13 @@
 export interface TranscriptFile { name: string; text: string }
 export const maxImportBytes = 4 * 1024 * 1024;
+export async function prepareTranscriptImport(selectedFiles:Pick<File,"name"|"size"|"arrayBuffer">[]) {
+  if(!selectedFiles.length||selectedFiles.some(file=>!/\.txt$/i.test(file.name))||selectedFiles.reduce((sum,file)=>sum+file.size,0)>maxImportBytes)throw new Error("Выберите TXT-файлы общим размером до 4 МБ.");
+  const files=await Promise.all(selectedFiles.map(async file=>({name:file.name,text:new TextDecoder("utf-8",{fatal:true}).decode(await file.arrayBuffer())})));
+  files.sort((a,b)=>a.name.localeCompare(b.name,"ru",{numeric:true}));
+  const text=combineTranscripts(files),sourceDate=files[0].text.match(/^Quill — (\d{4}-\d{2}-\d{2})/);
+  const title=sourceDate?`Игра ${new Date(sourceDate[1]).toLocaleDateString("ru-RU",{day:"numeric",month:"long"})}`:files[0].name.replace(/\.txt$/i,"");
+  return {text,files,title};
+}
 const linePattern = /^\[(\d{2,}:\d{2}:\d{2}\.\d{3})[–-](\d{2,}:\d{2}:\d{2}\.\d{3})\] ([^:\r\n]{1,100}):\s?(.*)$/gm;
 const milliseconds = (stamp: string) => {
   const [h, m, s] = stamp.split(":").map(Number);

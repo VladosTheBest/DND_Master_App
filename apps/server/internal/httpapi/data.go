@@ -420,29 +420,78 @@ func campaignSummaryFromData(campaign campaignData) campaignSummary {
 	}
 }
 
+// Owner search only. Never use this DTO for a public/player-facing route.
+// Snippets contain plain text and a bounded Unicode window, never HTML or a full transcript.
+func searchSnippet(text, query string) string {
+	runes := []rune(strings.Join(strings.Fields(text), " "))
+	lower := strings.ToLower(string(runes))
+	needle := strings.ToLower(query)
+	byteIndex := strings.Index(lower, needle)
+	start := 0
+	if byteIndex >= 0 {
+		start = len([]rune(lower[:byteIndex])) - 50
+		if start < 0 {
+			start = 0
+		}
+	}
+	end := start + 220
+	if end > len(runes) {
+		end = len(runes)
+	}
+	value := string(runes[start:end])
+	if start > 0 {
+		value = "…" + value
+	}
+	if end < len(runes) {
+		value += "…"
+	}
+	return value
+}
 func searchCampaign(campaign campaignData, query string) []searchResult {
 	needle := strings.TrimSpace(strings.ToLower(query))
-	if needle == "" {
-		return []searchResult{}
+	results := []searchResult{}
+	if needle == "" || len([]rune(needle)) > 300 {
+		return results
 	}
-
-	results := make([]searchResult, 0)
-	for _, entity := range campaignEntities(campaign) {
-		haystack := strings.ToLower(entity.Title + " " + entity.Subtitle + " " + entity.Summary + " " + strings.Join(entity.Tags, " "))
-		if !strings.Contains(haystack, needle) {
-			continue
+	add := func(id, kind, target, title, subtitle, content string, tags []string) {
+		if len(results) >= 100 {
+			return
 		}
-
-		results = append(results, searchResult{
-			ID:       entity.ID,
-			Kind:     entity.Kind,
-			Title:    entity.Title,
-			Subtitle: entity.Subtitle,
-			Summary:  entity.Summary,
-			Tags:     entity.Tags,
-		})
+		titleMatch := strings.Contains(strings.ToLower(title), needle)
+		if !titleMatch && !strings.Contains(strings.ToLower(subtitle+" "+content+" "+strings.Join(tags, " ")), needle) {
+			return
+		}
+		match := "text"
+		if titleMatch {
+			match = "title"
+		}
+		if tags == nil {
+			tags = []string{}
+		}
+		results = append(results, searchResult{ID: id, Kind: kind, Target: target, Title: title, Subtitle: subtitle, Summary: searchSnippet(content, needle), Tags: tags, Match: match})
 	}
-
+	for _, e := range campaignEntities(campaign) {
+		add(e.ID, e.Kind, "", e.Title, e.Subtitle, e.Summary+"\n"+e.Content, e.Tags)
+	}
+	for _, e := range campaign.Events {
+		add(e.ID, "lore", "event", e.Title, "Событие · "+e.Date, e.Summary+"\n"+e.SceneText+"\n"+strings.Join(e.Loot, " "), e.Tags)
+	}
+	for _, e := range campaign.Shops {
+		add(e.ID, "lore", "shop", e.Name, "Магазин · "+e.LocationLabel, e.Description, nil)
+	}
+	for _, e := range campaign.WorldMaps {
+		labels := []string{}
+		for _, label := range e.Labels {
+			labels = append(labels, label.Text)
+		}
+		add(e.ID, "lore", "map", e.Title, "Атлас кампании", e.Prompt+" "+strings.Join(labels, " "), nil)
+	}
+	for _, e := range campaign.SessionMaps {
+		add(e.ID, "lore", "scene", e.Title, "Тактическая сцена", e.Title, nil)
+	}
+	for _, e := range campaign.CustomItems {
+		add(e.ID, "lore", "item", e.Name, "Пользовательский предмет", e.Description, nil)
+	}
 	return results
 }
 

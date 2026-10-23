@@ -1,3 +1,4 @@
+import { AppModal } from "../../app/AppModal";
 import type { KnowledgeEntity, PreparedCombatPlan } from "@shadow-edge/shared-types";
 import type { CombatSearchItem } from "../combat/combat.types";
 import { PreparedCombatActions } from "./PreparedCombatActions";
@@ -64,8 +65,8 @@ export function PreparedCombatModal({
   }
 
   return (
-    <div className="overlay" role="presentation">
-      <div className="panel palette prepared-combat-modal" onClick={(event) => event.stopPropagation()} role="dialog">
+    <AppModal label="Подготовка встречи" onClose={onClose}>
+      <div className="panel palette prepared-combat-modal" onClick={(event) => event.stopPropagation()} >
         <div className="stack wide">
           <div className="row">
             <div>
@@ -120,6 +121,6 @@ export function PreparedCombatModal({
           <PreparedCombatActions onClose={onClose} onSave={onSave} saving={saving} />
         </div>
       </div>
-    </div>
+    </AppModal>
   );
 }

@@ -130,7 +130,7 @@ export function AppContentRouter({
   }
 
   if (activeModule === "rules") {
-    return <RulesPage key={`rules-${rulesSelectionKey}`} initialQuery={rulesInitialQuery} initialRuleId={rulesInitialRuleId} />;
+    return <RulesPage initialQuery={rulesInitialQuery} initialRuleId={rulesInitialRuleId} />;
   }
 
   if (activeRailAlias === "items") {

@@ -495,9 +495,9 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
       body: JSON.stringify(input satisfies GenerateCombatInput)
     });
   },
-    async search(campaignId, query) {
+    async search(campaignId, query, signal) {
       return requestJson<SearchResult[]>(
-        `${baseUrl}/api/campaigns/${campaignId}/search?q=${encodeURIComponent(query)}`
+        `${baseUrl}/api/campaigns/${campaignId}/search?q=${encodeURIComponent(query)}`, { signal }
       );
     }
   };

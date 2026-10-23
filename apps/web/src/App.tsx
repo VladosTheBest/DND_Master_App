@@ -1,3 +1,11 @@
+import { DraftOwnerContext } from "./app/hooks/useDraftOwner";
+import { useEditorDirty } from "./app/hooks/useEditorDirty";
+import { useWorkspaceGuard } from "./app/workspace-route";
+import { AppModal } from "./app/AppModal";
+import workspaceStyles from "./app/Workspace.module.css";
+import { useWorkspaceRoute, workspaceURL, navigateWorkspace, restoreWorkspaceScroll, allowWorkspaceNavigation, type WorkspaceSection } from "./app/workspace-route";
+import { ChatWorkspace } from "./features/ai-jobs/AIChatPage";
+import { confirmAction } from "./app/confirm-action";
 import { browserStorage } from "./app/browser-storage";
 import { FinishCombatDialog } from "./features/combat/FinishCombatDialog";
 import { AIJobsPanel } from "./features/ai-jobs/AIJobsPanel";
@@ -252,6 +260,7 @@ import {
   startTransition,
   useDeferredValue,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -261,6 +270,7 @@ import {
   type ReactNode
 } from "react";
 
+const MapWorkspace = lazy(()=>import("./features/world-maps/WorldMapsPage").then(module=>({default:module.MapWorkspace})));
 const CampaignCharacters = lazy(() =>
   import("./features/characters/CampaignCharacters").then((module) => ({
     default: module.CampaignCharacters
@@ -1543,6 +1553,11 @@ function CombatWorkbench({
 }
 
 export default function App() {
+  const workspaceRoute = useWorkspaceRoute();
+  const routeKey = JSON.stringify(workspaceRoute);
+  const [workspaceArea,setWorkspaceArea]=useState<"maps"|"chat"|null>(null);
+  const routeApplying=useRef(false);
+  const [routeError,setRouteError]=useState("");
   const [appRoute, setAppRoute] = useState<AppRouteState>(() =>
     typeof window === "undefined" ? { mode: "app" } : parseAppRoute(window.location.hash)
   );
@@ -1897,6 +1912,11 @@ export default function App() {
     requestPlayerFacingCardDeletion,
   } = playerFacing;
 
+  const galleryDirty=useEditorDirty(entityGalleryModalOpen,entityGalleryDraft);
+  const playlistDirty=useEditorDirty(entityPlaylistModalOpen,entityPlaylistDraft);
+  const combatPlaylistDirty=useEditorDirty(combatPlaylistModalOpen,combatPlaylistDraft);
+  const campaignCreationDirty=useEditorDirty(campaignCreation.campaignModalOpen,campaignCreation.campaignForm);
+  useWorkspaceGuard(galleryDirty||playlistDirty||combatPlaylistDirty||campaignCreationDirty,"В открытом редакторе есть несохранённые изменения. Перейти без сохранения?");
   const activeCampaignSnapshot=useRef(activeCampaignId);
   const campaignSnapshot=useRef(campaign);
   activeCampaignSnapshot.current=activeCampaignId;campaignSnapshot.current=campaign;
@@ -2171,13 +2191,15 @@ export default function App() {
         if (cancelled) return;
 
         setCampaigns(list);
+        const requestedId = workspaceRoute.campaignId;
+        if(requestedId && !list.some(item=>item.id===requestedId)) throw new Error("Кампания не найдена или недоступна этому аккаунту.");
         if (!list.length) {
           setCampaign(null);
           setActiveCampaignId("");
           return;
         }
 
-        const requestedId = new URLSearchParams(window.location.search).get("campaign") || "";
+
         const storedId = list.some(item => item.id === requestedId) ? requestedId : readStoredActiveCampaignId();
         const initialId = appRoute.mode === "initiative" && list.some((item) => item.id === appRoute.campaignId)
           ? appRoute.campaignId
@@ -2186,6 +2208,7 @@ export default function App() {
         const data = await api.getCampaign(initialId);
         if (cancelled) return;
 
+        activeCampaignSnapshot.current=data.id;
         hydrateCampaign(data);
       } catch (error) {
         if (cancelled) return;
@@ -2202,7 +2225,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [appRoute, authState]);
+  }, [appRoute.mode, appRoute.mode === "initiative" ? appRoute.campaignId : "", workspaceRoute.campaignId, authState]);
 
   useEffect(() => {
     if (authState !== "authenticated") {
@@ -2231,21 +2254,50 @@ export default function App() {
     return () => window.clearInterval(timer);
   }, [activeCampaignId, appRoute]);
 
-  const openedResultTarget = useRef("");
-  useEffect(() => {
-    if (booting || !campaign) return;
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("campaign") !== campaign.id) return;
-    const sessionId = params.get("session"), proposalId = params.get("proposal");
-    const key = `${campaign.id}:${sessionId || ""}:${proposalId || ""}`;
-    if (openedResultTarget.current === key) return;
-    openedResultTarget.current = key;
-    if (sessionId) {
-      try { browserStorage.setItem(`session-selected:${campaign.id}`, sessionId); } catch { /* The server session remains readable without browser storage. */ }
-      setActiveRailAlias("sessions"); setActiveModule("lore"); setActiveTab("Все");
-    }
-    if (proposalId) void aiProposalController.openProposal(proposalId);
-  }, [booting, campaign?.id]);
+  // Close editors while their owner/campaign scope is still the source scope.
+  useLayoutEffect(()=>{
+    if(entityEditor.entityModalOpen)entityEditor.closeEntityModal();
+    if(entityGalleryModalOpen)closeEntityGalleryModal();
+    if(entityPlaylistModalOpen)closeEntityPlaylistModal();
+    if(combatPlaylistModalOpen)closeCombatPlaylistModal();
+    if(campaignCreation.campaignModalOpen)campaignCreation.setCampaignModalOpen(false);
+    globalSearchController.closePalette();setEntityImageTarget(null);setGalleryViewer(null);
+
+  },[routeKey]);
+
+  useLayoutEffect(()=>{
+    if(booting||!campaign||appRoute.mode!=="app"||workspaceRoute.campaignId&&workspaceRoute.campaignId!==campaign.id)return;
+    routeApplying.current=true;
+    const section=workspaceRoute.section;
+    const alias=["items","events","notes","shops","sessions","offline"].includes(section)?section as RailAlias:null;
+    const module:ModuleId=section==="notes"||section==="items"||section==="shops"||section==="sessions"||section==="offline"?"lore":section==="events"?"quests":section==="maps"||section==="chat"?"dashboard":section as ModuleId;
+    setWorkspaceArea(section==="maps"||section==="chat"?section:null);
+    setActiveModule(module);setActiveRailAlias(alias);setActiveTab(section==="monsters"&&workspaceRoute.target&&workspaceRoute.view!=="catalog"?"Импорт":tabs[module].includes(workspaceRoute.tab)?workspaceRoute.tab:tabs[module][0]);
+    setModuleEntitySearch(workspaceRoute.query);setPreviewEntityId("");
+    const isEntity=["locations","players","npcs","monsters","quests","notes"].includes(section)&&!(section==="monsters"&&workspaceRoute.view==="catalog");
+    const expected=entityMap.get(workspaceRoute.target);
+    const missing=Boolean(workspaceRoute.target&&(isEntity&&(!expected||moduleByKind[expected.kind]!==module)||section==="events"&&!campaign.events.some(item=>item.id===workspaceRoute.target)||section==="shops"&&!campaign.shops.some(item=>item.id===workspaceRoute.target)));
+    setRouteError(missing?"Запись не найдена или недоступна. Вернитесь к списку раздела.":"");
+    setActiveEntityId(isEntity&&!missing?workspaceRoute.target:"");
+    setSelectedWorldEventId(section==="events"?workspaceRoute.target:"");setFocusedShopId(section==="shops"?workspaceRoute.target:"");
+    if(section==="rules")setRulesNavigationState(current=>({query:workspaceRoute.query,ruleId:workspaceRoute.target,requestId:current.requestId+1}));
+    restoreWorkspaceScroll();
+  },[routeKey,booting,campaign?.id,appRoute.mode]);
+
+  useLayoutEffect(()=>{
+    if(booting||!campaign||appRoute.mode!=="app"||routeError||workspaceRoute.campaignId&&workspaceRoute.campaignId!==campaign.id)return;
+    if(routeApplying.current){routeApplying.current=false;return;}
+    const section=(workspaceArea||activeRailAlias||(activeModule==="lore"?"notes":activeModule)) as WorkspaceSection;
+    // Feature-owned selections are already written by their editor, not inferred from an unrelated entity.
+    const catalog=section==="monsters"&&isBestiaryBrowseTab(activeModule,activeTab);
+    const target=catalog?(workspaceRoute.view==="catalog"?workspaceRoute.target:""):workspaceArea?workspaceRoute.target:section==="events"?selectedWorldEventId:section==="shops"?focusedShopId:section==="sessions"||section==="items"?workspaceRoute.target:section==="rules"?rulesNavigationState.ruleId:["locations","players","npcs","monsters","quests","notes"].includes(section)?activeEntityId:"";
+    const next=workspaceURL({campaignId:campaign.id,section,target,tab:!workspaceArea&&!activeRailAlias&&activeTab!==tabs[activeModule][0]?activeTab:"",query:section==="rules"?rulesNavigationState.query:moduleEntitySearch,view:catalog?"catalog":workspaceArea?workspaceRoute.view:"",filters:workspaceRoute.section===section?workspaceRoute.filters:undefined,context:workspaceArea?workspaceRoute.context:undefined});
+    const current=location.pathname+location.search;
+    if(next!==current){const old=workspaceRoute;const replace=old.section===section&&old.target===target&&old.tab===(activeTab!==tabs[activeModule][0]?activeTab:"")&&old.campaignId===campaign.id; navigateWorkspace(next,replace);}
+  },[routeKey,booting,campaign?.id,appRoute.mode,workspaceArea,activeModule,activeRailAlias,activeTab,activeEntityId,selectedWorldEventId,focusedShopId,moduleEntitySearch,rulesNavigationState.ruleId,rulesNavigationState.query]);
+
+  const openedResultTarget=useRef("");
+  useEffect(()=>{if(booting||!campaign||workspaceRoute.campaignId!==campaign.id||!workspaceRoute.proposal)return;const key=`${campaign.id}:${workspaceRoute.proposal}`;if(openedResultTarget.current===key)return;openedResultTarget.current=key;void aiProposalController.openProposal(workspaceRoute.proposal);},[booting,campaign?.id,routeKey]);
 
   const campaignPreparedCombat = campaign?.preparedCombat ?? null;
   const entityByTitle = useMemo(() => new Map(allEntities.map((entity) => [entity.title, entity])), [allEntities]);
@@ -2269,15 +2321,6 @@ export default function App() {
   const visibleModuleEntities =
     activeModule === "monsters" && activeTab === "Импорт" ? bestiaryController.filteredImportedMonsters : scopedEntities;
 
-  useEffect(() => {
-    if (!campaign || activeModule === "dashboard" || activeModule === "combat" || isBestiaryBrowseTab(activeModule, activeTab)) {
-      return;
-    }
-
-    if (activeEntityId && !visibleModuleEntities.some((entity) => entity.id === activeEntityId)) {
-      setActiveEntityId("");
-    }
-  }, [activeEntityId, activeModule, activeTab, campaign, visibleModuleEntities]);
 
   useEffect(() => {
     if (activeModule !== "combat") {
@@ -2944,7 +2987,9 @@ export default function App() {
     if (window.matchMedia("(max-width: 1120px)").matches) window.scrollTo({ top: 0 });
   };
 
-  const openModuleDirectory = (moduleId: ModuleId = activeModule, tabId?: string) => {
+  const openModuleDirectory = async (moduleId: ModuleId = activeModule, tabId?: string) => {
+    if(!await allowWorkspaceNavigation())return;
+    setWorkspaceArea(null);
     if (moduleId === "dashboard" || moduleId === "combat" || moduleId === "rules") {
       return;
     }
@@ -2961,20 +3006,24 @@ export default function App() {
     setActiveTab(nextTab);
     setActiveEntityId("");
     setPreviewEntityId("");
-    setModuleEntitySearch("");
+    if(moduleId!==activeModule)setModuleEntitySearch("");
+    if(moduleId==="monsters"&&isBestiaryBrowseTab(moduleId,nextTab))navigateWorkspace(workspaceURL({...workspaceRoute,campaignId:activeCampaignId,section:"monsters",view:"catalog",target:""}));
     if (moduleId === "monsters") {
       bestiaryController.resetBrowseSelection();
     }
     requestAnimationFrame(scrollContentToTop);
   };
 
-  const openEntity = (id: string) => {
+  const openEntity = async (id: string) => {
+    if(!await allowWorkspaceNavigation())return;
+    setWorkspaceArea(null);
     const entity = entityMap.get(id);
     if (!entity) {
       return;
     }
 
     const targetModule = moduleByKind[entity.kind];
+    if(targetModule!==activeModule)setModuleEntitySearch("");
     const defaultTab = entity.kind === "monster" ? "Импорт" : "Все";
     const isVisibleInCurrentTab =
       entity.kind === "monster"
@@ -3009,7 +3058,9 @@ export default function App() {
     });
   };
 
-  const openWorldEvent = (eventId: string) => {
+  const openWorldEvent = async (eventId: string) => {
+    if(!await allowWorkspaceNavigation())return;
+    setWorkspaceArea(null);
     const event = campaign?.events.find((item) => item.id === eventId) ?? null;
     if (!event) {
       return;
@@ -3028,7 +3079,9 @@ export default function App() {
     openPreview(id);
   };
 
-  const openQuestFocus = (id: string) => {
+  const openQuestFocus = async (id: string) => {
+    if(!await allowWorkspaceNavigation())return;
+    setWorkspaceArea(null);
     const entity = entityMap.get(id);
     if (!entity || entity.kind !== "quest") {
       return;
@@ -3058,7 +3111,9 @@ export default function App() {
     peekEntity(linked.id);
   };
 
-  const focusCombatModule = () => {
+  const focusCombatModule = async () => {
+    if(!await allowWorkspaceNavigation())return;
+    setWorkspaceArea(null);
     setActiveModule("combat");
     setActiveRailAlias(null);
     setActiveTab("Encounter");
@@ -3161,7 +3216,10 @@ export default function App() {
     }
   };
 
-  const switchModule = (moduleId: ModuleId) => {
+  const switchModule = async (moduleId: ModuleId) => {
+    if(!await allowWorkspaceNavigation())return;
+    setWorkspaceArea(null);
+    navigateWorkspace(workspaceURL({campaignId:activeCampaignId,section:moduleId==="lore"?"notes":moduleId,view:moduleId==="monsters"?"catalog":""}));
     setModuleEntitySearch("");
     setActiveModule(moduleId);
     setActiveRailAlias(null);
@@ -3185,7 +3243,9 @@ export default function App() {
     requestAnimationFrame(scrollContentToTop);
   };
 
-  const openRulesCompendium = (options?: { ruleId?: string; query?: string }) => {
+  const openRulesCompendium = async (options?: { ruleId?: string; query?: string }) => {
+    if(!await allowWorkspaceNavigation())return;
+    setWorkspaceArea(null);
     setModuleEntitySearch("");
     setActiveRailAlias(null);
     setActiveModule("rules");
@@ -3215,7 +3275,10 @@ export default function App() {
     setActiveTab(nextTab);
   };
 
-  const openRailAlias = (alias: RailAlias) => {
+  const openRailAlias = async (alias: RailAlias) => {
+    if(!await allowWorkspaceNavigation())return;
+    setWorkspaceArea(null);
+    navigateWorkspace(workspaceURL({campaignId:activeCampaignId,section:alias}));
     const targetModule: ModuleId = alias === "events" ? "quests" : "lore";
     setModuleEntitySearch("");
     setActiveRailAlias(alias);
@@ -3357,17 +3420,8 @@ export default function App() {
   };
 
   const handleCampaignSelect = async (campaignId: string) => {
-    const requestId = campaignSelectionRequestRef.current + 1;
-    campaignSelectionRequestRef.current = requestId;
-    try {
-      setBootError("");
-      const data = await api.getCampaign(campaignId);
-      if (campaignSelectionRequestRef.current !== requestId) return;
-      writeStoredActiveCampaignId(campaignId);
-      hydrateCampaign(data);
-    } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось открыть кампанию.");
-    }
+    if(campaignId===activeCampaignId||!await allowWorkspaceNavigation())return;
+    navigateWorkspace(workspaceURL({campaignId,section:workspaceArea||activeRailAlias||(activeModule==="lore"?"notes":activeModule)}));
   };
 
   const saveCombatPlaylist = async () => {
@@ -4078,7 +4132,7 @@ export default function App() {
       return;
     }
 
-    if (!window.confirm("Показать игрокам экран победы и пометить врагов побеждёнными?")) {
+    if (!await confirmAction("Показать игрокам экран победы и пометить врагов побеждёнными?")) {
       return;
     }
 
@@ -4124,7 +4178,7 @@ export default function App() {
   const isShopsRail = activeRailAlias === "shops";
   const hasFeatureOwnedDetailsPanel = isItemsRail || isShopsRail || activeRailAlias === "sessions" || activeRailAlias === "offline" || activeModule === "rules";
   const hasActiveCombat = Boolean(activeCombat?.entries.length);
-  const activeRailKey = railNavKeyFromView(activeModule, activeRailAlias);
+  const activeRailKey = workspaceArea || railNavKeyFromView(activeModule, activeRailAlias);
   const activeSectionLabel = campaign ? railSectionTitle(campaign, activeModule, activeRailAlias) : "";
   const railNavItems: Array<{ key: RailNavKey; label: string; icon: RailIconName; onClick: () => void }> = [
     { key: "offline", label: "Оффлайн · Beta", icon: "home", onClick: () => openRailAlias("offline") },
@@ -4468,17 +4522,20 @@ export default function App() {
     );
   }
 
+  if(campaign&&workspaceRoute.campaignId&&workspaceRoute.campaignId!==campaign.id){return <main className="boot"><section className="panel boot-card" role="alert"><h1>Не удалось открыть кампанию</h1><p>{bootError||"Кампания недоступна."}</p><a href={workspaceURL({campaignId:campaign.id,section:"dashboard"})}>Вернуться к своей кампании</a></section></main>;}
+
   if (!campaign) {
     return (
       <>
         <div className="boot">
-          <div className="panel boot-card stack">
+          <div className="panel boot-card stack" role={bootError?"alert":undefined}>
             <p className="eyebrow">{bootError ? "Подключение" : "Кабинет мастера"}</p>
             <h1>{bootError ? "Не удалось загрузить кампанию" : "Создай первую кампанию"}</h1>
             <p className="copy">
               {bootError || "Аккаунт готов. Начни новую историю — создай свою кампанию."}
             </p>
             <div className="actions">
+              {bootError&&<><button onClick={()=>location.reload()}>Повторить загрузку</button>{campaigns[0]&&<a href={workspaceURL({campaignId:campaigns[0].id,section:"dashboard"})}>Открыть свою кампанию</a>}</>}
               <button className="primary" onClick={openCampaignModal} type="button">
                 Создать кампанию
               </button>
@@ -4567,9 +4624,9 @@ export default function App() {
   }
 
   return (
-    <>
+    <DraftOwnerContext.Provider value={authUserId}>
       <div
-        className={`shell ${activeModule === "dashboard" && !activeRailAlias ? "home-shell" : ""} ${!previewEntity && !(bestiaryController.isBrowseMode && bestiaryController.selectedBestiaryMonster) ? "without-preview" : ""} ${activeModule === "dashboard" || activeRailAlias ? "dashboard-shell" : ""} ${isCombatScreen ? "combat-layout" : ""} ${isCombatPrepScreen ? "combat-prep-shell" : ""} ${isItemsRail || isShopsRail ? "items-shell" : ""} ${isShopsRail ? "shops-shell" : ""} ${hasFeatureOwnedDetailsPanel ? "feature-owned-details-shell" : ""}`.trim()}
+        className={`shell ${activeModule === "dashboard" && !activeRailAlias ? "home-shell" : ""} ${!previewEntity && !(bestiaryController.isBrowseMode && bestiaryController.selectedBestiaryMonster) ? "without-preview" : ""} ${activeModule === "dashboard" || activeRailAlias ? "dashboard-shell" : ""} ${isCombatScreen ? "combat-layout" : ""} ${isCombatPrepScreen ? "combat-prep-shell" : ""} ${isItemsRail || isShopsRail ? "items-shell" : ""} ${isShopsRail ? "shops-shell" : ""} ${workspaceArea ? "external-workspace dashboard-shell without-preview" : ""} ${hasFeatureOwnedDetailsPanel ? "feature-owned-details-shell" : ""}`.trim()}
         style={shellStyle}
       >
         {!isCombatScreen ? (
@@ -4632,7 +4689,7 @@ export default function App() {
                   authBusy={authBusy}
                   campaignTitle={campaign.title}
                   canOpenDirectory={
-                    !isCombatScreen &&
+                    !workspaceArea && !isCombatScreen &&
                     activeModule !== "dashboard" &&
                     Boolean(activeEntity || (bestiaryController.isBrowseMode && bestiaryController.selectedBestiaryMonster))
                   }
@@ -4657,7 +4714,7 @@ export default function App() {
                 variant="default"
               />
 
-              {(!campaign.readyCampaign || activeModule === "players") && !hasFeatureOwnedDetailsPanel && !activeRailAlias && activeModule !== "dashboard" ? (
+              {!workspaceArea && (!campaign.readyCampaign || activeModule === "players") && !hasFeatureOwnedDetailsPanel && !activeRailAlias && activeModule !== "dashboard" ? (
                 <div className="panel tabs">
                   {tabs[activeModule].map((tab) => (
                     <button
@@ -4683,9 +4740,10 @@ export default function App() {
             </>
           )}
 
+          {!isCombatScreen&&<nav className={workspaceStyles.breadcrumbs} aria-label="Путь"><a href={workspaceURL({campaignId:campaign.id,section:"dashboard"})}>{campaign.title}</a><span aria-hidden="true"> / </span><a href={workspaceURL({campaignId:campaign.id,section:workspaceRoute.section})}>{workspaceArea==="maps"?"Карты и сцены":workspaceArea==="chat"?"AI-чат":activeSectionLabel}</a>{activeEntity&&<><span aria-hidden="true"> / </span><span aria-current="page">{activeEntity.title}</span></>}</nav>}
           <section className={`panel content ${isCombatScreen ? "combat-content" : ""}`} ref={contentRef}>
             {campaign.readyCampaign && <p className="ready-campaign-notice">Готовые Кампании · сюжет, локации, НПС и карты защищены от изменений. Игроки, бои и журнал относятся к вашему прохождению.</p>}
-            {activeModule === "players" && !activeEntity && (
+            {!workspaceArea && activeModule === "players" && !activeEntity && (
               <Suspense fallback={<p role="status">Загружаем листы персонажей…</p>}>
                 <CampaignCharacters
                   key={campaign.id}
@@ -4699,7 +4757,7 @@ export default function App() {
               </Suspense>
             )}
             {isCombatScreen && <OfflineBetaNotice/>}
-            {activeRailAlias === "offline" ? <OfflinePage campaignId={activeCampaignId} hasActiveCombat={hasActiveCombat} onCombat={() => { if (hasActiveCombat) openCombatScreen(); else openCombatSetupModal(); }} onMap={() => setSessionMapOpen(true)} onTracker={openInitiativeTracker}/> : activeModule === "dashboard" ? (
+            {workspaceArea === "maps" ? <Suspense fallback={<p role="status">Открываю карты и сцены…</p>}><MapWorkspace key={campaign.id} campaignId={campaign.id} readOnly={Boolean(campaign.readyCampaign)}/></Suspense> : workspaceArea === "chat" ? <ChatWorkspace campaignId={campaign.id}/> : routeError ? <section className="card" role="alert"><h2>Не удалось открыть запись</h2><p>{routeError}</p><button onClick={()=>navigateWorkspace(workspaceURL({...workspaceRoute,campaignId:campaign.id,target:""}))}>К списку</button></section> : activeRailAlias === "offline" ? <OfflinePage campaignId={activeCampaignId} hasActiveCombat={hasActiveCombat} onCombat={() => { if (hasActiveCombat) openCombatScreen(); else openCombatSetupModal(); }} onMap={() => setSessionMapOpen(true)} onTracker={openInitiativeTracker}/> : activeModule === "dashboard" ? (
               <CampaignDashboard
                 campaign={campaign}
                 pinnedEntities={pinnedEntities}
@@ -4781,7 +4839,7 @@ export default function App() {
                 }}
               />
             ) : activeRailAlias === "sessions" ? (
-              <SessionsPage key={campaign.id} campaignId={campaign.id} onOpenAI={aiProposalController.openInbox} onOpenProposal={(id) => void aiProposalController.openProposal(id)} />
+              <SessionsPage key={campaign.id} initialSessionId={workspaceRoute.target} campaignId={campaign.id} onOpenAI={aiProposalController.openInbox} onOpenProposal={(id) => void aiProposalController.openProposal(id)} />
             ) : activeModule === "monsters" ||
               activeModule === "rules" ||
               activeRailAlias === "items" ||
@@ -4914,6 +4972,7 @@ export default function App() {
               />
             ) : (
               <EntityDirectoryScreen
+                campaignId={campaign.id}
                 activeModule={activeModule}
                 activeSectionLabel={activeSectionLabel}
                 defaultCreateKind={defaultCreateKind}
@@ -5027,6 +5086,7 @@ export default function App() {
       />
 
       <GlobalSearchModal
+        loading={globalSearchController.loading} error={globalSearchController.error} scope={globalSearchController.scope} onScope={globalSearchController.setScope} onRetry={globalSearchController.retry}
         entityMap={entityMap}
         onChangeQuery={setQuery}
         onClose={requestPaletteClose}
@@ -5034,7 +5094,13 @@ export default function App() {
           closePalette();
           openEntityImage(entity, displayUrl);
         }}
-        onOpenPrimaryResult={(result) => {
+        onOpenPrimaryResult={async (result) => {
+          if(result.type==="entity"&&result.target){
+            if(!await allowWorkspaceNavigation())return;
+            const section=({event:"events",shop:"shops",session:"sessions",map:"maps",scene:"maps",item:"items"} as const)[result.target];
+            navigateWorkspace(workspaceURL({campaignId:activeCampaignId,section,target:result.id,view:result.target==="scene"?"scenes":""}));resetPalette();return;
+          }
+
           if (result.type === "rule") {
             openRulesCompendium({
               query,
@@ -5047,7 +5113,13 @@ export default function App() {
           openEntity(result.id);
           resetPalette();
         }}
-        onOpenSecondaryResult={(result) => {
+        onOpenSecondaryResult={async (result) => {
+          if(result.type==="entity"&&result.target){
+            if(!await allowWorkspaceNavigation())return;
+            const section=({event:"events",shop:"shops",session:"sessions",map:"maps",scene:"maps",item:"items"} as const)[result.target];
+            navigateWorkspace(workspaceURL({campaignId:activeCampaignId,section,target:result.id,view:result.target==="scene"?"scenes":""}));resetPalette();return;
+          }
+
           if (result.type === "rule") {
             openRulesCompendium({
               query,
@@ -5114,8 +5186,8 @@ export default function App() {
       />
 
       {combatPlaylistModalOpen ? (
-        <div className="overlay" role="presentation">
-          <div className="panel palette form-modal combat-playlist-modal" onClick={(event) => event.stopPropagation()} role="dialog">
+        <AppModal label="Музыка боя" onClose={closeCombatPlaylistModal}>
+          <div className="panel palette form-modal combat-playlist-modal" onClick={(event) => event.stopPropagation()} >
             <div className="row">
               <div>
                 <p className="eyebrow">Combat Playlist</p>
@@ -5144,12 +5216,12 @@ export default function App() {
               </button>
             </div>
           </div>
-        </div>
+        </AppModal>
       ) : null}
 
       {combatSetupOpen && hasActiveCombat ? (
-        <div className="overlay" role="presentation">
-          <div className="panel palette form-modal combat-setup-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label="Участники и настройки боя">
+        <AppModal label="Участники и настройки боя" onClose={closeCombatSetupModal}>
+          <div className="panel palette form-modal combat-setup-modal" onClick={(event) => event.stopPropagation()}   aria-label="Участники и настройки боя">
             <div className="row">
               <div>
                 <h2>Участники и настройки боя</h2>
@@ -5427,7 +5499,7 @@ export default function App() {
               ) : null}
             </details>
           </div>
-        </div>
+        </AppModal>
       ) : null}
 
       <EntityEditorModal
@@ -5538,6 +5610,6 @@ export default function App() {
         onClose={() => setSessionMapOpen(false)}
         open={sessionMapOpen}
       />
-    </>
+    </DraftOwnerContext.Provider>
   );
 }

@@ -1,3 +1,4 @@
+import { confirmAction } from "./confirm-action";
 import { requestJson, isApiError } from "@shadow-edge/api-client";
 import { useEffect, useState } from "react";
 import { ArrowLeft, ChevronLeft, ChevronRight, RefreshCw, Search, ShieldCheck, LogOut } from "lucide-react";
@@ -45,7 +46,7 @@ export function AdminSubscriptions() {
   async function save(action: "grant" | "revoke") {
     if (!selected) return;
     const message = action === "grant" ? `Назначить ${planId.toUpperCase()} на ${days} дней с сегодняшнего дня пользователю ${selected.username}? Текущий срок будет заменён.` : `Отозвать подписку пользователя ${selected.username}?`;
-    if (!window.confirm(message)) return;
+    if (!await confirmAction(message)) return;
     setBusy(true); setError(""); setNotice("");
     try {
       await request("/api/admin/subscriptions", {accountId: selected.id, action, planId, days, reason, expected: selected.subscription});

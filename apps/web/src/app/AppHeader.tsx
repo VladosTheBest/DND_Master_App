@@ -1,6 +1,4 @@
 import { ActionMenu } from "./ActionMenu";
-import { SubscriptionButton } from "./SubscriptionDialog";
-import { FeedbackButton } from "./FeedbackDialog";
 import type { KnowledgeEntity } from "@shadow-edge/shared-types";
 
 type DefaultHeaderProps = {
@@ -70,8 +68,6 @@ export function AppHeader(props: AppHeaderProps) {
         </div>
 
         <div className="chips">
-          <SubscriptionButton />
-          <FeedbackButton />
 
           <button className="ghost" disabled={!props.hasActiveCombat} onClick={props.onOpenInitiativeTracker} type="button">Трекер</button>
           <button className="ghost" onClick={props.onOpenCombatSetupModal} type="button">{props.hasActiveCombat ? "Участники" : "Настроить бой"}</button>
@@ -98,8 +94,6 @@ export function AppHeader(props: AppHeaderProps) {
       </button>
 
       <div className="chips">
-        <SubscriptionButton />
-        <FeedbackButton />
         {props.canOpenDirectory ? <button className="ghost" onClick={props.onOpenDirectory} type="button">← К списку</button> : null}
         {props.pinnedEntities.length ? <ActionMenu label={`Закладки · ${props.pinnedEntities.length}`}>
           {props.pinnedEntities.map(entity => <button key={entity.id} className="ghost" onClick={() => props.onOpenPinnedEntity(entity.id)} type="button">{entity.title}</button>)}

@@ -1,3 +1,4 @@
+import { AppModal } from "../../app/AppModal";
 import type { AIProposal, CampaignData, KnowledgeEntity, WorldEvent, WorldEventInput } from "@shadow-edge/shared-types";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ImageIcon, AlertTriangle, FileText } from "lucide-react";
@@ -48,13 +49,13 @@ function AIProposalPromptModal({ controller }: { controller: AIProposalControlle
   const entity = target.type === "entity" ? target.entity : null;
 
   return (
-    <div className="overlay ai-proposal-overlay" onMouseDown={controller.closePrompt} role="presentation">
+    <AppModal label="Запрос к AI" onClose={controller.closePrompt}>
       <section
         aria-label={entity ? `Изменить ${entity.title} с AI` : "Создать кампанию с AI"}
-        aria-modal="true"
+
         className="panel form-modal ai-proposal-prompt"
         onMouseDown={(event) => event.stopPropagation()}
-        role="dialog"
+
       >
         <header className="ai-proposal-modal-head">
           <div>
@@ -123,7 +124,7 @@ function AIProposalPromptModal({ controller }: { controller: AIProposalControlle
           </button>
         </footer>
       </section>
-    </div>
+    </AppModal>
   );
 }
 
@@ -148,19 +149,13 @@ function AIProposalInbox({ controller, campaignId }: { controller: AIProposalCon
     }
   }, [controller.inboxOpen]);
 
+  if(!controller.inboxOpen)return null;
   return (
-    <div
-      aria-hidden={!controller.inboxOpen}
-      className={`overlay ai-proposal-overlay ${controller.inboxOpen ? "" : "ai-proposal-hidden"}`.trim()}
-      onMouseDown={controller.closeInbox}
-      role="presentation"
-    >
+    <AppModal label="AI-черновики" onClose={controller.closeInbox}>
       <section
         aria-label="AI-черновики"
-        aria-modal="true"
         className="panel ai-proposal-inbox"
         onMouseDown={(event) => event.stopPropagation()}
-        role="dialog"
       >
         <header className="ai-proposal-modal-head">
           <div>
@@ -246,7 +241,7 @@ function AIProposalInbox({ controller, campaignId }: { controller: AIProposalCon
           )}
         </div>
       </section>
-    </div>
+    </AppModal>
   );
 }
 
@@ -540,8 +535,8 @@ function AIProposalReviewModal({ controller, renderEntity }: AIProposalCenterPro
   const emptyEntityUpdate = proposal.kind === "entity_update" && !hasApplicableChanges;
 
   return (
-    <div className="overlay ai-proposal-overlay ai-proposal-review-overlay" role="presentation">
-      <section aria-label={`Проверка: ${proposalTitle(proposal)}`} aria-modal="true" className="panel ai-proposal-review" role="dialog">
+    <AppModal label="Проверка изменений AI" onClose={controller.closeProposal}>
+      <section aria-label={`Проверка: ${proposalTitle(proposal)}`}  className="panel ai-proposal-review" >
         <header className="ai-proposal-review-head">
           <div>
             <div className="ai-proposal-review-kicker">
@@ -633,40 +628,14 @@ function AIProposalReviewModal({ controller, renderEntity }: AIProposalCenterPro
           </div>
         </footer>
       </section>
-    </div>
+    </AppModal>
   );
 }
 
 export function AIProposalCenter({ campaignId, controller, renderEntity }: AIProposalCenterProps) {
-  const modalOpen = Boolean(controller.inboxOpen || controller.selectedProposal || controller.promptTarget);
-  useEffect(() => {
-    if (!modalOpen) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        if (controller.action) return;
-        event.preventDefault();
-        if (controller.promptTarget) controller.closePrompt();
-        else if (controller.selectedProposal) controller.closeProposal();
-        else controller.closeInbox();
-      }
-      if (event.key !== "Tab") return;
-      const dialogs = document.querySelectorAll<HTMLElement>(".ai-proposal-overlay:not(.ai-proposal-hidden) [role='dialog']");
-      const dialog = dialogs[dialogs.length - 1];
-      const controls = dialog ? Array.from(dialog.querySelectorAll<HTMLElement>("button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), a[href], summary, [tabindex='0']")).filter((element) => element.getClientRects().length) : [];
-      const first = controls[0], last = controls[controls.length - 1];
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => { document.body.style.overflow = previousOverflow; document.removeEventListener("keydown", onKeyDown); };
-  }, [modalOpen, controller.action, controller.promptTarget, controller.selectedProposal, controller.closePrompt, controller.closeProposal, controller.closeInbox]);
-  return (
-    <>
-      <AIProposalInbox campaignId={campaignId} controller={controller} />
-      <AIProposalPromptModal controller={controller} />
-      <AIProposalReviewModal controller={controller} renderEntity={renderEntity} />
-    </>
-  );
+  return <>
+    <AIProposalInbox campaignId={campaignId} controller={controller}/>
+    <AIProposalPromptModal controller={controller}/>
+    <AIProposalReviewModal controller={controller} renderEntity={renderEntity}/>
+  </>;
 }

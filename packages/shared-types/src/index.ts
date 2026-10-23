@@ -1096,6 +1096,8 @@ export interface GenerateCombatResult {
 }
 
 export interface SearchResult {
+  target?: "event" | "shop" | "session" | "map" | "scene" | "item";
+  match?: "title" | "text";
   id: string;
   kind: EntityKind;
   title: string;
@@ -1349,5 +1351,5 @@ export interface ApiClient {
   rotatePlayerDisplayLink(
     campaignId: string,
   ): Promise<PlayerDisplayShareResult>;
-  search(campaignId: string, query: string): Promise<SearchResult[]>;
+  search(campaignId: string, query: string, signal?: AbortSignal): Promise<SearchResult[]>;
 }

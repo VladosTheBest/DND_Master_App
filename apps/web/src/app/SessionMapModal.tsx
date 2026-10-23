@@ -1,3 +1,4 @@
+import { AppModal } from "./AppModal";
 import {
   useCallback,
   useEffect,
@@ -2346,14 +2347,8 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
   };
 
   return createPortal(
-    <div
-      className="session-map-backdrop"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) closeMap();
-        else setRegionMenu(null);
-      }}
-    >
-      <section aria-modal="true" className="session-map-modal" role="dialog">
+    <AppModal label="Карта для экрана игроков" onClose={closeMap} fullscreen={true} onSurfaceMouseDown={e=>{if(e.target!==e.currentTarget)setRegionMenu(null);}}>
+      <section  className="session-map-modal" >
         <header className="session-map-head">
           <div>
             <p className="eyebrow">Оффлайн · Beta</p>
@@ -3184,7 +3179,7 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
           </div>
         ) : null}
       </section>
-    </div>,
+    </AppModal>,
     document.body,
   );
 }

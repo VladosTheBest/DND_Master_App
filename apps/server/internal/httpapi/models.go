@@ -354,6 +354,8 @@ type campaignSummary struct {
 }
 
 type searchResult struct {
+	Target   string   `json:"target,omitempty"`
+	Match    string   `json:"match,omitempty"`
 	ID       string   `json:"id"`
 	Kind     string   `json:"kind"`
 	Title    string   `json:"title"`

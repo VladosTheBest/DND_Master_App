@@ -1,3 +1,4 @@
+import { AppModal } from "../../app/AppModal";
 import {
   useEffect,
   useState
@@ -53,12 +54,12 @@ export function EntityGalleryViewer({
   }, [onClose, onSelect, viewer.currentIndex, viewer.items.length]);
 
   return (
-    <div className="gallery-lightbox-backdrop" onClick={onClose} role="presentation">
+    <AppModal label="Галерея изображений" onClose={onClose} fullscreen={true} >
       <div
-        aria-modal="true"
+
         className="panel gallery-lightbox"
         onClick={(event) => event.stopPropagation()}
-        role="dialog"
+
       >
         <div className="row">
           <div className="stack compact">
@@ -127,6 +128,6 @@ export function EntityGalleryViewer({
           <small>{item.url}</small>
         </div>
       </div>
-    </div>
+    </AppModal>
   );
 }

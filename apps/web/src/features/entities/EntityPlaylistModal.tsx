@@ -1,3 +1,4 @@
+import { AppModal } from "../../app/AppModal";
 import type { KnowledgeEntity, PlaylistTrack } from "@shadow-edge/shared-types";
 import { PlaylistEditorSection } from "../../media";
 
@@ -29,8 +30,8 @@ export function EntityPlaylistModal({
   }
 
   return (
-    <div className="overlay" role="presentation">
-      <div className="panel palette form-modal combat-playlist-modal" onClick={(event) => event.stopPropagation()} role="dialog">
+    <AppModal label="Музыка записи" onClose={onClose}>
+      <div className="panel palette form-modal combat-playlist-modal" onClick={(event) => event.stopPropagation()} >
         <div className="row">
           <div>
             <p className="eyebrow">Entity Playlist</p>
@@ -59,6 +60,6 @@ export function EntityPlaylistModal({
           </button>
         </div>
       </div>
-    </div>
+    </AppModal>
   );
 }

@@ -1,18 +1,5 @@
 /* Workspace hierarchy. Feature layouts and semantic combat colours stay local. */
-:root {
-  --text: #edf0f5;
-  --text-soft: #bcc4d2;
-  --text-muted: #a0abba;
-  --accent: #b5abed;
-  --surface: #1c2029;
-  --surface-strong: #222733;
-  --surface-soft: #252b36;
-  --bg-panel: #1c2029;
-  --line: #333b49;
-  --line-strong: #665e92;
-  --shadow-sm: 0 3px 12px #0002;
-  --shadow-md: 0 6px 20px #0002;
-}
+
 body { background: #141820; }
 body::before { display: none; }
 .shell h1, .shell h2, .shell h3 { font-family: inherit; letter-spacing: -.025em; }
@@ -36,7 +23,6 @@ body::before { display: none; }
 .shell .rail-nav-item::before, .shell .rail-nav-item::after { display: none; }
 .rail-mobile-toggle { display: none; }
 .shell.without-preview:not(.combat-layout) { grid-template-columns: var(--rail-width, 236px) minmax(0, 1fr); }
-.shell.dashboard-shell .center { grid-template-rows: auto minmax(0, 1fr); }
 .shell .topbar { grid-template-columns: minmax(180px, 1fr) auto; gap: .8rem; position: relative; z-index: 10; }
 .shell .topbar .chips { align-items: center; justify-content: flex-end; flex-wrap: wrap; overflow: visible; }
 .shell .search-btn { min-width: 0; width: 100%; display: flex; justify-content: space-between; gap: .6rem; padding: .7rem; background: #252b36; box-shadow: none; }

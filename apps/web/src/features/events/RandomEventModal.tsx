@@ -1,3 +1,4 @@
+import { AppModal } from "../../app/AppModal";
 import type { CampaignData, WorldEventType } from "@shadow-edge/shared-types";
 import { worldEventTypeLabels, worldEventTypeOptions } from "../../app-shared";
 import "./events.css";
@@ -112,8 +113,8 @@ export function RandomEventModal({
   const promptLength = prompt.trim().length;
 
   return (
-    <div className="overlay random-event-overlay" onClick={onClose} role="presentation">
-      <div className="panel random-event-modal" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true" aria-label={isGMEvent ? "Случайное событие" : "Подготовить сцену"}>
+    <AppModal label="Создание события" onClose={onClose}>
+      <div className="panel random-event-modal" onClick={(event) => event.stopPropagation()}   aria-label={isGMEvent ? "Случайное событие" : "Подготовить сцену"}>
         <div className="random-event-shell">
           <header className="random-event-hero">
             <div className="random-event-title-row">
@@ -244,6 +245,6 @@ export function RandomEventModal({
           ) : null}
         </div>
       </div>
-    </div>
+    </AppModal>
   );
 }

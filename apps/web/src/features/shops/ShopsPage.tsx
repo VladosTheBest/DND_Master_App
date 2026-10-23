@@ -1,3 +1,7 @@
+import { useWorkspaceGuard } from "../../app/workspace-route";
+import { useWorkspaceListState } from "../../app/workspace-route";
+import { navigateWorkspace, workspaceURL, readWorkspaceRoute } from "../../app/workspace-route";
+import { confirmAction } from "../../app/confirm-action";
 import { DeviceDraftControls } from "../../app/DeviceDraftControls";
 import { useCustomItems } from "../items/custom-items.api";
 import { useDeviceDraft } from "../../app/hooks/useDeviceDraft";
@@ -353,20 +357,20 @@ export function ShopsPage({
     setDraft(next); setDraftRevision(revision); setConflictCampaign(null);
   };
   const {items:customItems,error:customItemsError} = useCustomItems(campaign.id);
-  const [itemQuery, setItemQuery] = useState("");
-  const [shopQuery, setShopQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<CatalogCategoryFilter>("all");
-  const [sourceFilter, setSourceFilter] = useState("all");
-  const [rarityFilter, setRarityFilter] = useState("all");
-  const [armorFilter, setArmorFilter] = useState("all");
-  const [priceFilter, setPriceFilter] = useState("all");
-  const [catalogSort, setCatalogSort] = useState("name");
+  const [itemQuery, setItemQuery] = useWorkspaceListState<string>("shops.items","");
+  const [shopQuery, setShopQuery] = useWorkspaceListState<string>("q","");
+  const [categoryFilter, setCategoryFilter] = useWorkspaceListState<CatalogCategoryFilter>("shops.category","all");
+  const [sourceFilter, setSourceFilter] = useWorkspaceListState<string>("shops.source","all");
+  const [rarityFilter, setRarityFilter] = useWorkspaceListState<string>("shops.rarity","all");
+  const [armorFilter, setArmorFilter] = useWorkspaceListState<string>("shops.armor","all");
+  const [priceFilter, setPriceFilter] = useWorkspaceListState<string>("shops.price","all");
+  const [catalogSort, setCatalogSort] = useWorkspaceListState<string>("shops.sort","name");
   const [visibleCount, setVisibleCount] = useState(48);
-  const [stockQuery, setStockQuery] = useState("");
-  const [stockCategory, setStockCategory] = useState("all");
+  const [stockQuery, setStockQuery] = useWorkspaceListState<string>("shops.stock","");
+  const [stockCategory, setStockCategory] = useWorkspaceListState<string>("shops.stockCategory","all");
   const [imageViewer, setImageViewer] = useState<{src: string; alt: string} | null>(null);
-  useEffect(() => { setStockQuery(""); setStockCategory("all"); }, [selectedShopId]);
-  const [sortMode, setSortMode] = useState<SortMode>("default");
+
+  const [sortMode, setSortMode] = useWorkspaceListState<SortMode>("shops.inventorySort","default");
   const [draggingItemId, setDraggingItemId] = useState("");
   const [stockDropActive, setStockDropActive] = useState(false);
   const [selectedInfoItemId, setSelectedInfoItemId] = useState("");
@@ -382,7 +386,7 @@ export function ShopsPage({
     catalogLoading,
     catalogError,
     loadingCatalogItemIds,
-    ensureCatalogItemDetail
+    ensureCatalogItemDetail, detailErrors, retryCatalog
   } = useItemsCatalogController({ campaignId: campaign.id });
 
 
@@ -464,6 +468,7 @@ export function ShopsPage({
   useEffect(() => setVisibleCount(48), [categoryFilter, itemQuery, sourceFilter, rarityFilter, armorFilter, priceFilter, catalogSort]);
   const rarities = useMemo(() => [...new Set(allItems.map(item => rarityGroup(item.rarity)))].sort(), [allItems]);
   const dirty = JSON.stringify(draft) !== baselineDraft.current;
+  useWorkspaceGuard(dirty);
   const deviceDraft = useDeviceDraft({ ownerId, campaignId: campaign.id, target: `shop:${selectedShopId || "new"}`,
     revision: draftRevision, value: draft, dirty, enabled: true,
     restore: ({value, baseRevision}) => { if (!value || typeof value.name !== "string" || !Array.isArray(value.inventory)) return false; setDraft(value); setDraftRevision(baseRevision); }
@@ -474,6 +479,7 @@ export function ShopsPage({
     return () => window.removeEventListener("beforeunload", beforeUnload);
   }, [dirty]);
 
+  useEffect(()=>{if(!selectedShopId||focusedShopId&&focusedShopId!==selectedShopId)return;const current=readWorkspaceRoute();if(current.section==="shops"&&current.target!==selectedShopId)navigateWorkspace(workspaceURL({...current,target:selectedShopId}),true);},[selectedShopId,focusedShopId]);
   const selectedShop = campaign.shops.find((shop) => shop.id === selectedShopId) ?? null;
   const selectedLocation = campaign.locations.find((location) => location.id === draft.locationId) ?? null;
   const selectedInfoItem = selectedInfoItemId ? itemById.get(selectedInfoItemId) ?? null : null;
@@ -562,7 +568,7 @@ export function ShopsPage({
   };
 
   const handleCreateShop = async () => {
-    if (dirty && !window.confirm("Создать новый магазин? Несохранённые изменения будут потеряны.")) return;
+    if (dirty && !await confirmAction("Создать новый магазин? Несохранённые изменения будут потеряны.")) return;
     setSaving(true);
     setNotice("");
     setError("");
@@ -578,6 +584,7 @@ export function ShopsPage({
       });
       hydrateCampaign(updatedCampaign);
       setSelectedShopId(nextShop.id);
+      {const current=readWorkspaceRoute();if(current.campaignId===campaign.id&&current.section==="shops")navigateWorkspace(workspaceURL({...current,target:nextShop.id}));}
       replaceDraft(nextShop, updatedCampaign.revision ?? 0);
       startTransition(() => setNotice("Новый магазин создан."));
     } catch (reason) {
@@ -587,9 +594,10 @@ export function ShopsPage({
     }
   };
 
-  const handleSelectShop = (shopId: string) => {
+  const handleSelectShop = async (shopId: string) => {
     if (shopId === selectedShopId || saving || imageBusy) return;
-    if (dirty && !window.confirm("Перейти в другой магазин? Несохранённые изменения будут потеряны.")) return;
+    if (dirty && !await confirmAction("Перейти в другой магазин? Несохранённые изменения будут потеряны.")) return;
+    navigateWorkspace(workspaceURL({...readWorkspaceRoute(),campaignId:campaign.id,section:"shops",target:shopId}));
     const shop = campaign.shops.find((entry) => entry.id === shopId) ?? null;
     setSelectedShopId(shop?.id ?? "");
     replaceDraft(shop);
@@ -682,6 +690,7 @@ export function ShopsPage({
       deviceDraft.clear(); replaceDraft(nextShop, updatedCampaign.revision ?? 0);
       hydrateCampaign(updatedCampaign);
       setSelectedShopId(nextShop.id);
+      {const current=readWorkspaceRoute();if(current.campaignId===campaign.id&&current.section==="shops")navigateWorkspace(workspaceURL({...current,target:nextShop.id}));}
       startTransition(() => setNotice("Магазин сохранён."));
     } catch (reason) {
       if (isApiError(reason) && reason.status === 409 && reason.current) setConflictCampaign(reason.current as CampaignData);
@@ -692,7 +701,7 @@ export function ShopsPage({
   };
 
   const handleDeleteShop = async () => {
-    if (!selectedShop || !window.confirm(`Удалить магазин «${selectedShop.name}»?`)) {
+    if (!selectedShop || !await confirmAction(`Удалить магазин «${selectedShop.name}»?`)) {
       return;
     }
 
@@ -705,6 +714,7 @@ export function ShopsPage({
       });
       hydrateCampaign(updatedCampaign);
       setSelectedShopId(updatedCampaign.shops[0]?.id ?? "");
+      {const current=readWorkspaceRoute();if(current.campaignId===campaign.id&&current.section==="shops")navigateWorkspace(workspaceURL({...current,target:updatedCampaign.shops[0]?.id||""}),true);}
       setNotice("Магазин удалён.");
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Не удалось удалить магазин.");
@@ -812,11 +822,12 @@ export function ShopsPage({
           </div>
         </div>
 
+        {selectedInfoItemId&&detailErrors[selectedInfoItemId]&&<p role="alert">{detailErrors[selectedInfoItemId]} <button onClick={()=>ensureCatalogItemDetail(selectedInfoItemId)}>Повторить описание</button></p>}
         {notice || error || catalogError ? (
           <div className="shops-status-stack">
             {notice ? <div role="status" className="notes-status notes-status-success">{notice}</div> : null}
             {error ? <div role="alert" className="notes-status notes-status-error">{error}</div> : null}
-            {catalogError ? <div className="notes-status notes-status-error">Каталог предметов недоступен: {catalogError}</div> : null}
+            {catalogError ? <div className="notes-status notes-status-error">Каталог предметов недоступен: {catalogError} <button onClick={retryCatalog}>Повторить</button></div> : null}
           </div>
         ) : null}
 
@@ -1040,6 +1051,7 @@ export function ShopsPage({
       {selectedInfoItem ? (
         <ItemDetailModal
           item={selectedInfoItem}
+          detailError={detailErrors[selectedInfoItem.id]} onRetry={()=>ensureCatalogItemDetail(selectedInfoItem.id)}
           isLoadingDetail={loadingCatalogItemIds.includes(selectedInfoItem.id)}
           onClose={() => setSelectedInfoItemId("")}
         />

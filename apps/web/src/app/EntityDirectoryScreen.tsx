@@ -1,3 +1,4 @@
+import { workspaceURL } from "./workspace-route";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import type {
   EntityKind,
@@ -20,6 +21,7 @@ import { usePageSearchHotkey } from "./hooks/usePageSearchHotkey";
 import { resolveQuestSceneArtwork, questStatusTone, questStatusLabels, questUrgencyLabels, type QuestCombatEntrySummary } from "../quests";
 
 type EntityDirectoryScreenProps = {
+  campaignId:string;
   activeModule: ModuleId;
   activeSectionLabel: string;
   defaultCreateKind: EntityKind;
@@ -38,6 +40,7 @@ type EntityDirectoryScreenProps = {
 };
 
 export function EntityDirectoryScreen({
+  campaignId,
   activeModule,
   activeSectionLabel,
   defaultCreateKind,
@@ -71,7 +74,7 @@ export function EntityDirectoryScreen({
               </button>
             ) : null}
             <button className="primary" onClick={() => onOpenEntityModal(defaultCreateKind)} type="button">
-              Добавить запись
+              Добавить {({location:"локацию",npc:"НПС",player:"персонажа",monster:"монстра",quest:"квест",lore:"заметку"})[defaultCreateKind]}
             </button>
           </div>
         </div>
@@ -162,8 +165,9 @@ export function EntityDirectoryScreen({
                           <span className={badge()}>{kindTitle[entity.kind]}</span>
                         </span>
                         <small>{entity.subtitle}</small>
-                        <p>{truncateInlineText(entity.summary, 150)}</p>
+                        <p>{truncateInlineText(entity.summary, 150)}</p><small>{({location:"Открыть место и связи",npc:"Открыть НПС и связи",player:"Открыть персонажа и лист",monster:"Открыть характеристики",quest:"Продолжить квест",lore:"Открыть заметку"})[entity.kind]}</small>
                       </button>
+                      {entity.kind==="location"&&<a className="ghost" href={workspaceURL({campaignId,section:"maps",view:"new",context:JSON.stringify({locationId:entity.id})})}>Карта или сцена места →</a>}
                     </article>
                   );
                 })}

@@ -48,6 +48,7 @@ export function RulesPage({
     selectedRule
   });
 
+  if(initialRuleId&&!getRuleById(initialRuleId))return <section role="alert"><h2>Правило не найдено</h2><p>Ссылка устарела. Выберите правило через поиск.</p><button onClick={()=>setSelectedRule(null)}>К поиску правил</button></section>;
   return (
     <div className="rules-page">
       <section className="rules-results-column">

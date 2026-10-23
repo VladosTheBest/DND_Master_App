@@ -6,7 +6,7 @@ async function load(name) {
   const compiled = ts.transpileModule(source, { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.ES2022 } }).outputText;
   return import(`data:text/javascript;base64,${Buffer.from(compiled).toString('base64')}`);
 }
-const { combineTranscripts, maxImportBytes } = await load('session-import');
+const { combineTranscripts, prepareTranscriptImport, maxImportBytes } = await load('session-import');
 const { parseSessionText, speakerStatistics } = await load('session-stats');
 const a = { name: 'part1.txt', text: 'Quill — first\nСобытия:\n- 00:00:00.000 start\nРасшифровка:\n[00:00:00.000–00:00:10.000] Анна: Мост.\nПродолжение.\n[00:00:05.000–00:00:12.000] Борис: Иду.' };
 const b = { name: 'part2.txt', text: 'Quill — second\nРасшифровка:\n[00:00:00.000–00:00:04.000] Анна: Башня.' };
@@ -29,3 +29,16 @@ assert.throws(() => combineTranscripts([a, { name: 'plain', text: 'Обычны�
 assert.throws(() => combineTranscripts([{ name: 'huge', text: 'я'.repeat(maxImportBytes) }]));
 assert.throws(() => combineTranscripts([a, { name: 'bad', text: '[00:00:05.000–00:00:01.000] Анна: Ошибка.' }]));
 console.log('Session multi-file import: order, offsets, overlap statistics, provenance, plain text and validation passed.');
+
+const upload=(name,text)=>{const bytes=new TextEncoder().encode(text);return {name,size:bytes.length,arrayBuffer:async()=>bytes.buffer};};
+const prepared=await prepareTranscriptImport([upload("part10.txt",b.text),upload("part2.txt",a.text)]);
+assert.deepEqual(prepared.files.map(file=>file.name),["part2.txt","part10.txt"]);
+assert.deepEqual(parseSessionText(prepared.text),parseSessionText(merged));
+assert.equal(prepared.title,"part2");
+assert.equal((await prepareTranscriptImport([upload("session.TXT","Quill — 2026-10-23\n"+a.text)])).title.startsWith("Игра "),true);
+await assert.rejects(()=>prepareTranscriptImport([upload("wrong.json",a.text)]));
+await assert.rejects(()=>prepareTranscriptImport([]));
+await assert.rejects(()=>prepareTranscriptImport([{name:"bad.txt",size:2,arrayBuffer:async()=>new Uint8Array([0xff,0xfe]).buffer}]));
+let readOversize=false;await assert.rejects(()=>prepareTranscriptImport([{name:"too-big.txt",size:maxImportBytes+1,arrayBuffer:async()=>{readOversize=true;return new ArrayBuffer(0);}}]));
+assert.equal(readOversize,false,"reject oversized files before reading bytes");
+console.log("Browser File contract: decoding, natural order, preview payload, title, size/type and invalid UTF-8 passed.");

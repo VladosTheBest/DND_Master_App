@@ -1281,7 +1281,30 @@ func (store *campaignStore) search(campaignID string, query string) ([]searchRes
 		return nil, err
 	}
 
-	return searchCampaign(campaign, query), nil
+	results := searchCampaign(campaign, query)
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	needle := strings.ToLower(strings.TrimSpace(query))
+	if needle != "" && len([]rune(needle)) <= 300 {
+		for _, session := range store.data.ImportedSessions {
+			if session.CampaignID != campaignID || len(results) >= 100 {
+				continue
+			}
+			text := session.Text
+			if session.Analysis != nil {
+				text += "\n" + session.Analysis.Summary + "\n" + session.Analysis.Recap
+			}
+			if !strings.Contains(strings.ToLower(session.Title+" "+text), needle) {
+				continue
+			}
+			match := "text"
+			if strings.Contains(strings.ToLower(session.Title), needle) {
+				match = "title"
+			}
+			results = append(results, searchResult{ID: session.ID, Kind: "lore", Target: "session", Title: session.Title, Subtitle: "Журнал сессий", Summary: searchSnippet(text, needle), Tags: []string{}, Match: match})
+		}
+	}
+	return results, nil
 }
 
 func buildCombatEntriesForItems(campaign campaignData, existing []combatEntry, items []addCombatantItem) []combatEntry {

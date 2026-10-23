@@ -1,3 +1,4 @@
+import { AppModal } from "../../app/AppModal";
 import type { AIProposal, KnowledgeEntity } from "@shadow-edge/shared-types";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortraitSource, kindTitle } from "../../app-shared";
@@ -174,21 +175,7 @@ export function EntityImageModal({
     };
   }, [entity, onClose]);
 
-  useEffect(() => {
-    if (!entity) return undefined;
-    const backdrop = backdropRef.current;
-    const parent = backdrop?.parentElement;
-    if (!backdrop || !parent) return undefined;
-    const siblings = Array.from(parent.children)
-      .filter((node): node is HTMLElement => node instanceof HTMLElement && node !== backdrop)
-      .map((node) => ({ node, inert: node.inert }));
-    siblings.forEach(({ node }) => {
-      node.inert = true;
-    });
-    return () => siblings.forEach(({ node, inert }) => {
-      node.inert = inert;
-    });
-  }, [entity]);
+
 
   useEffect(() => {
     if (!inFlightKey) return undefined;
@@ -248,15 +235,15 @@ export function EntityImageModal({
   };
 
   return (
-    <div className="entity-image-backdrop" onMouseDown={onClose} ref={backdropRef} role="presentation">
+    <AppModal label="Изображение записи" onClose={onClose} fullscreen={true} >
       <section
         aria-describedby="entity-image-modal-description"
         aria-label={`Изображение: ${entity.title}`}
-        aria-modal="true"
+
         className="panel entity-image-modal"
         onMouseDown={(event) => event.stopPropagation()}
         ref={modalRef}
-        role="dialog"
+
         tabIndex={-1}
       >
         <header className="entity-image-modal-head">
@@ -466,6 +453,6 @@ export function EntityImageModal({
           </footer>
         </section>
       </section>
-    </div>
+    </AppModal>
   );
 }

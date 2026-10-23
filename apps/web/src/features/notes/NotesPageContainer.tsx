@@ -1,3 +1,7 @@
+import { useWorkspaceGuard } from "../../app/workspace-route";
+import { useWorkspaceListState } from "../../app/workspace-route";
+import { navigateWorkspace, workspaceURL, readWorkspaceRoute } from "../../app/workspace-route";
+import { confirmAction } from "../../app/confirm-action";
 import { DeviceDraftControls } from "../../app/DeviceDraftControls";
 import { useDeviceDraft } from "../../app/hooks/useDeviceDraft";
 import { isApiError } from "@shadow-edge/api-client";
@@ -47,7 +51,7 @@ export function NotesPageContainer({
   onOpenPreview: (id: string) => void;
   serializeEntityForm: (form: CreateEntityInput) => CreateEntityInput;
 }) {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useWorkspaceListState<string>("q","");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [noteEditorEntityId, setNoteEditorEntityId] = useState("");
@@ -69,6 +73,9 @@ export function NotesPageContainer({
     }
   });
 
+  useEffect(()=>{const note=entityMap.get(initialNoteId||"");if(note?.kind==="lore"&&note.id!==noteEditorEntityId){setNoteEditorEntityId(note.id);setNoteEditorTitle(note.title);setNoteEditorContent(note.content);setBaseRevision(note.revision??0);setNoteEditorDirty(false);}},[initialNoteId]);
+  useWorkspaceGuard(noteEditorDirty);
+  useEffect(()=>{if(!noteEditorEntityId)return;const current=readWorkspaceRoute();if(current.section!=="notes")return;const target=noteEditorEntityId===NEW_LORE_NOTE_ID?"":noteEditorEntityId;if(current.target!==target)navigateWorkspace(workspaceURL({...current,target}),true);},[noteEditorEntityId]);
   const activeLoreNote = useMemo(() => {
     if (!noteEditorEntityId || noteEditorEntityId === NEW_LORE_NOTE_ID) {
       return null;
@@ -113,12 +120,12 @@ export function NotesPageContainer({
     setNoteEditorContent(activeLoreNote.content);
   }, [activeLoreNote, noteEditorDirty]);
 
-  const requestLoreNoteSwitch = (noteId: string) => {
+  const requestLoreNoteSwitch = async (noteId: string) => {
     if (!noteId || (noteEditorEntityId !== NEW_LORE_NOTE_ID && noteEditorEntityId === noteId)) {
       return;
     }
 
-    if (noteEditorDirty && !window.confirm("Есть несохранённые изменения в заметке. Переключиться без сохранения?")) {
+    if (noteEditorDirty && !await confirmAction("Есть несохранённые изменения в заметке. Переключиться без сохранения?")) {
       return;
     }
 
@@ -130,14 +137,15 @@ export function NotesPageContainer({
     setNoteEditorNotice("");
     setError("");
     setBaseRevision(nextNote.revision ?? 0); setConflict(null);
+    navigateWorkspace(workspaceURL({...readWorkspaceRoute(),campaignId:activeCampaignId,section:"notes",target:nextNote.id}));
     setNoteEditorEntityId(nextNote.id);
     setNoteEditorTitle(nextNote.title);
     setNoteEditorContent(nextNote.content);
     setNoteEditorDirty(false);
   };
 
-  const startNewLoreNote = () => {
-    if (noteEditorDirty && !window.confirm("Есть несохранённые изменения в заметке. Открыть новый черновик без сохранения?")) {
+  const startNewLoreNote = async () => {
+    if (noteEditorDirty && !await confirmAction("Есть несохранённые изменения в заметке. Открыть новый черновик без сохранения?")) {
       return;
     }
 

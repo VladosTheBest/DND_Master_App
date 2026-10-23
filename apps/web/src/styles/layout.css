@@ -33,14 +33,13 @@
 .center {
   min-width: 0;
   min-height: 0;
-  display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: clamp(.62rem, .75vw, .85rem);
   padding: 0;
 }
-.items-shell .center { grid-template-rows: auto minmax(0, 1fr); }
-.feature-owned-details-shell .center { grid-template-rows: auto minmax(0, 1fr); }
-.content { min-height: 0; scrollbar-gutter: stable; }
+.center > :not(.content) { flex-shrink: 0; }
+.content { flex: 1; min-height: 0; overflow: auto; scrollbar-gutter: stable; }
 .stack { display: grid; gap: .62rem; }
 .stack.wide { gap: .82rem; }
 .stack.compact { gap: .15rem; }

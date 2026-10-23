@@ -1,3 +1,4 @@
+import { AppModal } from "../../app/AppModal";
 import type { KnowledgeEntity } from "@shadow-edge/shared-types";
 
 type EntityDeleteDialogProps = {
@@ -18,8 +19,8 @@ export function EntityDeleteDialog({
   }
 
   return (
-    <div className="overlay" role="presentation">
-      <div className="panel palette close-confirm-modal" aria-modal="true" onClick={(event) => event.stopPropagation()} role="alertdialog">
+    <AppModal role="alertdialog" label="Удаление записи" onClose={onCancel}>
+      <div className="panel palette close-confirm-modal"  onClick={(event) => event.stopPropagation()} >
         <div className="stack wide">
           <div className="row">
             <div>
@@ -40,6 +41,6 @@ export function EntityDeleteDialog({
           </div>
         </div>
       </div>
-    </div>
+    </AppModal>
   );
 }

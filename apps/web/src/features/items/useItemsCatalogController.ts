@@ -1,123 +1,34 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "../../app/api";
+import type { ItemCatalogBrowseResult } from "@shadow-edge/shared-types";
 import type { Item } from "./items.types";
-import {
-  applyCatalogDetailToItem,
-  catalogSummaryToItem,
-  isRemoteItem,
-  loadCachedRemoteItemDetails,
-  mergeCatalogItemWithCachedDetail,
-  rememberRemoteItemDetail
-} from "./items.utils";
-
-type UseItemsCatalogControllerParams = {
-  campaignId: string;
-};
-
-type UseItemsCatalogControllerResult = {
-  catalogItems: Item[];
-  catalogLoading: boolean;
-  catalogError: string;
-  loadingCatalogItemIds: string[];
-  ensureCatalogItemDetail: (itemId: string) => void;
-};
-
-export function useItemsCatalogController({
-  campaignId
-}: UseItemsCatalogControllerParams): UseItemsCatalogControllerResult {
-  const [catalogItems, setCatalogItems] = useState<Item[]>([]);
-  const [catalogLoading, setCatalogLoading] = useState(false);
-  const [catalogError, setCatalogError] = useState("");
-  const [loadingCatalogItemIds, setLoadingCatalogItemIds] = useState<string[]>([]);
-  const catalogItemsRef = useRef<Item[]>([]);
-  const loadingIdsRef = useRef<string[]>([]);
-
-  useEffect(() => {
-    catalogItemsRef.current = catalogItems;
-  }, [catalogItems]);
-
-  useEffect(() => {
-    loadingIdsRef.current = loadingCatalogItemIds;
-  }, [loadingCatalogItemIds]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    setCatalogItems([]);
-    setCatalogLoading(true);
-    setCatalogError("");
-    setLoadingCatalogItemIds([]);
-
-    const cachedDetails = loadCachedRemoteItemDetails();
-
-    api
-      .browseItemCatalog()
-      .then((result) => {
-        if (cancelled) {
-          return;
-        }
-
-        setCatalogItems(
-          result.items.map((summary) => {
-            const summaryItem = catalogSummaryToItem(summary);
-            const cachedItem = cachedDetails[summary.id]?.item;
-            return cachedItem ? mergeCatalogItemWithCachedDetail(summaryItem, cachedItem) : summaryItem;
-          })
-        );
-      })
-      .catch((reason) => {
-        if (cancelled) {
-          return;
-        }
-        setCatalogItems([]);
-        setCatalogError(reason instanceof Error ? reason.message : "Не удалось загрузить внешний каталог предметов.");
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setCatalogLoading(false);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [campaignId]);
-
-  const ensureCatalogItemDetail = (itemId: string) => {
-    const target = catalogItemsRef.current.find((item) => item.id === itemId);
-    if (!target || !isRemoteItem(target) || target.detailLoaded || loadingIdsRef.current.includes(itemId)) {
-      return;
-    }
-
-    setLoadingCatalogItemIds((current) => (current.includes(itemId) ? current : [...current, itemId]));
-
-    void api
-      .getCatalogItem(itemId)
-      .then((detail) => {
-        setCatalogItems((current) =>
-          current.map((item) => {
-            if (item.id !== itemId) {
-              return item;
-            }
-            const nextItem = applyCatalogDetailToItem(item, detail);
-            rememberRemoteItemDetail(nextItem);
-            return nextItem;
-          })
-        );
-      })
-      .catch(() => {
-        // Keep summary cards usable even if a detail request fails.
-      })
-      .finally(() => {
-        setLoadingCatalogItemIds((current) => current.filter((entryId) => entryId !== itemId));
-      });
-  };
-
-  return {
-    catalogItems,
-    catalogLoading,
-    catalogError,
-    loadingCatalogItemIds,
-    ensureCatalogItemDetail
-  };
+import { applyCatalogDetailToItem, catalogSummaryToItem, isRemoteItem, loadCachedRemoteItemDetails, mergeCatalogItemWithCachedDetail, rememberRemoteItemDetail } from "./items.utils";
+type Filters=NonNullable<Parameters<typeof api.browseItemCatalog>[0]>;
+const cacheVersion=1;
+const catalogs=new Map<string,{time:number;result:ItemCatalogBrowseResult}>();
+const pending=new Map<string,Promise<ItemCatalogBrowseResult>>();
+const details=new Map<string,Item>();
+function browse(key:string,filters:Filters){
+ const saved=catalogs.get(key);if(saved&&Date.now()-saved.time<300000)return Promise.resolve(saved.result);
+ let request=pending.get(key);if(!request){request=api.browseItemCatalog(filters).then(result=>{if(catalogs.size>100)catalogs.clear();catalogs.set(key,{time:Date.now(),result});return result;}).finally(()=>pending.delete(key));pending.set(key,request);}return request;
+}
+export function useItemsCatalogController({filters={},enabled=true}:{campaignId:string;filters?:Filters;enabled?:boolean}) {
+ const key=JSON.stringify([cacheVersion,filters.q||"",filters.source||"",filters.category||"",filters.armorType||""]);
+ const [catalogItems,setCatalogItems]=useState<Item[]>([]),[catalogLoading,setCatalogLoading]=useState(false),[catalogError,setCatalogError]=useState("");
+ const [loadingCatalogItemIds,setLoadingCatalogItemIds]=useState<string[]>([]),[detailErrors,setDetailErrors]=useState<Record<string,string>>({}),[retry,setRetry]=useState(0);
+ const items=useRef(catalogItems),loading=useRef(new Set<string>()),alive=useRef(true);items.current=catalogItems;
+ useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
+ useEffect(()=>{
+  let active=true;setCatalogError("");setCatalogItems([]);
+  if(!enabled){setCatalogLoading(false);return;}
+  setCatalogLoading(true);
+  const timer=setTimeout(()=>{void browse(key,filters).then(result=>{if(!active)return;const cached=loadCachedRemoteItemDetails();setCatalogItems(result.items.map(summary=>{const item=catalogSummaryToItem(summary),detail=details.get(summary.id)||cached[summary.id]?.item;return detail?mergeCatalogItemWithCachedDetail(item,detail):item;}));}).catch(reason=>{if(active)setCatalogError(reason instanceof Error?reason.message:"Не удалось загрузить каталог.");}).finally(()=>{if(active)setCatalogLoading(false);});},filters.q?250:0);
+  return()=>{active=false;clearTimeout(timer);};
+ },[key,enabled,retry]);
+ const ensureCatalogItemDetail=useCallback((id:string)=>{
+  const target=items.current.find(item=>item.id===id);if(!target||!isRemoteItem(target)||target.detailLoaded||loading.current.has(id))return;
+  loading.current.add(id);setLoadingCatalogItemIds([...loading.current]);setDetailErrors(old=>({...old,[id]:""}));
+  void api.getCatalogItem(id).then(detail=>{const next=applyCatalogDetailToItem(target,detail);details.set(id,next);rememberRemoteItemDetail(next);if(alive.current)setCatalogItems(old=>old.map(item=>item.id===id?next:item));}).catch(reason=>{if(alive.current)setDetailErrors(old=>({...old,[id]:reason instanceof Error?reason.message:"Не удалось загрузить описание."}));}).finally(()=>{loading.current.delete(id);if(alive.current)setLoadingCatalogItemIds([...loading.current]);});
+ },[]);
+ return {catalogItems,catalogLoading,catalogError,loadingCatalogItemIds,detailErrors,ensureCatalogItemDetail,retryCatalog:()=>{catalogs.delete(key);setRetry(value=>value+1);}};
 }

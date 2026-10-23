@@ -1,3 +1,4 @@
+import { AppModal } from "../../app/AppModal";
 import { useEffect, useRef } from "react";
 
 export function FinishCombatDialog({ busy, error, onCancel, onConfirm }: {
@@ -10,8 +11,8 @@ export function FinishCombatDialog({ busy, error, onCancel, onConfirm }: {
     cancel.current?.focus();
     return () => previous?.focus();
   }, []);
-  return <div className="overlay" role="presentation">
-    <div ref={dialog} className="panel palette combat-finish-confirm" role="alertdialog" aria-modal="true" aria-labelledby="finish-combat-title" aria-describedby="finish-combat-description"
+  return <AppModal role="alertdialog" label="Завершить бой?" onClose={()=>{if(!busy)onCancel();}}>
+    <div ref={dialog} className="panel palette combat-finish-confirm"   aria-labelledby="finish-combat-title" aria-describedby="finish-combat-description"
       onKeyDown={event => {
         if (event.key === "Escape" && !busy) onCancel();
         if (event.key !== "Tab") return;
@@ -29,5 +30,5 @@ export function FinishCombatDialog({ busy, error, onCancel, onConfirm }: {
         <button className="primary" disabled={busy} onClick={onConfirm} type="button">{busy ? "Завершаю…" : "Завершить"}</button>
       </div>
     </div>
-  </div>;
+  </AppModal>;
 }

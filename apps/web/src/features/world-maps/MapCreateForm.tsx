@@ -1,3 +1,4 @@
+import { useWorkspaceGuard, useWorkspaceRoute } from "../../app/workspace-route";
 import { sessionBrowserStorage } from "../../app/browser-storage";
 import { useDraftOwner } from "../../app/hooks/useDraftOwner";
 import { useDeviceDraft } from "../../app/hooks/useDeviceDraft";
@@ -12,23 +13,28 @@ import "./world-maps.css";
 import { notifyAICompletion, prepareAISound } from "../ai-jobs/ai-completion-sound";
 
 export function MapCreateForm({campaignId, initialPrompt="", onCreated, storageKey="composer", sourceMap,initialSize,onSizeChange}:{campaignId:string;initialPrompt?:string;onCreated?:(map:WorldMapDocument)=>void;storageKey?:string;sourceMap?:WorldMapDocument;initialSize?:{columns:number;rows:number};onSizeChange?:(size:{columns:number;rows:number})=>void}){
+  const route=useWorkspaceRoute();
+  let contextLocation="";try{const value=JSON.parse(route.context||"null");if(!sourceMap&&typeof value?.locationId==="string")contextLocation=value.locationId;}catch{}
   const key=`shadow-edge:map-job:${campaignId}:${storageKey}`;
   const [prompt,setPrompt]=useState(initialPrompt),[reference,setReference]=useState("");
   const [columns,setColumns]=useState(initialSize?.columns||30),[rows,setRows]=useState(initialSize?.rows||20);
   const [scale,setScale]=useState<NonNullable<WorldMapDocument["scale"]>>("auto");
-	const [includeCampaign,setIncludeCampaign]=useState(true),[useLocation,setUseLocation]=useState(false),[locationId,setLocationId]=useState("");
+	const [includeCampaign,setIncludeCampaign]=useState(!contextLocation),[useLocation,setUseLocation]=useState(Boolean(contextLocation)),[locationId,setLocationId]=useState(contextLocation);
 	const [locations,setLocations]=useState<{id:string;title:string}[]>([]),[locationsError,setLocationsError]=useState("");
-	useEffect(()=>{let alive=true;setLocations([]);setLocationId("");setUseLocation(false);setLocationsError("");void api.getCampaign(campaignId).then(c=>{if(alive)setLocations(c.locations);}).catch(()=>{if(alive)setLocationsError("Не удалось загрузить локации. Открой форму заново, чтобы повторить.");});return()=>{alive=false;};},[campaignId]);
+	useEffect(()=>{let alive=true;setLocations([]);setLocationId("");setUseLocation(false);setLocationsError("");void api.getCampaign(campaignId).then(c=>{if(alive){setLocations(c.locations);if(contextLocation&&c.locations.some(item=>item.id===contextLocation)){setUseLocation(true);setLocationId(contextLocation);}}}).catch(()=>{if(alive)setLocationsError("Не удалось загрузить локации. Открой форму заново, чтобы повторить.");});return()=>{alive=false;};},[campaignId]);
   const [jobId,setJobId]=useState(()=>sessionBrowserStorage.getItem(key)||"");
   const [busy,setBusy]=useState(false),[stage,setStage]=useState(""),[error,setError]=useState("");
   const [created,setCreated]=useState<WorldMapDocument|null>(null);
   const [retry,setRetry]=useState(0);
+  const mounted=useRef(true);
+  useEffect(()=>{mounted.current=true;return()=>{mounted.current=false;};},[]);
   const lock=useRef(false),input=useRef<HTMLInputElement>(null),callback=useRef(onCreated);
   callback.current=onCreated;
   const request=useRef<{signature:string;id:string}|null>(null);
   const ownerId=useDraftOwner();
   const snapshot=JSON.stringify({prompt,reference,columns,rows,scale,includeCampaign,useLocation,locationId});
   const baseline=useRef(snapshot);
+  useWorkspaceGuard(snapshot!==baseline.current&&!jobId);
   const deviceDraft=useDeviceDraft({ownerId,campaignId,target:`map-form:${storageKey}:${sourceMap?.id||"new"}`,revision:sourceMap?.revision??0,
     value:{prompt,reference,columns,rows,scale,includeCampaign,useLocation,locationId,jobId,request:request.current},dirty:snapshot!==baseline.current||Boolean(jobId),enabled:true,
     restore:({value})=>{if(typeof value.prompt!=="string"||typeof value.reference!=="string")return false;setPrompt(value.prompt);setReference(value.reference);setColumns(Math.max(10,Math.min(100,Number(value.columns)||30)));setRows(Math.max(10,Math.min(100,Number(value.rows)||20)));setScale(["auto","world","region","island","city","site"].includes(value.scale)?value.scale:"auto");setIncludeCampaign(Boolean(value.includeCampaign));setUseLocation(Boolean(value.useLocation));setLocationId(value.locationId||"");if(typeof value.jobId==="string")setJobId(value.jobId);if(value.request&&typeof value.request.id==="string"&&typeof value.request.signature==="string")request.current=value.request;}
@@ -70,6 +76,7 @@ export function MapCreateForm({campaignId, initialPrompt="", onCreated, storageK
 		const context={includeCampaign,locationId:useLocation?locationId:""};
       const signature=JSON.stringify([prompt.trim(),reference,context,scale,columns,rows,sourceMap?.id,sourceMap?.revision]);if(request.current?.signature!==signature)request.current={signature,id:crypto.randomUUID()};
       const result=await worldMapsAPI.generate(campaignId,{requestId:request.current.id,prompt:prompt.trim(),referenceUrl:reference,context,scale,columns,rows,...(sourceMap?{sourceMapId:sourceMap.id,sourceRevision:sourceMap.revision}:{})});
+      if(!mounted.current)return;
       if("imageUrl" in result){const finished=await finishGeneratedMap(campaignId,result);notifyAICompletion(finished.id);setCreated(finished);baseline.current=snapshot;deviceDraft.clear();sessionBrowserStorage.setItem(`${key}:result`,finished.id);callback.current?.(finished);setStage("");request.current=null;}
       else{sessionBrowserStorage.setItem(key,result.id);setJobId(result.id);}
     }catch(e){setError((e as Error).message);setStage("");}finally{lock.current=false;setBusy(false);}

@@ -18,7 +18,7 @@ import {
 } from "./globalSearch.utils";
 
 const hasOpenAppDialog = () => Array.from(
-  document.querySelectorAll<HTMLElement>('[role="dialog"], [role="alertdialog"]')
+  document.querySelectorAll<HTMLElement>('dialog[open], [role="dialog"], [role="alertdialog"]')
 ).some((dialog) => {
   if (dialog.closest('[aria-hidden="true"], [hidden], [inert]')) {
     return false;
@@ -38,16 +38,18 @@ export function useGlobalSearchController({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const deferredQuery = useDeferredValue(query);
+  const [loading,setLoading]=useState(false),[error,setError]=useState("");
+  const [scope,setScope]=useState<"all"|"campaign"|"rules">("all"),[retry,setRetry]=useState(0);
   const ruleResults = useMemo(
     () =>
-      deferredQuery.trim()
+      scope!=="campaign" && deferredQuery.trim()
         ? searchRules({
             limit: 8,
             query: deferredQuery,
             rules: rulesEntries
           })
         : [],
-    [deferredQuery]
+    [deferredQuery,scope]
   );
 
   useEffect(() => {
@@ -80,34 +82,18 @@ export function useGlobalSearchController({
   }, [paletteOpen]);
 
   useEffect(() => {
-    let active = true;
-
-    if (!campaign || !activeCampaignId) {
-      setResults([]);
-      return;
-    }
-
-    if (!deferredQuery.trim()) {
-      setResults(buildGlobalSearchFallbackResults(campaign, entityMap, pinnedIds));
-      return;
-    }
-
-    api.search(activeCampaignId, deferredQuery)
-      .then((nextResults) => {
-        if (active) {
-          setResults(nextResults);
-        }
-      })
-      .catch(() => {
-        if (active) {
-          setResults([]);
-        }
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [activeCampaignId, campaign, deferredQuery, entityMap, pinnedIds]);
+    const abort=new AbortController();setError("");
+    if(!campaign||!activeCampaignId||scope==="rules"){setResults([]);setLoading(false);return;}
+    if(!query.trim()){setResults(buildGlobalSearchFallbackResults(campaign,entityMap,pinnedIds));setLoading(false);return;}
+    setLoading(true);setResults([]);
+    const key=JSON.stringify([activeCampaignId,campaign.revision,query.trim()]);
+    const timer=window.setTimeout(()=>{
+      const cached=searchCache.get(key);
+      if(cached&&Date.now()-cached.time<30000){setResults(cached.results);setLoading(false);return;}
+      void api.search(activeCampaignId,query.trim(),abort.signal).then(next=>{if(abort.signal.aborted)return;if(searchCache.size>100)searchCache.clear();searchCache.set(key,{time:Date.now(),results:next});setResults(next);}).catch(reason=>{if(!abort.signal.aborted)setError(reason instanceof Error?reason.message:"Не удалось выполнить поиск.");}).finally(()=>{if(!abort.signal.aborted)setLoading(false);});
+    },250);
+    return()=>{abort.abort();clearTimeout(timer);};
+  },[activeCampaignId,campaign?.revision,query,scope,retry]);
 
   const displayResults = useMemo(
     () => buildGlobalSearchDisplayResults(results, entityMap, ruleResults),
@@ -124,6 +110,7 @@ export function useGlobalSearchController({
   };
 
   return {
+    loading,error,scope,setScope,retry:()=>{searchCache.clear();setRetry(value=>value+1);},
     closePalette,
     displayResults,
     openPalette: () => setPaletteOpen(true),
@@ -134,3 +121,5 @@ export function useGlobalSearchController({
     setQuery
   };
 }
+
+const searchCache=new Map<string,{time:number;results:SearchResult[]}>();

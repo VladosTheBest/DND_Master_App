@@ -1,3 +1,4 @@
+import { AppModal } from "../../app/AppModal";
 import { useEffect, useMemo, useState } from "react";
 import type { GalleryImage, KnowledgeEntity } from "@shadow-edge/shared-types";
 import { GalleryEditorSection } from "../../media";
@@ -76,8 +77,8 @@ export function EntityGalleryModal({
   }
 
   return (
-    <div className="overlay" role="presentation">
-      <div className="panel palette form-modal combat-playlist-modal" onClick={(event) => event.stopPropagation()} role="dialog">
+    <AppModal label="Галерея записи" onClose={onClose}>
+      <div className="panel palette form-modal combat-playlist-modal" onClick={(event) => event.stopPropagation()} >
         <div className="row">
           <div>
             <p className="eyebrow">Entity Gallery</p>
@@ -164,6 +165,6 @@ export function EntityGalleryModal({
           </button>
         </div>
       </div>
-    </div>
+    </AppModal>
   );
 }

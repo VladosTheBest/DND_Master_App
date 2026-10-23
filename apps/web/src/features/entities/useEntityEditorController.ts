@@ -1,3 +1,4 @@
+import { useWorkspaceGuard } from "../../app/workspace-route";
 import { isApiError } from "@shadow-edge/api-client";
 import { useDeviceDraft } from "../../app/hooks/useDeviceDraft";
 import { useLayoutEffect, useRef, useState, type FormEvent } from "react";
@@ -128,6 +129,7 @@ export function useEntityEditorController({
       setGeneratedQuestIssuerNote(value.generatedQuestIssuerNote || ""); setDraftNotes(value.draftNotes || []);
     }
   });
+  useWorkspaceGuard(entityModalOpen&&hasUnsavedEntityChanges());
   const useComparedDraft = () => {
     if (!conflict) return;
     const server = entityToForm(conflict);

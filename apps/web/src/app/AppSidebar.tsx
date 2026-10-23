@@ -1,3 +1,5 @@
+import { SubscriptionButton } from "./SubscriptionDialog";
+import { FeedbackButton } from "./FeedbackDialog";
 import { useState } from "react";
 import { Map, MessageSquare, MonitorPlay } from "lucide-react";
 import { AccountSettings } from "./OAuthControls";
@@ -88,11 +90,11 @@ export function AppSidebar({
         </section>
 
         <nav className="rail-group-nav" aria-label="Разделы кампании">
-          <a className="rail-nav-item" href={`/chat?campaign=${encodeURIComponent(activeCampaignId)}`} style={{textDecoration:"none"}}>
+          <a aria-current={activeRailKey==="chat"?"page":undefined} className={`rail-nav-item ${activeRailKey==="chat"?"active":""}`} href={`/chat?campaign=${encodeURIComponent(activeCampaignId)}`} style={{textDecoration:"none"}}>
             <span className="rail-nav-icon"><MessageSquare size={19}/></span><span className="rail-nav-label">AI-чат</span>
           </a>
-          <a className="rail-nav-item" href={`/maps?campaign=${encodeURIComponent(activeCampaignId)}`} style={{textDecoration:"none"}}>
-            <span className="rail-nav-icon"><Map size={19}/></span><span className="rail-nav-label">Карты мира</span>
+          <a aria-current={activeRailKey==="maps"?"page":undefined} className={`rail-nav-item ${activeRailKey==="maps"?"active":""}`} href={`/maps?campaign=${encodeURIComponent(activeCampaignId)}`} style={{textDecoration:"none"}}>
+            <span className="rail-nav-icon"><Map size={19}/></span><span className="rail-nav-label">Карты и сцены</span>
           </a>
           {items.find(item => item.key === "offline") && <button className={`rail-nav-item ${activeRailKey === "offline" ? "active" : ""}`} aria-current={activeRailKey === "offline" ? "page" : undefined} type="button" onClick={() => { items.find(item => item.key === "offline")?.onClick(); setMobileOpen(false); }}><span className="rail-nav-icon"><MonitorPlay size={19}/></span><span className="rail-nav-label">Оффлайн <span className="beta-badge">Beta</span></span></button>}
           {groups.map(group => <section className="rail-group" key={group.label}>
@@ -108,6 +110,7 @@ export function AppSidebar({
         <div className="meta rail-meta">
           <small>{settingName} · {inWorldDate}</small>
           <AccountSettings />
+          <SubscriptionButton/><FeedbackButton/>
           <button className="ghost rail-logout" disabled={authBusy} onClick={onLogout} type="button">
             {authBusy ? "Выходим..." : "Выйти"}
           </button>

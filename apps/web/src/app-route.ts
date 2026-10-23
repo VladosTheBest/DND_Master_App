@@ -8,7 +8,8 @@ export type AppRouteState =
 export const parseAppRoute = (hash: string): AppRouteState => {
   const normalized = hash.replace(/^#/, "").trim();
   if (normalized.toLowerCase().startsWith("initiative/")) {
-    const campaignId = decodeURIComponent(normalized.slice("initiative/".length)).trim();
+    let campaignId="";
+    try { campaignId=decodeURIComponent(normalized.slice("initiative/".length)).trim(); } catch { return {mode:"app"}; }
     if (campaignId) {
       return {
         mode: "initiative",

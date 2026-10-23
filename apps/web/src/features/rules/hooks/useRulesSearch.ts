@@ -1,3 +1,4 @@
+import { useWorkspaceListState, readWorkspaceRoute, workspaceURL, navigateWorkspace } from "../../../app/workspace-route";
 import {
   useEffect,
   useMemo,
@@ -21,8 +22,8 @@ export function useRulesSearch({
   initialRuleId?: string;
 } = {}) {
   const allRules = rulesEntries;
-  const [query, setQuery] = useState(initialQuery);
-  const [selectedCategory, setSelectedCategory] = useState<RuleCategoryFilter>("all");
+  const [query, setQuery] = useWorkspaceListState<string>("q",initialQuery);
+  const [selectedCategory, setSelectedCategory] = useWorkspaceListState<RuleCategoryFilter>("rules.category","all");
   const [selectedRuleId, setSelectedRuleId] = useState(
     initialRuleId && getRuleById(initialRuleId) ? initialRuleId : allRules[0]?.id ?? ""
   );
@@ -38,6 +39,7 @@ export function useRulesSearch({
   );
 
   useEffect(() => {
+    if(initialRuleId)return;
     if (!results.length) {
       return;
     }
@@ -52,12 +54,13 @@ export function useRulesSearch({
   }, [initialRuleId, results, selectedRuleId]);
 
   const selectedRule = useMemo(
-    () => (results.length ? getRuleById(selectedRuleId) ?? results[0] ?? null : null),
-    [results, selectedRuleId]
+    () => (initialRuleId ? getRuleById(initialRuleId) ?? null : results.length ? getRuleById(selectedRuleId) ?? results[0] ?? null : null),
+    [initialRuleId,results, selectedRuleId]
   );
 
   const setSelectedRule = (rule: RuleEntry | null) => {
     setSelectedRuleId(rule?.id ?? "");
+    const route=readWorkspaceRoute();navigateWorkspace(workspaceURL({...route,section:"rules",target:rule?.id||""}));
   };
 
   const clearSearch = () => {

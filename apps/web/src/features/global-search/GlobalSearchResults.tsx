@@ -32,11 +32,11 @@ export function GlobalSearchResults({
     <div className="stack">
       {entityResults.length ? (
         <div className="stack">
-          <p className="eyebrow">Сущности</p>
+          <p className="eyebrow">В кампании</p>
           {entityResults.map((result) => {
             const entity = entityMap.get(result.id);
             return (
-              <div key={`${result.kind}-${result.id}`} className="palette-item palette-item-with-visual">
+              <div key={`${result.target||result.kind}-${result.id}`} className="palette-item palette-item-with-visual">
                 <EntityVisual
                   entity={entity ?? {
                     kind: result.kind,
@@ -51,9 +51,9 @@ export function GlobalSearchResults({
                   type="button"
                 >
                   <span className="palette-copy">
-                    <span className={badge("accent")}>{kindTitle[result.kind]}</span>
+                    <span className={badge("accent")}>{result.target?({event:"Событие",shop:"Магазин",session:"Сессия",map:"Карта",scene:"Сцена",item:"Предмет"}[result.target]):kindTitle[result.kind]}</span>
                     <strong>{result.title}</strong>
-                    <small>{result.subtitle}</small>
+                    <small>{result.subtitle}{result.match ? ` · ${result.match==="title"?"Совпадение в названии":"Совпадение в тексте"}`:""}</small>
                     <p>{result.summary}</p>
                   </span>
                 </button>

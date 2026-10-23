@@ -1,3 +1,7 @@
+import workspaceStyles from "../../app/Workspace.module.css";
+import { workspaceURL } from "../../app/workspace-route";
+import { useEffect,useState } from "react";
+import { sessionsApi, type ImportedSession } from "../sessions/sessions.api";
 import type { CampaignData, KnowledgeEntity } from "@shadow-edge/shared-types";
 import { ArrowRight, BookOpen, MapPin, NotebookPen, Pin, Sparkles, Swords, Users } from "lucide-react";
 import { createPortraitSource } from "../../app-shared";
@@ -21,6 +25,11 @@ const kindLabels = { location: "Локация", player: "Персонаж", npc
 
 export function CampaignDashboard({ campaign, pinnedEntities = [], onOpenEntity, onNavigate, onCreateEvent, readOnly = false }: CampaignDashboardProps) {
   const { quests, locations, npcs, players } = buildDashboardFocus(campaign);
+  const onboarding=!campaign.players.length||!campaign.locations.length;
+  const next= !campaign.players.length ? {section:"players" as const,label:"Добавить группу"} : {section:"locations" as const,label:"Выбрать или создать место"};
+  const [lastSession,setLastSession]=useState<ImportedSession|null>(null),[sessionError,setSessionError]=useState(""),[sessionLoading,setSessionLoading]=useState(true);
+  useEffect(()=>{let active=true;setLastSession(null);setSessionError("");setSessionLoading(true);void sessionsApi.list(campaign.id).then(items=>{if(active)setLastSession([...items].sort((a,b)=>b.number-a.number)[0]||null);}).catch(()=>{if(active)setSessionError("Не удалось загрузить последнюю сессию.");}).finally(()=>{if(active)setSessionLoading(false);});return()=>{active=false;};},[campaign.id]);
+  const emptyWorkspace=!lastSession&&![...campaign.locations,...campaign.players,...campaign.npcs,...campaign.quests,...campaign.lore,...campaign.events].length;
   const combat = campaign.activeCombat;
   const currentTurn = combat?.entries.find(entry => entry.id === combat.currentTurnEntryId);
   const open = readOnly ? undefined : onOpenEntity;
@@ -34,11 +43,14 @@ export function CampaignDashboard({ campaign, pinnedEntities = [], onOpenEntity,
 
   return <div className="campaign-dashboard gm-dashboard">
     <header className="gm-heading"><div><p className="eyebrow">Стол мастера</p><h1>{campaign.title}</h1><p className="gm-muted">{[campaign.settingName, campaign.inWorldDate].filter(Boolean).join(" · ")}</p></div>
-      {navigate ? <button className="primary" type="button" onClick={() => navigate("offline")}><Swords size={18} />Оффлайн <span className="beta-badge">Beta</span></button> : null}
+      {navigate && !onboarding ? <button className="primary" type="button" onClick={() => navigate("offline")}><Swords size={18} />Оффлайн <span className="beta-badge">Beta</span></button> : null}
     </header>
+    {onboarding&&!sessionLoading&&navigate&&<section className={workspaceStyles.notice} aria-label="Первые шаги"><h2>Подготовьте первую игру</h2><ol><li>{campaign.players.length?"Группа добавлена":"Добавьте игроков или пригласите их создать персонажей"}</li><li>{campaign.locations.length?"Первое место готово":"Выберите или создайте первую локацию"}</li><li>Подготовьте встречу в разделе «Оффлайн · Beta»</li></ol><button className="primary" onClick={()=>navigate(next.section)}>{next.label} <ArrowRight size={16}/></button></section>}
+    {lastSession&&<section className={workspaceStyles.notice}><small>Последняя сессия · {lastSession.number}</small><h2>{lastSession.title}</h2><p>{lastSession.analysis?.summary||"Текст сохранён в журнале; анализ можно запустить отдельно."}</p>{lastSession.analysis?.nextSession?.length?<><h3>К следующей игре</h3><ul>{lastSession.analysis.nextSession.slice(0,3).map((line,index)=><li key={index}>{line}</li>)}</ul></>:null}<a href={workspaceURL({campaignId:campaign.id,section:"sessions",target:lastSession.id})}>Открыть отчёт и план игры →</a></section>}
+    {sessionError&&<p role="alert">{sessionError}</p>}
     {navigate ? <nav className="gm-tools" aria-label="Инструменты мастера"><button type="button" onClick={() => navigate("sessions")}><BookOpen size={18} />Журнал сессий</button><button type="button" onClick={() => navigate("notes")}><NotebookPen size={18} />Заметки</button><button type="button" onClick={() => navigate("players")}><Users size={18} />Группа</button>{onCreateEvent ? <button type="button" onClick={onCreateEvent}><Sparkles size={18} />Случайное событие</button> : null}</nav> : null}
     {combat ? <section className="gm-combat" aria-label="Текущий бой"><Swords size={24} aria-hidden="true" /><div><small>Бой идёт · Раунд {combat.round}</small><h2>{combat.title}</h2><p>{currentTurn ? `Ход: ${currentTurn.title}` : "Очередь хода не выбрана"}</p></div><strong>{combat.entries.filter(entry => !entry.defeated && entry.currentHitPoints > 0).length} в строю</strong></section> : campaign.preparedCombat ? <section className="gm-prepared"><Swords size={20} /><span>Подготовленная встреча: <strong>{campaign.preparedCombat.title || "Без названия"}</strong></span>{navigate ? <button type="button" onClick={() => navigate("combat")}>Открыть <ArrowRight size={16} /></button> : null}</section> : null}
-    <div className="gm-columns"><div className="gm-main">
+    {!emptyWorkspace&&<div className="gm-columns"><div className="gm-main">
       <section aria-labelledby="gm-quests"><div className="gm-section-heading"><h2 id="gm-quests">Сюжет в работе <span>{quests.length}</span></h2>{navigate ? <button type="button" onClick={() => navigate("quests")}>Все квесты <ArrowRight size={16} /></button> : null}</div>
         {quests.length ? <div className="gm-quests">{quests.slice(0, 6).map(quest => {
           const location = campaign.locations.find(item => item.id === quest.locationId);
@@ -52,6 +64,6 @@ export function CampaignDashboard({ campaign, pinnedEntities = [], onOpenEntity,
       <section aria-labelledby="gm-party"><div className="gm-section-heading"><h2 id="gm-party">Группа за столом <span>{players.length}</span></h2>{navigate ? <button type="button" title="Все персонажи" aria-label="Все персонажи" onClick={() => navigate("players")}><ArrowRight size={18} /></button> : null}</div>{players.length ? players.map(player => entityRow(player, [player.role, player.level ? `${player.level} ур.` : "", player.status === "Guest" ? "Гость" : ""].filter(Boolean).join(" · "))) : <p className="gm-muted">Нет активных персонажей. Резерв остаётся в разделе группы.</p>}</section>
       <section aria-labelledby="gm-places"><div className="gm-section-heading"><h2 id="gm-places">Места активных квестов</h2></div>{locations.length ? locations.map(location => entityRow(location)) : <p className="gm-muted">У активных квестов пока нет связанных локаций.</p>}</section>
       {npcs.length ? <section aria-labelledby="gm-npcs"><div className="gm-section-heading"><h2 id="gm-npcs">Ключевые НПС</h2></div>{npcs.map(npc => entityRow(npc, "Выдаёт активный квест"))}</section> : null}
-    </aside></div>
+    </aside></div>}
   </div>;
 }

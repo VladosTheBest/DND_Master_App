@@ -1,3 +1,8 @@
+import { useWorkspaceGuard } from "../../app/workspace-route";
+import { useWorkspaceListState } from "../../app/workspace-route";
+import { AppModal } from "../../app/AppModal";
+import { useWorkspaceRoute, navigateWorkspace, workspaceURL, readWorkspaceRoute } from "../../app/workspace-route";
+import { confirmAction } from "../../app/confirm-action";
 import type { CampaignData } from "@shadow-edge/shared-types";
 import { CloseConfirmDialog } from "../../app/CloseConfirmDialog";
 import { useNativeDialog } from "../../app/hooks/useNativeDialog";
@@ -861,13 +866,13 @@ function ItemListCard({
 
 export function ItemDetailModal({
   item,
-  isLoadingDetail,
+  isLoadingDetail, detailError, onRetry,
   onClose,
   onEdit,
   onDelete
 }: {
   item: Item;
-  isLoadingDetail?: boolean;
+  isLoadingDetail?: boolean; detailError?:string; onRetry?:()=>void;
   onClose: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
@@ -894,14 +899,15 @@ export function ItemDetailModal({
   }, [item.id]);
 
   const modal = (
-    <div className="overlay items-modal-overlay" onClick={onClose} role="presentation">
+    <AppModal label="Карточка предмета" onClose={onClose}>
       <div
-        aria-modal="true"
+
         className="panel items-detail-modal"
         onClick={(event) => event.stopPropagation()}
         ref={modalRef}
-        role="dialog"
+
       >
+        {detailError&&<p role="alert">{detailError} <button disabled={isLoadingDetail} onClick={onRetry}>Повторить описание</button></p>}
         <button aria-label="Закрыть карточку предмета" className="items-modal-close" onClick={onClose} type="button">
           <CloseIcon />
         </button>
@@ -1002,7 +1008,7 @@ export function ItemDetailModal({
           </section>
         </div>
       </div>
-    </div>
+    </AppModal>
   );
 
   return createPortal(modal, document.body);
@@ -1289,6 +1295,7 @@ type ItemsPageProps = {
 };
 
 export function ItemsPage({ campaignId, ownerId, onCampaignChanged }: ItemsPageProps) {
+  const route=useWorkspaceRoute();
   const searchInputRef = usePageSearchHotkey<HTMLInputElement>();
   const serverItems = useCustomItems(campaignId);
   const customItems = serverItems.items;
@@ -1304,14 +1311,15 @@ export function ItemsPage({ campaignId, ownerId, onCampaignChanged }: ItemsPageP
   const [editorBase, setEditorBase] = useState<ItemDraft>(emptyItemDraft);
   const [itemConflict, setItemConflict] = useState<Item | null>(null);
   const [storageHydrated, setStorageHydrated] = useState(false);
-  const [activeTab, setActiveTab] = useState<ItemTab>("all");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [categoryFilter, setCategoryFilter] = useState<ItemCategory | "all">("all");
-  const [armorTypeFilter, setArmorTypeFilter] = useState<ArmorType | "all">("all");
-  const [sourceFilter, setSourceFilter] = useState<ItemSource | "all">("all");
-  const [priceFilter, setPriceFilter] = useState<PriceFilter>("all");
-  const [sortMode, setSortMode] = useState<SortMode>("name-asc");
+  const [activeTab, setActiveTab] = useWorkspaceListState<ItemTab>("items.tab","all");
+  const [searchQuery, setSearchQuery] = useWorkspaceListState<string>("q","");
+  const [categoryFilter, setCategoryFilter] = useWorkspaceListState<ItemCategory | "all">("items.category","all");
+  const [armorTypeFilter, setArmorTypeFilter] = useWorkspaceListState<ArmorType | "all">("items.armor","all");
+  const [sourceFilter, setSourceFilter] = useWorkspaceListState<ItemSource | "all">("items.source","all");
+  const [priceFilter, setPriceFilter] = useWorkspaceListState<PriceFilter>("items.price","all");
+  const [sortMode, setSortMode] = useWorkspaceListState<SortMode>("items.sort","name-asc");
   const [selectedItemId, setSelectedItemId] = useState("");
+  useEffect(()=>{setSelectedItemId(route.target);setSearchQuery(route.query);},[route.target,route.query]);
   const [editorMode, setEditorMode] = useState<ItemEditorMode>("closed");
   const [editingItemId, setEditingItemId] = useState("");
   const [editorDraft, setEditorDraft] = useState<ItemDraft>(emptyItemDraft);
@@ -1322,6 +1330,7 @@ export function ItemsPage({ campaignId, ownerId, onCampaignChanged }: ItemsPageP
     value:{draft:editorDraft,base:editorBase,id:editingItemId,revision:editorRevision,mode:editorMode},
     restore:({value})=>{if(!value.draft || typeof value.draft.name!=="string" || typeof value.id!=="string") {setError("Повреждённый черновик. Скачайте копию.");return;} setEditorDraft(value.draft);setEditorBase(value.base || emptyItemDraft());setEditingItemId(value.id);setEditorRevision(value.revision);}
   });
+  useWorkspaceGuard(editorMode!=="closed"&&JSON.stringify(editorDraft)!==JSON.stringify(editorBase));
   const closeItemEditor=()=>{if(busyLock.current)return;if(JSON.stringify(editorDraft)!==JSON.stringify(editorBase)){setCloseRequested(true);return;}setEditorMode("closed");setItemConflict(null);};
   const prepareItemMerge = () => {
     if(!itemConflict)return;const current=itemToDraft(itemConflict),merged={...current};
@@ -1334,8 +1343,8 @@ export function ItemsPage({ campaignId, ownerId, onCampaignChanged }: ItemsPageP
     catalogLoading,
     catalogError,
     loadingCatalogItemIds,
-    ensureCatalogItemDetail
-  } = useItemsCatalogController({ campaignId });
+    ensureCatalogItemDetail, detailErrors, retryCatalog
+  } = useItemsCatalogController({ campaignId, filters:{q:deferredSearchQuery,category:categoryFilter==="all"?undefined:categoryFilter,armorType:armorTypeFilter==="all"?undefined:armorTypeFilter||undefined,source:sourceFilter==="dndsu-magic"||sourceFilter==="dndsu-equipment"?sourceFilter:undefined},enabled:sourceFilter!=="custom"&&sourceFilter!=="builtin" });
 
   useEffect(() => {
     setStorageHydrated(false);
@@ -1343,14 +1352,16 @@ export function ItemsPage({ campaignId, ownerId, onCampaignChanged }: ItemsPageP
     setLegacyStorageError(browserStorage.keys()===null);
     const persistedUiState = itemsUiStateStorage.load(campaignId);
 
+    if(!location.pathname.startsWith("/campaigns/")){
     setActiveTab(persistedUiState.activeTab ?? "all");
-    setSearchQuery(persistedUiState.searchQuery ?? "");
+    setSearchQuery(route.query || persistedUiState.searchQuery || "");
     setCategoryFilter(persistedUiState.categoryFilter ?? "all");
     setArmorTypeFilter(persistedUiState.armorTypeFilter ?? "all");
     setSourceFilter(persistedUiState.sourceFilter ?? "all");
     setPriceFilter(persistedUiState.priceFilter ?? "all");
     setSortMode(persistedUiState.sortMode ?? "name-asc");
-    setSelectedItemId("");
+    }
+    setSelectedItemId(route.target);
     setEditorMode("closed");
     setEditingItemId("");
     setEditorDraft(emptyItemDraft());
@@ -1446,22 +1457,7 @@ export function ItemsPage({ campaignId, ownerId, onCampaignChanged }: ItemsPageP
     ensureCatalogItemDetail(selectedItem.id);
   }, [ensureCatalogItemDetail, selectedItem]);
 
-  useEffect(() => {
-    filteredItems
-      .filter(isRemoteItem)
-      .filter((item) => !item.detailLoaded)
-      .slice(0, 12)
-      .forEach((item) => ensureCatalogItemDetail(item.id));
-  }, [ensureCatalogItemDetail, filteredItems]);
 
-  useEffect(() => {
-    if (editorMode !== "closed") {
-      return;
-    }
-    if (selectedItemId && !filteredItems.some((item) => item.id === selectedItemId)) {
-      setSelectedItemId("");
-    }
-  }, [editorMode, filteredItems, selectedItemId]);
 
   useEffect(() => {
     if (editorMode !== "closed" || !selectedItemId) {
@@ -1522,12 +1518,14 @@ export function ItemsPage({ campaignId, ownerId, onCampaignChanged }: ItemsPageP
 
   const handleSelectItem = (itemId: string) => {
     clearMessages();
+    navigateWorkspace(workspaceURL({...route,campaignId,section:"items",target:itemId,query:searchQuery}));
     setSelectedItemId(itemId);
     setEditorMode("closed");
     setEditingItemId("");
   };
 
   const handleCloseItemModal = () => {
+    navigateWorkspace(workspaceURL({...route,campaignId,section:"items",target:"",query:searchQuery}));
     setSelectedItemId("");
   };
 
@@ -1579,14 +1577,15 @@ export function ItemsPage({ campaignId, ownerId, onCampaignChanged }: ItemsPageP
     try {
       const doc=await customItemsAPI.save(campaignId,nextItem,editorMode==="edit"?editorRevision:undefined);
       serverItems.apply(doc);itemDraft.clear();revealSavedItem(nextItem);setSelectedItemId(nextItem.id);setEditorMode("closed");setNotice("Предмет сохранён на сервере.");
+      {const current=readWorkspaceRoute();if(current.campaignId===campaignId&&current.section==="items")navigateWorkspace(workspaceURL({...current,target:nextItem.id}),true);}
     } catch(reason) {if(isApiError(reason)&&reason.status===409&&reason.current)setItemConflict(reason.current as Item);setError(reason instanceof Error?reason.message:"Не удалось сохранить предмет.");}
     finally {busyLock.current=false;setBusy(false);}
   };
 
   const handleDeleteItem = async (item:Item) => {
-    if(busyLock.current||item.source!=="custom"||!window.confirm(`Удалить предмет «${item.name}» с сервера?`))return;
+    if(busyLock.current||item.source!=="custom"||!await confirmAction(`Удалить предмет «${item.name}» с сервера?`))return;
     busyLock.current=true;setBusy(true);
-    try {serverItems.apply(await customItemsAPI.remove(campaignId,item));setSelectedItemId("");setEditorMode("closed");setNotice("Предмет удалён с сервера.");}
+    try {serverItems.apply(await customItemsAPI.remove(campaignId,item));setSelectedItemId("");setEditorMode("closed");setNotice("Предмет удалён с сервера.");const current=readWorkspaceRoute();if(current.campaignId===campaignId&&current.section==="items")navigateWorkspace(workspaceURL({...current,target:""}),true);}
     catch(reason){setError(reason instanceof Error?reason.message:"Не удалось удалить предмет.");}
     finally{busyLock.current=false;setBusy(false);}
   };
@@ -1662,6 +1661,7 @@ export function ItemsPage({ campaignId, ownerId, onCampaignChanged }: ItemsPageP
         </div>
       </section>
 
+      {selectedItemId&&detailErrors[selectedItemId]&&<p role="alert">Описание предмета недоступно: {detailErrors[selectedItemId]} <button onClick={()=>ensureCatalogItemDetail(selectedItemId)}>Повторить описание</button></p>}
       {catalogLoading ? (
         <section className="card mini">
           <p className="copy">Подтягиваю внешний каталог предметов и подмешиваю его в общий поиск…</p>
@@ -1670,7 +1670,7 @@ export function ItemsPage({ campaignId, ownerId, onCampaignChanged }: ItemsPageP
 
       {catalogError ? (
         <section className="card mini">
-          <p className="copy">Внешний каталог сейчас недоступен: {catalogError}</p>
+          <p className="copy">Внешний каталог сейчас недоступен: {catalogError}</p><button onClick={retryCatalog}>Повторить загрузку каталога</button>
         </section>
       ) : null}
 
@@ -1878,6 +1878,7 @@ export function ItemsPage({ campaignId, ownerId, onCampaignChanged }: ItemsPageP
           {editorMode === "closed" && selectedItem ? (
             <ItemDetailModal
               item={selectedItem}
+              detailError={detailErrors[selectedItem.id]} onRetry={()=>ensureCatalogItemDetail(selectedItem.id)}
               isLoadingDetail={loadingCatalogItemIds.includes(selectedItem.id)}
               onClose={handleCloseItemModal}
               onDelete={() => void handleDeleteItem(selectedItem)}
