@@ -1,3 +1,10 @@
+import type { CampaignData } from "@shadow-edge/shared-types";
+import { CloseConfirmDialog } from "../../app/CloseConfirmDialog";
+import { useNativeDialog } from "../../app/hooks/useNativeDialog";
+import { isApiError } from "@shadow-edge/api-client";
+import { customItemsAPI, useCustomItems, type CustomItemsPreview } from "./custom-items.api";
+import { useDeviceDraft } from "../../app/hooks/useDeviceDraft";
+import { DeviceDraftControls } from "../../app/DeviceDraftControls";
 import { browserStorage } from "../../app/browser-storage";
 import "./items.css";
 import { ItemCategoryIcon } from "./ItemCategoryIcon";
@@ -10,6 +17,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
   type CSSProperties
 } from "react";
 import { createPortal } from "react-dom";
@@ -554,28 +562,6 @@ const buildCustomItemsStorageKey = (campaignId: string) =>
 
 const buildItemsUiStorageKey = (campaignId: string) => `shadow-edge.items.ui.${customItemsStorageVersion}.${campaignId}`;
 
-const customItemsRepository = {
-  // The UI works with this adapter only; swapping localStorage to a real API later stays localized here.
-  load(campaignId: string) {
-    if (typeof window === "undefined") {
-      return [] as Item[];
-    }
-    try {
-      const raw = window.localStorage.getItem(buildCustomItemsStorageKey(campaignId));
-      if (!raw) {
-        return [];
-      }
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed.map(normalizeCustomItem).filter(isDefined) : [];
-    } catch {
-      return [];
-    }
-  },
-  save(campaignId: string, items: Item[]) {
-    return browserStorage.setItem(buildCustomItemsStorageKey(campaignId), JSON.stringify(items));
-  }
-
-};
 
 const itemsUiStateStorage = {
   load(campaignId: string): PersistedItemsUiState {
@@ -1030,7 +1016,7 @@ function ItemEditorPanel({
   onFieldChange,
   onSave,
   titleId,
-  validationError
+  validationError, tools, busy
 }: {
   mode: Exclude<ItemEditorMode, "closed">;
   draft: ItemDraft;
@@ -1040,6 +1026,8 @@ function ItemEditorPanel({
   onSave: () => void;
   titleId?: string;
   validationError?: string;
+  tools?: ReactNode;
+  busy?: boolean;
 }) {
   const isArmor = draft.category === "armor";
   const isWeapon = draft.category === "weapon";
@@ -1054,9 +1042,10 @@ function ItemEditorPanel({
         <ItemBadge label={mode === "create" ? "Новый" : "Custom"} tone={mode === "create" ? "accent" : "success"} />
       </div>
 
+      {tools}
       {validationError ? <div className="notes-status notes-status-error">{validationError}</div> : null}
 
-      <div className="form-grid items-editor-grid">
+      <fieldset disabled={busy} className="form-grid items-editor-grid" style={{border:0,padding:0,minWidth:0}}>
         <label className="field field-full">
           <span>Название</span>
           <input
@@ -1233,13 +1222,13 @@ function ItemEditorPanel({
             value={draft.description}
           />
         </label>
-      </div>
+      </fieldset>
 
       <div className="actions">
-        <button className="ghost" onClick={onCancel} type="button">
+        <button className="ghost" disabled={busy} onClick={onCancel} type="button">
           Отмена
         </button>
-        <button className="primary" onClick={onSave} type="button">
+        <button className="primary" disabled={busy} onClick={onSave} type="button">
           {mode === "create" ? "Создать предмет" : "Сохранить изменения"}
         </button>
       </div>
@@ -1254,7 +1243,7 @@ function ItemEditorModal({
   onCategoryChange,
   onFieldChange,
   onSave,
-  validationError
+  validationError, tools, busy
 }: {
   mode: Exclude<ItemEditorMode, "closed">;
   draft: ItemDraft;
@@ -1263,27 +1252,20 @@ function ItemEditorModal({
   onFieldChange: <Key extends keyof ItemDraft>(field: Key, value: ItemDraft[Key]) => void;
   onSave: () => void;
   validationError?: string;
+  tools?: ReactNode;
+  busy?: boolean;
 }) {
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onCancel();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onCancel]);
-
+  const dialogRef=useNativeDialog(true);
   const titleId = "items-editor-modal-title";
   const modal = (
-    <div className="overlay items-modal-overlay items-editor-modal-overlay" role="presentation">
-      <div aria-labelledby={titleId} aria-modal="true" className="panel items-editor-panel items-editor-modal" role="dialog">
+    <dialog ref={dialogRef} className="app-native-dialog" aria-labelledby={titleId} onCancel={event=>{event.preventDefault();onCancel();}}>
+      <div aria-labelledby={titleId} className="panel items-editor-panel items-editor-modal">
         <button aria-label="Закрыть форму предмета" className="items-modal-close items-editor-modal-close" onClick={onCancel} type="button">
           <CloseIcon />
         </button>
 
         <ItemEditorPanel
+          tools={tools} busy={busy}
           draft={draft}
           mode={mode}
           onCancel={onCancel}
@@ -1294,20 +1276,33 @@ function ItemEditorModal({
           validationError={validationError}
         />
       </div>
-    </div>
+    </dialog>
   );
 
   return createPortal(modal, document.body);
 }
 
 type ItemsPageProps = {
+  onCampaignChanged?:(campaign:CampaignData)=>void;
+  ownerId: string;
   campaignId: string;
 };
 
-export function ItemsPage({ campaignId }: ItemsPageProps) {
+export function ItemsPage({ campaignId, ownerId, onCampaignChanged }: ItemsPageProps) {
   const searchInputRef = usePageSearchHotkey<HTMLInputElement>();
-  const [customItems, setCustomItems] = useState<Item[]>([]);
-  const [importPreview, setImportPreview] = useState<Item[] | null>(null);
+  const serverItems = useCustomItems(campaignId);
+  const customItems = serverItems.items;
+  const [importPreview, setImportPreview] = useState<CustomItemsPreview | null>(null);
+  const [referenceChoices,setReferenceChoices]=useState<Record<string,string>>({});
+  const [importItems, setImportItems] = useState<Item[]>([]);
+  const [legacyStorageError,setLegacyStorageError]=useState(false);
+  const [legacyRaw, setLegacyRaw] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [closeRequested,setCloseRequested]=useState(false);
+  const busyLock = useRef(false);
+  const [editorRevision, setEditorRevision] = useState<number | undefined>();
+  const [editorBase, setEditorBase] = useState<ItemDraft>(emptyItemDraft);
+  const [itemConflict, setItemConflict] = useState<Item | null>(null);
   const [storageHydrated, setStorageHydrated] = useState(false);
   const [activeTab, setActiveTab] = useState<ItemTab>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -1322,6 +1317,17 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
   const [editorDraft, setEditorDraft] = useState<ItemDraft>(emptyItemDraft);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const itemDraft = useDeviceDraft({ownerId,campaignId,target:`item:${editorMode === "edit" ? editingItemId : "new"}`,revision:editorRevision ?? 0,
+    enabled:editorMode!=="closed",dirty:JSON.stringify(editorDraft)!==JSON.stringify(editorBase),
+    value:{draft:editorDraft,base:editorBase,id:editingItemId,revision:editorRevision,mode:editorMode},
+    restore:({value})=>{if(!value.draft || typeof value.draft.name!=="string" || typeof value.id!=="string") {setError("Повреждённый черновик. Скачайте копию.");return;} setEditorDraft(value.draft);setEditorBase(value.base || emptyItemDraft());setEditingItemId(value.id);setEditorRevision(value.revision);}
+  });
+  const closeItemEditor=()=>{if(busyLock.current)return;if(JSON.stringify(editorDraft)!==JSON.stringify(editorBase)){setCloseRequested(true);return;}setEditorMode("closed");setItemConflict(null);};
+  const prepareItemMerge = () => {
+    if(!itemConflict)return;const current=itemToDraft(itemConflict),merged={...current};
+    for(const key of Object.keys(editorDraft) as (keyof ItemDraft)[])if(JSON.stringify(editorDraft[key])!==JSON.stringify(editorBase[key]))Object.assign(merged,{[key]:editorDraft[key]});
+    setEditorBase(current);setEditorDraft(merged);setEditorRevision(itemConflict.revision);setEditorMode("edit");setItemConflict(null);setError("");
+  };
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const {
     catalogItems,
@@ -1333,10 +1339,10 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
 
   useEffect(() => {
     setStorageHydrated(false);
-    const persistedItems = customItemsRepository.load(campaignId);
+    setLegacyRaw(browserStorage.getItem(buildCustomItemsStorageKey(campaignId)));
+    setLegacyStorageError(browserStorage.keys()===null);
     const persistedUiState = itemsUiStateStorage.load(campaignId);
 
-    setCustomItems(persistedItems);
     setActiveTab(persistedUiState.activeTab ?? "all");
     setSearchQuery(persistedUiState.searchQuery ?? "");
     setCategoryFilter(persistedUiState.categoryFilter ?? "all");
@@ -1528,9 +1534,9 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
   const handleCreateItem = () => {
     clearMessages();
     setSelectedItemId("");
-    setEditorMode("create");
-    setEditingItemId("");
-    setEditorDraft(emptyItemDraft());
+    setEditorMode("create"); setItemConflict(null); setEditorRevision(undefined);
+    setEditingItemId(createCustomItemId());
+    setEditorBase(emptyItemDraft());setEditorDraft(emptyItemDraft());
   };
 
   const handleEditItem = (item: Item) => {
@@ -1540,8 +1546,8 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
     clearMessages();
     setSelectedItemId("");
     setEditingItemId(item.id);
-    setEditorMode("edit");
-    setEditorDraft(itemToDraft(item));
+    setEditorMode("edit"); setItemConflict(null); setEditorRevision(item.revision);
+    setEditorBase(itemToDraft(item));setEditorDraft(itemToDraft(item));
   };
 
   const revealSavedItem = (item: Item) => {
@@ -1555,7 +1561,9 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
     setPriceFilter((current) => (current !== "all" && !matchesPriceFilter(item, current) ? "all" : current));
   };
 
-  const handleSaveItem = () => {
+  const handleSaveItem = async () => {
+    if(busyLock.current || itemDraft.candidate || itemConflict)return;
+    if(!serverItems.document){setError("Сначала дождитесь загрузки серверного каталога.");return;}
     clearMessages();
     if (!editorDraft.name.trim()) {
       setError("Укажи название предмета.");
@@ -1566,42 +1574,21 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
       return;
     }
 
-    const nextItem = createCustomItemFromDraft(editorDraft, editorMode === "edit" ? editingItemId : undefined);
-
-    const nextItems = editorMode === "edit" ? customItems.map(item => item.id === nextItem.id ? nextItem : item) : [nextItem, ...customItems];
-    if (!customItemsRepository.save(campaignId, nextItems)) {
-      setError("Предмет не сохранён: хранилище браузера недоступно или заполнено. Форма остаётся открытой."); return;
-    }
-    setCustomItems(nextItems);
-
-    revealSavedItem(nextItem);
-    setSelectedItemId(nextItem.id);
-    setEditorMode("closed");
-    setEditingItemId("");
-    setNotice(editorMode === "edit" ? "Кастомный предмет обновлён." : "Кастомный предмет создан.");
+    const nextItem = createCustomItemFromDraft(editorDraft, editingItemId);
+    busyLock.current=true;setBusy(true);
+    try {
+      const doc=await customItemsAPI.save(campaignId,nextItem,editorMode==="edit"?editorRevision:undefined);
+      serverItems.apply(doc);itemDraft.clear();revealSavedItem(nextItem);setSelectedItemId(nextItem.id);setEditorMode("closed");setNotice("Предмет сохранён на сервере.");
+    } catch(reason) {if(isApiError(reason)&&reason.status===409&&reason.current)setItemConflict(reason.current as Item);setError(reason instanceof Error?reason.message:"Не удалось сохранить предмет.");}
+    finally {busyLock.current=false;setBusy(false);}
   };
 
-  const handleDeleteItem = (item: Item) => {
-    if (item.source !== "custom") {
-      return;
-    }
-    if (!window.confirm(`Удалить предмет «${item.name}»? Это действие нельзя отменить.`)) {
-      return;
-    }
-
-    const nextItems = customItems.filter(entry => entry.id !== item.id);
-    if (!customItemsRepository.save(campaignId, nextItems)) { setError("Удаление не сохранено: хранилище браузера недоступно."); return; }
-    setCustomItems(nextItems);
-    if (selectedItemId === item.id) {
-      setSelectedItemId("");
-    }
-    if (editingItemId === item.id) {
-      setEditingItemId("");
-      setEditorMode("closed");
-      setEditorDraft(emptyItemDraft());
-    }
-    setNotice("Кастомный предмет удалён.");
-    setError("");
+  const handleDeleteItem = async (item:Item) => {
+    if(busyLock.current||item.source!=="custom"||!window.confirm(`Удалить предмет «${item.name}» с сервера?`))return;
+    busyLock.current=true;setBusy(true);
+    try {serverItems.apply(await customItemsAPI.remove(campaignId,item));setSelectedItemId("");setEditorMode("closed");setNotice("Предмет удалён с сервера.");}
+    catch(reason){setError(reason instanceof Error?reason.message:"Не удалось удалить предмет.");}
+    finally{busyLock.current=false;setBusy(false);}
   };
 
   const exportCustomItems = () => {
@@ -1609,20 +1596,26 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
     const link = document.createElement("a"); link.href = url; link.download = "shadow-edge-custom-items.json"; link.click();
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
-  const previewImport = async (file?: File) => {
-    if (!file) return;
-    setImportPreview(null);
+  const requestImportPreview = async (raw:string) => {
+    if(busyLock.current)return;busyLock.current=true;setBusy(true);setImportPreview(null);setReferenceChoices({});
     try {
-      if (file.size > 2 * 1024 * 1024) throw new Error("Файл больше 2 МиБ.");
-      const parsed = JSON.parse(await file.text()); const rows = Array.isArray(parsed) ? parsed : parsed.items;
-      if (!Array.isArray(rows) || rows.length > 2000) throw new Error("Неверный файл предметов (не более 2000).");
-      const items = rows.map((raw: unknown) => normalizeCustomItem(raw && typeof raw === "object" ? { ...raw, source: "custom" } : raw));
-      if (items.some(item => !item)) throw new Error("Файл содержит некорректные предметы.");
-      const known = new Set(customItems.map(item => item.id));
-      const unique = (items as Item[]).filter(item => { if (known.has(item.id)) return false; known.add(item.id); return true; });
-      setImportPreview(unique); setError("");
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Не удалось прочитать файл."); }
+      const parsed=JSON.parse(raw),rows=Array.isArray(parsed)?parsed:parsed.items;
+      if(!Array.isArray(rows)||!rows.length||rows.length>2000)throw new Error("Нужен непустой список до 2000 предметов.");
+      const items=rows.map((raw:unknown)=>normalizeCustomItem(raw&&typeof raw==="object"?{...raw,source:"custom"}:raw));
+      if(items.some(item=>!item))throw new Error("Есть повреждённые предметы. Исходная копия сохранена, импорт не выполнен.");
+      const normalized=items as Item[];const preview=await customItemsAPI.preview(campaignId,normalized);
+      setImportItems(normalized);setImportPreview(preview);setError("");
+    }catch(reason){setError(reason instanceof Error?reason.message:"Не удалось подготовить перенос.");}
+    finally{busyLock.current=false;setBusy(false);}
   };
+  const previewImport = async(file?:File)=>{if(!file)return;if(file.size>2*1024*1024){setError("Файл больше 2 МиБ.");return;}await requestImportPreview(await file.text());};
+  const commitImport = async()=>{
+    if(busyLock.current||!importPreview)return;busyLock.current=true;setBusy(true);
+    try{const doc=await customItemsAPI.import(campaignId,importItems,importPreview.revision,importPreview.campaignRevision,referenceChoices);serverItems.apply(doc);if(doc.campaign)onCampaignChanged?.(doc.campaign);setImportPreview(null);setNotice("Предметы перенесены на сервер. Исходная локальная копия сохранена.");}
+    catch(reason){setError(reason instanceof Error?reason.message:"Перенос не подтверждён. Исходная копия сохранена.");setImportPreview(null);}
+    finally{busyLock.current=false;setBusy(false);}
+  };
+  const exportLegacy=()=>{if(!legacyRaw)return;const url=URL.createObjectURL(new Blob([legacyRaw],{type:"application/json"}));const link=document.createElement("a");link.href=url;link.download="shadow-edge-items-before-migration.json";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 
   const armorFilterDisabled = categoryFilter !== "all" && categoryFilter !== "armor";
   const activeFilterCount = [categoryFilter, armorTypeFilter, sourceFilter, priceFilter].filter(value => value && value !== "all").length;
@@ -1641,17 +1634,29 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
         <div className="notes-workspace-copy">
           <h1>Предметы</h1>
           <p className="copy">Снаряжение, магические предметы и ваши находки</p>
-          <p>Пользовательские предметы хранятся только в этом браузере. Для переноса и резервной копии используйте экспорт.</p>
-          <button className="ghost" type="button" onClick={exportCustomItems}>Экспорт моих предметов</button>
-          <label className="ghost">Импорт предметов <input type="file" accept="application/json,.json" onChange={e => { void previewImport(e.target.files?.[0]); e.target.value = ""; }} /></label>
-          {importPreview && <div role="status"><p>Будет добавлено: {importPreview.length}. Совпадающие ID пропущены; существующие предметы сохранятся.</p>
-            <button className="ghost" onClick={() => { const next = [...customItems, ...importPreview]; if (!customItemsRepository.save(campaignId, next)) {setError("Импорт не сохранён: хранилище браузера недоступно."); return;} setCustomItems(next); setImportPreview(null); setNotice("Предметы импортированы на это устройство."); }}>Подтвердить импорт</button>
-            <button className="ghost" onClick={() => setImportPreview(null)}>Отмена импорта</button>
+          <p>Ваши предметы хранятся на сервере и доступны в этой кампании с других устройств.</p>
+          <button className="ghost" type="button" disabled={!serverItems.document} onClick={exportCustomItems}>Экспорт моих предметов</button>
+          <label>Импорт JSON <input style={{maxWidth:"100%",display:"block"}} disabled={busy} type="file" accept="application/json,.json" onChange={e=>{void previewImport(e.target.files?.[0]);e.target.value="";}}/></label>
+          {legacyStorageError&&<p role="alert">Браузер не даёт прочитать старую локальную копию. Для её переноса разрешите хранилище или импортируйте ранее скачанный JSON. Серверные предметы доступны.</p>}
+          {legacyRaw && <div className="card mini"><p>В этом браузере найдена прежняя локальная копия предметов этой кампании. Перенос выполняется только после предпросмотра и подтверждения; исходник останется на устройстве.</p>
+            <button className="ghost" disabled={busy} onClick={()=>void requestImportPreview(legacyRaw)}>Предпросмотр переноса на сервер</button><button className="ghost" onClick={exportLegacy}>Скачать исходную локальную копию</button>
           </div>}
+          {importPreview && <section className="card mini" aria-label="Предпросмотр переноса предметов">
+            <p>{importPreview.alreadyImported?"Этот пакет уже перенесён. Повтор не создаст дубли и не восстановит удалённые предметы.":`Будет добавлено: ${importPreview.additions.length}. Уже существуют: ${importPreview.skipped}.`}</p>
+            <p>При совпадении ID с другим содержимым будет создана отдельная копия. Существующие предметы не заменяются.</p>
+            <p>Ссылок в ассортименте для переноса: {importPreview.referenceChanges.length}. Цены, количество и заметки позиций сохранятся.</p>
+            {importPreview.referenceChoices.map(choice=>{const key=JSON.stringify([choice.shopId,choice.entryId]);return <label className="field" key={key}>Неоднозначная позиция «{choice.name}»<select value={referenceChoices[key]||""} onChange={e=>setReferenceChoices(old=>({...old,[key]:e.target.value}))}><option value="">Выберите связь перед переносом</option>{choice.options.map(item=><option value={item.id} key={item.id}>{item.id===choice.fromId?"Оставить основную запись":"Связать с импортируемой копией"}: {item.name} · {item.id}</option>)}</select><details><summary>Сравнить предметы</summary>{choice.options.map(item=><pre style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}} key={item.id}>{JSON.stringify(item,null,2)}</pre>)}</details></label>})}
+            {importPreview.warnings.map((warning,index)=><p role="alert" key={index}>{warning}</p>)}
+            <ul>{importPreview.additions.map(item=><li style={{overflowWrap:"anywhere"}} key={item.id}>{item.name} · {item.id}</li>)}</ul>
+            {!importPreview.alreadyImported&&<button className="primary" disabled={busy||importPreview.referenceChoices.some(choice=>!referenceChoices[JSON.stringify([choice.shopId,choice.entryId])])} onClick={()=>void commitImport()}>Подтвердить перенос на сервер</button>}
+            <button className="ghost" disabled={busy} onClick={()=>setImportPreview(null)}>Закрыть предпросмотр</button>
+          </section>}
+          {serverItems.error&&<p role="alert">{serverItems.error}</p>}
+          {!serverItems.document&&<p role="status">Загружаю серверные предметы…</p>}
         </div>
 
         <div className="actions">
-          <button className="primary" onClick={handleCreateItem} type="button">
+          <button className="primary" disabled={busy || !serverItems.document} onClick={handleCreateItem} type="button">
             Создать предмет
           </button>
         </div>
@@ -1833,14 +1838,12 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
             <ItemEditorModal
               draft={editorDraft}
               mode={editorMode}
-              onCancel={() => {
-                clearMessages();
-                setEditorMode("closed");
-                setEditingItemId("");
-              }}
+              busy={busy}
+              tools={<><DeviceDraftControls draft={itemDraft} label="черновик предмета"/>{itemConflict&&<section aria-label="Конфликт предмета"><p>Предмет изменился на сервере. Сравните версии; объединение сохранит остальные серверные поля и возьмёт ваши изменённые поля из формы.</p><details><summary>Актуальный предмет</summary><pre style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{JSON.stringify(itemConflict,null,2)}</pre></details><button className="ghost" onClick={prepareItemMerge}>Подготовить объединение предмета</button></section>}</>}
+              onCancel={closeItemEditor}
               onCategoryChange={updateDraftCategory}
               onFieldChange={updateDraftField}
-              onSave={handleSaveItem}
+              onSave={() => void handleSaveItem()}
               validationError={error}
             />
           ) : null}
@@ -1877,12 +1880,13 @@ export function ItemsPage({ campaignId }: ItemsPageProps) {
               item={selectedItem}
               isLoadingDetail={loadingCatalogItemIds.includes(selectedItem.id)}
               onClose={handleCloseItemModal}
-              onDelete={() => handleDeleteItem(selectedItem)}
+              onDelete={() => void handleDeleteItem(selectedItem)}
               onEdit={() => handleEditItem(selectedItem)}
             />
           ) : null}
         </section>
       </div>
+      <CloseConfirmDialog state={closeRequested?{title:"Закрыть форму предмета?",description:"Предмет ещё не сохранён на сервере. Локальная копия останется доступна для восстановления; при ошибке хранения скачайте её перед уходом.",confirmLabel:"Закрыть форму"}:null} onCancel={()=>setCloseRequested(false)} onConfirm={()=>{setEditorMode("closed");setItemConflict(null);setCloseRequested(false);}}/>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { DeviceDraftControls } from "../../app/DeviceDraftControls";
 import { useDeviceDraft } from "../../app/hooks/useDeviceDraft";
 import { isApiError } from "@shadow-edge/api-client";
 import { useEffect, useMemo, useState, type MouseEvent as ReactMouseEvent, type RefObject } from "react";
@@ -62,7 +63,7 @@ export function NotesPageContainer({
     enabled: Boolean(noteEditorEntityId), revision: baseRevision, dirty: noteEditorDirty,
     value: { title: noteEditorTitle, content: noteEditorContent },
     restore: ({ value, baseRevision }) => {
-      if (typeof value.title !== "string" || typeof value.content !== "string") return;
+      if (!value || typeof value.title !== "string" || typeof value.content !== "string") return false;
       setNoteEditorTitle(value.title); setNoteEditorContent(value.content);
       setBaseRevision(baseRevision); setNoteEditorDirty(true);
     }
@@ -202,11 +203,7 @@ export function NotesPageContainer({
 
   return (
     <>
-    <div className="card mini" role="status">
-      <p>{deviceDraft.status || "Сохранено на сервере"}</p>
-      {deviceDraft.candidate && <><button className="ghost" onClick={deviceDraft.recover}>Восстановить черновик заметки</button><button className="ghost" onClick={deviceDraft.discard}>Удалить черновик с устройства</button></>}
-      <button className="ghost" onClick={deviceDraft.download}>Скачать черновик заметки</button>
-    </div>
+    <DeviceDraftControls draft={deviceDraft} label="черновик заметки"/>
     {conflict && <div className="card mini"><h3>Конфликт версий заметки</h3>
       <p>Сравните с текущим текстом. После подтверждения заголовок, краткое описание и текст будут заменены вашим вариантом; остальные серверные поля сохранятся.</p>
       <pre style={{whiteSpace:"pre-wrap"}}>{conflict.title}{"\n"}{conflict.content}</pre>

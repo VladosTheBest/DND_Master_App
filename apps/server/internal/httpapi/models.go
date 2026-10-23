@@ -306,6 +306,9 @@ type userAccount struct {
 }
 
 type campaignData struct {
+	CustomItems          []customCampaignItem         `json:"customItems,omitempty"`
+	CustomItemsRevision  int                          `json:"customItemsRevision,omitempty"`
+	CustomItemImports    map[string]bool              `json:"customItemImports,omitempty"`
 	FoundryActorProfiles map[string]*foundryAIProfile `json:"foundryActorProfiles,omitempty"`
 	SessionMaps          []sessionMapDocument         `json:"sessionMaps,omitempty"`
 	ReadyCampaign        *readyCampaignInfo           `json:"readyCampaign,omitempty"`
@@ -523,6 +526,8 @@ type updateCampaignInput struct {
 }
 
 type createWorldEventInput struct {
+	ExpectedRevision *int `json:"expectedRevision,omitempty"`
+	patch            map[string]json.RawMessage
 	Title            string                     `json:"title"`
 	Date             string                     `json:"date,omitempty"`
 	Summary          string                     `json:"summary"`

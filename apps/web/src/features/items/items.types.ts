@@ -1,25 +1,13 @@
-import type { ItemCatalogSource } from "@shadow-edge/shared-types";
+import type { ItemCatalogSource, CampaignItemCategory } from "@shadow-edge/shared-types";
 
 export type ItemSource = "builtin" | "custom" | ItemCatalogSource;
 
-export type ItemCategory =
-  | "armor"
-  | "weapon"
-  | "potion"
-  | "poison"
-  | "staff"
-  | "ring"
-  | "scroll"
-  | "wand"
-  | "tool"
-  | "gear"
-  | "focus"
-  | "clothing"
-  | "other";
+export type ItemCategory = CampaignItemCategory;
 
 export type ArmorType = "light" | "medium" | "heavy" | "shield" | null;
 
 export type Item = {
+  revision?: number;
   id: string;
   source: ItemSource;
   name: string;

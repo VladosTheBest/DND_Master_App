@@ -1,3 +1,5 @@
+import { DeviceDraftControls } from "../../app/DeviceDraftControls";
+import { useCustomItems } from "../items/custom-items.api";
 import { useDeviceDraft } from "../../app/hooks/useDeviceDraft";
 import { isApiError } from "@shadow-edge/api-client";
 import "./shops.css";
@@ -151,40 +153,6 @@ const builtInItems: Item[] = ((builtInItemsRaw as RawBuiltInItem[]) ?? []).map((
 
 const builtInItemLookup = buildBuiltInItemLookup(builtInItems);
 
-const loadCustomItems = (campaignId: string): Item[] => {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  try {
-    const raw = window.localStorage.getItem(customItemsStorageKey(campaignId));
-    const parsed = raw ? (JSON.parse(raw) as unknown) : [];
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed
-      .map((entry) => {
-        if (!entry || typeof entry !== "object") {
-          return null;
-        }
-        const item = entry as Partial<Item>;
-        if (!item.id || !item.name) {
-          return null;
-        }
-        return {
-          ...item,
-          source: "custom",
-          category: item.category ?? "other",
-          description: item.description ?? "Описание отсутствует.",
-          buyPriceGp: normalizeOptionalNumber(item.buyPriceGp),
-          sellPriceGp: normalizeOptionalNumber(item.sellPriceGp)
-        } as Item;
-      })
-      .filter(Boolean) as Item[];
-  } catch {
-    return [];
-  }
-};
 
 const createId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -384,7 +352,7 @@ export function ShopsPage({
     const next = shopToDraft(shop); baselineDraft.current = JSON.stringify(next);
     setDraft(next); setDraftRevision(revision); setConflictCampaign(null);
   };
-  const [customItems, setCustomItems] = useState<Item[]>(() => loadCustomItems(campaign.id));
+  const {items:customItems,error:customItemsError} = useCustomItems(campaign.id);
   const [itemQuery, setItemQuery] = useState("");
   const [shopQuery, setShopQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<CatalogCategoryFilter>("all");
@@ -417,9 +385,6 @@ export function ShopsPage({
     ensureCatalogItemDetail
   } = useItemsCatalogController({ campaignId: campaign.id });
 
-  useEffect(() => {
-    setCustomItems(loadCustomItems(campaign.id));
-  }, [campaign.id]);
 
   useEffect(() => {
     const selected = campaign.shops.find((shop) => shop.id === selectedShopId) ?? campaign.shops[0] ?? null;
@@ -501,7 +466,7 @@ export function ShopsPage({
   const dirty = JSON.stringify(draft) !== baselineDraft.current;
   const deviceDraft = useDeviceDraft({ ownerId, campaignId: campaign.id, target: `shop:${selectedShopId || "new"}`,
     revision: draftRevision, value: draft, dirty, enabled: true,
-    restore: ({value, baseRevision}) => { if (typeof value.name !== "string" || !Array.isArray(value.inventory)) return; setDraft(value); setDraftRevision(baseRevision); }
+    restore: ({value, baseRevision}) => { if (!value || typeof value.name !== "string" || !Array.isArray(value.inventory)) return false; setDraft(value); setDraftRevision(baseRevision); }
   });
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => { if (dirty) event.preventDefault(); };
@@ -749,11 +714,9 @@ export function ShopsPage({
   };
 
   return (
-    <div className="shops-workspace">
-      <div className="card mini" role="status"><p>{deviceDraft.status || "Сохранено на сервере"}</p>
-        {deviceDraft.candidate && <><button className="ghost" onClick={deviceDraft.recover}>Восстановить черновик магазина</button><button className="ghost" onClick={deviceDraft.discard}>Удалить черновик с устройства</button></>}
-        <button className="ghost" onClick={deviceDraft.download}>Скачать черновик магазина</button>
-      </div>
+    <fieldset disabled={saving || imageBusy} style={{border:0,padding:0,minWidth:0}}><div className="shops-workspace">
+      {customItemsError&&<p role="alert">{customItemsError}</p>}
+      <DeviceDraftControls draft={deviceDraft} label="черновик магазина"/>
       {conflictCampaign && <section className="card mini"><h3>Конфликт версий магазина</h3>
         <p>Проверьте текущий магазин на сервере. Подтверждение подготовит ваш магазин целиком поверх этой версии, включая ассортимент. Сохранение выполняется отдельно.</p>
         <pre style={{whiteSpace:"pre-wrap"}}>{JSON.stringify(conflictCampaign.shops.find(s => s.id === selectedShopId) ?? null, null, 2)}</pre>
@@ -1081,6 +1044,6 @@ export function ShopsPage({
           onClose={() => setSelectedInfoItemId("")}
         />
       ) : null}
-    </div>
+    </div></fieldset>
   );
 }

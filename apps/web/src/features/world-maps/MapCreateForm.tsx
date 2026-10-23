@@ -1,3 +1,7 @@
+import { sessionBrowserStorage } from "../../app/browser-storage";
+import { useDraftOwner } from "../../app/hooks/useDraftOwner";
+import { useDeviceDraft } from "../../app/hooks/useDeviceDraft";
+import { DeviceDraftControls } from "../../app/DeviceDraftControls";
 import {prepareMapImage} from './map-image-upload';
 import { useEffect, useRef, useState } from "react";
 import { ExternalLink, ImagePlus, LoaderCircle, Sparkles, X } from "lucide-react";
@@ -15,15 +19,23 @@ export function MapCreateForm({campaignId, initialPrompt="", onCreated, storageK
 	const [includeCampaign,setIncludeCampaign]=useState(true),[useLocation,setUseLocation]=useState(false),[locationId,setLocationId]=useState("");
 	const [locations,setLocations]=useState<{id:string;title:string}[]>([]),[locationsError,setLocationsError]=useState("");
 	useEffect(()=>{let alive=true;setLocations([]);setLocationId("");setUseLocation(false);setLocationsError("");void api.getCampaign(campaignId).then(c=>{if(alive)setLocations(c.locations);}).catch(()=>{if(alive)setLocationsError("Не удалось загрузить локации. Открой форму заново, чтобы повторить.");});return()=>{alive=false;};},[campaignId]);
-  const [jobId,setJobId]=useState(()=>sessionStorage.getItem(key)||"");
+  const [jobId,setJobId]=useState(()=>sessionBrowserStorage.getItem(key)||"");
   const [busy,setBusy]=useState(false),[stage,setStage]=useState(""),[error,setError]=useState("");
   const [created,setCreated]=useState<WorldMapDocument|null>(null);
   const [retry,setRetry]=useState(0);
   const lock=useRef(false),input=useRef<HTMLInputElement>(null),callback=useRef(onCreated);
   callback.current=onCreated;
   const request=useRef<{signature:string;id:string}|null>(null);
+  const ownerId=useDraftOwner();
+  const snapshot=JSON.stringify({prompt,reference,columns,rows,scale,includeCampaign,useLocation,locationId});
+  const baseline=useRef(snapshot);
+  const deviceDraft=useDeviceDraft({ownerId,campaignId,target:`map-form:${storageKey}:${sourceMap?.id||"new"}`,revision:sourceMap?.revision??0,
+    value:{prompt,reference,columns,rows,scale,includeCampaign,useLocation,locationId,jobId,request:request.current},dirty:snapshot!==baseline.current||Boolean(jobId),enabled:true,
+    restore:({value})=>{if(typeof value.prompt!=="string"||typeof value.reference!=="string")return false;setPrompt(value.prompt);setReference(value.reference);setColumns(Math.max(10,Math.min(100,Number(value.columns)||30)));setRows(Math.max(10,Math.min(100,Number(value.rows)||20)));setScale(["auto","world","region","island","city","site"].includes(value.scale)?value.scale:"auto");setIncludeCampaign(Boolean(value.includeCampaign));setUseLocation(Boolean(value.useLocation));setLocationId(value.locationId||"");if(typeof value.jobId==="string")setJobId(value.jobId);if(value.request&&typeof value.request.id==="string"&&typeof value.request.signature==="string")request.current=value.request;}
+  });
+
   useEffect(()=>prepareAISound(),[]);
-  useEffect(()=>{const id=sessionStorage.getItem(`${key}:result`);if(!id)return;const abort=new AbortController();void worldMapsAPI.list(campaignId,abort.signal).then(maps=>setCreated(maps.find(m=>m.id===id)||null)).catch(()=>{});return()=>abort.abort();},[campaignId,key]);
+  useEffect(()=>{const id=sessionBrowserStorage.getItem(`${key}:result`);if(!id)return;const abort=new AbortController();void worldMapsAPI.list(campaignId,abort.signal).then(maps=>setCreated(maps.find(m=>m.id===id)||null)).catch(()=>{});return()=>abort.abort();},[campaignId,key]);
   useEffect(()=>{setPrompt(initialPrompt);},[initialPrompt]);
   useEffect(()=>{
     if(!jobId)return;
@@ -37,12 +49,12 @@ export function MapCreateForm({campaignId, initialPrompt="", onCreated, storageK
           notifyAICompletion(job.id);
           const result=job.result as {data?:WorldMapDocument};if(!result?.data?.imageUrl)throw new Error("Карта не найдена в результате задачи. Обнови список карт.");
           const finished=await finishGeneratedMap(campaignId,result.data);if(abort.signal.aborted)return;
-          setCreated(finished);sessionStorage.setItem(`${key}:result`,finished.id);callback.current?.(finished);sessionStorage.removeItem(key);setJobId("");setStage("");request.current=null;
+          setCreated(finished);baseline.current=snapshot;deviceDraft.clear();sessionBrowserStorage.setItem(`${key}:result`,finished.id);callback.current?.(finished);sessionBrowserStorage.removeItem(key);setJobId("");setStage("");request.current=null;
         }else if(job.state==="failed"){
           notifyAICompletion(job.id,true);
           const result=job.result as {error?:{message?:string;code?:string}};
           if(result?.error?.code==="subscription_required")window.dispatchEvent(new Event("shadow-edge:subscription-required"));
-          setError(result?.error?.message||job.stage||"Не удалось создать карту.");sessionStorage.removeItem(key);setJobId("");setStage("");
+          setError(result?.error?.message||job.stage||"Не удалось создать карту.");sessionBrowserStorage.removeItem(key);setJobId("");setStage("");
         }else timer=setTimeout(poll,1800);
       }catch(e){if(!abort.signal.aborted){setError((e as Error).message);setStage("");}}
     }
@@ -53,13 +65,13 @@ export function MapCreateForm({campaignId, initialPrompt="", onCreated, storageK
     try{file=await prepareMapImage(file);const result=await api.uploadImage(campaignId,file);setReference(new URL(result.url,location.origin).pathname);}catch(e){setError((e as Error).message);}finally{lock.current=false;setBusy(false);if(input.current)input.current.value="";}
   }
   async function generate(){
-    if(lock.current||jobId)return;lock.current=true;setBusy(true);setError("");setCreated(null);setStage("Запускаю генерацию…");
+    if(lock.current||jobId||deviceDraft.candidate)return;lock.current=true;setBusy(true);setError("");setCreated(null);setStage("Запускаю генерацию…");
     try{
 		const context={includeCampaign,locationId:useLocation?locationId:""};
       const signature=JSON.stringify([prompt.trim(),reference,context,scale,columns,rows,sourceMap?.id,sourceMap?.revision]);if(request.current?.signature!==signature)request.current={signature,id:crypto.randomUUID()};
       const result=await worldMapsAPI.generate(campaignId,{requestId:request.current.id,prompt:prompt.trim(),referenceUrl:reference,context,scale,columns,rows,...(sourceMap?{sourceMapId:sourceMap.id,sourceRevision:sourceMap.revision}:{})});
-      if("imageUrl" in result){const finished=await finishGeneratedMap(campaignId,result);notifyAICompletion(finished.id);setCreated(finished);sessionStorage.setItem(`${key}:result`,finished.id);callback.current?.(finished);setStage("");request.current=null;}
-      else{sessionStorage.setItem(key,result.id);setJobId(result.id);}
+      if("imageUrl" in result){const finished=await finishGeneratedMap(campaignId,result);notifyAICompletion(finished.id);setCreated(finished);baseline.current=snapshot;deviceDraft.clear();sessionBrowserStorage.setItem(`${key}:result`,finished.id);callback.current?.(finished);setStage("");request.current=null;}
+      else{sessionBrowserStorage.setItem(key,result.id);setJobId(result.id);}
     }catch(e){setError((e as Error).message);setStage("");}finally{lock.current=false;setBusy(false);}
   }
   const disabled=busy||Boolean(jobId);
@@ -70,6 +82,7 @@ export function MapCreateForm({campaignId, initialPrompt="", onCreated, storageK
     if(!file)return;
     event.preventDefault();void upload(file);
   }}>
+    <DeviceDraftControls draft={deviceDraft} label="черновик запроса карты"/>
     {!sourceMap&&<label>Уровень детализации<select aria-label="Уровень детализации" value={scale} disabled={disabled} onChange={e=>setScale(e.target.value as typeof scale)}><option value="auto">По описанию</option><option value="world">Мир · страны и крупная география</option><option value="region">Регион · поселения и дороги</option><option value="island">Остров · места и побережья</option><option value="city">Город · районы и достопримечательности</option><option value="site">Место · помещения и проходы</option></select></label>}
     {!sourceMap&&<fieldset className="map-cell-size" disabled={disabled}><legend>Размер карты · 1 клетка = 5 футов</legend><label>Ширина, клеток<input aria-label="Ширина карты, клеток" type="number" min={10} max={100} value={columns} onChange={e=>{setColumns(+e.target.value);onSizeChange?.({columns:+e.target.value,rows});}}/></label><label>Высота, клеток<input aria-label="Высота карты, клеток" type="number" min={10} max={100} value={rows} onChange={e=>{setRows(+e.target.value);onSizeChange?.({columns,rows:+e.target.value});}}/></label><small>{columns*5} × {rows*5} футов. AI учитывает пропорции; точная игровая сетка задаётся при создании сцены.</small></fieldset>}
     <label>{sourceMap?"Что изменить на карте":"Описание карты"}<textarea aria-label={sourceMap?"Что изменить на карте":"Описание карты"} rows={4} maxLength={6000} value={prompt} disabled={disabled} onChange={e=>setPrompt(e.target.value)}/></label>

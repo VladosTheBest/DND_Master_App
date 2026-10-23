@@ -503,7 +503,25 @@ export interface CampaignShop {
   inventory: ShopInventoryItem[];
 }
 
+export type CampaignItemCategory = "armor"|"weapon"|"potion"|"poison"|"staff"|"ring"|"scroll"|"wand"|"tool"|"gear"|"focus"|"clothing"|"other";
+export interface CampaignCustomItem {
+  id:string; revision:number; source:"custom"; name:string; category:CampaignItemCategory; description:string;
+  subcategory?:string; armorType?:"light"|"medium"|"heavy"|"shield"|null; rarity?:string|null;
+  buyPriceGp?:number|null; sellPriceGp?:number|null; weightLb?:number|null; properties?:string[];
+  damage?:string|null; damageType?:string|null; armorClass?:number|null; strengthRequirement?:number|null;
+  stealthDisadvantage?:boolean|null; reference?:string|null;
+}
+export interface CampaignCustomItemsDocument {revision:number;items:CampaignCustomItem[];campaign?:CampaignData}
+export interface CampaignCustomItemsPreview {
+  revision:number;digest:string;additions:CampaignCustomItem[];skipped:number;renamed:Record<string,string>;alreadyImported:boolean;
+  campaignRevision:number;referenceChanges:{shopId:string;entryId:string;name:string;fromId:string;toId:string}[];
+  warnings:string[];referenceChoices:{shopId:string;entryId:string;fromId:string;name:string;options:CampaignCustomItem[]}[];
+}
+
 export interface CampaignData {
+	customItems?: CampaignCustomItem[];
+	customItemsRevision?: number;
+	customItemImports?: Record<string,boolean>;
   readyCampaign?: ReadyCampaignInfo;
   worldMaps?: WorldMapDocument[];
   id: string;
@@ -578,6 +596,7 @@ export interface UpdateCampaignInput {
 }
 
 export interface WorldEventInput {
+  expectedRevision?: number;
   title: string;
   date?: string;
   summary: string;
@@ -1247,6 +1266,7 @@ export interface ApiClient {
   deleteEntity(
     campaignId: string,
     entityId: string,
+    expectedRevision: number,
   ): Promise<DeleteEntityResult>;
   generateEntityDraft(
     campaignId: string,
@@ -1296,6 +1316,7 @@ export interface ApiClient {
   deleteWorldEvent(
     campaignId: string,
     eventId: string,
+    expectedRevision: number,
   ): Promise<DeleteWorldEventResult>;
   generateWorldEvent(
     campaignId: string,

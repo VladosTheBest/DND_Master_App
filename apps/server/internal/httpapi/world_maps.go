@@ -213,11 +213,15 @@ func (srv *server) handleWorldMaps(w http.ResponseWriter, r *http.Request, user 
 		return
 	}
 	var input struct {
-		Revision int             `json:"revision"`
+		Revision *int            `json:"revision"`
 		Title    string          `json:"title"`
 		Labels   []worldMapLabel `json:"labels"`
 	}
 	if !boundedMutationInput(w, r, &input, 128<<10) {
+		return
+	}
+	if input.Revision == nil {
+		writeError(w, 428, "revision_required", "Требуется исходная версия карты.")
 		return
 	}
 	input.Title = strings.TrimSpace(input.Title)
@@ -241,8 +245,8 @@ func (srv *server) handleWorldMaps(w http.ResponseWriter, r *http.Request, user 
 			if m.ID != action {
 				continue
 			}
-			if m.Revision != input.Revision {
-				writeError(w, 409, "map_conflict", "Карта изменена в другом окне. Открой сохранённую версию перед повтором.")
+			if m.Revision != *input.Revision {
+				writeCurrentConflict(w, "map_conflict", "Карта изменена в другом окне. Сравните версии перед сохранением.", *m)
 				return
 			}
 			original, err := cloneStorageState(srv.store.data)

@@ -743,6 +743,14 @@ func (store *campaignStore) updateWorldEvent(campaignID string, eventID string, 
 		if eventIndex < 0 {
 			return worldEventResult{}, fmt.Errorf("event %q not found", eventID)
 		}
+		if input.ExpectedRevision != nil && *input.ExpectedRevision != existing.Revision {
+			return worldEventResult{}, &authoringConflict{Current: existing}
+		}
+		merged, mergeErr := mergeWorldEventUpdate(existing, input)
+		if mergeErr != nil {
+			return worldEventResult{}, mergeErr
+		}
+		input = merged
 		originalState, err := cloneStorageState(store.data)
 		if err != nil {
 			return worldEventResult{}, err
@@ -766,7 +774,7 @@ func (store *campaignStore) updateWorldEvent(campaignID string, eventID string, 
 	return worldEventResult{}, fmt.Errorf("campaign %q not found", campaignID)
 }
 
-func (store *campaignStore) deleteWorldEvent(campaignID string, eventID string) (deleteWorldEventResult, error) {
+func (store *campaignStore) deleteWorldEvent(campaignID string, eventID string, expectedRevision ...int) (deleteWorldEventResult, error) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
@@ -785,6 +793,9 @@ func (store *campaignStore) deleteWorldEvent(campaignID string, eventID string) 
 		}
 		if eventIndex < 0 {
 			return deleteWorldEventResult{}, fmt.Errorf("event %q not found", eventID)
+		}
+		if len(expectedRevision) > 0 && expectedRevision[0] != campaign.Events[eventIndex].Revision {
+			return deleteWorldEventResult{}, &authoringConflict{Current: campaign.Events[eventIndex]}
 		}
 		originalState, err := cloneStorageState(store.data)
 		if err != nil {
@@ -952,7 +963,7 @@ func (store *campaignStore) updateEntity(campaignID string, entityID string, inp
 	return createEntityResult{}, fmt.Errorf("campaign %q not found", campaignID)
 }
 
-func (store *campaignStore) deleteEntity(campaignID string, entityID string) (deleteEntityResult, error) {
+func (store *campaignStore) deleteEntity(campaignID string, entityID string, expectedRevision ...int) (deleteEntityResult, error) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
 
@@ -968,6 +979,9 @@ func (store *campaignStore) deleteEntity(campaignID string, entityID string) (de
 		}
 		if campaign.ReadyCampaign != nil && existing.Kind != "player" {
 			return deleteEntityResult{}, errReadyCampaignReadOnly
+		}
+		if len(expectedRevision) > 0 && expectedRevision[0] != existing.Revision {
+			return deleteEntityResult{}, &authoringConflict{Current: existing}
 		}
 		originalState, err := cloneStorageState(store.data)
 		if err != nil {

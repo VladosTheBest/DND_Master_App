@@ -86,7 +86,7 @@ export function useEntityActionsController({
 
     try {
       setSaving(true);
-      const result = await api.deleteEntity(activeCampaignId, entity.id);
+      const result = await api.deleteEntity(activeCampaignId, entity.id, entity.revision ?? 0);
       onRemovePinnedEntity(result.entityId);
       onHydrateCampaign(result.campaign);
       onOpenEntityModule(result.kind);

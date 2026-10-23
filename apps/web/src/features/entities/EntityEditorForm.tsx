@@ -65,7 +65,7 @@ export function EntityEditorForm({
   } = controller;
 
   return (
-    <div className="form-grid">
+    <fieldset disabled={busy} className="form-grid" style={{border:0,padding:0,minWidth:0}}>
       <label className="field">
         <span>Тип</span>
         <select
@@ -507,6 +507,6 @@ export function EntityEditorForm({
       {["npc", "monster", "quest"].includes(entityForm.kind) ? <details className="editor-disclosure field-full">
         <summary>Награды и добыча</summary><EntityRewardEditor controller={controller} />
       </details> : null}
-    </div>
+    </fieldset>
   );
 }

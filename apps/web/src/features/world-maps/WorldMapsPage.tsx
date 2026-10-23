@@ -1,3 +1,7 @@
+import { isApiError } from "@shadow-edge/api-client";
+import { useDeviceDraft } from "../../app/hooks/useDeviceDraft";
+import { useDraftOwner } from "../../app/hooks/useDraftOwner";
+import { DeviceDraftControls } from "../../app/DeviceDraftControls";
 import { useEffect, useId, useRef, useState } from "react";
 import { ArrowLeft, Bold, Download, Italic, Map, MessageSquare, Plus, Redo2, Save, Sparkles, Trash2, Type, Undo2, Scan, ZoomIn, ZoomOut } from "lucide-react";
 import { TransformWrapper, TransformComponent, type ReactZoomPanPinchRef } from "react-zoom-pan-pinch";
@@ -58,14 +62,21 @@ export function MapEditor({campaignId,original,onSaved,onDirty,onVariant}:{campa
   const svg=useRef<SVGSVGElement>(null),drag=useRef<{id:string;dx:number;dy:number}|null>(null),latest=useRef(doc),lock=useRef(false);
   latest.current=doc;
   const dirty=JSON.stringify(doc)!==JSON.stringify(saved),label=doc.labels.find(l=>l.id===selection);
+  const ownerId=useDraftOwner();
+  const [conflict,setConflict]=useState<WorldMapDocument|null>(null);
+  const deviceDraft=useDeviceDraft({ownerId,campaignId,target:`world-map:${original.id}`,revision:doc.revision,value:{doc,base:saved},dirty,enabled:true,
+    restore:({value})=>{if(value.doc?.id!==original.id||typeof value.doc.title!=="string"||!Array.isArray(value.doc.labels))return false;setDoc({...original,title:value.doc.title,labels:value.doc.labels,revision:value.doc.revision});if(value.base)setSaved(value.base);setPast([]);setFuture([]);}
+  });
+  const prepareMerge=()=>{if(!conflict)return;setDoc({...conflict,title:doc.title!==saved.title?doc.title:conflict.title,labels:JSON.stringify(doc.labels)!==JSON.stringify(saved.labels)?doc.labels:conflict.labels});setSaved(conflict);setConflict(null);setError("");};
+
   useEffect(()=>{onDirty(dirty);},[dirty,onDirty]);
   function change(next:WorldMapDocument){setPast(values=>[...values.slice(-49),latest.current]);setFuture([]);setDoc(next);setNotice("");}
   function patchLabel(patch:Partial<WorldMapLabel>){change({...doc,labels:doc.labels.map(l=>l.id===selection?{...l,...patch}:l)});}
   function arrange(){const result=arrangeMapLabels(doc);change(result.map);setNotice(result.unresolved?`Тесных участков: ${result.unresolved}. Проверь подписи вручную.`:"Подписи упорядочены. Сохрани изменения.");}
   function point(event:React.PointerEvent){const rect=svg.current!.getBoundingClientRect();return{x:(event.clientX-rect.left)/rect.width,y:(event.clientY-rect.top)/rect.height};}
   async function save(){
-    if(lock.current)return;lock.current=true;setBusy(true);setError("");
-    try{const result=await worldMapsAPI.save(campaignId,doc);setDoc(result);setSaved(result);setPast([]);setFuture([]);onSaved(result);setNotice("Карта сохранена");}catch(e){setError((e as Error).message);}finally{lock.current=false;setBusy(false);}
+    if(lock.current||deviceDraft.candidate||conflict)return;lock.current=true;setBusy(true);setError("");
+    try{const result=await worldMapsAPI.save(campaignId,doc);setDoc(result);setSaved(result);setPast([]);setFuture([]);onSaved(result);setNotice("Карта сохранена");deviceDraft.clear();}catch(e){if(isApiError(e)&&e.status===409&&e.current)setConflict(e.current as WorldMapDocument);setError((e as Error).message);}finally{lock.current=false;setBusy(false);}
   }
   async function download(){
     if(lock.current)return;lock.current=true;setBusy(true);setError("");
@@ -74,6 +85,8 @@ export function MapEditor({campaignId,original,onSaved,onDirty,onVariant}:{campa
   const labelPrefix=useId().replace(/:/g,"");
   const h=1000*doc.height/doc.width;
   return <section className="world-map-editor" aria-label="Редактор карты">
+    <DeviceDraftControls draft={deviceDraft} label="черновик карты"/>
+    {conflict&&<section className="card mini"><h3>Конфликт версий карты</h3><p>Фон останется серверным. Изменённые вами название и список подписей заменят соответствующие поля сервера; сравните списки перед подготовкой.</p><details><summary>Серверные подписи</summary><pre style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{JSON.stringify({title:conflict.title,labels:conflict.labels},null,2)}</pre></details><button onClick={prepareMerge}>Подготовить мои правки карты</button></section>}
     <div className="world-map-toolbar"><label>Название<input aria-label="Название карты" maxLength={160} value={doc.title} disabled={busy} onChange={e=>change({...doc,title:e.target.value})}/></label><div className="world-map-tools">
       <button type="button" aria-label="Отменить правку" title="Отменить правку" disabled={!past.length||busy} onClick={()=>{setFuture(v=>[doc,...v]);setDoc({...past[past.length-1],revision:doc.revision});setPast(v=>v.slice(0,-1));}}><Undo2 size={18}/></button>
       <button type="button" aria-label="Повторить правку" title="Повторить правку" disabled={!future.length||busy} onClick={()=>{setPast(v=>[...v,doc]);setDoc({...future[0],revision:doc.revision});setFuture(v=>v.slice(1));}}><Redo2 size={18}/></button>

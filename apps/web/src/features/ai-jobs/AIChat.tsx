@@ -1,3 +1,4 @@
+import { requestJson } from "@shadow-edge/api-client";
 import { useEffect, useRef, useState } from "react";
 import { Send, RefreshCw, MessageSquare, Sparkles, UserRound, MapPin, BookOpen, Plus, Check, ScrollText, Store, CalendarDays, ShieldCheck, Compass, Pencil, Save } from "lucide-react";
 import type { AIJob } from "@shadow-edge/shared-types";
@@ -27,16 +28,9 @@ function excerpt(source: Source) {
 const kindLabels: Record<string,string> = {locations:"Локация",npcs:"НПС",players:"Персонаж",monsters:"Существо",quests:"Квест",lore:"Заметка",events:"Событие",shops:"Магазин"};
 
 async function chatRequest<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || ""}${path}`, {
-    credentials: "include", signal, method: body ? "POST" : "GET",
-    headers: body ? {"Content-Type":"application/json", Prefer:"respond-async"} : {}, body: body ? JSON.stringify(body) : undefined,
+  return requestJson<T>(`${import.meta.env.VITE_API_BASE_URL || ""}${path}`, {
+    signal, method:body===undefined?"GET":"POST",headers:body===undefined?{}:{Prefer:"respond-async"},body:body===undefined?undefined:JSON.stringify(body)
   });
-  const result = await response.json();
-  if (!response.ok) {
-    if (response.status === 402) window.dispatchEvent(new Event("shadow-edge:subscription-required"));
-    throw new Error(result.error?.message || "Не удалось открыть чат.");
-  }
-  return result.data;
 }
 
 function Question({text, time}: {text:string; time:string}) {

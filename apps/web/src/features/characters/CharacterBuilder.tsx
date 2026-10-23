@@ -1,3 +1,5 @@
+import { useDeviceDraft } from "../../app/hooks/useDeviceDraft";
+import { DeviceDraftControls } from "../../app/DeviceDraftControls";
 import { isEquipmentCombatSettings } from "./combat-equipment";
 import { CharacterEquipment } from "./CharacterEquipment";
 import { CharacterPortrait } from "./CharacterPortrait";
@@ -488,6 +490,7 @@ function SpellPicker({
 
 export function CharacterBuilder({
   initialDraft,
+  draftOwner, draftTarget="builder", baseRevision=0, onDraftRevision, extraTools,
   invite,
   storageKey,
   onComplete,
@@ -495,16 +498,21 @@ export function CharacterBuilder({
   submitError,
   onCancel,
 }: {
+  draftOwner?:string;
+  draftTarget?:string;
+  baseRevision?:number;
+  onDraftRevision?:(revision:number)=>void;
+  extraTools?:ReactNode;
   initialDraft?: CharacterDraft;
   invite?: PublicCharacterInvite;
   storageKey: string;
-  onComplete: (draft: CharacterDraft) => void;
+  onComplete: (draft: CharacterDraft) => void|Promise<boolean>;
   busy?: boolean;
   submitError?: string;
   onCancel?: () => void;
 }) {
   const [cached] = useState(() =>
-    initialDraft ? null : loadDraft(storageKey),
+    loadDraft(storageKey),
   );
   const [cachedStep] = useState(() => loadDraftStep(storageKey, cached));
   const [draft, setDraft] = useState<CharacterDraft>(
@@ -520,7 +528,11 @@ export function CharacterBuilder({
     initialDraft ? resumeStep(initialDraft, initialDraft.targetLevel + 4) : 0,
   );
   const [errors, setErrors] = useState<string[]>([]);
-  const [storageNotice, setStorageNotice] = useState("");
+  const originalDraft=useRef(draft);
+  const deviceDraft=useDeviceDraft({ownerId:draftOwner||"",campaignId:"characters",target:draftTarget,revision:Math.max(0,baseRevision),enabled:started,
+    value:{draft,step,baseRevision},dirty:JSON.stringify(draft)!==JSON.stringify(originalDraft.current),
+    restore:({value,baseRevision})=>{if(!isUsableDraft(value.draft))return false;setDraft(value.draft);setStep(resumeStep(value.draft,value.step));setStarted(true);setEditionChosen(true);onDraftRevision?.(value.baseRevision??baseRevision);}
+  });
   const headingRef = useRef<HTMLHeadingElement>(null);
   const currentLevel = step >= 4 ? Math.min(step - 3, draft.targetLevel) : 1;
   const reviewStep = 4 + draft.targetLevel;
@@ -567,20 +579,6 @@ export function CharacterBuilder({
         targetLevel: invite.level,
       }));
   }, [invite]);
-  useEffect(() => {
-    if (!started) return;
-    try {
-      localStorage.setItem(
-        storageKey,
-        JSON.stringify({ version: 1, draft, step }),
-      );
-      setStorageNotice("Черновик сохранён на этом устройстве");
-    } catch {
-      setStorageNotice(
-        "Автосохранение недоступно в этом браузере. Сохраните готовый лист в файл.",
-      );
-    }
-  }, [draft, step, started, storageKey]);
   useEffect(() => {
     if (!started) return;
     headingRef.current?.focus({ preventScroll: true });
@@ -662,7 +660,7 @@ export function CharacterBuilder({
       };
     });
   }
-  function advance() {
+  async function advance() {
     const issues = validateDraft(draft, {
       throughLevel: currentLevel,
       requireComplete: step === reviewStep,
@@ -683,7 +681,8 @@ export function CharacterBuilder({
       return;
     }
     if (step === reviewStep) {
-      onComplete(draft);
+      if(deviceDraft.candidate){setErrors(["Сначала восстановите или удалите найденный черновик."]);return;}
+      if(await onComplete(draft)===true)deviceDraft.clear();
       return;
     }
     const next = step + 1;
@@ -1869,6 +1868,9 @@ export function CharacterBuilder({
             </ul>
           </div>
         )}
+        <DeviceDraftControls draft={deviceDraft} label="черновик персонажа"/>
+        {extraTools}
+        {cached&&initialDraft&&<div className="card mini"><p>Найдена прежняя локальная копия. Сохранение потребует сравнения версии на сервере.</p><button className="ch-button" onClick={()=>{setDraft(cached);setStep(resumeStep(cached,cachedStep));onDraftRevision?.(-1);}}>Открыть прежний черновик персонажа</button></div>}
         <footer className="ch-builder-footer">
           <button
             className="ch-button"
@@ -1885,7 +1887,7 @@ export function CharacterBuilder({
             ← {step === 0 ? "К началу" : "Назад"}
           </button>
           <span role="status" className="ch-save-status">
-            {storageNotice}
+            {deviceDraft.status}
           </span>
           <button
             className="ch-button ch-primary"

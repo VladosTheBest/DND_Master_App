@@ -91,6 +91,7 @@ type publicCharacterInvite struct {
 	Level        int    `json:"level"`
 }
 type characterSheet struct {
+	Revision     int            `json:"revision"`
 	ID           string         `json:"id"`
 	PlayerID     string         `json:"playerId"`
 	CampaignName string         `json:"campaignName"`
@@ -290,13 +291,23 @@ func (m *characterManager) handlePublicSheet(w http.ResponseWriter, r *http.Requ
 			characterHTTPError(w, err)
 			return
 		}
-		var draft characterDraft
-		if err := readCharacterJSON(w, r, &draft); err != nil {
+		var input struct {
+			Draft            characterDraft `json:"draft"`
+			ExpectedRevision *int           `json:"expectedRevision"`
+		}
+		if err := readCharacterJSON(w, r, &input); err != nil {
 			writeError(w, 400, "bad_request", err.Error())
 			return
 		}
-		sheet, err := m.store.updateCharacterSheet(token, draft)
+		if input.ExpectedRevision == nil {
+			writeError(w, 428, "revision_required", "Требуется исходная версия листа. Обновите страницу.")
+			return
+		}
+		sheet, err := m.store.updateCharacterSheet(token, input.Draft, *input.ExpectedRevision)
 		if err != nil {
+			if writeAuthoringError(w, err) {
+				return
+			}
 			characterHTTPError(w, err)
 			return
 		}
@@ -326,7 +337,14 @@ func (m *characterManager) handleOwnerSheets(w http.ResponseWriter, r *http.Requ
 		}
 		characterHTTPError(w, errCharacterNotFound)
 	case r.Method == http.MethodDelete && sheetID != "":
-		if err := m.store.deleteCharacterSheet(ownerID, campaignID, sheetID); err != nil {
+		revision, ok := requireRevisionQuery(w, r)
+		if !ok {
+			return
+		}
+		if err := m.store.deleteCharacterSheet(ownerID, campaignID, sheetID, revision); err != nil {
+			if writeAuthoringError(w, err) {
+				return
+			}
 			characterHTTPError(w, err)
 			return
 		}
@@ -480,7 +498,7 @@ func (s *campaignStore) createCharacterSheet(token string, draft characterDraft)
 		return createdCharacterSheet{}, err
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	sheet := characterSheet{ID: newID("sheet"), PlayerID: newID("player"), CampaignName: s.data.Campaigns[index].Title, Draft: draft, Stats: stats, CreatedAt: now, UpdatedAt: now}
+	sheet := characterSheet{Revision: 1, ID: newID("sheet"), PlayerID: newID("player"), CampaignName: s.data.Campaigns[index].Title, Draft: draft, Stats: stats, CreatedAt: now, UpdatedAt: now}
 	original, err := cloneStorageState(s.data)
 	if err != nil {
 		return createdCharacterSheet{}, err
@@ -515,7 +533,7 @@ func (s *campaignStore) characterSheetByToken(token string) (characterSheet, err
 	sheet.CampaignName = s.data.Campaigns[s.characterCampaignIndexLocked(s.data.CharacterSheets[index].CampaignID)].Title
 	return sheet, nil
 }
-func (s *campaignStore) updateCharacterSheet(token string, draft characterDraft) (characterSheet, error) {
+func (s *campaignStore) updateCharacterSheet(token string, draft characterDraft, expectedRevision ...int) (characterSheet, error) {
 	stats, err := validateAndDeriveCharacter(draft)
 	if err != nil {
 		return characterSheet{}, fmt.Errorf("%w: %v", errCharacterInvalid, err)
@@ -527,6 +545,9 @@ func (s *campaignStore) updateCharacterSheet(token string, draft characterDraft)
 		return characterSheet{}, errCharacterNotFound
 	}
 	previous := s.data.CharacterSheets[index]
+	if len(expectedRevision) > 0 && expectedRevision[0] != previous.Sheet.Revision {
+		return characterSheet{}, &authoringConflict{Current: previous.Sheet}
+	}
 	if draft.Edition != previous.Sheet.Draft.Edition || draft.TargetLevel != previous.Sheet.Draft.TargetLevel {
 		return characterSheet{}, fmt.Errorf("%w: редакция и уровень сохранённого персонажа не меняются", errCharacterInvalid)
 	}
@@ -546,6 +567,7 @@ func (s *campaignStore) updateCharacterSheet(token string, draft characterDraft)
 		return characterSheet{}, err
 	}
 	sheet := previous.Sheet
+	sheet.Revision++
 	sheet.Draft = draft
 	sheet.Stats = stats
 	sheet.UpdatedAt = time.Now().UTC().Format(time.RFC3339Nano)
@@ -599,7 +621,7 @@ func (s *campaignStore) listCharacterSheets(ownerID, campaignID string) ([]chara
 	}
 	return result, nil
 }
-func (s *campaignStore) deleteCharacterSheet(ownerID, campaignID, sheetID string) error {
+func (s *campaignStore) deleteCharacterSheet(ownerID, campaignID, sheetID string, expectedRevision ...int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	campaignIndex := s.ownedCharacterCampaignLocked(ownerID, campaignID)
@@ -608,6 +630,9 @@ func (s *campaignStore) deleteCharacterSheet(ownerID, campaignID, sheetID string
 	}
 	for i, record := range s.data.CharacterSheets {
 		if record.CampaignID == campaignID && record.Sheet.ID == sheetID {
+			if len(expectedRevision) > 0 && expectedRevision[0] != record.Sheet.Revision {
+				return &authoringConflict{Current: record.Sheet}
+			}
 			original, err := cloneStorageState(s.data)
 			if err != nil {
 				return err

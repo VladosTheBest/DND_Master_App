@@ -121,7 +121,7 @@ export function useEntityEditorController({
     dirty: entityModalOpen && hasUnsavedEntityChanges(),
     value: { entityForm, baseForm: baseForm.current, draftPrompt, generatedQuestIssuerDraft, generatedQuestIssuerNote, draftNotes },
     restore: ({ value }) => {
-      if (!value.entityForm || value.entityForm.kind !== entityForm.kind) { setBootError("Черновик повреждён или относится к другому типу записи."); return; }
+      if (!value?.entityForm || value.entityForm.kind !== entityForm.kind) { setBootError("Черновик повреждён или относится к другому типу записи."); return false; }
       baseForm.current = value.baseForm || value.entityForm;
       setEntityForm(value.entityForm); setDraftPrompt(value.draftPrompt || "");
       setGeneratedQuestIssuerDraft(value.generatedQuestIssuerDraft ?? null);
@@ -669,7 +669,7 @@ export function useEntityEditorController({
 
     try {
       setSaving(true);
-      const result = await api.deleteEntity(activeCampaignId, editingEntityId);
+      const result = await api.deleteEntity(activeCampaignId, editingEntityId, entityForm.expectedRevision ?? 0);
       onEntityDeleted(result);
       closeEntityModal();
     } catch (error) {

@@ -1,3 +1,4 @@
+import { requestJson } from "@shadow-edge/api-client";
 import { useRef, useState } from "react";
 import { deriveCharacter, type CharacterDraft } from "./rules";
 
@@ -66,21 +67,8 @@ export function CharacterPortrait({
     ]
       .filter(Boolean)
       .join("\n");
-    const response = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL || ""}/api/characters/portrait`,
-      {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ description: context }),
-      },
-    );
-    const result = await response.json();
-    if (!response.ok)
-      throw new Error(
-        result?.error?.message || "Не удалось сгенерировать портрет.",
-      );
-    return normalizePortrait(await (await fetch(result.data.image)).blob());
+    const result=await requestJson<{image:string}>(`${import.meta.env.VITE_API_BASE_URL || ""}/api/characters/portrait`,{method:"POST",body:JSON.stringify({description:context})});
+    return normalizePortrait(await (await fetch(result.image)).blob());
   }
   return (
     <section

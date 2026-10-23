@@ -46,6 +46,34 @@ func TestAuthoringHTTPRejectsStaleWritesAndPatchPreservesFields(t *testing.T) {
 	if current.Title != "Changed" || current.Content != "Keep content" {
 		t.Fatalf("conflict missing current data: %#v", current)
 	}
+	staleDelete := accountTestRequest(t, handler, "DELETE", path+fmt.Sprintf("?expectedRevision=%d", first.Entity.Revision), "", cookies)
+	if staleDelete.Code != 409 {
+		t.Fatalf("stale deletion accepted: %d", staleDelete.Code)
+	}
+	eventCreate := accountTestRequest(t, handler, "POST", root+"/events", `{"title":"Scene","type":"social","sceneText":"Keep scene","tags":["keep"]}`, cookies)
+	if eventCreate.Code != 201 {
+		t.Fatal(eventCreate.Code, eventCreate.Body.String())
+	}
+	event := decodeAccountTestData[worldEventResult](t, eventCreate)
+	eventPath := root + "/events/" + event.Event.ID
+	eventPatch := accountTestRequest(t, handler, "PATCH", eventPath, fmt.Sprintf(`{"title":"New scene title","expectedRevision":%d}`, event.Event.Revision), cookies)
+	if eventPatch.Code != 200 {
+		t.Fatal(eventPatch.Code, eventPatch.Body.String())
+	}
+	eventSaved := decodeAccountTestData[worldEventResult](t, eventPatch)
+	if eventSaved.Event.SceneText != "Keep scene" || len(eventSaved.Event.Tags) != 1 {
+		t.Fatal("event PATCH erased omitted fields")
+	}
+	eventStale := accountTestRequest(t, handler, "PATCH", eventPath, fmt.Sprintf(`{"summary":"Stale","expectedRevision":%d}`, event.Event.Revision), cookies)
+	if eventStale.Code != 409 {
+		t.Fatal("stale event update accepted")
+	}
+	eventDelete := accountTestRequest(t, handler, "DELETE", eventPath+fmt.Sprintf("?expectedRevision=%d", event.Event.Revision), "", cookies)
+	if eventDelete.Code != 409 {
+		t.Fatal("stale event deletion accepted")
+	}
+	// Continue the collection test from the latest campaign revision.
+	saved.Campaign = eventSaved.Campaign
 	// A campaign-level full collection cannot overwrite a newer shop list either.
 	body = fmt.Sprintf(`{"expectedRevision":%d,"shops":[{"id":"shop-one","name":"First","inventory":[]}]}`, saved.Campaign.Revision)
 	shops := accountTestRequest(t, handler, "PUT", root, body, cookies)

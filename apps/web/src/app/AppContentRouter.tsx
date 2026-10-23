@@ -134,7 +134,7 @@ export function AppContentRouter({
   }
 
   if (activeRailAlias === "items") {
-    return <ItemsPage campaignId={campaign.id} />;
+    return <ItemsPage onCampaignChanged={hydrateCampaign} key={campaign.id} ownerId={ownerId} campaignId={campaign.id} />;
   }
 
   if (activeRailAlias === "shops") {
@@ -144,6 +144,7 @@ export function AppContentRouter({
   if (activeRailAlias === "events") {
     return (
       <EventsPageContainer
+        ownerId={ownerId}
         key={campaign.id}
         activeCampaignId={campaign.id}
         campaign={campaign}

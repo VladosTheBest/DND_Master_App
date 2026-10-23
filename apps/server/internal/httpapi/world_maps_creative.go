@@ -219,7 +219,7 @@ func (srv *server) saveCreativeMap(w http.ResponseWriter, r *http.Request, user 
 			if m.ID == input.ID {
 				index = i
 				if m.Provider != "creative" || m.Revision != input.Revision {
-					writeError(w, 409, "map_conflict", "Карта изменена. Открой сохранённую версию.")
+					writeCurrentConflict(w, "map_conflict", "Карта изменилась в другом окне. Черновик не записан; сравните проекты.", m)
 					return
 				}
 			}

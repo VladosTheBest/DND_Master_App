@@ -1,3 +1,4 @@
+import { requestJson, isApiError } from "@shadow-edge/api-client";
 import { useEffect, useState } from "react";
 import { ArrowLeft, ChevronLeft, ChevronRight, RefreshCw, Search, ShieldCheck, LogOut } from "lucide-react";
 import googleIcon from "../assets/oauth/google-g.png";
@@ -10,12 +11,10 @@ type Audit = { id: string; accountId: string; actorId: string; action: string; r
 type Data = { users: User[]; total: number; plans: { id: string; name: string; monthlyCents: number }[]; audits: Audit[] };
 class AccessError extends Error {}
 async function request<T>(url: string, body?: unknown): Promise<T> {
-  const r = await fetch(url, { credentials: "include", method: body === undefined ? "GET" : "POST", headers: body === undefined ? {} : { "Content-Type": "application/json" }, body: body === undefined ? undefined : JSON.stringify(body) });
-  if (r.status === 401 || r.status === 403) throw new AccessError("Войди через Google владельца кабинета.");
-  const value = await r.json();
-  if (!r.ok) throw new Error(value.error?.message || "Не удалось выполнить запрос.");
-  return value.data as T;
+  try{return await requestJson<T>(url,{method:body===undefined?"GET":"POST",body:body===undefined?undefined:JSON.stringify(body)});}
+  catch(error){if(isApiError(error)&&(error.status===401||error.status===403))throw new AccessError("Войди через Google владельца кабинета.");throw error;}
 }
+
 const date = (value: string) => new Date(value).toLocaleString("ru-RU");
 
 export function AdminSubscriptions() {

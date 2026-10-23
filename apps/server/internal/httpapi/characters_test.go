@@ -3,6 +3,7 @@ package httpapi
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http/httptest"
 	"os"
 	"reflect"
@@ -375,9 +376,17 @@ func TestPublicCharacterSheetSubmissionPrivacyEditingAndDeletion(t *testing.T) {
 	}
 	draft.Name = "Обновлённый герой"
 	draft.Personality.Ideals = "Свобода"
-	update := accountTestRequest(t, handler, "PUT", publicPath, characterTestJSON(t, draft), nil)
+	missingVersion := accountTestRequest(t, handler, "PUT", publicPath, characterTestJSON(t, map[string]any{"draft": draft}), nil)
+	if missingVersion.Code != 428 {
+		t.Fatal("unversioned sheet update accepted", missingVersion.Code)
+	}
+	update := accountTestRequest(t, handler, "PUT", publicPath, characterTestJSON(t, map[string]any{"draft": draft, "expectedRevision": readSheet.Revision}), nil)
 	if update.Code != 200 {
 		t.Fatalf("edit own sheet: %s", update.Body.String())
+	}
+	staleSheet := accountTestRequest(t, handler, "PUT", publicPath, characterTestJSON(t, map[string]any{"draft": draft, "expectedRevision": readSheet.Revision}), nil)
+	if staleSheet.Code != 409 {
+		t.Fatal("stale sheet update accepted", staleSheet.Code, staleSheet.Body.String())
 	}
 	readSheet = decodeAccountTestData[characterSheet](t, accountTestRequest(t, handler, "GET", publicPath, "", nil))
 	if !reflect.DeepEqual(readSheet.Draft.Personality, draft.Personality) {
@@ -394,7 +403,7 @@ func TestPublicCharacterSheetSubmissionPrivacyEditingAndDeletion(t *testing.T) {
 	if response := accountTestRequest(t, handler, "DELETE", ownerPath+"/character-sheets/"+created.ID, "", outsider); response.Code != 404 {
 		t.Fatal("other account can delete sheet")
 	}
-	if response := accountTestRequest(t, handler, "DELETE", ownerPath+"/character-sheets/"+created.ID, "", owner); response.Code != 200 {
+	if response := accountTestRequest(t, handler, "DELETE", ownerPath+"/character-sheets/"+created.ID+"?expectedRevision="+fmt.Sprint(readSheet.Revision), "", owner); response.Code != 200 {
 		t.Fatal("owner could not delete sheet")
 	}
 	if response := accountTestRequest(t, handler, "GET", publicPath, "", nil); response.Code != 404 {

@@ -1,3 +1,4 @@
+import { requestJson } from "@shadow-edge/api-client";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, CreditCard, Database, Mic, Sparkles, X } from "lucide-react";
@@ -40,9 +41,8 @@ export function SubscriptionDialog() {
     ref.current?.showModal();
     const controller = new AbortController();
     setInfo(null); setError("");
-    fetch(`${import.meta.env.VITE_API_BASE_URL || ""}/api/auth/subscription`, { credentials: "include", signal: controller.signal })
-      .then(async response => { if (!response.ok) throw new Error(); return response.json(); })
-      .then(result => { if (!controller.signal.aborted) setInfo(result.data); })
+    requestJson<SubscriptionInfo>(`${import.meta.env.VITE_API_BASE_URL || ""}/api/auth/subscription`, {signal:controller.signal})
+      .then(result => { if (!controller.signal.aborted) setInfo(result); })
       .catch(() => { if (!controller.signal.aborted) setError("Не удалось загрузить тарифы."); });
     return () => controller.abort();
   }, [open, attempt]);

@@ -1,3 +1,4 @@
+import { isApiError } from "@shadow-edge/api-client";
 import { useEffect, useRef, useState } from "react";
 import { CharacterBuilder, DiceMark, isUsableDraft } from "./CharacterBuilder";
 import { CharacterSheet } from "./CharacterSheet";
@@ -41,6 +42,10 @@ export default function CharacterPublicApp({ hash }: { hash: string }) {
     (mode !== "new" && !token) ||
     (mode === "new" && !!token);
   const storageKey = `shadow-edge-character-v1:${mode === "join" ? token : mode === "sheet" ? `sheet-${token}` : "standalone"}`;
+  const [draftOwner,setDraftOwner]=useState("");
+  const [characterRevision,setCharacterRevision]=useState(0);
+  const [conflict,setConflict]=useState<SavedCharacter|null>(null);
+  useEffect(()=>{let active=true;void crypto.subtle.digest("SHA-256",new TextEncoder().encode(token||"standalone")).then(bytes=>{if(active)setDraftOwner(`public-character:${Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,"0")).join("")}`);});return()=>{active=false;};},[token]);
   const [invite, setInvite] = useState<PublicCharacterInvite>();
   const [saved, setSaved] = useState<SavedCharacter | null>(null);
   const [localSheet, setLocalSheet] = useState<CharacterDraft | null>(null);
@@ -108,7 +113,7 @@ export default function CharacterPublicApp({ hash }: { hash: string }) {
             throw new Error(
               "Лист персонажа имеет неподдерживаемый формат. Обратитесь к мастеру кампании.",
             );
-          setSaved(result);
+          setSaved(result);setCharacterRevision(result.revision??0);
         }
       })
       .catch((err: Error) => {
@@ -120,8 +125,8 @@ export default function CharacterPublicApp({ hash }: { hash: string }) {
     return cleanup;
   }, [mode, token, invalidRoute, loadAttempt]);
 
-  async function complete(draft: CharacterDraft) {
-    if (savingRef.current || (mode === "join" && saved)) return;
+  async function complete(draft: CharacterDraft):Promise<boolean> {
+    if (savingRef.current || (mode === "join" && saved)) return false;
     savingRef.current = true;
     setBusy(true);
     setError("");
@@ -133,7 +138,7 @@ export default function CharacterPublicApp({ hash }: { hash: string }) {
           setNotice(
             "Персонаж сохранён в кампании, но сервер не вернул личную ссылку. Скачайте лист и обратитесь к мастеру за ссылкой для редактирования.",
           );
-          return;
+          return true;
         }
         try {
           localStorage.removeItem(storageKey);
@@ -142,17 +147,20 @@ export default function CharacterPublicApp({ hash }: { hash: string }) {
         }
         window.location.replace(characterURL(`sheet/${result.editToken}`));
       } else if (mode === "sheet") {
-        const result = await characterApi.update(token, draft);
-        setSaved(result);
+        const result = await characterApi.update(token, draft, characterRevision);
+        setSaved(result);setCharacterRevision(result.revision??0);setConflict(null);
         setEditing(false);
         setNotice("Изменения сохранены. Мастер увидит обновлённый лист.");
       } else {
         setLocalSheet(draft);
+        if(!saveLocal(draft))return false;
         setEditing(false);
-        saveLocal(draft);
       }
+      return true;
     } catch (err) {
+      if(isApiError(err)&&err.status===409&&err.current)setConflict(err.current as SavedCharacter);
       setError((err as Error).message);
+      return false;
     } finally {
       savingRef.current = false;
       setBusy(false);
@@ -172,10 +180,12 @@ export default function CharacterPublicApp({ hash }: { hash: string }) {
       setNotice(
         "Персонаж сохранён в этом браузере. PDF и экспорт доступны при повторном открытии. Скачайте JSON для резервной копии.",
       );
+      return true;
     } catch {
       setNotice(
         "Не удалось сохранить персонажа в браузере: хранилище недоступно или заполнено. Скачайте JSON, чтобы не потерять персонажа.",
       );
+      return false;
     }
   }
   async function openCharacterFile(file: File) {
@@ -406,7 +416,9 @@ export default function CharacterPublicApp({ hash }: { hash: string }) {
           initialDraft={editing && sheet ? sheet : undefined}
           invite={invite}
           storageKey={storageKey}
-          onComplete={(draft) => void complete(draft)}
+          draftOwner={draftOwner} draftTarget={mode==="sheet"?saved?.id||"sheet":mode==="join"?"join":localId||"new"} baseRevision={characterRevision} onDraftRevision={setCharacterRevision}
+          extraTools={conflict?<section className="card mini"><h3>Конфликт листа персонажа</h3><p>На сервере другая версия. Сравните её со своим листом. Подтверждение выберет ваш лист целиком; отправка потребует отдельного сохранения.</p><details><summary>Серверный лист</summary><pre style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{JSON.stringify(conflict.draft,null,2)}</pre></details><button className="ch-button" onClick={()=>{setCharacterRevision(conflict.revision??0);setConflict(null);setError("");}}>Подготовить мой лист поверх этой версии</button></section>:null}
+          onComplete={complete}
           busy={busy}
           submitError={error}
           onCancel={editing ? () => setEditing(false) : undefined}

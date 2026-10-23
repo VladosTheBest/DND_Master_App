@@ -1,3 +1,4 @@
+import { DeviceDraftControls } from "../../app/DeviceDraftControls";
 import type { CampaignData } from "@shadow-edge/shared-types";
 import { DndGenerationProgress } from "../../auth-ui";
 import type { EntityTextField } from "./entity.types";
@@ -57,15 +58,7 @@ export function EntityEditorModal({
           </button>
         </div>
 
-        <div role="status" className="card mini">
-          <p>{controller.deviceDraft.status || (isEditingEntity ? "Сохранено на сервере" : "Новая запись · ещё не сохранена")}</p>
-          {controller.deviceDraft.candidate && <>
-            <p>Черновик от {new Date(controller.deviceDraft.candidate.savedAt).toLocaleString()}. Версия {controller.deviceDraft.candidate.baseRevision}.</p>
-            <button className="ghost" type="button" onClick={controller.deviceDraft.recover}>Восстановить черновик</button>
-            <button className="ghost" type="button" onClick={controller.deviceDraft.discard}>Удалить черновик с устройства</button>
-          </>}
-          <button className="ghost" type="button" onClick={controller.deviceDraft.download}>Скачать черновик</button>
-        </div>
+        <DeviceDraftControls draft={controller.deviceDraft}/>
         {controller.conflict && <section className="card mini" aria-label="Сравнение версий">
           <h3>Конфликт: запись изменилась на сервере</h3>
           <p>Сравните версии. Подготовка объединения сохранит остальные серверные поля; изменённые вами поля (включая списки целиком) возьмём из черновика. Сохранение выполняется отдельной кнопкой.</p>

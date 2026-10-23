@@ -243,7 +243,7 @@ export function EventsWorkspace({
               <span>Название</span>
               <input
                 className="input notes-title-input"
-                disabled={readOnly}
+                disabled={readOnly || saving || generating}
                 onChange={(event) => onDraftChange((current) => ({ ...current, title: event.target.value }))}
                 placeholder="Например: Торговец-сквернослов"
                 value={draft.title}
@@ -254,7 +254,7 @@ export function EventsWorkspace({
               <span>Дата в мире</span>
               <input
                 className="input"
-                disabled={readOnly}
+                disabled={readOnly || saving || generating}
                 onChange={(event) => onDraftChange((current) => ({ ...current, date: event.target.value }))}
                 placeholder="17 Nightal, 1492 DR"
                 value={draft.date ?? ""}
@@ -265,7 +265,7 @@ export function EventsWorkspace({
               <span>Локация</span>
               <select
                 className="input"
-                disabled={readOnly}
+                disabled={readOnly || saving || generating}
                 onChange={(event) =>
                   onDraftChange((current) => ({
                     ...current,
@@ -288,7 +288,7 @@ export function EventsWorkspace({
               <span>Тип</span>
               <select
                 className="input"
-                disabled={readOnly}
+                disabled={readOnly || saving || generating}
                 onChange={(event) => onDraftChange((current) => ({ ...current, type: event.target.value as WorldEventType }))}
                 value={draft.type}
               >
@@ -304,7 +304,7 @@ export function EventsWorkspace({
               <span>Коротко о сцене</span>
               <textarea
                 className="input textarea"
-                disabled={readOnly}
+                disabled={readOnly || saving || generating}
                 onChange={(event) => onDraftChange((current) => ({ ...current, summary: event.target.value }))}
                 placeholder="Один короткий абзац: что это за сценка и почему партии не всё равно."
                 value={draft.summary}
@@ -316,7 +316,7 @@ export function EventsWorkspace({
             <span>{draft.tags?.includes("gm-event") ? "Памятка мастеру (скрытые детали)" : "Текст сцены"}</span>
             <textarea
               className="input textarea notes-editor-textarea event-scene-textarea"
-              disabled={readOnly}
+              disabled={readOnly || saving || generating}
               onChange={(event) => onDraftChange((current) => ({ ...current, sceneText: event.target.value }))}
               placeholder="Что происходит прямо сейчас, кто начинает сцену, чем она цепляет игроков и куда может качнуться."
               value={draft.sceneText}
@@ -334,7 +334,7 @@ export function EventsWorkspace({
                 <div key={`loot-${index}`} className="event-loot-row">
                   <input
                     className="input"
-                    disabled={readOnly}
+                    disabled={readOnly || saving || generating}
                     onChange={(event) => onLootChange(index, event.target.value)}
                     placeholder={index === 0 ? "15 зм" : "Предмет, пропуск или полезный слух"}
                     value={item}
@@ -381,7 +381,7 @@ export function EventsWorkspace({
                     <span>Заголовок</span>
                     <input
                       className="input"
-                      disabled={readOnly}
+                      disabled={readOnly || saving || generating}
                       onChange={(event) => onBranchChange(index, (current) => ({ ...current, title: event.target.value }))}
                       placeholder="Если ответить шуткой"
                       value={branch.title}
@@ -392,7 +392,7 @@ export function EventsWorkspace({
                     <span>Чем кончается</span>
                     <input
                       className="input"
-                      disabled={readOnly}
+                      disabled={readOnly || saving || generating}
                       onChange={(event) => onBranchChange(index, (current) => ({ ...current, outcome: event.target.value }))}
                       placeholder="Торговец смягчается и сдаёт слух"
                       value={branch.outcome ?? ""}
@@ -403,7 +403,7 @@ export function EventsWorkspace({
                     <span>Реплики и ходы</span>
                     <textarea
                       className="input textarea"
-                      disabled={readOnly}
+                      disabled={readOnly || saving || generating}
                       onChange={(event) =>
                         onBranchChange(index, (current) => ({
                           ...current,
@@ -506,7 +506,7 @@ export function NotesWorkspace({
         </div>
 
         <div className="actions">
-          <button className="ghost" onClick={onCreateNote} type="button">
+          <button className="ghost" disabled={saving} onClick={onCreateNote} type="button">
             Новая заметка
           </button>
           {onEditWithAI && selectedNote ? (
@@ -559,7 +559,7 @@ export function NotesWorkspace({
                   <button
                     aria-pressed={!editingNewNote && selectedNoteId === note.id}
                     className="notes-list-item-copy"
-                    onClick={() => onSelectNote(note.id)}
+                    disabled={saving} onClick={() => onSelectNote(note.id)}
                     type="button"
                   >
                     <strong>{note.title}</strong>
@@ -603,6 +603,7 @@ export function NotesWorkspace({
           <label className="field field-full">
             <span>Название</span>
             <input
+              disabled={saving}
               className="input notes-title-input"
               onChange={(event) => onTitleChange(event.target.value)}
               placeholder="Например: Засада у тракта"
@@ -613,6 +614,7 @@ export function NotesWorkspace({
           <label className="field field-full notes-editor-field">
             <span>Текст заметки</span>
             <textarea
+              disabled={saving}
               className="input textarea notes-editor-textarea"
               aria-label="Текст заметки"
               onContextMenu={onContentContextMenu}

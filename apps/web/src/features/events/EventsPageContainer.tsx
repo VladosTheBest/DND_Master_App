@@ -1,3 +1,6 @@
+import { isApiError } from "@shadow-edge/api-client";
+import { useDeviceDraft } from "../../app/hooks/useDeviceDraft";
+import { DeviceDraftControls } from "../../app/DeviceDraftControls";
 import { useEffect, useState } from "react";
 import type {
   CampaignData,
@@ -11,6 +14,7 @@ import { EventsWorkspace } from "../../notes-events";
 import { api } from "../../app/api";
 
 export function EventsPageContainer({
+  ownerId,
   activeCampaignId,
   campaign,
   createEmptyWorldEventDialogueBranch,
@@ -24,6 +28,7 @@ export function EventsPageContainer({
   serializeWorldEventInput,
   worldEventToForm
 }: {
+  ownerId: string;
   activeCampaignId: string;
   campaign: CampaignData;
   createEmptyWorldEventDialogueBranch: () => WorldEventDialogueBranch;
@@ -37,35 +42,26 @@ export function EventsPageContainer({
   serializeWorldEventInput: (input: WorldEventInput) => WorldEventInput;
   worldEventToForm: (event: WorldEvent) => WorldEventInput;
 }) {
-  const draftStorageKey = `event-draft:${activeCampaignId}`;
-  const [restored] = useState<{ id: string; draft: WorldEventInput } | null>(() => {
-    try {
-      const value = JSON.parse(sessionStorage.getItem(draftStorageKey) || "null");
-      return value?.id && typeof value.draft?.summary === "string" && typeof value.draft?.sceneText === "string" && typeof value.draft?.title === "string" && (value.id === NEW_WORLD_EVENT_ID || campaign.events.some((event) => event.id === value.id)) ? value : null;
-    } catch { return null; }
-  });
+  const [legacyDraft]=useState<{id:string;draft:WorldEventInput}|null>(()=>{try{const raw=JSON.parse(sessionStorage.getItem(`event-draft:${activeCampaignId}`)||"null");return raw?.id&&typeof raw.draft?.sceneText==="string"?raw:null;}catch{return null;}});
   const [searchQuery, setSearchQuery] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [eventEditorId, setEventEditorId] = useState(restored?.id || "");
-  const [eventEditorDraft, setEventEditorDraft] = useState<WorldEventInput>(() => restored?.draft || emptyWorldEventInput());
-  const [eventEditorDirty, setEventEditorDirty] = useState(Boolean(restored));
-  const [eventEditorNotice, setEventEditorNotice] = useState(restored ? "Несохранённый черновик восстановлен. Проверь и сохрани изменения." : "");
+  const [eventEditorId, setEventEditorId] = useState("");
+  const [eventEditorDraft, setEventEditorDraft] = useState<WorldEventInput>(emptyWorldEventInput);
+  const [eventEditorDirty, setEventEditorDirty] = useState(false);
+  const [eventEditorNotice, setEventEditorNotice] = useState("");
 
-  useEffect(() => {
-    try {
-      if (eventEditorDirty) sessionStorage.setItem(draftStorageKey, JSON.stringify({ id: eventEditorId, draft: eventEditorDraft }));
-      else sessionStorage.removeItem(draftStorageKey);
-    } catch { /* Storage may be disabled; editing must still work. */ }
-  }, [draftStorageKey, eventEditorDirty, eventEditorDraft, eventEditorId]);
-
-  useEffect(() => {
-    if (!eventEditorDirty) return;
-    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [eventEditorDirty]);
-
+  const [eventBase,setEventBase]=useState<WorldEventInput>(emptyWorldEventInput);
+  const [conflict,setConflict]=useState<WorldEvent|null>(null);
+  const deviceDraft=useDeviceDraft({ownerId,campaignId:activeCampaignId,target:`event:${eventEditorId}`,revision:Math.max(0,eventEditorDraft.expectedRevision??0),enabled:Boolean(eventEditorId)&&!campaign.readyCampaign,
+    value:{id:eventEditorId,draft:eventEditorDraft,base:eventBase},dirty:eventEditorDirty,
+    restore:({value})=>{if(typeof value.draft?.title!=="string"||typeof value.draft.sceneText!=="string")return false;setEventEditorDraft(value.draft);setEventBase(value.base||emptyWorldEventInput());setEventEditorDirty(true);}
+  });
+  const prepareMerge=()=>{
+    if(!conflict)return;const current=worldEventToForm(conflict),merged={...current};
+    for(const key of Object.keys(eventEditorDraft) as (keyof WorldEventInput)[])if(key!=="expectedRevision"&&JSON.stringify(eventEditorDraft[key])!==JSON.stringify(eventBase[key]))Object.assign(merged,{[key]:eventEditorDraft[key]});
+    setEventBase(current);setEventEditorDraft(merged);setConflict(null);setError("");
+  };
   const activeWorldEvent =
     eventEditorId && eventEditorId !== NEW_WORLD_EVENT_ID
       ? campaign.events.find((event) => event.id === eventEditorId) ?? null
@@ -85,7 +81,7 @@ export function EventsPageContainer({
       const nextEvent = campaign.events.find((event) => event.id === nextId) ?? null;
       if (nextEvent) {
         setEventEditorId(nextEvent.id);
-        setEventEditorDraft(worldEventToForm(nextEvent));
+        setEventEditorDraft(worldEventToForm(nextEvent)); setEventBase(worldEventToForm(nextEvent)); setConflict(null);
         setEventEditorDirty(false);
       }
     }
@@ -96,7 +92,7 @@ export function EventsPageContainer({
       return;
     }
 
-    setEventEditorDraft(worldEventToForm(activeWorldEvent));
+    setEventEditorDraft(worldEventToForm(activeWorldEvent));setEventBase(worldEventToForm(activeWorldEvent));
   }, [activeWorldEvent, eventEditorDirty, worldEventToForm]);
 
   useEffect(() => {
@@ -124,7 +120,7 @@ export function EventsPageContainer({
     }
 
     setEventEditorId(nextEvent.id);
-    setEventEditorDraft(worldEventToForm(nextEvent));
+    setEventEditorDraft(worldEventToForm(nextEvent)); setEventBase(worldEventToForm(nextEvent)); setConflict(null);
     setEventEditorDirty(false);
     setEventEditorNotice("");
     setError("");
@@ -153,6 +149,7 @@ export function EventsPageContainer({
       return;
     }
 
+    if(deviceDraft.candidate||conflict){setError("Сначала разберите найденный черновик или конфликт версий.");return;}
     const locationLabel =
       campaign.locations.find((location) => location.id === eventEditorDraft.locationId)?.title ??
       eventEditorDraft.locationLabel ??
@@ -177,13 +174,15 @@ export function EventsPageContainer({
         activeWorldEvent && eventEditorId !== NEW_WORLD_EVENT_ID
           ? await api.updateWorldEvent(activeCampaignId, activeWorldEvent.id, payload)
           : await api.createWorldEvent(activeCampaignId, payload);
+      deviceDraft.clear();
       hydrateCampaign(result.campaign);
       const nextEvent = normalizeWorldEventForClient(result.event, result.campaign.locations ?? []);
       setEventEditorId(nextEvent.id);
-      setEventEditorDraft(worldEventToForm(nextEvent));
+      setEventEditorDraft(worldEventToForm(nextEvent)); setEventBase(worldEventToForm(nextEvent)); setConflict(null);
       setEventEditorDirty(false);
       setEventEditorNotice(activeWorldEvent ? "Событие сохранено." : "Событие создано.");
     } catch (saveError) {
+      if(isApiError(saveError)&&saveError.status===409&&saveError.current)setConflict(saveError.current as WorldEvent);
       setError(saveError instanceof Error ? saveError.message : "Не удалось сохранить событие.");
     } finally {
       setSaving(false);
@@ -201,12 +200,12 @@ export function EventsPageContainer({
     try {
       setSaving(true);
       setError("");
-      const result = await api.deleteWorldEvent(activeCampaignId, activeWorldEvent.id);
+      const result = await api.deleteWorldEvent(activeCampaignId, activeWorldEvent.id, eventEditorDraft.expectedRevision ?? 0);
       hydrateCampaign(result.campaign);
       const nextEvent = result.campaign.events[0] ? normalizeWorldEventForClient(result.campaign.events[0], result.campaign.locations ?? []) : null;
       if (nextEvent) {
         setEventEditorId(nextEvent.id);
-        setEventEditorDraft(worldEventToForm(nextEvent));
+        setEventEditorDraft(worldEventToForm(nextEvent)); setEventBase(worldEventToForm(nextEvent)); setConflict(null);
       } else {
         setEventEditorId(NEW_WORLD_EVENT_ID);
         setEventEditorDraft({
@@ -225,6 +224,10 @@ export function EventsPageContainer({
   };
 
   return (
+    <>
+    {!campaign.readyCampaign&&<DeviceDraftControls draft={deviceDraft} label="черновик события"/>}
+    {legacyDraft&&!campaign.readyCampaign&&<div className="card mini"><p>Найдена прежняя копия события в этой вкладке. Исходная копия останется; версия будет сверена сервером перед записью.</p><button className="ghost" onClick={()=>{setEventEditorId(legacyDraft.id);setEventBase(emptyWorldEventInput());setEventEditorDraft({...legacyDraft.draft,expectedRevision:legacyDraft.draft.expectedRevision??-1});setEventEditorDirty(true);}}>Открыть прежний черновик события</button></div>}
+    {conflict&&<section className="card mini"><h3>Конфликт версий события</h3><details><summary>Актуальная версия</summary><pre style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{JSON.stringify(conflict,null,2)}</pre></details><p>Проверьте поля: ваши изменённые поля заменят соответствующие поля сервера, остальные сохранятся. После подготовки потребуется отдельное сохранение.</p><button className="ghost" onClick={prepareMerge}>Подготовить объединение события</button></section>}
     <EventsWorkspace
       dirty={eventEditorDirty}
       draft={eventEditorDraft}
@@ -292,5 +295,6 @@ export function EventsPageContainer({
       searchQuery={searchQuery}
       selectedEventId={activeWorldEvent?.id ?? ""}
     />
+    </>
   );
 }

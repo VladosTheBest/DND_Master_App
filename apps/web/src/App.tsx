@@ -597,6 +597,7 @@ const normalizeWorldEventForClient = (event: WorldEvent, locations: LocationEnti
 };
 
 const worldEventToForm = (event: WorldEvent): WorldEventInput => ({
+  expectedRevision: event.revision ?? 0,
   title: event.title,
   date: event.date,
   summary: event.summary,
@@ -620,6 +621,7 @@ const serializeWorldEventInput = (input: WorldEventInput): WorldEventInput => {
   const type = worldEventTypeOptions.includes(input.type) ? input.type : "social";
   const sceneText = input.sceneText?.trim() || input.summary?.trim() || "";
   return {
+    expectedRevision: input.expectedRevision,
     title: input.title.trim() || "Случайное событие",
     date: input.date?.trim() || "",
     summary: input.summary?.trim() || truncateInlineText(sceneText, 150),
@@ -1895,7 +1897,14 @@ export default function App() {
     requestPlayerFacingCardDeletion,
   } = playerFacing;
 
+  const activeCampaignSnapshot=useRef(activeCampaignId);
+  const campaignSnapshot=useRef(campaign);
+  activeCampaignSnapshot.current=activeCampaignId;campaignSnapshot.current=campaign;
   function hydrateCampaign(data: CampaignData, preferredEntityId?: string) {
+    // An async callback retains the campaign selected when its request started.
+    if(activeCampaignSnapshot.current!==activeCampaignId && data.id!==activeCampaignSnapshot.current)return;
+    const current=campaignSnapshot.current;
+    if(current?.id===data.id && (data.revision??0)<(current.revision??0))return;
     const normalized = normalizeCampaignForClient(data);
     const allEntities = [...normalized.locations, ...normalized.players, ...normalized.npcs, ...normalized.monsters, ...normalized.quests, ...normalized.lore];
     const preparedPartySize =
@@ -3500,6 +3509,7 @@ export default function App() {
     }
 
     let autoCreatedIssuerId = "";
+    let autoCreatedIssuerRevision = 0;
     try {
       let nextPayload = enrichQuestPayload(payload);
       if (
@@ -3516,6 +3526,7 @@ export default function App() {
         const issuerResult = await api.createEntity(activeCampaignId, issuerPayload);
         if (issuerResult.entity.kind === "npc") {
           autoCreatedIssuerId = issuerResult.entity.id;
+          autoCreatedIssuerRevision = issuerResult.entity.revision ?? 0;
           nextPayload = {
             ...nextPayload,
             issuerId: issuerResult.entity.id,
@@ -3545,7 +3556,7 @@ export default function App() {
     } catch (error) {
       if (autoCreatedIssuerId) {
         try {
-          await api.deleteEntity(activeCampaignId, autoCreatedIssuerId);
+          await api.deleteEntity(activeCampaignId, autoCreatedIssuerId, autoCreatedIssuerRevision);
         } catch {
           // Best-effort cleanup for a quest issuer created in the same submit flow.
         }

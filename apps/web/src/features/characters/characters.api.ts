@@ -15,6 +15,7 @@ export interface PublicCharacterInvite {
 }
 
 export interface SavedCharacter {
+  revision: number;
   id: string;
   playerId: string;
   campaignName: string;
@@ -63,11 +64,11 @@ export const characterApi = {
     ),
   getSheet: (token: string) =>
     request<SavedCharacter>(`/character-sheets/${encodeURIComponent(token)}`),
-  update: (token: string, draft: CharacterDraft) =>
+  update: (token: string, draft: CharacterDraft, expectedRevision:number) =>
     request<SavedCharacter>(
       `/character-sheets/${encodeURIComponent(token)}`,
       "PUT",
-      draft,
+      {draft,expectedRevision},
     ),
 };
 

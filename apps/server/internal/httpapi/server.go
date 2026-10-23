@@ -407,6 +407,8 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 	}
 
 	switch {
+	case len(segments) >= 2 && segments[1] == "custom-items":
+		srv.handleCustomItems(writer, request, user, campaignID, segments)
 	case len(segments) >= 3 && len(segments) <= 5 && segments[1] == "scenes" && segments[2] == "ai":
 		manager := &foundryManager{srv: srv}
 		manager.sceneAI(writer, request, foundryConnection{ID: "web-" + user.ID + "-" + campaignID, OwnerID: user.ID, CampaignID: campaignID}, strings.Join(segments[3:], "/"))
@@ -500,14 +502,21 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 		eventID := segments[2]
 		switch request.Method {
 		case http.MethodPatch, http.MethodPut:
-			var input createWorldEventInput
-			if err := readJSON(request, &input); err != nil {
+			input, err := readWorldEventUpdate(request)
+			if err != nil {
 				writeError(writer, http.StatusBadRequest, "bad_request", err.Error())
 				return
 			}
 
+			if input.ExpectedRevision == nil {
+				writeError(writer, 428, "revision_required", "Требуется исходная версия события.")
+				return
+			}
 			result, err := srv.store.updateWorldEvent(campaignID, eventID, input)
 			if err != nil {
+				if writeAuthoringError(writer, err) {
+					return
+				}
 				status := http.StatusInternalServerError
 				if strings.Contains(err.Error(), "not found") {
 					status = http.StatusNotFound
@@ -518,8 +527,15 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 
 			writeJSON(writer, http.StatusOK, result)
 		case http.MethodDelete:
-			result, err := srv.store.deleteWorldEvent(campaignID, eventID)
+			revision, ok := requireRevisionQuery(writer, request)
+			if !ok {
+				return
+			}
+			result, err := srv.store.deleteWorldEvent(campaignID, eventID, revision)
 			if err != nil {
+				if writeAuthoringError(writer, err) {
+					return
+				}
 				status := http.StatusInternalServerError
 				if strings.Contains(err.Error(), "not found") {
 					status = http.StatusNotFound
@@ -641,8 +657,22 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 
 			writeJSON(writer, http.StatusOK, result)
 		case http.MethodDelete:
-			result, err := srv.store.deleteEntity(campaignID, entityID)
+			if campaign.ReadyCampaign != nil {
+				_, _, entity := findEntityInCampaign(&campaign, entityID)
+				if entity.Kind != "player" {
+					writeError(writer, 403, "ready_campaign_read_only", errReadyCampaignReadOnly.Error())
+					return
+				}
+			}
+			revision, ok := requireRevisionQuery(writer, request)
+			if !ok {
+				return
+			}
+			result, err := srv.store.deleteEntity(campaignID, entityID, revision)
 			if err != nil {
+				if writeAuthoringError(writer, err) {
+					return
+				}
 				status := http.StatusInternalServerError
 				if strings.Contains(err.Error(), "not found") {
 					status = http.StatusNotFound

@@ -327,8 +327,8 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
       body: JSON.stringify(input)
     });
   },
-  async deleteEntity(campaignId, entityId) {
-    return requestJson<DeleteEntityResult>(`${baseUrl}/api/campaigns/${campaignId}/entities/${entityId}`, {
+  async deleteEntity(campaignId, entityId, expectedRevision) {
+    return requestJson<DeleteEntityResult>(`${baseUrl}/api/campaigns/${campaignId}/entities/${entityId}?expectedRevision=${expectedRevision}`, {
       method: "DELETE"
     });
   },
@@ -434,8 +434,8 @@ export const createHttpApiClient = (baseUrl: string): ApiClient => {
       body: JSON.stringify(input satisfies WorldEventInput)
     });
   },
-  async deleteWorldEvent(campaignId, eventId) {
-    return requestJson<DeleteWorldEventResult>(`${baseUrl}/api/campaigns/${campaignId}/events/${eventId}`, {
+  async deleteWorldEvent(campaignId, eventId, expectedRevision) {
+    return requestJson<DeleteWorldEventResult>(`${baseUrl}/api/campaigns/${campaignId}/events/${eventId}?expectedRevision=${expectedRevision}`, {
       method: "DELETE"
     });
   },

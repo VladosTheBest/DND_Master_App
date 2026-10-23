@@ -1,3 +1,7 @@
+import { isApiError } from "@shadow-edge/api-client";
+import { useDeviceDraft } from "../../app/hooks/useDeviceDraft";
+import { useDraftOwner } from "../../app/hooks/useDraftOwner";
+import { DeviceDraftControls } from "../../app/DeviceDraftControls";
 import {forestStamp,generateTemplate,templates,type Template} from './creative-generators';
 import {prepareMapImage} from './map-image-upload';
 import {creativeWalls,creativeUVTT,nearestWall,projectToWall,type WallSegment} from './creative-vtt';
@@ -46,14 +50,23 @@ export function CreativeMapEditor({campaignId,original,initialSize,onSaved,onDir
  const root=useRef<HTMLElement>(null),viewport=useRef<HTMLDivElement>(null),canvas=useRef<HTMLCanvasElement>(null),imageInput=useRef<HTMLInputElement>(null),projectInput=useRef<HTMLInputElement>(null);
  const lock=useRef(false),id=useRef(original?.id||crypto.randomUUID()),space=useRef(false),pan=useRef<{x:number;y:number;cx:number;cy:number}|null>(null);
  const gesture=useRef<{before:CreativeScene;start:Point;item:string;move:boolean;ids:string[]}|null>(null),latest=useRef(scene);latest.current=scene;
- const draftKey=`shadow-edge:creative-draft:${campaignId}:${original?.id||'new'}`;
- const [draft,setDraft]=useState<Draft|null>(()=>{try{const value=JSON.parse(sessionStorage.getItem(draftKey)||'null');return value&&value.revision===(original?.revision||0)?value:null;}catch{return null;}});
  const dirty=serial(title,scene)!==baseline,layer=scene.layers!.find(l=>l.id===layerId),item=selected.length===1?scene.items.find(i=>i.id===selected[0]):undefined;
+ const [recoveredRevision,setRecoveredRevision]=useState<number|null>(null);
+ const currentRevision=recoveredRevision??saved?.revision??0;
+ const ownerId=useDraftOwner();
+ const [conflict,setConflict]=useState<WorldMapDocument|null>(null);
+ const deviceDraft=useDeviceDraft({ownerId,campaignId,target:`creative:${original?.id||"new"}`,revision:Math.max(0,currentRevision),value:{id:id.current,title,scene,revision:currentRevision},dirty,enabled:true,
+  restore:({value})=>{if(typeof value.title!=="string"||!value.scene||typeof value.id!=="string")return false;if(original&&value.id!==original.id&&value.revision!==0)return false;const next=sceneFromJSON(JSON.stringify(value.scene));setScene(next);setTitle(value.title);id.current=value.id;setSaved(original&&value.id===original.id?original:undefined);setRecoveredRevision(value.revision);setPast([]);setFuture([]);}
+
+ });
+ const draftKey=`shadow-edge:creative-draft:${campaignId}:${original?.id||'new'}`;
+ const [draft,setDraft]=useState<Draft|null>(()=>{try{const value=JSON.parse(sessionStorage.getItem(draftKey)||'null');return value&&typeof value.title==='string'&&value.scene?value:null;}catch{return null;}});
+
  const canEdit=(i:CreativeItem)=>!i.locked&&scene.layers!.some(l=>l.id===i.layerId&&!l.locked&&l.visible);
  const unlocked=selected.filter(s=>scene.items.some(i=>i.id===s&&canEdit(i)));
  const waiting=busy||polygon.length>0;
  useEffect(()=>onDirty(dirty||polygon.length>0),[dirty,polygon.length,onDirty]);
- useEffect(()=>{if(!dirty){if(!draft){try{sessionStorage.removeItem(draftKey);}catch{/* Storage may be unavailable. */}}return;}const timer=setTimeout(()=>{try{sessionStorage.setItem(draftKey,JSON.stringify({title,scene,revision:saved?.revision||0}));}catch{setNotice('Черновик не поместился в браузере. Сохрани карту на сервере.');}},450);return()=>clearTimeout(timer);},[title,scene,dirty,draftKey,saved?.revision,draft]);
+
  useEffect(()=>{let cancelled=false;const frame=requestAnimationFrame(()=>{if(canvas.current)paintScene(canvas.current,scene,selected,polygon);});void prepareSceneImages(scene).then(()=>{if(!cancelled&&canvas.current)paintScene(canvas.current,scene,selected,polygon);}).catch(e=>{if(!cancelled)setError(e.message);});return()=>{cancelled=true;cancelAnimationFrame(frame);};},[scene,selected,polygon]);
  useEffect(()=>{if(!fullscreen)return;const previous=document.body.style.overflow;document.body.style.overflow='hidden';return()=>{document.body.style.overflow=previous;};},[fullscreen]);
  function fit(){const r=viewport.current?.getBoundingClientRect();if(!r)return;const zoom=Math.max(.1,Math.min((r.width-48)/mapWidth,(r.height-48)/mapHeight,3));setCamera({zoom,x:(r.width-mapWidth*zoom)/2,y:(r.height-mapHeight*zoom)/2});}
@@ -108,11 +121,11 @@ export function CreativeMapEditor({campaignId,original,initialSize,onSaved,onDir
    return {...i,x:(p[0]+g.start[0])/2,y:(p[1]+g.start[1])/2,w:Math.max(10,Math.abs(p[0]-g.start[0])),h:Math.max(10,Math.abs(p[1]-g.start[1]))};
   })});
  }
- async function save(){if(lock.current||polygon.length)return;lock.current=true;setBusy(true);setError('');try{
+ async function save(){if(lock.current||polygon.length||deviceDraft.candidate||conflict)return;lock.current=true;setBusy(true);setError('');try{
   sceneFromJSON(JSON.stringify(scene));const blob=await creativePNG(scene),upload=await api.uploadImage(campaignId,new File([blob],'creative-map.png',{type:'image/png'}));
-  const result=await mapRequest<WorldMapDocument>(`${mapRoute(campaignId)}/creative`,'POST',{id:id.current,title,revision:saved?.revision||0,imageUrl:new URL(upload.url,location.origin).pathname,creative:JSON.stringify(scene)});
-  setSaved(result);setBaseline(serial(title,scene));try{sessionStorage.removeItem(draftKey);}catch{/* Storage may be unavailable. */}setDraft(null);onSaved(result);setNotice('Ручная карта сохранена');
- }catch(e){setError((e as Error).message);}finally{lock.current=false;setBusy(false);}}
+  const result=await mapRequest<WorldMapDocument>(`${mapRoute(campaignId)}/creative`,'POST',{id:id.current,title,revision:currentRevision,imageUrl:new URL(upload.url,location.origin).pathname,creative:JSON.stringify(scene)});
+  setSaved(result);setRecoveredRevision(null);setBaseline(serial(title,scene));deviceDraft.clear();setDraft(null);onSaved(result);setNotice('Ручная карта сохранена');
+ }catch(e){if(isApiError(e)&&e.status===409&&e.current)setConflict(e.current as WorldMapDocument);setError((e as Error).message);}finally{lock.current=false;setBusy(false);}}
  async function vtt(){if(lock.current)return;lock.current=true;setBusy(true);setError('');try{sceneFromJSON(JSON.stringify(scene));downloadBlob(new Blob([JSON.stringify(await creativeUVTT(scene))],{type:'application/json'}),`${title.replace(/[\\/:*?"<>|]/g,'_')||'map'}.dd2vtt`);setNotice('VTT готов: импортируй через Universal Battlemap Importer. Масштаб клетки: '+formatFeet(scene.feetPerCell??5)+'.');}catch(e){setError((e as Error).message);}finally{lock.current=false;setBusy(false);}}
  async function png(){if(lock.current)return;lock.current=true;setBusy(true);setError('');try{downloadBlob(await creativePNG(scene,exportScale),`${title.replace(/[\\/:*?"<>|]/g,'_')||'map'}.png`);}catch(e){setError((e as Error).message);}finally{lock.current=false;setBusy(false);}}
  async function uploadImage(file:File){if(lock.current)return;if(!layer||!layer.visible||layer.locked){setError('Выбери доступный слой.');return;}lock.current=true;setBusy(true);setError('');try{
@@ -142,7 +155,9 @@ export function CreativeMapEditor({campaignId,original,initialSize,onSaved,onDir
  <button type="button" disabled={waiting} onClick={()=>projectInput.current?.click()}>Открыть проект</button><button type="button" disabled={waiting} onClick={()=>downloadBlob(new Blob([JSON.stringify({title,scene})],{type:'application/json'}),'dungeon-map.json')}>Проект JSON</button>
  <button type="button" disabled={waiting} onClick={()=>void png()}><Download size={16}/>Скачать PNG</button><button type="button" disabled={waiting} onClick={()=>void vtt()}>Foundry / VTT</button><button type="button" className="creative-save" disabled={waiting||!title.trim()||(!dirty&&!!saved)} onClick={()=>void save()}><Save size={16}/>Сохранить карту</button>
  <button type="button" aria-label={fullscreen?'Выйти из полного экрана':'Полный экран'} onClick={()=>setFullscreen(v=>!v)}>{fullscreen?<><Minimize2 size={17}/>К картам</>:<><Maximize2 size={17}/>Развернуть</>}</button></div></header>
- {draft&&<div className="creative-draft">Есть черновик этой карты в текущем браузере.<button type="button" onClick={()=>{try{change(sceneFromJSON(JSON.stringify(draft.scene)));setTitle(draft.title);setDraft(null);}catch(e){setError((e as Error).message);}}}>Восстановить черновик</button><button type="button" onClick={()=>{sessionStorage.removeItem(draftKey);setDraft(null);}}>Скрыть</button></div>}
+ <DeviceDraftControls draft={deviceDraft} label="черновик Креатива"/>
+ {conflict&&<section className="creative-draft"><h3>Конфликт проекта карты</h3><p>Серверный проект отличается. Можно сохранить свой проект отдельной картой или после сравнения явно заменить проект целиком.</p><details><summary>Серверный проект</summary><pre style={{whiteSpace:"pre-wrap",overflowWrap:"anywhere"}}>{conflict.creative||JSON.stringify(conflict,null,2)}</pre></details><button onClick={()=>{id.current=crypto.randomUUID();setSaved(undefined);setRecoveredRevision(0);setConflict(null);setError("");}}>Подготовить сохранение отдельной картой</button>{conflict.provider==="creative"&&<button onClick={()=>{setSaved(conflict);setRecoveredRevision(null);setBaseline(serial(conflict.title,sceneFromJSON(conflict.creative||"{}")));setConflict(null);setError("");}}>Подготовить замену проекта после сравнения</button>}</section>}
+ {draft&&<div className="creative-draft">Найдена прежняя копия Креатива. Исходник останется на устройстве.<button type="button" onClick={()=>{try{change(sceneFromJSON(JSON.stringify(draft.scene)));setTitle(draft.title);setRecoveredRevision(draft.revision);setDraft(null);}catch(e){setError((e as Error).message);}}}>Восстановить прежний черновик</button></div>}
  <input ref={imageInput} type="file" hidden accept="image/*" onChange={e=>{if(e.target.files?.[0])void uploadImage(e.target.files[0]);}}/><input ref={projectInput} type="file" hidden accept=".json,application/json" onChange={e=>{if(e.target.files?.[0])void importProject(e.target.files[0]);}}/>
  <fieldset className="creative-body" disabled={busy}>
  <aside className="creative-library"><div className="creative-panel-tabs"><button type="button" aria-pressed={panel==='assets'} onClick={()=>setPanel('assets')}>Ассеты <span>{mapAssets.length}</span></button><button type="button" aria-pressed={panel==='styles'} onClick={()=>setPanel('styles')}>Оформление</button></div>

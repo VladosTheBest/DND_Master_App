@@ -177,6 +177,14 @@ func TestReadyCampaignHTTPProtectsSourceAllowsPlay(t *testing.T) {
 			t.Fatalf("%s %s returned %d: %s", operation.method, operation.path, r.Code, r.Body.String())
 		}
 	}
+	custom := itemsRequest(t, handler, "POST", base+"/custom-items", map[string]any{"item": customCampaignItem{ID: "custom-ready", Name: "Личный предмет", Category: "gear", Description: "Не часть книги"}}, alice)
+	if custom.Code != 200 {
+		t.Fatal("personal item rejected", custom.Code, custom.Body.String())
+	}
+	afterCustom := decodeAccountTestData[campaignData](t, accountTestRequest(t, handler, "GET", base, "", alice))
+	if readyCampaignDigest(afterCustom) != readyCampaignDigest(c) {
+		t.Fatal("custom item altered prepared source")
+	}
 	playerResponse := accountTestRequest(t, handler, "POST", base+"/entities", `{"kind":"player","title":"Участник","level":3}`, alice)
 	if playerResponse.Code != 201 {
 		t.Fatalf("player %d: %s", playerResponse.Code, playerResponse.Body.String())
