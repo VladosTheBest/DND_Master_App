@@ -19,7 +19,6 @@ type DefaultHeaderProps = {
   codexPromptOutcome: "error" | "warning" | null;
   codexPromptRunning: boolean;
   onOpenSearch: () => void;
-  onOpenCombat: () => void;
   onOpenDirectory: () => void;
   onOpenPinnedEntity: (entityId: string) => void;
   onOpenRandomEvent: () => void;
@@ -27,7 +26,6 @@ type DefaultHeaderProps = {
   onLogout: () => void;
   onCreateEntity: () => void;
   onOpenPlayerSurveys: () => void;
-  onOpenSessionMap: () => void;
 };
 
 type CombatHeaderProps = {
@@ -61,12 +59,12 @@ export function AppHeader(props: AppHeaderProps) {
       <header className="panel topbar combat-topbar">
         <div className="actions combat-topbar-left">
           <button className="ghost" onClick={props.onReturnToApp} type="button">
-            ← К кампании
+            ← Оффлайн
           </button>
         </div>
 
         <div className="combat-screen-title">
-          <p className="eyebrow">Сцена боя</p>
+          <p className="eyebrow">Оффлайн · Бой · Beta</p>
           <strong>{props.combatTitle}</strong>
           <small>{props.hasActiveCombat ? `Участников: ${props.activeCombatCount}` : "Подготовка новой сцены боя"}</small>
         </div>
@@ -103,9 +101,6 @@ export function AppHeader(props: AppHeaderProps) {
         <SubscriptionButton />
         <FeedbackButton />
         {props.canOpenDirectory ? <button className="ghost" onClick={props.onOpenDirectory} type="button">← К списку</button> : null}
-        <button className={props.hasActiveCombat ? "primary active-combat-indicator" : "ghost"} onClick={props.onOpenCombat} type="button">
-          {props.hasActiveCombat ? "Продолжить бой" : "Подготовить бой"}
-        </button>
         {props.pinnedEntities.length ? <ActionMenu label={`Закладки · ${props.pinnedEntities.length}`}>
           {props.pinnedEntities.map(entity => <button key={entity.id} className="ghost" onClick={() => props.onOpenPinnedEntity(entity.id)} type="button">{entity.title}</button>)}
         </ActionMenu> : null}
@@ -130,7 +125,6 @@ export function AppHeader(props: AppHeaderProps) {
           {props.pendingProposalCount ? <span className="ai-proposal-count">{props.pendingProposalCount}</span> : null}
         </button> : null}
         <button className="ghost" onClick={props.onOpenPlayerSurveys} type="button">Анкеты игроков</button>
-        <button className="ghost" onClick={props.onOpenSessionMap} type="button">Карта и экран игроков</button>
         {!props.readyCampaign && props.activeModule === "quests" ? <button className="ghost" onClick={props.onOpenRandomEvent} type="button">Сцена для зачитки</button> : null}
         {(!props.readyCampaign || props.activeModule === "players") && !props.isItemsRail && !["events", "notes", "lore", "sessions", "rules", "bestiary"].includes(props.activeModule) ? <button className="ghost" onClick={props.onCreateEntity} type="button">Создать запись</button> : null}
         </ActionMenu>

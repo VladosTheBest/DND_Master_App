@@ -20,3 +20,10 @@ export const parseAppRoute = (hash: string): AppRouteState => {
 };
 
 export const buildInitiativeHash = (campaignId: string) => `#initiative/${encodeURIComponent(campaignId)}`;
+
+export function buildAIResultURL(campaignId: string, target: { sessionId?: string; proposalId?: string }) {
+  const params = new URLSearchParams({ campaign: campaignId });
+  if (target.sessionId) params.set("session", target.sessionId);
+  if (target.proposalId) params.set("proposal", target.proposalId);
+  return `/?${params}`;
+}

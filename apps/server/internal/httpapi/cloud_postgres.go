@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/url"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -17,7 +18,9 @@ type cloudDatabase struct {
 	mu        sync.Mutex
 	conn      *pgx.Conn
 	previous  map[string]cloudRecord
-	failed    bool
+	failure   atomic.Pointer[storageFailure]
+	done      chan struct{}
+	closeOnce sync.Once
 	lastCheck time.Time
 }
 
@@ -41,7 +44,7 @@ func openCloudDatabase(connectionURL string) (*cloudDatabase, error) {
 	if err != nil {
 		return nil, errors.New("database connection failed")
 	}
-	p := &cloudDatabase{conn: conn, previous: map[string]cloudRecord{}}
+	p := &cloudDatabase{conn: conn, previous: map[string]cloudRecord{}, done: make(chan struct{})}
 	var locked bool
 	if err = conn.QueryRow(ctx, "SELECT pg_try_advisory_lock(734020261004)").Scan(&locked); err != nil || !locked {
 		conn.Close(ctx)
@@ -59,6 +62,11 @@ func stringsHasFlyPooler(host string) bool {
 }
 
 func (p *cloudDatabase) close() {
+	p.closeOnce.Do(func() {
+		if p.done != nil {
+			close(p.done)
+		}
+	})
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -69,8 +77,8 @@ func (p *cloudDatabase) close() {
 func (p *cloudDatabase) check() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.failed {
-		return errors.New("database state requires restart")
+	if err := p.readiness(); err != nil {
+		return err
 	}
 	if time.Since(p.lastCheck) < 3*time.Second {
 		return nil
@@ -78,8 +86,7 @@ func (p *cloudDatabase) check() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 	if err := p.conn.Ping(ctx); err != nil {
-		p.failed = true
-		return errors.New("database unavailable")
+		return p.fail("ping", err)
 	}
 	p.lastCheck = time.Now()
 	return nil
@@ -196,15 +203,14 @@ func (p *cloudDatabase) readGroup(key string, tables []string) (json.RawMessage,
 func (p *cloudDatabase) writeGroup(key string, meta json.RawMessage, records []cloudRecord, tables []string) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if p.failed {
-		return errors.New("database state requires restart")
+	if err := p.readiness(); err != nil {
+		return err
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 	tx, err := p.conn.Begin(ctx)
 	if err != nil {
-		p.failed = true
-		return errors.New("begin database transaction failed")
+		return p.fail("begin", err)
 	}
 	defer tx.Rollback(context.Background())
 	next := map[string]cloudRecord{}
@@ -243,8 +249,7 @@ func (p *cloudDatabase) writeGroup(key string, meta json.RawMessage, records []c
 		return errors.New("save database metadata failed")
 	}
 	if err = tx.Commit(ctx); err != nil {
-		p.failed = true
-		return errors.New("database commit outcome uncertain; restart required before serving requests")
+		return p.fail("commit_uncertain", err)
 	}
 	for k, r := range p.previous {
 		for _, table := range tables {

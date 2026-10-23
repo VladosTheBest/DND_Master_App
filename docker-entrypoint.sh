@@ -18,4 +18,4 @@ if [ "${SHADOW_EDGE_STORAGE_MODE:-json}" != "postgres" ]; then
 fi
 mkdir -p "${SHADOW_EDGE_UPLOAD_DIR:-/data/uploads}"
 
-exec /app/shadow-edge-server "$@"
+exec /app/run-server.sh "$@"

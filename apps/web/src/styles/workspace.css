@@ -88,6 +88,12 @@ body::before { display: none; }
   .dashboard-shortcuts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+.app-native-dialog { border: 0; padding: 0; background: transparent; color: var(--text); width: min(1000px, calc(100vw - 2rem)); max-width: calc(100vw - 2rem); max-height: calc(100dvh - 2rem); }
+.app-native-dialog::backdrop { background: #0009; }
+.app-native-dialog:not([open]) { display: none; }
+.app-native-dialog > .panel { width: 100%; margin: 0; }
+.app-confirm-dialog { width: min(560px, calc(100vw - 2rem)); }
+
 /* Calm reading surfaces shared by campaign screens; game colours stay semantic. */
 .shell { gap: 12px; padding: 12px; }
 .shell .rail, .shell .topbar, .shell .content { border-radius: 14px; }

@@ -13,7 +13,7 @@ type CampaignDashboardProps = {
   onOpenPreview?: (entityId: string) => void;
   onCreateEvent?: () => void;
   readOnly?: boolean;
-  onNavigate?: (section: "players" | "quests" | "locations" | "sessions" | "events" | "combat" | "notes") => void;
+  onNavigate?: (section: "players" | "quests" | "locations" | "sessions" | "events" | "combat" | "notes" | "offline") => void;
 };
 
 const urgencyLabels = { Critical: "Критично", High: "Срочно", Medium: "Обычный приоритет", Low: "Без спешки" };
@@ -34,7 +34,7 @@ export function CampaignDashboard({ campaign, pinnedEntities = [], onOpenEntity,
 
   return <div className="campaign-dashboard gm-dashboard">
     <header className="gm-heading"><div><p className="eyebrow">Стол мастера</p><h1>{campaign.title}</h1><p className="gm-muted">{[campaign.settingName, campaign.inWorldDate].filter(Boolean).join(" · ")}</p></div>
-      {navigate ? <button className="primary" type="button" onClick={() => navigate("combat")}><Swords size={18} />{combat ? "Продолжить бой" : "Подготовить бой"}</button> : null}
+      {navigate ? <button className="primary" type="button" onClick={() => navigate("offline")}><Swords size={18} />Оффлайн <span className="beta-badge">Beta</span></button> : null}
     </header>
     {navigate ? <nav className="gm-tools" aria-label="Инструменты мастера"><button type="button" onClick={() => navigate("sessions")}><BookOpen size={18} />Журнал сессий</button><button type="button" onClick={() => navigate("notes")}><NotebookPen size={18} />Заметки</button><button type="button" onClick={() => navigate("players")}><Users size={18} />Группа</button>{onCreateEvent ? <button type="button" onClick={onCreateEvent}><Sparkles size={18} />Случайное событие</button> : null}</nav> : null}
     {combat ? <section className="gm-combat" aria-label="Текущий бой"><Swords size={24} aria-hidden="true" /><div><small>Бой идёт · Раунд {combat.round}</small><h2>{combat.title}</h2><p>{currentTurn ? `Ход: ${currentTurn.title}` : "Очередь хода не выбрана"}</p></div><strong>{combat.entries.filter(entry => !entry.defeated && entry.currentHitPoints > 0).length} в строю</strong></section> : campaign.preparedCombat ? <section className="gm-prepared"><Swords size={20} /><span>Подготовленная встреча: <strong>{campaign.preparedCombat.title || "Без названия"}</strong></span>{navigate ? <button type="button" onClick={() => navigate("combat")}>Открыть <ArrowRight size={16} /></button> : null}</section> : null}

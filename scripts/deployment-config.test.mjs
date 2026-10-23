@@ -44,7 +44,7 @@ test("container entrypoint preserves backups and forwards maintenance commands",
 
   assert.match(entrypoint, /restore_backup_if_missing/);
   assert.doesNotMatch(entrypoint, /seed_if_missing|seed-data\/store\.json/);
-  assert.match(entrypoint, /exec \/app\/shadow-edge-server "\$@"/);
+  assert.match(entrypoint, /exec \/app\/run-server\.sh "\$@"/);
   assert.doesNotMatch(entrypoint, /\r/u, "entrypoint must use Unix line endings");
   assert.match(attributes, /^\*\.sh text eol=lf$/mu);
 });

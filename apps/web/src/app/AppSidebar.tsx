@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Map, MessageSquare } from "lucide-react";
+import { Map, MessageSquare, MonitorPlay } from "lucide-react";
 import { AccountSettings } from "./OAuthControls";
 import type { CampaignSummary } from "@shadow-edge/shared-types";
 import { RailIcon, type RailIconName } from "../rail-icon";
@@ -94,6 +94,7 @@ export function AppSidebar({
           <a className="rail-nav-item" href={`/maps?campaign=${encodeURIComponent(activeCampaignId)}`} style={{textDecoration:"none"}}>
             <span className="rail-nav-icon"><Map size={19}/></span><span className="rail-nav-label">Карты мира</span>
           </a>
+          {items.find(item => item.key === "offline") && <button className={`rail-nav-item ${activeRailKey === "offline" ? "active" : ""}`} aria-current={activeRailKey === "offline" ? "page" : undefined} type="button" onClick={() => { items.find(item => item.key === "offline")?.onClick(); setMobileOpen(false); }}><span className="rail-nav-icon"><MonitorPlay size={19}/></span><span className="rail-nav-label">Оффлайн <span className="beta-badge">Beta</span></span></button>}
           {groups.map(group => <section className="rail-group" key={group.label}>
             <p className="eyebrow">{group.label}</p>
             <div className="rail-nav">{group.keys.map(key => items.find(item => item.key === key)).filter((item): item is AppSidebarItem => Boolean(item)).map(item => (

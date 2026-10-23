@@ -2,6 +2,7 @@ import type { CampaignData } from "@shadow-edge/shared-types";
 import { DndGenerationProgress } from "../../auth-ui";
 import type { EntityTextField } from "./entity.types";
 import { EntityEditorForm } from "./EntityEditorForm";
+import { useNativeDialog } from "../../app/hooks/useNativeDialog";
 import type { EntityEditorController } from "./useEntityEditorController";
 
 type EntityEditorModalProps = {
@@ -38,13 +39,14 @@ export function EntityEditorModal({
     submitEntity
   } = controller;
 
+  const dialogRef = useNativeDialog(entityModalOpen);
   if (!entityModalOpen) {
     return null;
   }
 
   return (
-    <div className="overlay" role="presentation">
-      <div className="panel palette form-modal entity-editor-modal" aria-label={isEditingEntity ? "Редактирование записи" : "Новая запись"} onClick={(event) => event.stopPropagation()} role="dialog">
+    <dialog ref={dialogRef} className="app-native-dialog" aria-label={isEditingEntity ? "Редактирование записи" : "Новая запись"} onCancel={event => { event.preventDefault(); onClose(); }}>
+      <div className="panel palette form-modal entity-editor-modal" onClick={(event) => event.stopPropagation()}>
         <div className="row">
           <div>
             <h2>{isEditingEntity ? "Редактирование записи" : "Новая запись"}</h2>
@@ -112,6 +114,6 @@ export function EntityEditorModal({
           </button>
         </div>
       </div>
-    </div>
+    </dialog>
   );
 }

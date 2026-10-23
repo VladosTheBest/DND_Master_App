@@ -45,6 +45,7 @@ import { AppHeader } from "./app/AppHeader";
 import { AppPreviewContent } from "./app/AppPreviewContent";
 import { AppPreviewPanel } from "./app/AppPreviewPanel";
 import { AppSidebar } from "./app/AppSidebar";
+import { OfflinePage, OfflineBetaNotice } from "./features/offline/OfflinePage";
 import { SessionMapModal } from "./app/SessionMapModal";
 import { EntityDirectoryScreen } from "./app/EntityDirectoryScreen";
 import { useCampaignCreationController } from "./app/hooks/useCampaignCreationController";
@@ -319,7 +320,7 @@ const emptyWorldEventInput = (): WorldEventInput => ({
 
 
 type ResizeKey = "rail" | "list" | "preview";
-type RailAlias = "items" | "events" | "notes" | "shops" | "sessions";
+type RailAlias = "items" | "events" | "notes" | "shops" | "sessions" | "offline";
 type RailNavKey = "dashboard" | "locations" | "players" | "npcs" | "monsters" | "quests" | "rules" | RailAlias;
 
 type PlayerFacingViewState = {
@@ -987,6 +988,7 @@ const getModuleTitle = (campaign: CampaignData, moduleId: ModuleId) =>
   moduleId === "rules" ? "Правила" : campaign.modules.find((module) => module.id === moduleId)?.label ?? moduleId;
 
 const railAliasTitle: Partial<Record<RailAlias, string>> = {
+  offline: "Оффлайн · Beta",
   sessions: "Сессии",
   items: "Предметы",
   events: "События",
@@ -1719,6 +1721,7 @@ export default function App() {
   });
 
   const modalController = useModalController({
+    hasUnsavedEntityChanges: entityEditor.hasUnsavedEntityChanges,
     closeCombatPlaylistModal: () => closeCombatPlaylistModal(),
     closeCombatSetupModal: () => closeCombatSetupModal(),
     closeEntityGalleryModal: () => entityMedia.closeEntityGalleryModal(),
@@ -2139,7 +2142,8 @@ export default function App() {
           return;
         }
 
-        const storedId = readStoredActiveCampaignId();
+        const requestedId = new URLSearchParams(window.location.search).get("campaign") || "";
+        const storedId = list.some(item => item.id === requestedId) ? requestedId : readStoredActiveCampaignId();
         const initialId = appRoute.mode === "initiative" && list.some((item) => item.id === appRoute.campaignId)
           ? appRoute.campaignId
           : list.some((item) => item.id === storedId) ? storedId : list[0].id;
@@ -2191,6 +2195,22 @@ export default function App() {
 
     return () => window.clearInterval(timer);
   }, [activeCampaignId, appRoute]);
+
+  const openedResultTarget = useRef("");
+  useEffect(() => {
+    if (booting || !campaign) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("campaign") !== campaign.id) return;
+    const sessionId = params.get("session"), proposalId = params.get("proposal");
+    const key = `${campaign.id}:${sessionId || ""}:${proposalId || ""}`;
+    if (openedResultTarget.current === key) return;
+    openedResultTarget.current = key;
+    if (sessionId) {
+      try { localStorage.setItem(`session-selected:${campaign.id}`, sessionId); } catch { /* The server session remains readable without browser storage. */ }
+      setActiveRailAlias("sessions"); setActiveModule("lore"); setActiveTab("Все");
+    }
+    if (proposalId) void aiProposalController.openProposal(proposalId);
+  }, [booting, campaign?.id]);
 
   const campaignPreparedCombat = campaign?.preparedCombat ?? null;
   const entityByTitle = useMemo(() => new Map(allEntities.map((entity) => [entity.title, entity])), [allEntities]);
@@ -4064,11 +4084,12 @@ export default function App() {
   const isCombatPrepScreen = isCombatScreen && combatSetupOpen && !activeCombat?.entries.length;
   const isItemsRail = activeRailAlias === "items";
   const isShopsRail = activeRailAlias === "shops";
-  const hasFeatureOwnedDetailsPanel = isItemsRail || isShopsRail || activeRailAlias === "sessions" || activeModule === "rules";
+  const hasFeatureOwnedDetailsPanel = isItemsRail || isShopsRail || activeRailAlias === "sessions" || activeRailAlias === "offline" || activeModule === "rules";
   const hasActiveCombat = Boolean(activeCombat?.entries.length);
   const activeRailKey = railNavKeyFromView(activeModule, activeRailAlias);
   const activeSectionLabel = campaign ? railSectionTitle(campaign, activeModule, activeRailAlias) : "";
   const railNavItems: Array<{ key: RailNavKey; label: string; icon: RailIconName; onClick: () => void }> = [
+    { key: "offline", label: "Оффлайн · Beta", icon: "home", onClick: () => openRailAlias("offline") },
     { key: "dashboard", label: "Главная", icon: "home", onClick: () => switchModule("dashboard") },
     { key: "sessions", label: "Сессии", icon: "note", onClick: () => openRailAlias("sessions") },
     { key: "quests", label: "Квесты", icon: "quest", onClick: () => switchModule("quests") },
@@ -4476,6 +4497,7 @@ export default function App() {
   if (appRoute.mode === "initiative") {
     return (
       <>
+        <OfflineBetaNotice/>
         <InitiativeTrackerScreen
           activeCombat={campaign.activeCombat ?? null}
           busy={combatStateBusy}
@@ -4549,7 +4571,7 @@ export default function App() {
               onOpenInitiativeTracker={openInitiativeTracker}
               onOpenPublicInitiativeTracker={openPublicInitiativeTracker}
               onPlayCombatPlaylist={() => playCombatPlaylist()}
-              onReturnToApp={returnToApp}
+              onReturnToApp={() => openRailAlias("offline")}
               onSyncCombatPortraits={() => {
                 void syncCombatPortraits();
               }}
@@ -4576,19 +4598,11 @@ export default function App() {
                 onLogout={() => {
                   void logout();
                 }}
-                onOpenCombat={() => {
-                  if (activeCombat?.entries.length) {
-                    openCombatScreen();
-                    return;
-                  }
-                  openCombatSetupModal();
-                }}
                 onOpenDirectory={() => openModuleDirectory(activeModule)}
                 onOpenAIProposals={aiProposalController.openInbox}
                 onOpenPinnedEntity={peekEntity}
                 onOpenRandomEvent={openRandomEventModal}
 				onOpenPlayerSurveys={() => { window.open("/master/surveys", "_blank", "noopener,noreferrer"); }}
-                onOpenSessionMap={() => setSessionMapOpen(true)}
                 onOpenSearch={openPalette}
                 pinnedEntities={pinnedEntities}
                 pendingProposalCount={aiProposalController.pendingCount}
@@ -4638,7 +4652,8 @@ export default function App() {
                 />
               </Suspense>
             )}
-            {activeModule === "dashboard" ? (
+            {isCombatScreen && <OfflineBetaNotice/>}
+            {activeRailAlias === "offline" ? <OfflinePage campaignId={activeCampaignId} hasActiveCombat={hasActiveCombat} onCombat={() => { if (hasActiveCombat) openCombatScreen(); else openCombatSetupModal(); }} onMap={() => setSessionMapOpen(true)} onTracker={openInitiativeTracker}/> : activeModule === "dashboard" ? (
               <CampaignDashboard
                 campaign={campaign}
                 pinnedEntities={pinnedEntities}
@@ -4648,7 +4663,7 @@ export default function App() {
                 onCreateEvent={campaign.readyCampaign ? undefined : () => openRandomEventModal({ newEvent: true, generationMode: "gm_event" })}
                 onOpenPreview={openPreview}
                 onNavigate={section => {
-                  if (section === "sessions" || section === "events" || section === "notes") openRailAlias(section);
+                  if (section === "sessions" || section === "events" || section === "notes" || section === "offline") openRailAlias(section);
                   else switchModule(section);
                 }}
               />

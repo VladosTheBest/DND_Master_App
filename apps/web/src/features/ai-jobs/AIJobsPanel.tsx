@@ -18,7 +18,7 @@ function resultText(value: unknown, depth = 0): string {
   return "";
 }
 
-export function AIJobsPanel({ campaignId, onOpenSession, onOpenProposal, pageMode=false, initialContext }: { campaignId?: string; onOpenSession: (job: AIJob) => void; onOpenProposal: (id: string) => void;pageMode?:boolean;initialContext?:ChatContext }) {
+export function AIJobsPanel({ campaignId, onOpenSession, onOpenProposal, pageMode=false, initialContext }: { campaignId?: string; onOpenSession: (job: AIJob) => void; onOpenProposal: (id: string, campaignId?: string) => void;pageMode?:boolean;initialContext?:ChatContext }) {
   const { jobs, error, loading, refresh } = useAIJobs();
   const [tab,setTab] = useState<"chat"|"jobs">("chat");
   const [expanded,setExpanded] = useState(false);
@@ -54,7 +54,7 @@ export function AIJobsPanel({ campaignId, onOpenSession, onOpenProposal, pageMod
     </button>}
     {createPortal(<dialog open={pageMode?true:undefined} className={`panel ai-jobs-dialog ai-assistant ${expanded ? "expanded" : ""} ${pageMode ? "ai-assistant-page" : ""}`} style={pageMode?{position:"relative",left:0,top:0,width:"100%",height:"100%"}:expanded?{left:8,top:8,width:"calc(100vw - 16px)",height:"calc(100dvh - 16px)"}:floating.box} ref={dialog} onCancel={() => setOpen(false)} onKeyDown={event=>{if(!pageMode && event.key==="Escape"){event.stopPropagation();setOpen(false);}}} aria-modal="false" aria-label="AI-помощник">
       <><header className="ai-assistant-drag" tabIndex={pageMode?undefined:expanded?-1:0} title="Переместить окно" aria-label="Переместить окно помощника" onPointerDown={event=>{if(!expanded&&!pageMode)floating.start(event);}} onPointerMove={floating.move} onPointerUp={floating.end} onPointerCancel={floating.end} onKeyDown={event=>{if(!expanded&&!pageMode)floating.key(event);}}><div className="ai-assistant-brand"><span className="ai-assistant-emblem"><Compass size={38}/></span><div><h2>{pageMode?"Чат по кампании":"AI-помощник"}</h2><p>Кампания, сессии и новые истории</p></div></div><div className="ai-assistant-tools"><AISoundToggle/>{!pageMode && <><a className="ai-chat-page-link" href={`/chat?campaign=${encodeURIComponent(campaignId||"")}&context=${encodeURIComponent(JSON.stringify(context))}`} title="Открыть страницу чата" aria-label="Открыть страницу чата"><ArrowUpRight size={19}/></a><button type="button" className="ghost" title={expanded ? "Свернуть" : "На весь экран"} aria-label={expanded ? "Свернуть" : "На весь экран"} onClick={()=>setExpanded(!expanded)}>{expanded ? <Minimize2 size={18}/> : <Maximize2 size={18}/>}</button><button type="button" className="ghost" title="Закрыть" aria-label="Закрыть AI-помощник" onClick={() => setOpen(false)}><X size={18}/></button></>}</div></header>
-        {!pageMode && <nav className="ai-assistant-tabs" aria-label="Разделы AI"><button type="button" aria-pressed={tab==="chat"} onClick={()=>setTab("chat")}><MessageSquare size={17}/>Чат</button><button type="button" aria-pressed={tab==="jobs"} onClick={()=>setTab("jobs")}><ListChecks size={17}/>Задачи{active.length ? ` · ${active.length}` : ""}</button></nav>}
+        <nav className="ai-assistant-tabs" aria-label="Разделы AI"><button type="button" aria-pressed={tab==="chat"} onClick={()=>setTab("chat")}><MessageSquare size={17}/>Чат</button><button type="button" aria-pressed={tab==="jobs"} onClick={()=>setTab("jobs")}><ListChecks size={17}/>Задачи{active.length ? ` · ${active.length}` : ""}</button></nav>
         <div className="ai-assistant-chat" hidden={tab!=="chat"}>{campaignId ? <AIChat key={campaignId} campaignId={campaignId} jobs={jobs} refreshJobs={()=>void refresh()} initialContext={initialContext} onContextChange={setContext}/> : <p>Открой кампанию, чтобы начать диалог.</p>}</div>
         <div className="ai-assistant-job-list" hidden={tab!=="jobs"}>
         {error && <p role="alert">{error}</p>}{loading && <p role="status">Проверяю задачи…</p>}
@@ -69,7 +69,7 @@ export function AIJobsPanel({ campaignId, onOpenSession, onOpenProposal, pageMod
             <p className="ai-job-result-text">{resultText(detail.result?.data) || (job.sessionId ? "Отчёт сохранён в сессии." : "Результат сохранён. Изменения кампании доступны в соответствующем разделе.")}</p>
             {job.kind==="foundry-scene"&&job.campaignId&&<a href={`/maps?campaign=${encodeURIComponent(job.campaignId)}&view=scenes`}>Открыть сцены Foundry</a>}
             {job.kind==="world-map"&&data?.id&&job.campaignId&&<a href={`/maps?campaign=${encodeURIComponent(job.campaignId)}&map=${encodeURIComponent(data.id)}`}>Открыть карту</a>}
-            {proposals.map(id => <button key={id} className="ghost" onClick={() => {onOpenProposal(id); setOpen(false);}}>Открыть AI-черновик</button>)}
+            {proposals.map(id => <button key={id} className="ghost" onClick={() => {onOpenProposal(id, job.campaignId); setOpen(false);}}>Открыть AI-черновик</button>)}
             <button className="ghost" onClick={downloadResult}>Скачать полные данные результата</button>
           </>}</div>}
         </article>)}

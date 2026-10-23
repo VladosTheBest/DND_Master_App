@@ -2356,8 +2356,8 @@ export function SessionMapModal({ campaignId, open, onClose }: Props) {
       <section aria-modal="true" className="session-map-modal" role="dialog">
         <header className="session-map-head">
           <div>
-            <p className="eyebrow">Режим сессии</p>
-            <h2>Карта на телевизоре</h2>
+            <p className="eyebrow">Оффлайн · Beta</p>
+            <h2>Карта на телевизоре <span className="beta-badge">Beta</span></h2>
             <p>Обводите комнаты и открывайте их по мере исследования.</p>
           </div>
           <button

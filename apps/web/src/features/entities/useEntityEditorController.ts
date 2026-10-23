@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react";
+import { useLayoutEffect, useRef, useState, type FormEvent } from "react";
 import type {
   AbilityKey,
   CampaignData,
@@ -100,6 +100,11 @@ export function useEntityEditorController({
   const [draftPrompt, setDraftPrompt] = useState("");
   const [draftNotes, setDraftNotes] = useState<string[]>([]);
   const [playerCardFormattingIndex, setPlayerCardFormattingIndex] = useState<number | null>(null);
+  const baseline = useRef("");
+  useLayoutEffect(() => {
+    if (entityModalOpen) baseline.current = JSON.stringify({ entityForm, draftPrompt });
+  }, [entityModalOpen]);
+  const hasUnsavedEntityChanges = () => entityArtUploading || Boolean(galleryUploadKey) || JSON.stringify({ entityForm, draftPrompt }) !== baseline.current;
 
   const entityContentRef = useRef<HTMLTextAreaElement | null>(null);
   const entityPlayerContentRef = useRef<HTMLTextAreaElement | null>(null);
@@ -645,6 +650,7 @@ export function useEntityEditorController({
   const entitySubmitLabel = isEditingEntity ? "Сохранить изменения" : "Создать";
 
   return {
+    hasUnsavedEntityChanges,
     addEntityGalleryItem,
     addEntityPlayerCard,
     addEntityPlaylistTrack,

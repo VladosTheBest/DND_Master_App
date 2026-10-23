@@ -95,7 +95,14 @@ func main() {
 		codexInternalBaseURL = "http://127.0.0.1:" + port
 	}
 
+	storageFailure := make(chan error, 1)
 	server, err := httpapi.NewServer(httpapi.Options{
+		OnStorageFailure: func(err error) {
+			select {
+			case storageFailure <- err:
+			default:
+			}
+		},
 		DatabaseURL:          databaseURL,
 		ImportLegacyJSON:     envBool("SHADOW_EDGE_IMPORT_LEGACY_JSON", false),
 		RequireSubscription:  true,
@@ -161,6 +168,12 @@ func main() {
 		IdleTimeout:       2 * time.Minute,
 		MaxHeaderBytes:    1 << 20,
 	}
+	go func() {
+		err := <-storageFailure
+		log.Printf("storage recovery: stopping unsafe writer: %v", err)
+		// Stop accepting work immediately; committed SQL is reloaded on restart.
+		_ = httpServer.Close()
+	}()
 	if err := httpServer.ListenAndServe(); err != nil {
 		log.Fatal(err)
 	}

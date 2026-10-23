@@ -12,6 +12,9 @@ import (
 )
 
 type Options struct {
+	// Called once after the writer connection becomes unsafe. The executable
+	// terminates and its supervisor restarts it with a fresh cache and lock.
+	OnStorageFailure     func(error)
 	DatabaseURL          string
 	ImportLegacyJSON     bool
 	RequireSubscription  bool
@@ -145,6 +148,7 @@ func NewServer(options Options) (http.Handler, error) {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", srv.handleHealth)
+	mux.HandleFunc("/livez", srv.handleHealth)
 	mux.HandleFunc("/foundry/connect", srv.foundry.connectPage)
 	mux.HandleFunc("/foundry/module.json", srv.foundry.distribution)
 	mux.HandleFunc("/foundry/shadow-edge-gm.zip", srv.foundry.distribution)
@@ -190,16 +194,13 @@ func NewServer(options Options) (http.Handler, error) {
 	}
 
 	initialized = true
+	if cloud != nil {
+		go watchStorage(cloud.done, 3*time.Second, cloud.check, options.OnStorageFailure)
+	}
 	if tiles != nil {
 		go tiles.run()
 	}
-	return http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		if cloud != nil {
-			if err := cloud.check(); err != nil {
-				writeError(writer, 503, "storage_unavailable", "Хранилище временно недоступно.")
-				return
-			}
-		}
+	return storageReadinessGate(cloud, http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		applyCORSHeaders(writer, request)
 		if strings.HasPrefix(request.URL.Path, "/api/integrations/foundry/") {
 			srv.foundry.handle(writer, request)
@@ -243,7 +244,7 @@ func NewServer(options Options) (http.Handler, error) {
 		default:
 			http.NotFound(writer, request)
 		}
-	}), nil
+	})), nil
 }
 
 func requiresTrustedMutationOrigin(auth *authManager, request *http.Request) bool {
@@ -259,7 +260,7 @@ func requiresTrustedMutationOrigin(auth *authManager, request *http.Request) boo
 }
 
 func isServerManagedPath(path string) bool {
-	return path == "/healthz" ||
+	return path == "/healthz" || path == "/livez" ||
 		strings.HasPrefix(path, "/foundry/") ||
 		strings.HasPrefix(path, "/api/") ||
 		strings.HasPrefix(path, "/initiative/") ||

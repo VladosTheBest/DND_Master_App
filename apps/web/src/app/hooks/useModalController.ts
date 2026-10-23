@@ -7,6 +7,7 @@ export type CloseConfirmState = {
 };
 
 type UseModalControllerParams = {
+  hasUnsavedEntityChanges?: () => boolean;
   closeEntityModal: () => void;
   closeRandomEventModal: () => void;
   closeCombatPlaylistModal: () => void;
@@ -23,6 +24,7 @@ type UseModalControllerParams = {
 };
 
 export function useModalController({
+  hasUnsavedEntityChanges,
   closeEntityModal,
   closeRandomEventModal,
   closeCombatPlaylistModal,
@@ -74,6 +76,7 @@ export function useModalController({
   };
 
   const requestEntityModalClose = () => {
+    if (hasUnsavedEntityChanges && !hasUnsavedEntityChanges()) { closeEntityModal(); return; }
     requestModalClose(
       "Закрыть редактор сущности?",
       closeEntityModal,
