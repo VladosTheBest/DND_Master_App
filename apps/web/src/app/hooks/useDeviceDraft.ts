@@ -39,7 +39,9 @@ export function useDeviceDraft<T>({ownerId,campaignId,target,revision,value,dirt
   },[enabled,dirty]);
   const clear=()=>{
     if(timer.current)clearTimeout(timer.current);pending.current=null;
-    const keys=new Set(written.current);if(recovered.current)keys.add(recovered.current);
+    // A recovered key may still be written by another open tab. Never delete it
+    // automatically: its contents can have changed since we selected the copy.
+    const keys=new Set(written.current);
     const removed=removeDeviceDrafts(keys);written.current.clear();recovered.current=null;waiting.current=false;setCandidates([]);setCandidateKey("");
     setStatus(removed?"Сохранено на сервере":"Сохранено на сервере. Локальную копию удалить не удалось.");
   };
