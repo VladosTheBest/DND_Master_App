@@ -148,6 +148,7 @@
 .shell .ai-assistant .ai-assistant-tabs button[aria-pressed="true"] { background: #38334c; border-color: #81769d; }
 .shell .ai-assistant .ai-chat-empty { padding: 24px 12px; }
 .login-simplified .login-copy h1 { max-width: none; overflow-wrap: normal; word-break: normal; hyphens: none; font-size: clamp(1.8rem,3vw,2.7rem); }
+.login-screen { height: 100dvh; min-height: 0; overflow: auto; overscroll-behavior: contain; }
 .oauth-settings[open] { background: #1c2029; border-color: #414959; max-height: calc(100dvh - 24px); }
 .oauth-settings > button:last-child { position: sticky; bottom: -1px; z-index: 2; width: 100%; padding: 12px; background: #252b36; margin-top: 16px; }
 :is(.app-native-dialog,.oauth-settings,.ai-jobs-dialog) :is(h1,h2,h3) { font-family: Inter, "Segoe UI", system-ui, sans-serif; font-weight: 600; text-shadow: none; }

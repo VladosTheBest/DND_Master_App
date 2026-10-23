@@ -351,6 +351,16 @@
         892
       ],
       "sha256": "6fe00c7e46d008deac7e37a0870e05184d1e4c55e4fbf9c6fc9bec10f8ec7ec2"
+    },
+    {
+      "path": "login-short-window-scroll.jpg",
+      "kind": "browser-capture",
+      "format": "JPEG",
+      "pixels": [
+        1280,
+        720
+      ],
+      "sha256": "23ffaf2660b6ae41cb235c16dd2f9d4eef03ec57f364dc9e201d5c8149f050f7"
     }
   ]
 }

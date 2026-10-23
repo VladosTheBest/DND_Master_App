@@ -23,6 +23,8 @@
 
 7. **P2 — false dirty после Save.** Успешное сохранение состава обновляет baseline через success marker; очистка marker при новой правке baseline не меняет. Параметры старта (включая инициативу) отслеживаются отдельно. В браузере: add → Save → Back без warning ([combat-saved-clean-exit.jpg](docs/audits/product-design-2026-10-23/after/combat-saved-clean-exit.jpg)); Save количества2 → изменить на3 → Back с warning; изменить инициативу на7 → Save состава → Back по-прежнему предупреждает о несохранённом параметре старта ([combat-start-dirty-after-save.jpg](docs/audits/product-design-2026-10-23/after/combat-start-dirty-after-save.jpg)). Это самостоятельная повторная проверка после поправки hook, не предположение по коду.
 
+8. **P1 — короткое окно входа.** Production smoke на1280×720 выявил рост формы до932px при body overflow:hidden. LoginScreen получил собственную высоту100dvh/overflow:auto. На localhost анонимно проверено1280×720: clientHeight720, scrollHeight973, scrollTop253; нижняя ссылка privacy находится y551–569 и видна. [login-short-window-scroll.jpg](docs/audits/product-design-2026-10-23/after/login-short-window-scroll.jpg). Проверка не отправляла логин/пароль и не изменяла OAuth.
+
 Последняя сравнительная проверка после исправлений не выявила новых actionable P0/P1/P2 в перечисленных состояниях. Исходные изображения макета остаются визуальной направляющей; фиктивные NPC, квесты и портовый город не добавлялись пользователям.
 
 ## Обязательные поверхности
