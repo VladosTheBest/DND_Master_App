@@ -22,6 +22,6 @@
 
 ## Выпуск и границы
 
-Последний проверенный production — release 192. Новые изменения готовы к deploy; его результат будет в production-check.json. Авторизованный production smoke предмета/связей/сцены по-прежнему требует обычного входа пользователя. Локальные данные и анонимный health его не заменяют. Платные AI-вызовы, physical touch/TV, live Foundry и все классы/уровни не проверены. Полный объём задачи остаётся в [матрице требований](../acceptance-matrix.md).
+Выпущен Fly release **193**, source `aecefb2`, image `registry.fly.io/dnd-master-app:deployment-01M5NYW0PSE846C3ZE8X452T88`. Health check passing; `/`, `/healthz`, `/livez` — 200, private API без сессии — 401. Все 56 JS/CSS и index.html совпали с локальной сборкой. [Метаданные production](production-check.json). После reload production-вкладки подтверждена обычная форма входа. Авторизованный production smoke предмета/связей/сцены по-прежнему требует обычного входа пользователя. Локальные данные и анонимный health его не заменяют. Платные AI-вызовы, physical touch/TV, live Foundry и все классы/уровни не проверены. Полный объём задачи остаётся в [матрице требований](../acceptance-matrix.md).
 
 Финальная проверка выполнения: [runtime-check.json](runtime-check.json), ошибок JavaScript не обнаружено.

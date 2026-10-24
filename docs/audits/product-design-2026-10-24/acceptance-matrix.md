@@ -21,7 +21,7 @@
 | Модели/цены/игровые расчёты/content ready неизменны | Текущий git diff ограничен web UI/controller/docs/tests | Не изменены. Платное inference и все provider credentials не проверялись. |
 | Desktop/short/tablet/phone/keyboard, fresh screenshots | npc-polish + dossier-interactions + final-usability; новый media-and-stats (4 viewport, focus, upload, merge) | Есть доказательства конкретных состояний; не глобальный сертификат accessibility/идеальности. |
 | Сборки, регрессии, фиксы P0/P1/P2, документация и commits | build output/scripts, исходный Go/MCP suite, каждый release source commit и актуальный PROJECT_CONTEXT.md | Текущие web проверки проходят; нет новых Go/MCP/HTTP изменений, прежние результаты обозначены как прежние. |
-| Fly deploy, health и соответствие файлов | media-and-stats/production-check.json: release 192 из c08cb21 | Health passing, HTML и все 56 JS/CSS совпали; 200 root/health/livez, 401 private API. Private smoke отдельно ниже. |
+| Fly deploy, health и соответствие файлов | editing-consistency/production-check.json: release 193 из aecefb2 | Health passing, HTML и все 56 JS/CSS совпали; 200 root/health/livez, 401 private API. Private smoke отдельно ниже. |
 | **Авторизованный production smoke: предмет, связь, разметка сцены в отдельной кампании** | Production browser показывает обычный вход; анонимный API — 401 | **Не выполнено. Требуется вход пользователя. Локальные тесты/health/совпадение файлов не заменяют этот пункт.** |
 | Откат при критической регрессии | Сохранены проверенные Fly images в production-check.json каждого выпуска | Критической регрессии не обнаружено; откат не требовался. |
 
