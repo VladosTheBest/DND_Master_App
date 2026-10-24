@@ -1,3 +1,4 @@
+import { EntityConflictReview } from "./EntityConflictReview";
 import { useLayoutEffect } from "react";
 import { DeviceDraftControls } from "../../app/DeviceDraftControls";
 import type { CampaignData } from "@shadow-edge/shared-types";
@@ -75,13 +76,8 @@ export function EntityEditorModal({
 
         <div className="entity-editor-body">
         <DeviceDraftControls draft={controller.deviceDraft}/>
-        {controller.conflict && <section tabIndex={-1} className="card mini" aria-label="Сравнение версий">
-          <h3>Конфликт: запись изменилась на сервере</h3>
-          <p>Сравните версии. Подготовка объединения сохранит остальные серверные поля; изменённые вами поля (включая списки целиком) возьмём из черновика. Сохранение выполняется отдельной кнопкой.</p>
-          <details><summary>Мой черновик</summary><pre style={{whiteSpace:"pre-wrap"}}>{JSON.stringify(controller.entityForm, null, 2)}</pre></details>
-          <details><summary>Актуальная серверная версия</summary><pre style={{whiteSpace:"pre-wrap"}}>{JSON.stringify(controller.conflict, null, 2)}</pre></details>
-          <button className="ghost" type="button" onClick={controller.useComparedDraft}>Подготовить объединение с моими правками</button>
-        </section>}
+        {controller.conflict&&controller.comparisonServer&&<EntityConflictReview base={controller.comparisonBase} local={controller.entityForm} server={controller.comparisonServer} choices={controller.comparisonChoices} onChoose={controller.chooseComparison} onChooseAll={controller.chooseAllComparisons} onPrepare={controller.useComparedDraft} resolve={id=>controller.comparisonEntityTitles.get(id)?.title||id}/>}
+
 
         <details className="editor-disclosure">
           <summary>Заполнить с помощью AI</summary>

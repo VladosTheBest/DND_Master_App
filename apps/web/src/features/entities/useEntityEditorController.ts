@@ -1,7 +1,8 @@
+import { compareEntityFields, mergeComparedEntity, entityComparisonSignature, type ComparisonChoices, type ComparisonField, type ComparisonChoice } from "./entity-comparison";
 import { useWorkspaceGuard } from "../../app/workspace-route";
 import { isApiError } from "@shadow-edge/api-client";
 import { useDeviceDraft } from "../../app/hooks/useDeviceDraft";
-import { useLayoutEffect, useRef, useState, type FormEvent } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import type {
   AbilityKey,
   CampaignData,
@@ -111,10 +112,19 @@ export function useEntityEditorController({
   }, [entityModalOpen]);
   const hasUnsavedEntityChanges = () => entityArtUploading || Boolean(galleryUploadKey) || JSON.stringify({ entityForm, draftPrompt }) !== baseline.current;
 
-  const baseForm = useRef<CreateEntityInput>(entityForm);
+  const baseForm = useRef<CreateEntityInput|null>(entityForm);
   const [conflict, setConflict] = useState<KnowledgeEntity | null>(null);
+  const [comparisonChoices,setComparisonChoices]=useState<ComparisonChoices>({});
+  const comparisonServer=useMemo(()=>conflict?entityToForm(conflict):null,[conflict,entityToForm]);
+  const comparisonRows=useMemo(()=>comparisonServer?compareEntityFields(baseForm.current,entityForm,comparisonServer):[],[comparisonServer,entityForm]);
+  const comparisonChoiceContext=useRef<Partial<Record<ComparisonField,string>>>({});
+  const comparisonSignature=(field:ComparisonField)=>entityComparisonSignature(entityForm[field],comparisonServer?.[field]);
+  const effectiveComparisonChoices=Object.fromEntries(Object.entries(comparisonChoices).filter(([key])=>comparisonChoiceContext.current[key as ComparisonField]===comparisonSignature(key as ComparisonField))) as ComparisonChoices;
+  const chooseComparison=(field:ComparisonField,choice:ComparisonChoice)=>{comparisonChoiceContext.current[field]=comparisonSignature(field);setComparisonChoices(previous=>({...previous,[field]:choice}));};
+  const chooseAllComparisons=(choice:ComparisonChoice)=>{const rows=comparisonRows.filter(row=>row.requiresChoice);for(const row of rows)comparisonChoiceContext.current[row.key]=comparisonSignature(row.key);setComparisonChoices(Object.fromEntries(rows.map(row=>[row.key,choice])));};
+
   useLayoutEffect(() => {
-    if (entityModalOpen) { baseForm.current = entityForm; setConflict(null); }
+    if (entityModalOpen) { baseForm.current = entityForm; setConflict(null);setComparisonChoices({}); }
   }, [entityModalOpen]);
   const deviceDraft = useDeviceDraft({
     ownerId, campaignId: activeCampaignId, target: `entity:${editingEntityId || `new:${entityForm.kind}`}`,
@@ -123,7 +133,7 @@ export function useEntityEditorController({
     value: { entityForm, baseForm: baseForm.current, draftPrompt, generatedQuestIssuerDraft, generatedQuestIssuerNote, draftNotes },
     restore: ({ value }) => {
       if (!value?.entityForm || value.entityForm.kind !== entityForm.kind) { setBootError("Черновик повреждён или относится к другому типу записи."); return false; }
-      baseForm.current = value.baseForm || value.entityForm;
+      baseForm.current = value.baseForm || null;setComparisonChoices({});setConflict(null);
       setEntityForm(value.entityForm); setDraftPrompt(value.draftPrompt || "");
       setGeneratedQuestIssuerDraft(value.generatedQuestIssuerDraft ?? null);
       setGeneratedQuestIssuerNote(value.generatedQuestIssuerNote || ""); setDraftNotes(value.draftNotes || []);
@@ -131,16 +141,10 @@ export function useEntityEditorController({
   });
   useWorkspaceGuard(entityModalOpen&&hasUnsavedEntityChanges());
   const useComparedDraft = () => {
-    if (!conflict) return;
-    const server = entityToForm(conflict);
-    const merged = { ...server };
-    for (const key of Object.keys(entityForm) as (keyof CreateEntityInput)[]) {
-      if (key !== "expectedRevision" && JSON.stringify(entityForm[key]) !== JSON.stringify(baseForm.current[key])) {
-        Object.assign(merged, { [key]: entityForm[key] });
-      }
-    }
-    baseForm.current = server;
-    setEntityForm(merged); setConflict(null); setBootError("");
+    if (!conflict||!comparisonServer||comparisonRows.some(row=>row.requiresChoice&&!effectiveComparisonChoices[row.key])) return;
+    const merged=mergeComparedEntity(baseForm.current,entityForm,comparisonServer,effectiveComparisonChoices);
+    baseForm.current=comparisonServer;
+    setEntityForm(merged);setConflict(null);setComparisonChoices({});setBootError("");
   };
 
   const entityContentRef = useRef<HTMLTextAreaElement | null>(null);
@@ -617,7 +621,7 @@ export function useEntityEditorController({
       deviceDraft.clear();
       closeEntityModal();
     } catch (error) {
-      if (isApiError(error) && error.status === 409 && error.current) setConflict(error.current as KnowledgeEntity);
+      if (isApiError(error) && error.status === 409 && error.current) {setComparisonChoices({});setConflict(error.current as KnowledgeEntity);}
       setBootError(
         error instanceof Error
           ? error.message
@@ -690,7 +694,7 @@ export function useEntityEditorController({
   const entitySubmitLabel = isEditingEntity ? "Сохранить изменения" : "Создать";
 
   return {
-    deviceDraft, conflict, useComparedDraft,
+    deviceDraft, conflict, useComparedDraft, comparisonBase:baseForm.current, comparisonServer, comparisonChoices:effectiveComparisonChoices, chooseComparison, chooseAllComparisons, comparisonEntityTitles:entityMap,
     hasUnsavedEntityChanges,
     addEntityGalleryItem,
     addEntityPlayerCard,
