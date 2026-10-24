@@ -1465,6 +1465,7 @@ func materializeEntity(input createEntityInput) knowledgeEntity {
 		LocationID:      input.LocationID,
 		StatBlock:       input.StatBlock,
 		RewardProfile:   sanitizeRewardPresentation(input.RewardProfile),
+		QuestAppearance: sanitizeQuestAppearance(input.Kind, input.QuestAppearance),
 		Urgency:         input.Urgency,
 		IssuerID:        input.IssuerID,
 		PreparedCombat:  primaryPreparedCombat(preparedCombats),

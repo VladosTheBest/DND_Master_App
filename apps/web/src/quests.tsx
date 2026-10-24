@@ -7,7 +7,7 @@ import { useWorkspaceGuard } from "./app/workspace-route";
 import { RecordIllustration } from "./features/entity-images/RecordIllustration";
 import { AppModal } from "./app/AppModal";
 import { confirmAction } from "./app/confirm-action";
-import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import type {
   CombatThresholds,
   KnowledgeEntity,
@@ -30,7 +30,9 @@ import {
   rewardSummaryText,
   truncateInlineText
 } from "./app-shared";
-import { GallerySection } from "./media";
+import { GallerySection, PlaylistSection } from "./media";
+import {RewardSection} from "./combat-ui";
+import {RichParagraphs} from "./rich-text";
 import {
   extractPlainTextFromPlayerFacingHTML,
   playerFacingPlainTextToHTML,
@@ -152,6 +154,7 @@ const playerCardCount = (count:number) => `${count} ${{zero:"карточек",o
 
 export function PlayerFacingCardStrip({
   cards,
+  collapsible = true,
   cardBadgeLabel = "Для игроков",
   cardBadgeTone = "success",
   contextMenuLabel = "Карточка игроков",
@@ -168,6 +171,7 @@ export function PlayerFacingCardStrip({
   readOnly = false,
   title = "Карточки"
 }: {
+  collapsible?:boolean;
   cards: PlayerFacingCard[];
   cardBadgeLabel?: string;
   cardBadgeTone?: QuickFactTone;
@@ -211,6 +215,7 @@ export function PlayerFacingCardStrip({
   return (
     <>
       <CollapsibleSection
+      collapsible={collapsible}
       defaultCollapsed={!cards.length}
       action={<div className="actions"><span className={badge(cards.length ? cardBadgeTone : "default")}>{countLabel ?? (cards.length ? playerCardCount(cards.length) : "Пока нет")}</span>{!readOnly&&<button className="ghost" onClick={onCreateCard} type="button">Добавить карточку</button>}</div>}
       className="entity-player-facing-stack entity-player-facing-collapsible"
@@ -945,6 +950,11 @@ function QuestPreviewEntityCard({
 
 export function QuestWorkspace({
   quest,
+  editingSection,
+  cardsEditing,
+  entityByTitle,
+  playlistTrackUrl,
+  onStopPlayback,
   location,
   issuer,
   playerCards,
@@ -977,6 +987,11 @@ export function QuestWorkspace({
   readOnly = false
 }: {
   quest: QuestEntity;
+  editingSection?:string;
+  cardsEditing?:boolean;
+  entityByTitle:Map<string,KnowledgeEntity>;
+  playlistTrackUrl?:string;
+  onStopPlayback:()=>void;
   location: LocationEntity | null;
   issuer: NpcEntity | null;
   playerCards: PlayerFacingCard[];
@@ -1004,313 +1019,87 @@ export function QuestWorkspace({
   onOpenGalleryViewer: (index: number) => void;
   onOpenPlaylist: (quest: QuestEntity) => void;
   onPlayNextPlaylistTrack: () => void;
-  onPlayPlaylist: () => void;
+  onPlayPlaylist: (index?:number) => void;
   onOpenQuest: (id: string) => void;
   readOnly?: boolean;
 }) {
-  const playerSections = useMemo(() => parseQuestTextSections(quest.playerContent), [quest.playerContent]);
-  const gmSections = useMemo(() => parseQuestTextSections(quest.content), [quest.content]);
-  const sceneImage = useMemo(
-    () => resolveQuestSceneArtwork(quest, location, issuer, preparedCombatEntries),
-    [issuer, location, preparedCombatEntries, quest]
-  );
-  const hiddenHighlights = useMemo(() => {
-    const prioritized = [
-      ...collectQuestSectionLines(findQuestTextSection(gmSections, ["на самом деле", "что происходит", "скрыто", "правда"]), 5),
-      ...collectQuestSectionLines(findQuestTextSection(gmSections, ["опасность", "угроза", "засада"]), 3)
-    ];
-    return prioritized.length ? dedupeQuestLines(prioritized, 5) : splitQuestNarrative(quest.content, 5);
-  }, [gmSections, quest.content]);
-  const objectiveLines = useMemo(
-    () =>
-      buildQuestObjectiveLines({
-        quest,
-        location,
-        issuer,
-        preparedCombatEntries,
-        relatedQuests
-      }),
-    [issuer, location, preparedCombatEntries, quest, relatedQuests]
-  );
-  const actionCards = useMemo(
-    () =>
-      buildQuestActionCards({
-        quest,
-        playerSections,
-        location,
-        issuer,
-        preparedCombatEntries
-      }),
-    [issuer, location, playerSections, preparedCombatEntries, quest]
-  );
-  const checklistItems = useMemo(
-    () =>
-      buildQuestChecklistItems({
-        quest,
-        location,
-        issuer,
-        preparedCombatEntries
-      }),
-    [issuer, location, preparedCombatEntries, quest]
-  );
-  const rewardItems = quest.rewardProfile?.loot ?? [];
-  const playerVisible = Boolean(playerCards.length || quest.playerContent?.trim());
-  const preparedCombatCount = preparedCombatEntries.reduce((sum, item) => sum + item.quantity, 0);
-  const heroLinkedEntities = linkedEntities.slice(0, 4);
-  const sceneLead =
-    collectQuestSectionLines(findQuestTextSection(playerSections, ["что происходит", "суть", "контекст"]), 1)[0] ??
-    quest.summary;
+  const tabs=[["overview","Обзор"],["story","Сценарий"],["cards","Карточки"],["combat","Бой"],["rewards","Награды"],["media","Медиа"]] as const;
+  const tabId=useId();
+  const [selection,setSelection]=useState({questId:quest.id,tab:"overview"});
+  const selected=selection.questId===quest.id?selection.tab:"overview";
+  const selectTab=(tab:string)=>setSelection({questId:quest.id,tab});
+  const sectionTab=(section:string)=>({summary:"overview",questMeta:"overview",appearance:"overview",content:"story",cards:"cards",combat:"combat",stats:"combat",rewards:"rewards",art:"media",gallery:"media",playlist:"media",media:"media"} as Record<string,string>)[section]||"overview";
+  useEffect(()=>{if(editingSection)selectTab(sectionTab(editingSection));},[editingSection,quest.id]);
+  useEffect(()=>{if(cardsEditing)selectTab("cards");},[cardsEditing,quest.id]);
+  const edit=(section="summary")=>{selectTab(sectionTab(section));onEdit(quest.id,section);};
+  const slot=(section:string)=>!readOnly?<div className="entity-inline-slot" id={"entity-inline-"+quest.id+"-"+section}/>:null;
+  const panel=(id:string,children:ReactNode)=><section role="tabpanel" id={tabId+"-panel-"+id} aria-labelledby={tabId+"-tab-"+id} tabIndex={0} hidden={selected!==id} className="dossier-tab-panel quest-tab-panel">{children}</section>;
+  const appearance=quest.questAppearance??{};
+  const colors={"--quest-card":safeCardColor(appearance.backgroundColor)||"var(--surface)","--quest-ink":safeCardColor(appearance.textColor)||"var(--text)","--quest-accent":safeCardColor(appearance.accentColor)||"var(--accent)"} as CSSProperties;
+  const editButton=(section:string,label:string)=><button className="ghost record-edit-action" type="button" onClick={()=>edit(section)}>{label}</button>;
 
-  return (
-    <div className="quest-shell">
-      <section className="card quest-hero-panel">
-        <div className="quest-hero-top">
-          <div className="quest-breadcrumbs">
-            <button className="quest-breadcrumb-btn" onClick={onOpenDirectory} type="button">
-              Квесты
-            </button>
-            <span>/</span>
-            <strong>{quest.title}</strong>
-          </div>
-
-          <div className="quest-nav-buttons">
-            <button className="ghost quest-nav-btn" disabled={!previousQuest} onClick={() => previousQuest && onOpenQuest(previousQuest.id)} type="button">
-              Предыдущий
-            </button>
-            <button className="ghost quest-nav-btn" disabled={!nextQuest} onClick={() => nextQuest && onOpenQuest(nextQuest.id)} type="button">
-              Следующий
-            </button>
-          </div>
-        </div>
-
-        <div className="quest-hero-main">
-          <div className="quest-hero-copy">
-            <div className="quest-title-row">
-              <h1>{quest.title}</h1>
-              <span className={badge("warning")}>Квест</span>
-            </div>
-            <p className="quest-hero-summary">{quest.summary}</p>{!readOnly&&<button className="ghost record-edit-action" onClick={()=>onEdit(quest.id,"summary")}>{quest.summary?"Редактировать описание":"Добавить описание"}</button>}
-            <p className="quest-hero-subtitle">{quest.subtitle}</p>
-
-            {heroLinkedEntities.length ? (
-              <div className="quest-anchor-row">
-                {heroLinkedEntities.map((item) => (
-                  <QuestEntityChip key={`${quest.id}-hero-link-${item.entity.id}`} entity={item.entity} label={item.label} onOpen={onOpenEntity} tone={item.tone} />
-                ))}
-              </div>
-            ) : null}
-          </div>
-
-          {!readOnly ? <div className="quest-hero-actions">
-            <button className="ghost" onClick={() => onEdit(quest.id)} type="button">
-              Редактировать
-            </button>
-            {onEditWithAI ? (
-              <button className="ghost ai-edit-button" onClick={onEditWithAI} type="button">
-                Изменить с AI
-              </button>
-            ) : null}
-            <button className="ghost" disabled={!playerCards.length} onClick={() => playerCards[0] && onOpenPlayerCard(playerCards[0], 0)} type="button">
-              Показать игрокам
-            </button>
-            <button className={pinned ? "primary" : "ghost"} onClick={() => onTogglePin(quest.id)} type="button">
-              {pinned ? "Закреплено" : "Закрепить"}
-            </button>
-          </div> : null}
-        </div>
-
-        <div className="quest-status-grid">
-          <QuestMetaPill label="Статус" tone={questStatusTone(quest.status)} value={questStatusLabels[quest.status]} />
-          <QuestMetaPill label="Срочность" tone={questUrgencyTone(quest.urgency)} value={questUrgencyLabels[quest.urgency]} />
-          <QuestMetaPill label="Игроки" tone={playerVisible ? "success" : "warning"} value={playerVisible ? "Есть версия" : "Не заполнено"} />
-          <QuestMetaPill label="Бой" tone={preparedCombatCount ? "danger" : "default"} value={preparedCombatCount ? `${preparedCombatCount} в сцене` : "Не настроен"} />
-          <QuestMetaPill
-            label="Награда"
-            tone={rewardSummaryText(quest.rewardProfile) ? "success" : "default"}
-            value={rewardSummaryText(quest.rewardProfile) || "Не заполнена"}
-          />
-        </div>
-      </section>
-
-      <section className="card quest-scene-spotlight">
-        <div className="quest-scene-copy">
-          <span className="quest-scene-label">Суть сцены</span>
-          <strong>{findQuestTextSection(playerSections, ["что происходит", "суть"])?.title || "Фокус текущего эпизода"}</strong>
-          <p>{sceneLead}</p>
-          <div className="quest-scene-inline-meta">
-            {location ? <span>{location.title}</span> : null}
-            {issuer ? <span>{issuer.title}</span> : null}
-            {preparedCombatCount ? <span>{preparedCombatCount} противников в резерве</span> : null}
-          </div>
-        </div>
-
-        <RecordIllustration key={sceneImage} url={quest.art?.url||location?.art?.url||issuer?.art?.url||preparedCombatEntries.find(item=>item.entity.art?.url)?.entity.art?.url} title={quest.title} onReplace={readOnly?undefined:()=>onEdit(quest.id,"art")} onGallery={readOnly?undefined:()=>onOpenGallery(quest)}/>
-      </section>
-
-      <PlayerFacingCardStrip
-        cards={playerCards}
-        createDescription="Новая handout-карточка, сцена или отдельный player-safe фрагмент для этого квеста."
-        description="Отдельные карточки-сцены для игроков: вводная, речь квестодателя, записка, отдельная улика или развилка."
-        emptyDescription="Пока карточек нет. Создай первую, чтобы открывать нужный текст игрокам по одной карточке, без длинной общей простыни."
-        entityId={quest.id}
-        onCreateCard={onCreatePlayerCard}
-        onDeleteCard={onDeletePlayerCard}
-        onEditCard={onEditPlayerCard}
-        onOpenCard={onOpenPlayerCard}
-        readOnly={readOnly}
-      />
-
-      {preparedCombatSection}
-
-      <GallerySection
-        action={readOnly ? undefined : (
-          <button className="ghost" onClick={() => onOpenGallery(quest)} type="button">
-            Настроить
-          </button>
-        )}
-        defaultCollapsed={!(quest.gallery ?? []).length}
-        hint="Карты, письма, портреты, улики и любые handout-изображения для этого квеста."
-        items={quest.gallery ?? []}
-        onCopyLink={onCopyImageLink}
-        onOpenFullscreen={onOpenGalleryViewer}
-        title="Галерея квеста"
-      />
-
-      <div className="quest-story-grid">
-        <article className="card quest-story-card quest-story-card-hidden">{!readOnly&&<button className="ghost record-edit-action" onClick={()=>onEdit(quest.id,"content")}>Редактировать сведения мастера</button>}
-          <div className="quest-story-head">
-            <strong>Скрыто от игроков</strong>
-            <span className={badge("warning")}>GM only</span>
-          </div>
-
-          {hiddenHighlights.length ? (
-            <ul className="quest-bullet-list">
-              {hiddenHighlights.map((line) => (
-                <li key={`${quest.id}-hidden-${line}`}>{line}</li>
-              ))}
-            </ul>
-          ) : (
-            <p className="copy">GM-заметки пока не заполнены.</p>
-          )}
-        </article>
-
-        <article className="card quest-story-card quest-story-card-goal">
-          <div className="quest-story-head">
-            <strong>Цель сцены</strong>
-            <span className={badge("accent")}>Фокус мастера</span>
-          </div>
-
-          <ul className="quest-bullet-list">
-            {objectiveLines.map((line) => (
-              <li key={`${quest.id}-goal-${line}`}>{line}</li>
-            ))}
-          </ul>
-
-          {relatedQuests.length ? (
-            <div className="quest-inline-links">
-              {relatedQuests.slice(0, 2).map((item) => (
-                <button key={`${quest.id}-inline-related-${item.id}`} className="ghost" onClick={() => onOpenQuest(item.id)} type="button">
-                  {item.title}
-                </button>
-              ))}
-            </div>
-          ) : null}
-        </article>
-
-        <article className="card quest-story-card quest-story-card-playlist">
-          <div className="quest-story-head">
-            <strong>Плейлист сцены</strong>
-            <span className={badge(playlistActive ? "accent" : quest.playlist?.length ? "success" : "default")}>
-              {playlistActive ? "Играет" : quest.playlist?.length ? `${quest.playlist.length} треков` : "Пусто"}
-            </span>
-          </div>
-
-          <p className="copy quest-story-note">
-            {quest.playlist?.length
-              ? playlistActive && playlistTrackLabel
-                ? `Сейчас играет: ${playlistTrackLabel}. Можно быстро переключить или открыть редактор плейлиста.`
-                : `В квесте подготовлено ${quest.playlist.length} треков. Запусти случайный трек или подправь список отдельно.`
-              : "У этого квеста пока нет своего плейлиста. Его можно открыть и настроить отдельно, не заходя в общий редактор."}
-          </p>
-
-          {!readOnly ? <div className="quest-story-actions">
-            <button className="ghost fill" onClick={() => onOpenPlaylist(quest)} type="button">
-              Настроить
-            </button>
-            {quest.playlist?.length ? (
-              <button className="ghost" onClick={playlistActive ? onPlayNextPlaylistTrack : onPlayPlaylist} type="button">
-                {playlistActive ? "Следующий трек" : "Случайный трек"}
-              </button>
-            ) : null}
-          </div> : null}
-        </article>
+  return <div className="quest-shell quest-dossier" data-density={appearance.density||"comfortable"} style={colors}>
+    <header className="quest-dossier-header">
+      <div className="quest-dossier-navigation">
+        <button className="ghost" type="button" onClick={onOpenDirectory}>К списку квестов</button>
+        <div className="actions"><button className="ghost" type="button" disabled={!previousQuest} onClick={()=>previousQuest&&onOpenQuest(previousQuest.id)}>Предыдущий</button><button className="ghost" type="button" disabled={!nextQuest} onClick={()=>nextQuest&&onOpenQuest(nextQuest.id)}>Следующий</button></div>
       </div>
+      <div className="record-heading">
+        <div><span className="eyebrow">Квест</span><h1>{quest.title}</h1>{quest.subtitle&&<p className="copy">{quest.subtitle}</p>}</div>
+        {!readOnly&&<div className="actions quest-dossier-actions">
+          <button className="primary" type="button" onClick={()=>edit("summary")}>Редактировать</button>
+          <button className="ghost" type="button" onClick={()=>edit("appearance")}>Оформление</button>
+          <ActionMenu label="Действия" ariaLabel="Действия с квестом"><button type="button" onClick={()=>onTogglePin(quest.id)}>{pinned?"Открепить":"Закрепить"}</button>{onEditWithAI&&<button type="button" onClick={onEditWithAI}>Изменить с AI</button>}</ActionMenu>
+        </div>}
+      </div>
+      <div className="quest-dossier-badges"><span className={badge(questStatusTone(quest.status))}>{questStatusLabels[quest.status]||"Статус не указан"}</span><span className={badge(questUrgencyTone(quest.urgency))}>Срочность: {questUrgencyLabels[quest.urgency]||"не указана"}</span>{quest.tags?.map(tag=><span className="entry-chip" key={tag}>{tag}</span>)}</div>
+    </header>
+    {readOnly&&quest.art?.url&&<RecordIllustration url={quest.art.url} title={quest.title} alt={quest.art.alt||quest.art.caption}/>}
+    <div role="tablist" aria-label="Разделы квеста" className="dossier-tabs" onKeyDown={event=>{
+      if(event.altKey||event.ctrlKey||event.metaKey||!["ArrowLeft","ArrowRight","Home","End"].includes(event.key)||!(event.target instanceof HTMLButtonElement))return;
+      const buttons=Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+      const index=buttons.indexOf(event.target);if(index<0)return;
+      event.preventDefault();const next=event.key==="Home"?0:event.key==="End"?buttons.length-1:(index+(event.key==="ArrowRight"?1:-1)+buttons.length)%buttons.length;
+      selectTab(tabs[next][0]);buttons[next].focus({preventScroll:true});
+    }}>{tabs.map(([id,label])=><button role="tab" type="button" key={id} id={tabId+"-tab-"+id} aria-controls={tabId+"-panel-"+id} aria-selected={selected===id} tabIndex={selected===id?0:-1} onClick={()=>selectTab(id)}>{label}{id==="cards"&&playerCards.length>0&&<small aria-hidden="true">{playerCards.length}</small>}</button>)}</div>
+    {(editingSection||cardsEditing)&&<div className="inline-edit-reminder" role="status"><span>Редактирование открыто в карточке</span><button className="ghost" type="button" onClick={()=>selectTab(cardsEditing?"cards":sectionTab(editingSection||"summary"))}>Вернуться к правкам</button></div>}
 
-      <section className="card quest-action-section">
-        <div className="row">
-          <strong>Возможные действия игроков</strong>
-          <small>{actionCards.length} направления сцены</small>
-        </div>
-
-        <div className="quest-action-grid">
-          {actionCards.map((action) => (
-            <article key={`${quest.id}-${action.title}`} className={`quest-action-card quest-tone-${action.tone}`}>
-              <span>{action.detail}</span>
-              <strong>{action.title}</strong>
-              <p>{action.description}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="card quest-checklist-section">
-        <div className="row">
-          <strong>Чек-лист мастера</strong>
-          <small>
-            {checklistItems.filter((item) => item.done).length}/{checklistItems.length} готово
-          </small>
-        </div>
-
-        <div className="quest-checklist-grid">
-          {checklistItems.map((item) => (
-            <label key={`${quest.id}-${item.key}`} className={`quest-checklist-item ${item.done ? "done" : ""}`}>
-              <input defaultChecked={item.done} type="checkbox" />
-              <span>{item.label}</span>
-            </label>
-          ))}
-        </div>
-      </section>
-
-      <section className="card quest-reward-section" data-custom-colors={Boolean(quest.rewardProfile?.textColor||quest.rewardProfile?.backgroundColor)||undefined} style={{color:safeCardColor(quest.rewardProfile?.textColor),backgroundColor:safeCardColor(quest.rewardProfile?.backgroundColor)}}>
-        <div className="row">
-          <strong>Награды и ставка</strong>{!readOnly&&<button className="ghost" type="button" onClick={()=>onEdit(quest.id,"rewards")}>Редактировать награды</button>}
-          <small>{rewardItems.length ? `${rewardItems.length} позиций` : "Награды пока не заданы"}</small>
-        </div>
-
-        {quest.rewardProfile?.summary.trim() ? <p className="copy quest-reward-summary">{quest.rewardProfile.summary.trim()}</p> : null}
-
-        {rewardItems.length ? (
-          <div className="quest-reward-grid">
-            {rewardItems.slice(0, 4).map((item, index) => (
-              <article key={`${quest.id}-reward-${item.name}-${index}`} className="quest-reward-card" data-custom-colors={Boolean(item.textColor||item.backgroundColor)||undefined} style={{color:safeCardColor(item.textColor),backgroundColor:safeCardColor(item.backgroundColor)}}>
-                <span>{item.category}</span>
-                <strong>{item.name}</strong>
-                <p>{item.quantity}</p>
-                <small>
-                  {item.check}
-                  {item.dc ? ` • ${item.dc}` : ""}
-                </small>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <p className="quest-empty-state">
-            Здесь пока пусто. Когда заполнишь награды в редакторе, они появятся в этом компактном блоке.
-          </p>
-        )}
-      </section>
-    </div>
-  );
+    {panel("overview",<>
+      <div className="entity-edit-block">{slot("summary")}<section className="entity-read-content quest-reading-surface">
+        <header className="record-block-heading"><h2>О квесте</h2>{!readOnly&&editButton("summary",quest.summary?"Редактировать описание":"Добавить описание")}</header>
+        <p className="quest-overview-summary">{quest.summary||"Добавьте завязку: что нужно сделать и почему это важно."}</p>
+      </section></div>
+      <div className="entity-edit-block">{slot("questMeta")}<section className="entity-read-content quest-reading-surface">
+        <header className="record-block-heading"><h2>Статус и участники</h2>{!readOnly&&editButton("questMeta","Изменить")}</header>
+        <dl className="quest-dossier-meta">
+          <div><dt>Статус</dt><dd>{questStatusLabels[quest.status]||"Не указан"}</dd></div><div><dt>Срочность</dt><dd>{questUrgencyLabels[quest.urgency]||"Не указана"}</dd></div>
+          <div><dt>Квестодатель</dt><dd>{issuer?<button type="button" className="quest-inline-link" onClick={()=>onOpenEntity(issuer.id)}>{issuer.title}</button>:"Не выбран"}</dd></div>
+          <div><dt>Место действия</dt><dd>{location?<button type="button" className="quest-inline-link" onClick={()=>onOpenEntity(location.id)}>{location.title}</button>:"Не выбрано"}</dd></div>
+        </dl>
+      </section></div>
+      {relatedQuests.length>0&&<section className="quest-reading-surface"><header className="record-block-heading"><h2>Рядом по сюжету</h2></header><p className="copy">Квесты с общим местом, квестодателем или ссылкой на эту запись.</p><div className="actions">{relatedQuests.map(item=><button className="ghost" type="button" key={item.id} onClick={()=>onOpenQuest(item.id)}>{item.title}</button>)}</div></section>}
+      {slot("appearance")}
+    </>)}
+    {panel("story",<div className="entity-edit-block">{slot("content")}<section className="entity-read-content quest-reading-surface quest-story-reading">
+      <header className="record-block-heading"><div><h2>Сценарий мастера</h2><small>Секреты, цели, этапы и последствия · только для мастера</small></div>{!readOnly&&editButton("content",quest.content?"Редактировать сценарий":"Добавить сценарий")}</header>
+      {quest.content?<RichParagraphs content={quest.content} entityByTitle={entityByTitle} onMentionClick={onOpenEntity}/>:<p className="copy">Опишите завязку, развитие событий и возможные исходы. Зачитки для игроков храните во вкладке «Карточки».</p>}
+    </section></div>)}
+    {panel("cards",<>
+      {slot("cards")}
+      <PlayerFacingCardStrip collapsible={false} title="Карточки и зачитки" cards={playerCards} entityId={quest.id} readOnly={readOnly} createDescription="Вводная, реплика квестодателя, записка или улика." description="Текст, который можно зачитать или показать игрокам. Секреты остаются в сценарии мастера." emptyDescription="Добавьте первую зачитку или отдельную карточку улики." onCreateCard={onCreatePlayerCard} onDeleteCard={onDeletePlayerCard} onEditCard={onEditPlayerCard} onOpenCard={onOpenPlayerCard}/>
+    </>)}
+    {panel("combat",<><header className="quest-tab-intro"><h2>Подготовка встреч</h2><p className="copy">Соберите состав и количество противников. Настройка сохраняется в квесте; запуск боя доступен в режиме «Оффлайн · Beta».</p></header>{slot("combat")}{slot("stats")}{preparedCombatSection}</>)}
+    {panel("rewards",<div className="entity-edit-block">{slot("rewards")}<div className="entity-read-content quest-rewards-pane">
+      {quest.rewardProfile?.summary||quest.rewardProfile?.loot.length?<RewardSection collapsible={false} kind="quest" rewardProfile={quest.rewardProfile} action={!readOnly?editButton("rewards","Редактировать награды"):undefined}/>:<section className="quest-reading-surface"><header className="record-block-heading"><h2>Награды и добыча</h2>{!readOnly&&editButton("rewards","Добавить награды")}</header><p className="copy">Запишите награду за успех, предметы и условия получения. Для добычи можно указать проверку и СЛ, выбрать цвет текста и карточки.</p></section>}
+    </div></div>)}
+    {panel("media",<>
+      {slot("art")}
+      <div className="quest-media-grid">
+        <section className="media-pane entity-edit-block">{slot("playlist")}<div className="entity-read-content"><PlaylistSection collapsible={false} title="Плейлист" hint="Музыка для эпизодов этого квеста." tracks={quest.playlist??[]} activeTrackUrl={playlistTrackUrl} activeTrackLabel={playlistTrackLabel} isActive={playlistActive} action={!readOnly?editButton("playlist",quest.playlist?.length?"Редактировать плейлист":"Добавить музыку"):undefined} onPlayRandom={()=>onPlayPlaylist()} onPlayTrack={index=>onPlayPlaylist(index)} onNextRandom={onPlayNextPlaylistTrack} onStop={onStopPlayback}/></div></section>
+        <section className="media-pane entity-edit-block">{slot("gallery")}<div className="entity-read-content"><GallerySection collapsible={false} title="Галерея" hint="Карты, письма, иллюстрации и улики." items={quest.gallery??[]} onCopyLink={onCopyImageLink} onOpenFullscreen={onOpenGalleryViewer} action={!readOnly?editButton("gallery",quest.gallery?.length?"Редактировать галерею":"Добавить изображения"):undefined}/></div></section>
+      </div>
+    </>)}
+  </div>;
 }
 
 export function QuestPreviewPanel({

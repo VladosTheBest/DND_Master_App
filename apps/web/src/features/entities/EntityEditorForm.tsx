@@ -1,3 +1,4 @@
+import {QuestAppearanceEditor} from "./QuestAppearanceEditor";
 import type {
   CampaignData,
   CreateEntityInput,
@@ -499,9 +500,10 @@ export function EntityEditorForm({
       </label>
 
       </details>}
-      {show("stats")&&(entityForm.kind === "quest" ? <details className="editor-disclosure field-full">
+      {show("appearance")&&entityForm.kind==="quest"&&<QuestAppearanceEditor controller={controller}/>}
+      {show("stats","questMeta")&&(entityForm.kind === "quest" ? <details open={Boolean(onlySection)||undefined} className="editor-disclosure field-full">
         <summary>Подготовка сцены и боя</summary>
-        <div className="form-grid"><EntityPreparedCombatEditor campaign={campaign} controller={controller} /></div>
+        <div data-editor-section="questMeta" className="form-grid"><EntityPreparedCombatEditor metadataOnly={Boolean(onlySection)} campaign={campaign} controller={controller} /></div>
       </details> : <EntityPreparedCombatEditor campaign={campaign} controller={controller} />)}
       {show("stats")&&(["player", "npc", "monster"].includes(entityForm.kind) ? <details open={Boolean(onlySection)||undefined} className="editor-disclosure field-full">
         <summary>Боевые характеристики</summary>

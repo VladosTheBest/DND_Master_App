@@ -14,6 +14,7 @@ import {
 } from "./preparedCombat.utils";
 
 type PreparedCombatListProps = {
+  collapsible?:boolean;
   entity: PreparedCombatHostEntity;
   entityMap: Map<string, KnowledgeEntity>;
   hasActiveCombatEntries: boolean;
@@ -25,6 +26,7 @@ type PreparedCombatListProps = {
 };
 
 export function PreparedCombatList({
+  collapsible=true,
   entity,
   entityMap,
   hasActiveCombatEntries,
@@ -79,8 +81,9 @@ export function PreparedCombatList({
   return (
     <>
       <CollapsibleSection
+        collapsible={collapsible}
         defaultCollapsed={!cards.length}
-        action={<span className={badge(cards.length ? "danger" : "default")}>{cards.length ? `${cards.length} карточек` : "Не добавлены"}</span>}
+        action={<span className={badge(cards.length ? "danger" : "default")}>{cards.length ? String(cards.length)+" "+(cards.length%100>=11&&cards.length%100<=14?"карточек":cards.length%10===1?"карточка":cards.length%10>=2&&cards.length%10<=4?"карточки":"карточек") : "Не добавлены"}</span>}
         className="entity-prepared-combat-stack entity-player-facing-collapsible"
         hint={copy.description}
         summary={
@@ -120,7 +123,7 @@ export function PreparedCombatList({
             type="button"
           >
             <span className="entity-player-facing-create-mark">+</span>
-            <strong>Создать ещё</strong>
+            <strong>{cards.length?"Создать ещё":"Создать встречу"}</strong>
             <p className="copy">{copy.createDescription}</p>
           </button> : null}
         </div>

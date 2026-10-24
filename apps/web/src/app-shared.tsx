@@ -352,6 +352,7 @@ export function CollapsibleSection({
   hint,
   summary,
   defaultCollapsed = false,
+  collapsible = true,
   action,
   className = "",
   children
@@ -360,16 +361,18 @@ export function CollapsibleSection({
   hint?: string;
   summary?: ReactNode;
   defaultCollapsed?: boolean;
+  collapsible?: boolean;
   action?: ReactNode;
   className?: string;
   children: ReactNode;
 }) {
-  const [collapsed, setCollapsed] = useState(defaultCollapsed);
+  const [storedCollapsed, setCollapsed] = useState(defaultCollapsed);
+  const collapsed = collapsible && storedCollapsed;
 
   return (
     <section className={`card section-card collapsible-section ${collapsed ? "collapsed" : ""} ${className}`.trim()}>
       <div className="collapsible-head">
-        <button
+        {collapsible?<button
           aria-expanded={!collapsed}
           className="collapsible-toggle"
           onClick={() => setCollapsed((current) => !current)}
@@ -380,7 +383,7 @@ export function CollapsibleSection({
             {hint ? <small>{hint}</small> : null}
           </span>
           <span className={`collapsible-chevron ${collapsed ? "collapsed" : ""}`}>{collapsed ? "Развернуть" : "Свернуть"}</span>
-        </button>
+        </button>:<div className="collapsible-copy"><strong>{title}</strong>{hint&&<small>{hint}</small>}</div>}
         {action ? <div className="collapsible-action">{action}</div> : null}
       </div>
 

@@ -72,7 +72,7 @@ export function EntityEditorModal({
       <div ref={rootRef} className={"panel palette form-modal entity-editor-modal"+(inlineTargetId?" entity-editor-inline":"")} aria-label={inlineTargetId?"Редактирование раздела":undefined} onClick={(event) => event.stopPropagation()}>
         <div className="row entity-editor-header">
           <div>
-            <h2>{inlineTargetId?({summary:"Сведения",content:"Сведения мастера",stats:"Характеристики",rewards:"Награда и лут",art:"Изображение",playlist:"Плейлист",gallery:"Галерея"} as Record<string,string>)[section||"summary"]:isEditingEntity ? "Редактирование записи" : "Новая запись"}</h2>
+            <h2>{inlineTargetId?({appearance:"Оформление квеста",questMeta:"Статус и участники",summary:"Сведения",content:"Сведения мастера",stats:"Характеристики",rewards:"Награда и лут",art:"Изображение",playlist:"Плейлист",gallery:"Галерея"} as Record<string,string>)[section||"summary"]:isEditingEntity ? "Редактирование записи" : "Новая запись"}</h2>
             <p className="copy">{isEditingEntity ? controller.entityForm.title : "Начните с названия и описания. Остальное можно дополнить позже."}</p>
           </div>
           <button className="ghost" onClick={onClose} type="button">

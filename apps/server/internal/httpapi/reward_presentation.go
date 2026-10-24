@@ -30,3 +30,18 @@ func sanitizeRewardPresentation(profile *monsterRewardProfile) *monsterRewardPro
 	}
 	return &result
 }
+
+// Quest appearance is presentation only and cannot carry CSS expressions.
+func sanitizeQuestAppearance(kind string, appearance *questAppearance) *questAppearance {
+	if kind != "quest" || appearance == nil {
+		return nil
+	}
+	result := *appearance
+	result.TextColor = safeRewardColor(result.TextColor)
+	result.BackgroundColor = safeRewardColor(result.BackgroundColor)
+	result.AccentColor = safeRewardColor(result.AccentColor)
+	if result.Density != "compact" && result.Density != "comfortable" {
+		result.Density = ""
+	}
+	return &result
+}

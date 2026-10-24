@@ -1,0 +1,19 @@
+{
+  "rewardCount": 5,
+  "completeScript": true,
+  "cardCount": 1,
+  "galleryCount": 2,
+  "encounterCount": 3,
+  "appearance": {
+    "textColor": "#342a21",
+    "backgroundColor": "#efe2c7",
+    "density": "compact"
+  },
+  "revision": 13,
+  "concurrentLocalEncounter": true,
+  "independentServerSummary": true,
+  "concurrentServerEncounter": true,
+  "firstEncounterQuantity": 2,
+  "scope": "Synthetic local QA",
+  "playlistCount": 1
+}

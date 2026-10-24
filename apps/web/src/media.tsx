@@ -33,6 +33,7 @@ export function PlaylistSection({
   activeTrackLabel,
   isActive,
   compact = false,
+  collapsible = true,
   defaultCollapsed = false,
   action,
   onPlayRandom,
@@ -47,6 +48,7 @@ export function PlaylistSection({
   activeTrackLabel?: string;
   isActive?: boolean;
   compact?: boolean;
+  collapsible?: boolean;
   defaultCollapsed?: boolean;
   action?: ReactNode;
   onPlayRandom: () => void;
@@ -56,6 +58,7 @@ export function PlaylistSection({
 }) {
   return (
     <CollapsibleSection
+      collapsible={collapsible}
       action={action}
       className={`playlist-section ${compact ? "compact" : ""}`}
       defaultCollapsed={defaultCollapsed}
@@ -184,6 +187,7 @@ export function GallerySection({
   hint,
   items,
   compact = false,
+  collapsible = true,
   defaultCollapsed = false,
   displayLimit,
   action,
@@ -196,6 +200,7 @@ export function GallerySection({
   hint: string;
   items: GalleryImage[];
   compact?: boolean;
+  collapsible?: boolean;
   defaultCollapsed?: boolean;
   displayLimit?: number;
   action?: ReactNode;
@@ -208,6 +213,7 @@ export function GallerySection({
 
   return (
     <CollapsibleSection
+      collapsible={collapsible}
       action={action}
       className={`gallery-section ${compact ? "compact" : ""}`}
       defaultCollapsed={defaultCollapsed}

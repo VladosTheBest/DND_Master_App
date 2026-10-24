@@ -1,3 +1,6 @@
+import {CombatPlanConflictReview} from "./features/prepared-combat/CombatPlanConflictReview";
+import {RecordIllustration} from "./features/entity-images/RecordIllustration";
+import {sanitizeQuestAppearance} from "./features/entities/quest-appearance";
 import { sanitizeMonsterRewardProfile } from "./features/entities/reward-input";
 import { EntityRelationsPanel } from "./features/entity-links/EntityRelationsPanel";
 import { DraftOwnerContext } from "./app/hooks/useDraftOwner";
@@ -356,6 +359,8 @@ type ActivePlaylistPlayback = {
 };
 type EntityCombatSetupState = {
   entityId: string;
+  revision?:number;
+  base?:KnowledgeEntity;
   planIndex: number;
   isNew: boolean;
 };
@@ -737,6 +742,7 @@ const entityToForm = (entity: KnowledgeEntity): CreateEntityInput => {
       entity.kind === "npc" || entity.kind === "monster" || entity.kind === "quest"
         ? cloneMonsterRewardProfile(normalizeRewardProfileForClient(entity.rewardProfile)) ?? createEmptyMonsterRewardProfile()
         : undefined,
+    questAppearance: entity.kind==="quest"&&entity.questAppearance?{...entity.questAppearance}:undefined,
     urgency: "urgency" in entity ? entity.urgency : undefined,
     issuerId: "issuerId" in entity ? entity.issuerId : undefined,
     preparedCombat: preparedCombats[0] ? clonePreparedCombatPlan(preparedCombats[0]) : undefined,
@@ -945,6 +951,7 @@ const serializeEntityForm = (form: CreateEntityInput): CreateEntityInput => {
       return {
         ...common,
         kind: "quest",
+        questAppearance: sanitizeQuestAppearance(form.questAppearance),
         status: form.status as CreateEntityInput["status"],
         urgency: form.urgency as CreateEntityInput["urgency"],
         issuerId: sanitizeOptionalText(form.issuerId),
@@ -3335,10 +3342,12 @@ export default function App() {
         allies: [],
         items: []
       };
-    focusCombatModule();
+    if(!(entity.kind==="quest"&&activeEntity?.id===entity.id&&activeModule==="quests"))focusCombatModule();
     setBootError("");
     setEntityCombatSetupState({
       entityId: entity.id,
+      revision:entity.revision??0,
+      base:entity,
       planIndex,
       isNew
     });
@@ -3796,6 +3805,8 @@ export default function App() {
     removePreparedCombatDraftItem,
     saveCampaignPreparedCombatDraft,
     saveEntityPreparedCombatDraft,
+    entityCombatConflict,
+    prepareEntityCombatConflict,
     savePreparedCombatDraft,
     startConfiguredCombat,
     startEntityPreparedCombat,
@@ -4179,6 +4190,7 @@ export default function App() {
   const renderPreparedCombatSection = (entity: PreparedCombatHostEntity): ReactNode => {
     return (
       <PreparedCombatList
+        collapsible={entity.kind!=="quest"}
         entity={entity}
         entityMap={entityMap}
         hasActiveCombatEntries={Boolean(activeCombat?.entries.length)}
@@ -4233,6 +4245,9 @@ export default function App() {
   const combatPrepPage =
     campaign ? (
       <CombatPrepPage
+        conflictReview={entityCombatConflict&&entityCombatSetupState?<CombatPlanConflictReview local={campaignPreparedCombatDraft} server={entityCombatConflict} planIndex={entityCombatSetupState.planIndex} entityMap={entityMap} onPrepare={prepareEntityCombatConflict}/>:undefined}
+        saveBlocked={Boolean(entityCombatConflict)}
+        inline={activeEntity?.kind==="quest"&&entityCombatSetupState?.entityId===activeEntity.id&&activeModule==="quests"}
         battlefieldPanelProps={{
           campaignPreparedCombatDraftEnemyCount,
           draftPreparedCombatAllyCount,
@@ -4270,7 +4285,7 @@ export default function App() {
           onOpenEntityImage: openEntityImage,
           onSelectCatalogItem: setCombatSelectionId
         }}
-        bootError={bootError}
+        bootError={entityCombatConflict?"":bootError}
         difficultyPartySize={effectivePartySize}
         canStartPreparedCombatDraft={canStartPreparedCombatDraft}
         campaignPreparedCombatNotice={campaignPreparedCombatNotice}
@@ -4363,6 +4378,7 @@ export default function App() {
       ];
       return (
         <QuestPageContainer
+          onStopPlayback={noOp}
           campaignQuests={candidateQuests}
           currentPlaybackTrackLabel=""
           entityMap={candidateEntityMap}
@@ -4825,10 +4841,14 @@ export default function App() {
               activeRailAlias === "events" ||
               activeModule === "lore" ||
               (activeEntity?.kind === "quest" && activeModule === "quests") ? (
-              <div className={activeEntity&&["monster","quest","lore"].includes(activeEntity.kind)?"entity-dossier-layout entity-specialized-layout":undefined}>
+              <div className={activeEntity&&["monster","quest","lore"].includes(activeEntity.kind)?"entity-dossier-layout entity-specialized-layout"+(activeEntity.kind==="quest"?" has-dossier-tabs quest-dossier-layout":""):undefined}>
                 <div className="entity-primary-flow">
-                {activeEntity&&["quest","lore"].includes(activeEntity.kind)&&<><div className="entity-inline-slot" id={"entity-inline-"+activeEntity.id+"-"+entityEditorSection}/>{entityEditorSection!=="cards"&&<div className="entity-inline-slot" id={"entity-inline-"+activeEntity.id+"-cards"}/>}</>}
+                {activeEntity&&activeEntity.kind==="lore"&&<><div className="entity-inline-slot" id={"entity-inline-"+activeEntity.id+"-"+entityEditorSection}/>{entityEditorSection!=="cards"&&<div className="entity-inline-slot" id={"entity-inline-"+activeEntity.id+"-cards"}/>}</>}
                 <AppContentRouter
+                currentPlaybackTrackUrl={currentPlaybackTrackUrl}
+                onStopPlayback={stopPlayback}
+                entityEditingSection={combatSetupOpen&&entityCombatSetupState?.entityId===activeEntity?.id?"combat":entityEditor.entityModalOpen&&entityEditor.editingEntityId===activeEntity?.id?entityEditorSection:undefined}
+                cardsEditing={Boolean(playerFacing.playerFacingView?.editMode&&playerFacing.playerFacingEntity?.id===activeEntity?.id)}
                 ownerId={authUserId}
                 activeEntity={activeEntity}
                 activeModule={activeModule}
@@ -4899,7 +4919,7 @@ export default function App() {
                 onTogglePin={togglePin}
                 pinned={activeEntityPinned}
                 playerFacing={playerFacing}
-                preparedCombatSection={activeEntity?.kind === "quest" ? renderPreparedCombatSection(activeEntity) : null}
+                preparedCombatSection={activeEntity?.kind === "quest" ? combatSetupOpen&&entityCombatSetupState?.entityId===activeEntity.id?<section className="quest-inline-combat-prep"><label className="field"><span>Название встречи</span><input className="input" value={campaignPreparedCombatDraft.title??""} onChange={event=>replaceCampaignPreparedCombatDraft({...campaignPreparedCombatDraft,title:event.target.value})}/></label>{combatPrepPage}</section>:renderPreparedCombatSection(activeEntity) : null}
                 questScopeEntities={questScopeEntities}
                 resolveLinkedEntity={resolveLinkedEntity}
                 rulesInitialQuery={rulesNavigationState.query || undefined}
@@ -4909,7 +4929,7 @@ export default function App() {
                 serializeWorldEventInput={serializeWorldEventInput}
                 worldEventToForm={worldEventToForm}
               /></div>
-                {activeEntity&&["monster","quest","lore"].includes(activeEntity.kind)&&<aside className="record-context" id="record-relations" aria-label="Связи записи"><EntityRelationsPanel campaignId={campaign.id} ownerId={authUserId} entity={activeEntity} onResolve={resolveLinkedEntity} onChanged={hydrateCampaign} onOpen={item=>{const target=resolveLinkedEntity(item);if(target)void openEntity(target.id);}}/></aside>}
+                {activeEntity&&["monster","quest","lore"].includes(activeEntity.kind)&&<aside className="record-context" id="record-relations" aria-label="Изображение и связи записи">{activeEntity.kind==="quest"&&<RecordIllustration url={activeEntity.art?.url} title={activeEntity.title} alt={activeEntity.art?.alt||activeEntity.art?.caption} onReplace={()=>{setEntityEditorSection("art");if(!entityEditor.entityModalOpen||entityEditor.editingEntityId!==activeEntity.id)openEntityEditor(activeEntity.id);}} onGallery={()=>{setEntityEditorSection("gallery");if(!entityEditor.entityModalOpen||entityEditor.editingEntityId!==activeEntity.id)openEntityEditor(activeEntity.id);}}/>}<EntityRelationsPanel campaignId={campaign.id} ownerId={authUserId} entity={activeEntity} onResolve={resolveLinkedEntity} onChanged={hydrateCampaign} onOpen={item=>{const target=resolveLinkedEntity(item);if(target)void openEntity(target.id);}}/></aside>}
               </div>
             ) : activeEntity ? (
               <EntityDetailsPage
@@ -5208,7 +5228,7 @@ export default function App() {
         </AppModal>
       ) : null}
 
-      {combatSetupOpen && hasActiveCombat ? (
+      {combatSetupOpen && hasActiveCombat && !(activeEntity?.kind==="quest"&&entityCombatSetupState?.entityId===activeEntity.id&&activeModule==="quests") ? (
         <AppModal label="Участники и настройки боя" onClose={closeCombatSetupModal}>
           <div className="panel palette form-modal combat-setup-modal" onClick={(event) => event.stopPropagation()}   aria-label="Участники и настройки боя">
             <div className="row">

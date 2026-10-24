@@ -1,0 +1,30 @@
+[
+  {
+    "height": 900,
+    "overflow": false,
+    "tabRows": 1,
+    "visiblePanels": 1,
+    "width": 1440
+  },
+  {
+    "height": 768,
+    "overflow": false,
+    "tabRows": 1,
+    "visiblePanels": 1,
+    "width": 1024
+  },
+  {
+    "height": 844,
+    "overflow": false,
+    "tabRows": 2,
+    "visiblePanels": 1,
+    "width": 390
+  },
+  {
+    "height": 540,
+    "overflow": false,
+    "tabRows": 1,
+    "visiblePanels": 1,
+    "width": 1280
+  }
+]

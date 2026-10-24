@@ -608,11 +608,13 @@ export function RewardSection({
   rewardProfile,
   action,
   compact = false,
+  collapsible = true,
   kind = "monster"
 }: {
   rewardProfile?: MonsterRewardProfile;
   action?: ReactNode;
   compact?: boolean;
+  collapsible?: boolean;
   kind?: EntityKind;
 }) {
   if (!rewardProfile || (!rewardProfile.summary && !rewardProfile.loot.length)) {
@@ -624,6 +626,7 @@ export function RewardSection({
 
   return (
     <CollapsibleSection
+      collapsible={collapsible}
       action={action}
       className="npc-section monster-reward-section"
       defaultCollapsed={compact}

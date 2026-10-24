@@ -1,0 +1,38 @@
+[
+  {
+    "tab": "Обзор",
+    "visiblePanels": 1,
+    "picture": true,
+    "relations": true
+  },
+  {
+    "tab": "Сценарий",
+    "visiblePanels": 1,
+    "picture": true,
+    "relations": true
+  },
+  {
+    "tab": "Карточки",
+    "visiblePanels": 1,
+    "picture": true,
+    "relations": true
+  },
+  {
+    "tab": "Бой",
+    "visiblePanels": 1,
+    "picture": true,
+    "relations": true
+  },
+  {
+    "tab": "Награды",
+    "visiblePanels": 1,
+    "picture": true,
+    "relations": true
+  },
+  {
+    "tab": "Медиа",
+    "visiblePanels": 1,
+    "picture": true,
+    "relations": true
+  }
+]

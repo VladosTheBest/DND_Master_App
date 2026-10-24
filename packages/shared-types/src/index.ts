@@ -358,7 +358,15 @@ export interface ItemCatalogDetail {
   status: ItemCatalogSyncStatus;
 }
 
+export interface QuestAppearance {
+  textColor?: string;
+  backgroundColor?: string;
+  accentColor?: string;
+  density?: "comfortable" | "compact";
+}
+
 export interface QuestEntity extends KnowledgeEntityBase {
+  questAppearance?: QuestAppearance;
   kind: "quest";
   status: "active" | "paused" | "completed";
   urgency: "Low" | "Medium" | "High" | "Critical";
@@ -651,6 +659,7 @@ export interface CreateEntityInput {
     | NpcEntity["statBlock"]
     | MonsterEntity["statBlock"];
   rewardProfile?: RewardProfile;
+  questAppearance?: QuestAppearance;
   urgency?: QuestEntity["urgency"];
   issuerId?: string;
   preparedCombat?: PreparedCombatPlan;

@@ -29,6 +29,8 @@ export type PreparedCombatCardView = {
 };
 
 export type EntityCombatSetupState = {
+  revision?:number;
+  base?:KnowledgeEntity;
   entityId: string;
   planIndex: number;
   isNew: boolean;
@@ -91,6 +93,8 @@ export type UsePreparedCombatControllerArgs = {
 };
 
 export type PreparedCombatController = {
+  entityCombatConflict:KnowledgeEntity|null;
+  prepareEntityCombatConflict:(useLocal:boolean)=>void;
   preparedCombatDraft: PreparedCombatPlan;
   preparedCombatModalOpen: boolean;
   preparedCombatNotice: string;

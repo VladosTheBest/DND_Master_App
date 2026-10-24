@@ -26,6 +26,10 @@ type RailAlias = "items" | "events" | "notes" | "shops" | "sessions";
 type ModuleId = "dashboard" | "combat" | "locations" | "players" | "npcs" | "monsters" | "quests" | "lore" | "rules";
 
 function ContentRouter({
+  currentPlaybackTrackUrl,
+  onStopPlayback,
+  entityEditingSection,
+  cardsEditing,
   ownerId,
   activeEntity,
   activeModule,
@@ -74,6 +78,8 @@ function ContentRouter({
   serializeWorldEventInput,
   worldEventToForm
 }: {
+  entityEditingSection?:string;
+  cardsEditing?:boolean;
   ownerId: string;
   activeEntity: KnowledgeEntity | null;
   activeModule: ModuleId;
@@ -83,6 +89,8 @@ function ContentRouter({
   combatContent: ReactNode;
   createEmptyWorldEventDialogueBranch: () => WorldEventDialogueBranch;
   currentPlaybackTrackLabel: string;
+  currentPlaybackTrackUrl?:string;
+  onStopPlayback:()=>void;
   editorRef: RefObject<HTMLTextAreaElement | null>;
   emptyWorldEventInput: () => WorldEventInput;
   entityMap: Map<string, KnowledgeEntity>;
@@ -107,7 +115,7 @@ function ContentRouter({
   onOpenPreview: (entityId: string) => void;
   onOpenQuest: (questId: string) => void;
   onPlayNextPlaylistTrack: () => void;
-  onPlayPlaylist: (quest: QuestEntity) => void;
+  onPlayPlaylist: (quest: QuestEntity,index?:number,random?:boolean) => void;
   onCopyImageLink: (url: string) => Promise<void>;
   onTogglePin: (entityId: string) => void;
   pinned: boolean;
@@ -187,6 +195,10 @@ function ContentRouter({
   if (activeEntity?.kind === "quest" && activeModule === "quests") {
     return (
       <QuestPageContainer
+        currentPlaybackTrackUrl={currentPlaybackTrackUrl}
+        onStopPlayback={onStopPlayback}
+        editingSection={entityEditingSection}
+        cardsEditing={cardsEditing}
         campaignQuests={campaign.quests}
         currentPlaybackTrackLabel={currentPlaybackTrackLabel}
         entityMap={entityMap}

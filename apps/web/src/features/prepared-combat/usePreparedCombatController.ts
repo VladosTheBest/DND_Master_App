@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import {isApiError} from "@shadow-edge/api-client";
 import { api } from "../../app/api";
-import type { QuestEntity } from "@shadow-edge/shared-types";
+import type { KnowledgeEntity,QuestEntity } from "@shadow-edge/shared-types";
 import type { PreparedCombatHostEntity } from "../combat/combat.types";
 import {
   cloneCampaignPreparedCombat,
@@ -81,6 +82,17 @@ export function usePreparedCombatController({
   setPreviewEntityId,
   setSaving
 }: UsePreparedCombatControllerArgs): PreparedCombatController {
+  const [entityCombatConflict,setEntityCombatConflict]=useState<KnowledgeEntity|null>(null);
+  useEffect(()=>{setEntityCombatConflict(null);},[combatSetupOpen,entityCombatSetupState]);
+  const prepareEntityCombatConflict=(useLocal:boolean)=>{
+    if(!entityCombatConflict||!entityCombatSetupState||!isPreparedCombatHostEntity(entityCombatConflict))return;
+    const plans=resolveEntityPreparedCombats(entityCombatConflict);
+    const plan=plans[entityCombatSetupState.planIndex];
+    if(!useLocal)replaceCampaignPreparedCombatDraft(cloneCampaignPreparedCombat(plan?{...plan,playerIds:plan.playerIds??[]}:null)||createEmptyCampaignPreparedCombat());
+    const append=useLocal&&(entityCombatSetupState.isNew||!plan);
+    setEntityCombatSetupState({...entityCombatSetupState,planIndex:append?plans.length:entityCombatSetupState.planIndex,revision:entityCombatConflict.revision??0,base:entityCombatConflict,isNew:append});
+    setEntityCombatConflict(null);setBootError("");
+  };
   const [preparedCombatQuestId, setPreparedCombatQuestId] = useState("");
   const [preparedCombatDraft, setPreparedCombatDraft] = useState(createPreparedCombatDraft);
   const [preparedCombatNotice, setPreparedCombatNotice] = useState("");
@@ -426,6 +438,9 @@ export function usePreparedCombatController({
       return;
     }
 
+    if(entityCombatConflict)return;
+    const baseEntity=entityCombatSetupState.base??entityCombatSetupTarget;
+    if(!isPreparedCombatHostEntity(baseEntity))return;
     const normalizedAllies = (campaignPreparedCombatDraft.allies ?? []).filter((item) => {
       const entity = entityMap.get(item.entityId);
       return entity?.kind === "npc" || entity?.kind === "monster";
@@ -449,7 +464,7 @@ export function usePreparedCombatController({
     try {
       setSaving(true);
       setBootError("");
-      const existingPlans = resolveEntityPreparedCombats(entityCombatSetupTarget);
+      const existingPlans = resolveEntityPreparedCombats(baseEntity);
       const nextPlans = [...existingPlans];
       const normalizedPlan = {
         ...nextPlan,
@@ -462,13 +477,13 @@ export function usePreparedCombatController({
         nextPlans[entityCombatSetupState.planIndex] = normalizedPlan;
       }
 
-      const nextForm = onEntityToForm(entityCombatSetupTarget);
+      const nextForm = onEntityToForm(baseEntity);
+      nextForm.expectedRevision=entityCombatSetupState.revision??entityCombatSetupTarget.revision??0;
       nextForm.preparedCombats = nextPlans;
       nextForm.preparedCombat = nextPlans[0];
 
       const result = await api.updateEntity(activeCampaignId, entityCombatSetupTarget.id, onSerializeEntityForm(nextForm));
       hydrateCampaign(result.campaign, result.entity.id);
-      setPreviewEntityId(result.entity.id);
 
       const updatedEntity = result.entity;
       const updatedPlans =
@@ -483,6 +498,8 @@ export function usePreparedCombatController({
 
       setEntityCombatSetupState({
         entityId: updatedEntity.id,
+        revision:updatedEntity.revision??0,
+        base:updatedEntity,
         planIndex: resolvedIndex,
         isNew: false
       });
@@ -504,6 +521,7 @@ export function usePreparedCombatController({
         } и ${enemyCount} ${formatEnemyCountLabel(enemyCount)}.`
       );
     } catch (error) {
+      if(isApiError(error)&&error.status===409&&error.current)setEntityCombatConflict(error.current as KnowledgeEntity);
       setBootError(error instanceof Error ? error.message : "Не удалось сохранить карточку боя.");
     } finally {
       setSaving(false);
@@ -675,6 +693,8 @@ export function usePreparedCombatController({
   };
 
   return {
+    entityCombatConflict,
+    prepareEntityCombatConflict,
     preparedCombatDraft,
     preparedCombatModalOpen,
     preparedCombatNotice,

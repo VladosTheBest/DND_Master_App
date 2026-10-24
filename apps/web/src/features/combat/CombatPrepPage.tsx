@@ -1,9 +1,13 @@
+import type {ReactNode} from "react";
 import { CombatBattlefieldPanel, type CombatBattlefieldPanelProps } from "./components/CombatBattlefieldPanel";
 import { CombatBestiaryPanel, type CombatBestiaryPanelProps } from "./components/CombatBestiaryPanel";
 import { CombatDangerBar, type CombatDangerBarProps } from "./components/CombatDangerBar";
 import { CombatPartyPanel, type CombatPartyPanelProps } from "./components/CombatPartyPanel";
 
 export type CombatPrepPageProps = {
+  inline?:boolean;
+  saveBlocked?:boolean;
+  conflictReview?:ReactNode;
   campaignTitle: string;
   sceneTitle: string;
   hasHostEntity: boolean;
@@ -26,6 +30,9 @@ export type CombatPrepPageProps = {
 };
 
 export function CombatPrepPage({
+  inline,
+  saveBlocked,
+  conflictReview,
   campaignTitle,
   sceneTitle,
   hasHostEntity,
@@ -58,10 +65,11 @@ export function CombatPrepPage({
           <span>{hasHostEntity ? "К карточкам боя" : "К разделу Оффлайн"}</span>
         </button>
 
-        <div className="combat-prep-title-block"><span className="combat-prep-context">{campaignTitle} · {sceneTitle}</span><h1>Подготовка боя</h1><p className="muted">Выберите группу и противников, затем задайте инициативу.</p></div>
+        <div className="combat-prep-title-block"><span className="combat-prep-context">{campaignTitle} · {sceneTitle}</span>{inline?<h2>Подготовка боя</h2>:<h1>Подготовка боя</h1>}<p className="muted">Выберите группу и противников, затем задайте инициативу.</p></div>
 
       </section>
 
+      {conflictReview}
       {bootError ? (
         <div className="card mini form-error combat-prep-status-message" role="status">
           <strong>Проблема при выполнении действия</strong>
@@ -88,12 +96,12 @@ export function CombatPrepPage({
           <button className="ghost combat-prep-action" onClick={onClear} type="button">
             Сбросить
           </button>
-          <button className="ghost combat-prep-action" disabled={saving} onClick={onSave} type="button">
+          <button className="ghost combat-prep-action" disabled={saving||saveBlocked} onClick={onSave} type="button">
             {saving ? "Сохраняю..." : "Сохранить"}
           </button>
           <button
             className="primary combat-prep-start-button"
-            disabled={!canStartPreparedCombatDraft || saving}
+            disabled={!canStartPreparedCombatDraft || saving || saveBlocked}
             onClick={onStart}
             type="button"
           >

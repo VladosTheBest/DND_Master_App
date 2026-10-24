@@ -18,6 +18,10 @@ import {
 } from "../../quests";
 
 export function QuestPageContainer({
+  currentPlaybackTrackUrl,
+  onStopPlayback,
+  editingSection,
+  cardsEditing,
   campaignQuests,
   currentPlaybackTrackLabel,
   entityMap,
@@ -43,8 +47,12 @@ export function QuestPageContainer({
   resolveLinkedEntity,
   readOnly = false
 }: {
+  editingSection?:string;
+  cardsEditing?:boolean;
   campaignQuests: QuestEntity[];
   currentPlaybackTrackLabel: string;
+  currentPlaybackTrackUrl?:string;
+  onStopPlayback:()=>void;
   entityMap: Map<string, KnowledgeEntity>;
   isEntityPlaylistActive: (entityId?: string) => boolean;
   onCopyImageLink: (url: string) => Promise<void>;
@@ -58,7 +66,7 @@ export function QuestPageContainer({
   onOpenPlaylist: (quest: QuestEntity) => void;
   onOpenQuest: (questId: string) => void;
   onPlayNextPlaylistTrack: () => void;
-  onPlayPlaylist: (quest: QuestEntity) => void;
+  onPlayPlaylist: (quest: QuestEntity,index?:number,random?:boolean) => void;
   onTogglePin: (entityId: string) => void;
   pinned: boolean;
   playerFacing: PlayerFacingCardsController;
@@ -166,6 +174,11 @@ export function QuestPageContainer({
 
   return (
     <QuestWorkspace
+      entityByTitle={new Map([...entityMap.values()].map(entity=>[entity.title.toLowerCase(),entity]))}
+      playlistTrackUrl={currentPlaybackTrackUrl}
+      onStopPlayback={onStopPlayback}
+      editingSection={editingSection}
+      cardsEditing={cardsEditing}
       issuer={activeQuestIssuer}
       linkedEntities={linkedEntities}
       location={activeQuestLocation}
@@ -185,7 +198,7 @@ export function QuestPageContainer({
       onOpenPlaylist={onOpenPlaylist}
       onOpenQuest={onOpenQuest}
       onPlayNextPlaylistTrack={onPlayNextPlaylistTrack}
-      onPlayPlaylist={() => onPlayPlaylist(quest)}
+      onPlayPlaylist={index => onPlayPlaylist(quest,index,index===undefined)}
       onTogglePin={onTogglePin}
       pinned={pinned}
       playerCards={playerCards}

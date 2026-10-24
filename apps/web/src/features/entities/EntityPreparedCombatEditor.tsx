@@ -3,11 +3,13 @@ import { badge } from "../../app-shared";
 import type { EntityEditorController } from "./useEntityEditorController";
 
 type EntityPreparedCombatEditorProps = {
+  metadataOnly?:boolean;
   campaign: CampaignData | null;
   controller: EntityEditorController;
 };
 
 export function EntityPreparedCombatEditor({
+  metadataOnly,
   campaign,
   controller
 }: EntityPreparedCombatEditorProps) {
@@ -99,7 +101,7 @@ export function EntityPreparedCombatEditor({
           </div>
         </section>
       ) : null}
-      <section className="card npc-section form-subsection field-full">
+      {!metadataOnly&&<section className="card npc-section form-subsection field-full">
         <div className="row muted">
           <span>Заготовленный бой</span>
           <span>Настраивается отдельно после сохранения квеста</span>
@@ -107,7 +109,7 @@ export function EntityPreparedCombatEditor({
         <p className="copy">
           Сначала сохрани квест, потом открой его страницу и настрой заготовленный бой через отдельное меню с поиском по НПС и монстрам.
         </p>
-      </section>
+      </section>}
     </>
   );
 }

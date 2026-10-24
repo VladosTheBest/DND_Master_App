@@ -148,6 +148,13 @@ type npcStatBlock struct {
 	Spellcasting        *spellcastingBlock `json:"spellcasting,omitempty"`
 }
 
+type questAppearance struct {
+	TextColor       string `json:"textColor,omitempty"`
+	BackgroundColor string `json:"backgroundColor,omitempty"`
+	AccentColor     string `json:"accentColor,omitempty"`
+	Density         string `json:"density,omitempty"`
+}
+
 type knowledgeEntity struct {
 	FoundryAI        *foundryAIProfile  `json:"foundryAI,omitempty"`
 	FoundryCharacter *foundryActor      `json:"foundryCharacter,omitempty"`
@@ -178,6 +185,7 @@ type knowledgeEntity struct {
 	LocationID      string                `json:"locationId,omitempty"`
 	StatBlock       *npcStatBlock         `json:"statBlock,omitempty"`
 	RewardProfile   *monsterRewardProfile `json:"rewardProfile,omitempty"`
+	QuestAppearance *questAppearance      `json:"questAppearance,omitempty"`
 	Urgency         string                `json:"urgency,omitempty"`
 	IssuerID        string                `json:"issuerId,omitempty"`
 	PreparedCombat  *preparedCombatPlan   `json:"preparedCombat,omitempty"`
@@ -579,6 +587,7 @@ type createEntityInput struct {
 	LocationID       string                `json:"locationId,omitempty"`
 	StatBlock        *npcStatBlock         `json:"statBlock,omitempty"`
 	RewardProfile    *monsterRewardProfile `json:"rewardProfile,omitempty"`
+	QuestAppearance  *questAppearance      `json:"questAppearance,omitempty"`
 	Urgency          string                `json:"urgency,omitempty"`
 	IssuerID         string                `json:"issuerId,omitempty"`
 	PreparedCombat   *preparedCombatPlan   `json:"preparedCombat,omitempty"`
