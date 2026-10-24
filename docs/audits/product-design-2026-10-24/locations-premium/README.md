@@ -17,4 +17,4 @@
 
 Проверки: web build (tsc/Vite), test-build-manifest.mjs (53 entries, без циклов), test-device-drafts.mjs, test-entity-comparison.cjs, test-workspace-routes.mjs, test-editable-list-keys.cjs (142/27, 0 ошибок), test-workspace-responses.mjs, git diff --check. Go-код и HTTP-контракты не менялись. Настройка reduced motion проверена по CSS; ОС не переключалась. Полное соответствие WCAG этим проходом не утверждается.
 
-Выпуск на Fly и авторизованный повтор новой production-сборки: ещё не выполнены.
+Fly release 199 (`be491f9`): health passing, публичные /, /healthz, /livez — 200, /api/campaigns без сессии — 401. HTML и все 57 JS/CSS совпадают с локальной сборкой; production.json. Авторизованный повтор 199 ожидает обычного входа после деплоя; локальные результаты не подменяют эту проверку.
