@@ -1,0 +1,19 @@
+{
+  "serverReasonUnchanged": true,
+  "concurrentRevision": 157,
+  "baseRevision": 156,
+  "afterRejectedSaveRevision": 157,
+  "afterExplicitSaveReasonIsLocal": true,
+  "batchPairs": [
+    {
+      "bothDirections": true,
+      "sameReason": true,
+      "id": "quest-1792797840139088500-3"
+    },
+    {
+      "bothDirections": true,
+      "sameReason": true,
+      "id": "player-1792797840432508400-4"
+    }
+  ]
+}

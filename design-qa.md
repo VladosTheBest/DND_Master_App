@@ -48,3 +48,6 @@ P1: shallow baseline compact delta, зависимость открытого п
 
 
 Свежий проход взаимодействий досье: [карточки, меню, preview и начальная загрузка](docs/audits/product-design-2026-10-24/dossier-interactions/README.md). Закрыты найденные обход dirty guard, keyboard Edit, скрытые 409, наложение сравнения, положение меню и игнорирование таблиц предмета. Повторены 26 корневых состояний; ограничения production авторизации остаются явными.
+
+
+[Дополнительная проверка связей](docs/audits/product-design-2026-10-24/final-usability/README.md): устаревший draft сохраняет свою revision, конфликт требует сравнения/явного продолжения, pending copy блокирует запись. Большие наборы и четыре viewport проверены в браузере; footer доступен, thumbnail имеет fallback.

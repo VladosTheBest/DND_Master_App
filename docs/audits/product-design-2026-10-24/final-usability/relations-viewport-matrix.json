@@ -1,0 +1,118 @@
+[
+  {
+    "body": [
+      404,
+      925
+    ],
+    "footer": {
+      "bottom": 551,
+      "height": 65,
+      "left": 17,
+      "right": 303,
+      "top": 486,
+      "width": 286,
+      "x": 17,
+      "y": 486
+    },
+    "header": {
+      "bottom": 82,
+      "height": 65,
+      "left": 17,
+      "right": 303,
+      "top": 17,
+      "width": 286,
+      "x": 17,
+      "y": 17
+    },
+    "height": 568,
+    "overflow": false,
+    "width": 320
+  },
+  {
+    "body": [
+      800,
+      800
+    ],
+    "footer": {
+      "bottom": 979.421875,
+      "height": 67.390625,
+      "left": 60,
+      "right": 708,
+      "top": 912.03125,
+      "width": 648,
+      "x": 60,
+      "y": 912.03125
+    },
+    "header": {
+      "bottom": 111.953125,
+      "height": 67.390625,
+      "left": 60,
+      "right": 708,
+      "top": 44.5625,
+      "width": 648,
+      "x": 60,
+      "y": 44.5625
+    },
+    "height": 1024,
+    "overflow": false,
+    "width": 768
+  },
+  {
+    "body": [
+      800,
+      800
+    ],
+    "footer": {
+      "bottom": 979.421875,
+      "height": 67.390625,
+      "left": 396,
+      "right": 1044,
+      "top": 912.03125,
+      "width": 648,
+      "x": 396,
+      "y": 912.03125
+    },
+    "header": {
+      "bottom": 111.953125,
+      "height": 67.390625,
+      "left": 396,
+      "right": 1044,
+      "top": 44.5625,
+      "width": 648,
+      "x": 396,
+      "y": 44.5625
+    },
+    "height": 1024,
+    "overflow": false,
+    "width": 1440
+  },
+  {
+    "body": [
+      71,
+      535
+    ],
+    "footer": {
+      "bottom": 223,
+      "height": 67.390625,
+      "left": 17,
+      "right": 623,
+      "top": 155.609375,
+      "width": 606,
+      "x": 17,
+      "y": 155.609375
+    },
+    "header": {
+      "bottom": 84.390625,
+      "height": 67.390625,
+      "left": 17,
+      "right": 623,
+      "top": 17,
+      "width": 606,
+      "x": 17,
+      "y": 17
+    },
+    "height": 240,
+    "overflow": false,
+    "width": 640
+  }
+]
