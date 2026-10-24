@@ -1,0 +1,33 @@
+{
+  "localUI": {
+    "desktop": [
+      1440,
+      1000
+    ],
+    "short": [
+      1440,
+      720
+    ],
+    "tablet": [
+      900,
+      800
+    ],
+    "phone": [
+      390,
+      844
+    ],
+    "overflow": false,
+    "cameraStableAfterFirstCommit": true,
+    "cameraStableOnToolChange": true,
+    "savedWalls": 4,
+    "savedWallWidths": [
+      3,
+      3,
+      3,
+      3
+    ],
+    "savedDoors": 1,
+    "reopened": true
+  },
+  "productionAuthorizedSmoke": "not_run"
+}

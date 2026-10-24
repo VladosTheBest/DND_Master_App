@@ -47,3 +47,64 @@
 
 /* Text labels make drawing tools distinguishable without hovering. */
 .creative-toolbar{max-height:148px;overflow:auto;align-content:start}.creative-toolbar button span{display:inline;font-size:10px}.creative-toolbar button{gap:5px;flex:0 0 auto}.creative-studio:not(.is-fullscreen) .creative-workbench,.creative-studio:not(.is-fullscreen) .creative-library{height:600px}.creative-studio:not(.is-fullscreen) .creative-viewport{min-height:220px}
+/* Canvas first: tools are grouped, side panels can be folded without losing state. */
+.creative-body{grid-template-columns:minmax(0,1fr)}
+.creative-body.has-library{grid-template-columns:200px minmax(0,1fr)}
+.creative-body.has-inspector{grid-template-columns:minmax(0,1fr) 224px}
+.creative-body.has-library.has-inspector{grid-template-columns:200px minmax(0,1fr) 224px}
+.creative-library[hidden],.creative-inspector[hidden]{display:none}
+.creative-tool-group{display:flex;flex-direction:column;gap:5px;padding:2px 7px;border-right:1px solid var(--cs-line)}
+.creative-tool-group>small{font-size:9px;letter-spacing:.06em;color:var(--cs-muted)}
+.creative-tool-group>div{display:flex;flex-wrap:wrap;gap:3px}
+.creative-toolbar{gap:8px 0;align-items:flex-start;padding:10px 4px}
+.creative-toolbar .creative-tool-group button{min-height:34px;min-width:34px;padding:7px}
+.creative-toolbar .creative-tool-group button span{display:none}
+.creative-toolbar .creative-tool-group button[aria-pressed=true]{box-shadow:inset 0 -2px #bda7e9;background:#514465}
+.creative-toolbar .creative-tool-group button[aria-pressed=true] span{display:inline}
+.creative-toolbar .creative-tool-group:first-child{max-width:134px}
+.creative-tool-group:nth-child(2){max-width:238px}
+.creative-tool-group:nth-child(3){max-width:205px}
+.creative-tool-group:last-child{border-right:0}
+.creative-wall-preview{position:absolute;pointer-events:none;overflow:visible}
+.creative-tool-options .creative-wall-help{flex-basis:100%;font-size:11px;color:#bda7e9}
+.creative-canvas-footer>span{white-space:normal;line-height:1.5;min-width:0}
+.creative-canvas-footer>div{flex-shrink:0}
+.creative-inspector>.creative-properties{margin:0 0 16px;padding-top:0;border-top:0}
+.creative-header-actions{justify-content:flex-end}
+.creative-studio .creative-header-actions .creative-save{background:#bda7e9;border-color:#c8b5ee;font-weight:650}
+@media(min-width:1700px){.creative-body.has-library.has-inspector{grid-template-columns:230px minmax(0,1fr) 240px}}
+@media(min-width:701px) and (max-width:1150px){
+ .creative-body.has-library,.creative-body.has-library.has-inspector{grid-template-columns:170px minmax(0,1fr)}
+ .creative-body.has-inspector{grid-template-columns:minmax(0,1fr)}
+ .creative-inspector{grid-column:1/-1;height:300px}
+}
+@media(max-width:700px){
+ .creative-body,.creative-body.has-library,.creative-body.has-inspector,.creative-body.has-library.has-inspector{grid-template-columns:minmax(0,1fr)}
+ .creative-workbench{grid-row:1;height:620px}
+ .creative-library{grid-row:2;height:300px;border-top:1px solid var(--cs-line)}
+ .creative-inspector{grid-row:3}
+ .creative-tool-group:nth-child(2){max-width:200px}
+ .creative-tool-options{gap:9px}
+ .creative-tool-options input[type=range]{width:65px}
+ .creative-canvas-footer{align-items:flex-end}
+ .creative-canvas-footer>span{max-width:45%}
+ .creative-header-actions{justify-content:flex-start}
+}
+.creative-wall-preview{max-width:none}
+/* backdrop-filter otherwise makes the fixed studio relative to the content panel. */
+.panel.content:has(.creative-studio.is-fullscreen){backdrop-filter:none;-webkit-backdrop-filter:none}
+.creative-tool-options .creative-wall-help{order:2}
+.creative-panel-tabs button{padding:8px 5px;font-size:10px;white-space:nowrap;gap:4px}
+.creative-toolbar button[aria-label="Стена"] span,.creative-toolbar button[aria-label="Дверь"] span,.creative-toolbar button[aria-label="Выбрать"] span{display:inline}
+.creative-draft-slot{height:58px;flex:none;overflow:auto;display:flex;align-items:center;padding:4px 12px;border-bottom:1px solid var(--cs-line);color:var(--cs-muted);font-size:11px}
+.creative-draft-slot.has-recovery{height:auto;max-height:240px;display:block}
+.creative-studio .creative-draft-slot .device-draft-controls{margin:0;padding:4px 0;border:0;background:transparent;box-shadow:none;width:100%;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.creative-studio .creative-draft-slot .device-draft-controls p{margin:0;flex:1}
+.creative-tool-options .creative-wall-help{min-height:28px;line-height:14px}
+@media(max-width:700px){.creative-draft-slot{height:88px}}
+.creative-workbench>:not(.creative-viewport){flex-shrink:0}
+@media(max-width:700px){
+ .creative-studio .creative-workbench,.creative-studio.is-fullscreen .creative-workbench{height:auto;min-height:0}
+ .creative-workbench .creative-viewport{height:390px;min-height:300px;flex:none}
+ .creative-map-types label{white-space:nowrap;gap:8px}
+}

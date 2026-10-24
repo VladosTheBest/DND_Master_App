@@ -62,9 +62,9 @@ export function moveItem(i:CreativeItem,dx:number,dy:number,scene?:CreativeScene
  const b=itemBounds(i);dx=Math.max(-Math.max(0,b.x),Math.min(width-Math.min(width,b.x+b.w),dx));dy=Math.max(-Math.max(0,b.y),Math.min(height-Math.min(height,b.y+b.h),dy));
  return {...i,x:Math.max(0,Math.min(width,i.x+dx)),y:Math.max(0,Math.min(height,i.y+dy)),...(i.points?{points:i.points.map(([x,y])=>[x+dx,y+dy] as Point)}:{})};
 }
-export function hitItem(i:CreativeItem,p:Point){
+export function hitItem(i:CreativeItem,p:Point,tolerance=7){
  if(i.kind==='polygon'&&i.points){let hit=false;for(let a=0,b=i.points.length-1;a<i.points.length;b=a++){const A=i.points[a],B=i.points[b];if((A[1]>p[1])!==(B[1]>p[1])&&p[0]<(B[0]-A[0])*(p[1]-A[1])/(B[1]-A[1])+A[0])hit=!hit;}return hit;}
- if(i.points)return i.points.some((q,index)=>{const a=i.points![Math.max(0,index-1)],dx=q[0]-a[0],dy=q[1]-a[1],t=Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/(dx*dx+dy*dy||1)));return Math.hypot(a[0]+t*dx-p[0],a[1]+t*dy-p[1])<i.w/2+7;});
+ if(i.points)return i.points.some((q,index)=>{const a=i.points![Math.max(0,index-1)],dx=q[0]-a[0],dy=q[1]-a[1],t=Math.max(0,Math.min(1,((p[0]-a[0])*dx+(p[1]-a[1])*dy)/(dx*dx+dy*dy||1)));return Math.hypot(a[0]+t*dx-p[0],a[1]+t*dy-p[1])<i.w/2+tolerance;});
  const a=-i.rotation*Math.PI/180,dx=p[0]-i.x,dy=p[1]-i.y;return Math.abs(dx*Math.cos(a)-dy*Math.sin(a))<=i.w/2+5&&Math.abs(dx*Math.sin(a)+dy*Math.cos(a))<=i.h/2+5;
 }
 function newCanvas(scale=1,scene?:CreativeScene){const {width,height}=sceneSize(scene);const c=document.createElement('canvas');c.width=width*scale;c.height=height*scale;return c;}
