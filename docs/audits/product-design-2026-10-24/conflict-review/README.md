@@ -19,4 +19,4 @@ Product Design, вариант 3; 24 октября 2026. Только синт�
 
 ## Выпуск
 
-Результат деплоя и соответствие файлов фиксируются в production-check.json после выпуска. Авторизованный production smoke предмета, связи и сцены остаётся отдельным обязательным пунктом: браузер production требует обычный вход пользователя. Локальные проверки его не заменяют.
+Fly release **194**, исходники **83be44d**, image `registry.fly.io/dnd-master-app:deployment-01M5P029BSECK6XGBFCKNNQGCN`. Health passing; root/healthz/livez 200, private API 401; HTML и все 56 JS/CSS совпали с локальной сборкой — [production-check.json](production-check.json). Краткое начальное предупреждение health «machine hasn’t started» исчезло после старта без ручного рестарта. [Production после выпуска](08-production-login.jpg) показывает обычный вход; снимок просмотрен. Авторизованный production smoke предмета, связи и сцены остаётся отдельным обязательным пунктом: браузер production требует обычный вход пользователя. Локальные проверки его не заменяют.

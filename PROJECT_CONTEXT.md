@@ -2,7 +2,7 @@
 
 Краткий вход для AI-агента. Общая сверка с рабочим кодом — 14 сентября 2026 года, журнал и AI-анализ сессий дополнительно сверены 16 сентября 2026 года, модуль персонажей — 1 октября 2026 года; общая UX-оболочка — 24 октября 2026 года. Это карта реализации, а не план разработки; перед изменением конкретного участка открой указанные исходники. Правила сопровождения: [AGENTS.md](AGENTS.md).
 
-Проверенный веб-выпуск: Fly release 193 (исходники `aecefb2`), health check passing и совпадение 56 JS/CSS и HTML с локальной сборкой. Авторизованный production smoke предмета/связей/сцен ожидает входа; свежие ввод списков/Save/focus — `docs/audits/product-design-2026-10-24/editing-consistency/README.md`, полный объём и границы — `docs/audits/product-design-2026-10-24/acceptance-matrix.md` и `design-qa.md`.
+Проверенный веб-выпуск: Fly release 194 (исходники `83be44d`), health check passing и совпадение 56 JS/CSS и HTML с локальной сборкой. Авторизованный production smoke предмета/связей/сцен ожидает входа; свежее сравнение конфликтов — `docs/audits/product-design-2026-10-24/conflict-review/README.md`, ввод списков/Save/focus — `docs/audits/product-design-2026-10-24/editing-consistency/README.md`, полный объём и границы — `docs/audits/product-design-2026-10-24/acceptance-matrix.md` и `design-qa.md`.
 
 ## 1. Назначение и архитектура
 
