@@ -1,3 +1,4 @@
+import type {EntityEditorNavigation} from "./entity.types";
 import {CompactStatBlock} from "./CompactStatBlock";
 import { ActionMenu } from "../../app/ActionMenu";
 import { RecordIllustration } from "../entity-images/RecordIllustration";
@@ -30,6 +31,7 @@ import { RichParagraphs } from "../../rich-text";
 
 export type EntityDetailsRendererProps = {
   persistentPortrait?:boolean;
+  editorNavigation?:EntityEditorNavigation;
   cardsEditing?:boolean;
   editingSection?:string;
   relationsSection?:ReactNode;
@@ -132,6 +134,7 @@ function MasterKnowledgeCard({
 
 export function EntityDetailsRenderer({
   persistentPortrait=false,
+  editorNavigation,
   cardsEditing,
   editingSection,
   relationsSection,
@@ -193,6 +196,7 @@ export function EntityDetailsRenderer({
             ["location-summary", "Сводка"],
             ["location-handouts", "Карточки"],
             ["location-shops", "Магазины"],
+            ["location-encounters", "Встречи"],
             ["location-media", "Медиа"],
             ["location-master-notes", "Мастеру"],
             ["record-relations", "Связи"]
@@ -222,7 +226,7 @@ export function EntityDetailsRenderer({
   const tabItems=dossierLinks.filter(([id])=>id!=="record-relations"||relationsSection).map(([id,label])=>({id:id==="record-relations"?"relations":id.slice((dossierKind||"player").length+1),label}));
   const selectTab=(tab:string)=>setSelection({entityId:activeEntity.id,tab});
   useEffect(()=>{if(cardsEditing)setSelection({entityId:activeEntity.id,tab:"handouts"});},[cardsEditing,activeEntity.id]);
-  useEffect(()=>{const tab=({summary:"summary",art:"summary",content:"master-notes",stats:"stats",rewards:"summary",gallery:"media",playlist:"media",media:"media"} as Record<string,string>)[editingSection||""];if(tab)setSelection({entityId:activeEntity.id,tab});},[editingSection,activeEntity.id]);
+  useEffect(()=>{if(!editorNavigation||editorNavigation.entityId!==activeEntity.id)return;const tab=({summary:"summary",art:"summary",content:"master-notes",stats:"stats",rewards:"summary",gallery:"media",playlist:"media",media:"media"} as Record<string,string>)[editorNavigation.section];if(tab)setSelection({entityId:activeEntity.id,tab});},[editorNavigation,activeEntity.id]);
   const inlineSlot=(section:string)=>!readOnly?<div className="entity-inline-slot" id={"entity-inline-"+activeEntity.id+"-"+section}/>:null;
   const onEditEntity=(section="summary")=>{
     const tab=({summary:"summary",art:"summary",content:"master-notes",stats:"stats",rewards:"summary",playlist:"media",gallery:"media",media:"media",cards:"handouts"} as Record<string,string>)[section];
@@ -351,11 +355,7 @@ export function EntityDetailsRenderer({
             <h1>{activeEntity.title}</h1>
             <div className="hero-tags">
               <span className={badge("accent")}>{kindTitle[activeEntity.kind]}</span>
-              {activeEntity.tags.map((tag) => (
-                <span key={tag} className={badge()}>
-                  {tag}
-                </span>
-              ))}
+              {activeEntity.kind === "location" && activeEntity.tags.length ? <details className="location-tags"><summary>Теги · {activeEntity.tags.length}</summary><div>{activeEntity.tags.map(tag=><span key={tag} className={badge()}>{tag}</span>)}</div></details> : activeEntity.tags.map((tag) => (<span key={tag} className={badge()}>{tag}</span>))}
             </div>
             {activeEntity.subtitle && <p className="hero-subtitle">{activeEntity.subtitle}</p>}
           </div>
@@ -371,6 +371,7 @@ export function EntityDetailsRenderer({
           </ActionMenu>
         </div> : null}
       </section>
+      {activeEntity.kind === "location" && <RecordIllustration key={activeEntity.art?.url||activeEntity.id} url={activeEntity.art?.url} title={activeEntity.title} alt={activeEntity.art?.alt||activeEntity.art?.caption} onReplace={readOnly?undefined:()=>onEditEntity("art")} onGallery={readOnly?undefined:()=>onEditEntity("gallery")}/>}
       </div>
       {dossierKind ? <div role="tablist" aria-label="Разделы досье" className="dossier-tabs" onKeyDown={event=>{
         const keys=["ArrowRight","ArrowLeft","Home","End"];
@@ -383,7 +384,7 @@ export function EntityDetailsRenderer({
       {editingSection&&<div className="inline-edit-reminder" role="status"><span>Редактирование открыто в карточке</span><button className="ghost" type="button" onClick={()=>onEditEntity(editingSection)}>Вернуться к правкам</button></div>}
       {panel("summary",<>
       <div className={`record-intro dossier-summary ${activeEntity.kind==="npc"?`npc-dossier-intro ${activeEntity.art?.url&&!persistentPortrait?"has-portrait":""}`:""}`}>
-      {!persistentPortrait&&<RecordIllustration key={activeEntity.art?.url||activeEntity.id} url={activeEntity.art?.url} title={activeEntity.title} alt={activeEntity.art?.alt||activeEntity.art?.caption} onReplace={readOnly?undefined:()=>onEditEntity("art")} onGallery={readOnly?undefined:()=>onEditEntity("gallery")}/>}
+      {!persistentPortrait&&activeEntity.kind!=="location"&&<RecordIllustration key={activeEntity.art?.url||activeEntity.id} url={activeEntity.art?.url} title={activeEntity.title} alt={activeEntity.art?.alt||activeEntity.art?.caption} onReplace={readOnly?undefined:()=>onEditEntity("art")} onGallery={readOnly?undefined:()=>onEditEntity("gallery")}/>}
       <section className="record-overview" aria-label="Краткое описание">
         {inlineSlot("summary")}
         <header className="record-block-heading"><h2>Кратко</h2>{!readOnly&&<button className="ghost record-edit-action" type="button" onClick={()=>onEditEntity("summary")}>{hasDescription(activeEntity.summary)?"Редактировать описание":"Добавить описание"}</button>}</header>
@@ -398,7 +399,7 @@ export function EntityDetailsRenderer({
       <div className="entity-edit-block">{inlineSlot("rewards")}<div className="entity-read-content">
       {rewardsSection}
       </div></div>
-      {!combatProfileEntity&&preparedCombatSection}
+      {!combatProfileEntity&&activeEntity.kind!=="location"&&preparedCombatSection}
       </>)}
 
       {panel("master-notes",<div className="entity-edit-block" id={dossierKind ? `${dossierKind}-master-notes` : undefined} tabIndex={-1}>
@@ -433,11 +434,13 @@ export function EntityDetailsRenderer({
         />
       </div>)}
 
+      {activeEntity.kind === "location" && panel("encounters",<section className="location-encounters"><header className="record-block-heading"><h2>Встречи в локации</h2></header>{preparedCombatSection}</section>)}
       {activeEntity.kind === "location" ? (
         panel("shops",<div id="location-shops" tabIndex={-1}>
         <CollapsibleSection
           key={`${activeEntity.id}-shops`}
-          defaultCollapsed={!locationShops.length}
+          collapsible={false}
+          defaultCollapsed={false}
           hint="Торговые точки, привязанные к этой локации"
           summary={
             <p className="copy">
@@ -482,6 +485,7 @@ export function EntityDetailsRenderer({
 
       {panel("media",<div className="player-detail-media-grid" id={dossierKind ? `${dossierKind}-media` : undefined} tabIndex={-1}>
       <div className="entity-edit-block media-pane">{inlineSlot("playlist")}<div className="entity-read-content"><PlaylistSection
+        collapsible={!dossierKind}
         action={readOnly ? undefined : (
           <button className="ghost" onClick={()=>onEditEntity("playlist")} type="button">
             {(activeEntity.playlist??[]).length?"Редактировать плейлист":"Добавить музыку"}
@@ -502,6 +506,7 @@ export function EntityDetailsRenderer({
 
       </div></div>
       <div className="entity-edit-block media-pane">{inlineSlot("gallery")}<div className="entity-read-content"><GallerySection
+        collapsible={!dossierKind}
         action={readOnly ? undefined : (
           <button className="ghost" onClick={()=>onEditEntity("gallery")} type="button">
             {(activeEntity.gallery??[]).length?"Редактировать галерею":"Добавить изображения"}
@@ -599,13 +604,13 @@ export function EntityDetailsPage(props: EntityDetailsRendererProps) {
 
   const hasTabs=["npc","player","location"].includes(props.activeEntity.kind);
   const context=<aside tabIndex={-1} id="record-relations" className="record-context" aria-label="Изображение и связи записи">
-      {hasTabs&&<RecordIllustration url={props.activeEntity.art?.url} title={props.activeEntity.title} alt={props.activeEntity.art?.alt||props.activeEntity.art?.caption} onReplace={props.readOnly?undefined:()=>props.onEditEntity("art")} onGallery={props.readOnly?undefined:()=>props.onEditEntity("gallery")}/>}
-      <EntityRelationsPanel campaignId={route.campaignId||""} ownerId={props.ownerId||""} entity={props.activeEntity} onResolve={props.onResolveRelatedEntity} onOpen={props.onOpenRelatedEntity} onChanged={props.onCampaignChanged}/>
+      {hasTabs&&props.activeEntity.kind!=="location"&&<RecordIllustration url={props.activeEntity.art?.url} title={props.activeEntity.title} alt={props.activeEntity.art?.alt||props.activeEntity.art?.caption} onReplace={props.readOnly?undefined:()=>props.onEditEntity("art")} onGallery={props.readOnly?undefined:()=>props.onEditEntity("gallery")}/>}
+      <EntityRelationsPanel compact={props.activeEntity.kind==="location"} campaignId={route.campaignId||""} ownerId={props.ownerId||""} entity={props.activeEntity} onResolve={props.onResolveRelatedEntity} onOpen={props.onOpenRelatedEntity} onChanged={props.onCampaignChanged}/>
       {props.activeEntity.kind === "location" ? <section><h3>Карта и сцена</h3><p className="copy">Откройте атлас или создайте карту для этого места.</p><a className="ghost record-map-action" href={workspaceURL({campaignId: route.campaignId, section: "maps", view: "new", context: JSON.stringify({locationId: props.activeEntity.id})})}>Открыть карты и сцены</a></section> : null}
       {props.activeNpcQuests.length ? <section><h3>Квесты НПС</h3>{props.activeNpcQuests.map(quest => <button className="record-context-link" type="button" key={quest.id} onClick={() => props.onPeekQuest(quest.id)}><span><strong>{quest.title}</strong><small>{quest.summary}</small></span></button>)}</section> : null}
       <small className="record-context-state">{props.readOnly ? "Готовая кампания · материалы защищены, связи хранятся в прохождении" : "Сохранённая запись · изменения через редактор"}</small>
     </aside>;
-  return <div className={`entity-dossier-layout${hasTabs?" has-dossier-tabs":""}`}>
+  return <div className={`entity-dossier-layout${hasTabs?" has-dossier-tabs":""}${props.activeEntity.kind==="location"?" location-workspace":""}`}>
     <EntityDetailsRenderer key={props.activeEntity.id} {...props} persistentPortrait={hasTabs}/>
     {context}
   </div>;

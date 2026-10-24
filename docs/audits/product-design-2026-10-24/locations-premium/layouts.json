@@ -1,0 +1,50 @@
+[
+  {
+    "aside": 310,
+    "body": 1440,
+    "height": 900,
+    "offscreen": 0,
+    "tabWidth": 738,
+    "width": 1440
+  },
+  {
+    "aside": 310,
+    "body": 1280,
+    "height": 720,
+    "offscreen": 0,
+    "tabWidth": 578,
+    "width": 1280
+  },
+  {
+    "aside": 975,
+    "body": 1015,
+    "height": 768,
+    "offscreen": 0,
+    "tabWidth": 975,
+    "width": 1024
+  },
+  {
+    "aside": 719,
+    "body": 759,
+    "height": 1024,
+    "offscreen": 0,
+    "tabWidth": 719,
+    "width": 768
+  },
+  {
+    "aside": 349,
+    "body": 381,
+    "height": 844,
+    "offscreen": 0,
+    "tabWidth": 349,
+    "width": 390
+  },
+  {
+    "aside": 279,
+    "body": 311,
+    "height": 640,
+    "offscreen": 0,
+    "tabWidth": 279,
+    "width": 320
+  }
+]

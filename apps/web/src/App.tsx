@@ -4944,6 +4944,7 @@ export default function App() {
               </div>
             ) : activeEntity ? (
               <EntityDetailsPage
+                editorNavigation={entityEditorNavigation&&entityEditorNavigation.entityId===activeEntity?.id?entityEditorNavigation:undefined}
                 cardsEditing={Boolean(playerFacing.playerFacingView?.editMode&&playerFacing.playerFacingEntity?.id===activeEntity.id)}
                 editingSection={entityEditor.entityModalOpen&&entityEditor.editingEntityId===activeEntity.id?entityEditorSection:undefined}
                 ownerId={authUserId}

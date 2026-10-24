@@ -1,3 +1,4 @@
+import {Pencil} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { isApiError } from "@shadow-edge/api-client";
 import { readRelationDraft } from "./relation-draft";
@@ -10,11 +11,11 @@ import { useDeviceDraft } from "../../app/hooks/useDeviceDraft";
 import { DeviceDraftControls } from "../../app/DeviceDraftControls";
 import { useWorkspaceGuard } from "../../app/workspace-route";
 
-type Props={campaignId:string;ownerId:string;entity:KnowledgeEntity;onOpen:(r:RelatedEntity)=>void;onResolve?:(r:RelatedEntity)=>KnowledgeEntity|null;onChanged?:(c:CampaignData)=>void};
+type Props={compact?:boolean;campaignId:string;ownerId:string;entity:KnowledgeEntity;onOpen:(r:RelatedEntity)=>void;onResolve?:(r:RelatedEntity)=>KnowledgeEntity|null;onChanged?:(c:CampaignData)=>void};
 export function EntityRelationsPanel(props:Props) {
   return <Relations key={`${props.campaignId}:${props.entity.id}`} {...props}/>;
 }
-function Relations({campaignId,ownerId,entity,onOpen,onResolve,onChanged}:Props) {
+function Relations({compact=false,campaignId,ownerId,entity,onOpen,onResolve,onChanged}:Props) {
   const alive=useRef(true);useEffect(()=>{alive.current=true;return()=>{alive.current=false;};},[]);
   const [items,setItems]=useState<RelatedEntity[]>(entity.related),[revision,setRevision]=useState<number|null>(null);
   const [loadAttempt,setLoadAttempt]=useState(0);
@@ -60,13 +61,14 @@ function Relations({campaignId,ownerId,entity,onOpen,onResolve,onChanged}:Props)
     catch(e){if(!alive.current)return;setError(e instanceof Error?e.message:"Не удалось сохранить связи.");if(isApiError(e)&&e.status===409){setConflict(true);setComparison(null);await loadComparison();}}
     finally{if(alive.current)setSaving(false);}
   }
-  return <section className="entity-relations-manager" aria-label="Управление связями">
+  return <section className={`entity-relations-manager${compact?" relations-compact":""}`} aria-label="Управление связями">
     <div className="record-block-heading"><h2>Связи <small>{items.length}</small></h2><button type="button" className="ghost" onClick={()=>begin()} disabled={revision===null}>+ Добавить связь</button></div>
     {!open&&error&&<div><p role="alert">{error}</p><button className="ghost" onClick={()=>{setError("");setLoadAttempt(n=>n+1);}}>Повторить загрузку связей</button></div>}
     {items.length>8&&<input type="search" className="input" aria-label="Поиск по имеющимся связям" placeholder="Найти среди связей" value={relatedQuery} onChange={e=>{setRelatedQuery(e.target.value);setVisibleCount(8);}}/>}
     {items.length?filtered.slice(0,visibleCount).map(item=>{const linked=onResolve?.(item);return <div className="relation-row" key={item.id}>
-      <button type="button" className="record-context-link" onClick={()=>onOpen(item)}>{linked?.art?.url&&<span className="relation-thumbnail" aria-hidden="true"><EntityVisual entity={linked} variant="relation"/></span>}<span><small>{kindTitle[item.kind]}</small><strong>{item.label}</strong>{item.reason&&<small>{item.reason}</small>}</span></button>
-      <button className="ghost" type="button" aria-label={`Изменить связь: ${item.label}`} onClick={()=>begin(item)}>Изменить</button>
+      <button type="button" className="record-context-link" onClick={()=>onOpen(item)}>{linked?.art?.url&&<span className="relation-thumbnail" aria-hidden="true"><EntityVisual entity={linked} variant="relation"/></span>}<span><small>{kindTitle[item.kind]}</small><strong>{item.label}</strong>{!compact&&item.reason&&<small>{item.reason}</small>}</span></button>
+      <button className="ghost relation-edit" type="button" aria-label={`Изменить связь: ${item.label}`} onClick={()=>begin(item)} title={compact?"Изменить связь":undefined}>{compact?<Pencil size={14} aria-hidden="true"/>:"Изменить"}</button>
+      {compact&&item.reason&&<details className="relation-explanation"><summary>Пояснение</summary><p>{item.reason}</p></details>}
     </div>}):revision===null&&!error?<p role="status" className="copy">Загружаем связи…</p>:<p className="copy">Свяжите записи, чтобы быстро переходить между местами, героями и сюжетами.</p>}
     {items.length>0&&!filtered.length&&<p className="copy">Таких связей нет.</p>}
     {filtered.length>visibleCount&&<button type="button" className="ghost" onClick={()=>setVisibleCount(n=>n+8)}>Показать ещё · {filtered.length-visibleCount}</button>}
