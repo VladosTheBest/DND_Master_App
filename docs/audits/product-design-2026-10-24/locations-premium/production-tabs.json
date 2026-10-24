@@ -1,0 +1,44 @@
+[
+  {
+    "image": true,
+    "overflow": false,
+    "relations": 7,
+    "selected": "Сводка",
+    "visiblePanels": 1
+  },
+  {
+    "image": true,
+    "overflow": false,
+    "relations": 7,
+    "selected": "Карточки",
+    "visiblePanels": 1
+  },
+  {
+    "image": true,
+    "overflow": false,
+    "relations": 7,
+    "selected": "Магазины",
+    "visiblePanels": 1
+  },
+  {
+    "image": true,
+    "overflow": false,
+    "relations": 7,
+    "selected": "Встречи",
+    "visiblePanels": 1
+  },
+  {
+    "image": true,
+    "overflow": false,
+    "relations": 7,
+    "selected": "Медиа",
+    "visiblePanels": 1
+  },
+  {
+    "image": true,
+    "overflow": false,
+    "relations": 7,
+    "selected": "Мастеру",
+    "visiblePanels": 1
+  }
+]

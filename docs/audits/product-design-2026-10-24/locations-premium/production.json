@@ -309,5 +309,14 @@
       "matches": true
     }
   ],
-  "authorizedSmoke": "pending_login_after_deploy"
+  "authorizedSmoke": {
+    "status": "passed",
+    "verifiedAt": "2026-10-24T15:31:00.458359+00:00",
+    "method": "Ordinary signed-in Chrome UI; no session export",
+    "campaignInspection": "Requested campaign: 18 directory rows; server search returns one; all six tabs with one panel, persistent image and seven relations; full master notes",
+    "save": "Separate synthetic QA location: change summary inline, switch to Media, return to same form without losing input, Save and reload; text persisted; zero dialogs",
+    "mobile": "390x844, image present, six tabs, no horizontal overflow",
+    "consoleErrors": 0,
+    "liveCampaignMutations": false
+  }
 }
