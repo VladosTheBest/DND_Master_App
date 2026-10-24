@@ -1,0 +1,108 @@
+[
+  {
+    "menu": "Другие действия с записью",
+    "bottom": 311.109375,
+    "clientHeight": 146,
+    "height": 1024,
+    "left": 829,
+    "right": 1094,
+    "scrollHeight": 146,
+    "top": 163.5,
+    "width": 1440,
+    "withinViewport": true
+  },
+  {
+    "menu": "Инструменты",
+    "bottom": 206.65625,
+    "clientHeight": 146,
+    "height": 1024,
+    "left": 1151,
+    "right": 1416,
+    "scrollHeight": 146,
+    "top": 59.046875,
+    "width": 1440,
+    "withinViewport": true
+  },
+  {
+    "menu": "Другие действия с записью",
+    "bottom": 538.375,
+    "clientHeight": 146,
+    "height": 844,
+    "left": 16,
+    "right": 374,
+    "scrollHeight": 146,
+    "top": 390.765625,
+    "width": 390,
+    "withinViewport": true
+  },
+  {
+    "menu": "Инструменты",
+    "bottom": 311.390625,
+    "clientHeight": 146,
+    "height": 844,
+    "left": 16,
+    "right": 374,
+    "scrollHeight": 146,
+    "top": 163.78125,
+    "width": 390,
+    "withinViewport": true
+  },
+  {
+    "menu": "Другие действия с записью",
+    "bottom": 459.21875,
+    "clientHeight": 146,
+    "height": 568,
+    "left": 16,
+    "right": 304,
+    "scrollHeight": 146,
+    "top": 311.609375,
+    "width": 320,
+    "withinViewport": true
+  },
+  {
+    "menu": "Инструменты",
+    "bottom": 311.390625,
+    "clientHeight": 146,
+    "height": 568,
+    "left": 16,
+    "right": 304,
+    "scrollHeight": 146,
+    "top": 163.78125,
+    "width": 320,
+    "withinViewport": true
+  },
+  {
+    "menu": "Другие действия с записью",
+    "bottom": 163.609375,
+    "clientHeight": 146,
+    "height": 240,
+    "left": 148.265625,
+    "right": 413.265625,
+    "scrollHeight": 146,
+    "top": 16,
+    "width": 640,
+    "withinViewport": true
+  },
+  {
+    "menu": "Инструменты",
+    "bottom": 163.609375,
+    "clientHeight": 146,
+    "height": 240,
+    "left": 16,
+    "right": 281,
+    "scrollHeight": 146,
+    "top": 16,
+    "width": 640,
+    "withinViewport": true
+  },
+  {
+    "menu": "Монстр · длинный список",
+    "bottom": 224,
+    "clientHeight": 154,
+    "height": 240,
+    "scrollHeight": 281,
+    "top": 68,
+    "width": 640,
+    "withinViewport": true
+  }
+]

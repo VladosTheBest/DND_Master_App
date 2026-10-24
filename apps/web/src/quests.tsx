@@ -1,3 +1,7 @@
+import { ActionMenu } from "./app/ActionMenu";
+import { useDeviceDraft } from "./app/hooks/useDeviceDraft";
+import { DeviceDraftControls } from "./app/DeviceDraftControls";
+import { useWorkspaceGuard } from "./app/workspace-route";
 import { RecordIllustration } from "./features/entity-images/RecordIllustration";
 import { AppModal } from "./app/AppModal";
 import { confirmAction } from "./app/confirm-action";
@@ -141,6 +145,9 @@ export type PreparedCombatCardView = {
   startLabel?: string;
 };
 
+const cardPlural = new Intl.PluralRules("ru");
+const playerCardCount = (count:number) => `${count} ${{zero:"карточек",one:"карточка",two:"карточки",few:"карточки",many:"карточек",other:"карточки"}[cardPlural.select(count)]}`;
+
 export function PlayerFacingCardStrip({
   cards,
   cardBadgeLabel = "Для игроков",
@@ -203,13 +210,13 @@ export function PlayerFacingCardStrip({
     <>
       <CollapsibleSection
       defaultCollapsed={!cards.length}
-      action={<div className="actions"><span className={badge(cards.length ? cardBadgeTone : "default")}>{countLabel ?? (cards.length ? `${cards.length} карточек` : "Пока нет")}</span>{!readOnly&&<button className="ghost" onClick={onCreateCard} type="button">Добавить карточку</button>}</div>}
+      action={<div className="actions"><span className={badge(cards.length ? cardBadgeTone : "default")}>{countLabel ?? (cards.length ? playerCardCount(cards.length) : "Пока нет")}</span>{!readOnly&&<button className="ghost" onClick={onCreateCard} type="button">Добавить карточку</button>}</div>}
       className="entity-player-facing-stack entity-player-facing-collapsible"
       hint={description}
       summary={
         <p className="copy entity-player-facing-summary">
           {cards.length
-            ? `Секция скрыта. Внутри ${cards.length} ${cards.length === 1 ? "карточка" : cards.length < 5 ? "карточки" : "карточек"}.`
+            ? `Секция скрыта. Внутри ${playerCardCount(cards.length)}.`
             : "Секция скрыта. Карточек пока нет."}
         </p>
       }
@@ -226,16 +233,9 @@ export function PlayerFacingCardStrip({
               <article
                 key={`${entityId}-player-card-${index}`}
                 className="card entity-player-facing-panel entity-player-facing-panel-compact"
-                onClick={openCard}
+                aria-label={`Карточка «${card.title}»`}
+                onClick={event => { if (!(event.target as HTMLElement).closest("button,a,input,textarea,select")) openCard(); }}
                 onContextMenu={(event) => handleCardContextMenu(event, index)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    openCard();
-                  }
-                }}
-                role="button"
-                tabIndex={0}
               >
                 <div className="quest-story-head">
                   <strong>{card.title}</strong>
@@ -259,14 +259,14 @@ export function PlayerFacingCardStrip({
                   )}
                 </div>
 
-                {!readOnly ? <div className="entity-player-facing-actions">
-                  <button className="ghost fill entity-player-facing-open-button" onClick={() => onOpenCard(card, index)} type="button">
+                <div className="entity-player-facing-actions">
+                  <button className="ghost fill entity-player-facing-open-button" aria-label={`Открыть карточку «${card.title}»`} onClick={() => onOpenCard(card, index)} type="button">
                     Открыть
                   </button>
-                  <button className="ghost" onClick={(event) => { event.stopPropagation(); onEditCard(card, index); }} type="button">
+                  {!readOnly && <button className="ghost" aria-label={`Редактировать карточку «${card.title}»`} onClick={() => onEditCard(card, index)} type="button">
                     Редактировать
-                  </button>
-                </div> : null}
+                  </button>}
+                </div>
               </article>
             );
           })
@@ -1591,6 +1591,12 @@ export function QuestPreviewPanel({
 }
 
 type PlayerFacingEntityModalProps = {
+  ownerId:string;
+  campaignId:string;
+  cardIndex?:number;
+  baseRevision:number;
+  error?:string;
+  conflict?:KnowledgeEntity|null;
   content?: string;
   contentHtml?: string;
   editable?: boolean;
@@ -1603,12 +1609,13 @@ type PlayerFacingEntityModalProps = {
   onCancelEdit?: () => void;
   onClose: () => void;
   onEnterEdit?: () => void;
-  onSave?: (card: PlayerFacingCard) => void | Promise<void>;
+  onSave?: (card: PlayerFacingCard, expectedRevision:number, asCopy?:boolean) => Promise<boolean>;
   saving?: boolean;
   title?: string;
 };
 
 export function PlayerFacingEntityModal({
+  ownerId, campaignId, cardIndex, baseRevision, error, conflict,
   content,
   contentHtml,
   editable = false,
@@ -1635,6 +1642,9 @@ export function PlayerFacingEntityModal({
     [resolvedContent, resolvedContentHtml]
   );
   const editorRef = useRef<HTMLDivElement | null>(null);
+  const [localRevision,setLocalRevision] = useState(baseRevision);
+  const [localError,setLocalError] = useState("");
+  useEffect(()=>{setLocalRevision(baseRevision);setLocalError("");},[baseRevision,entity.id,cardIndex,editMode]);
   const [draftTitle, setDraftTitle] = useState(resolvedTitle);
   const [draftContent, setDraftContent] = useState(resolvedContent);
   const [draftContentHtml, setDraftContentHtml] = useState(initialEditableHtml);
@@ -1642,6 +1652,7 @@ export function PlayerFacingEntityModal({
   const [generationPrompt, setGenerationPrompt] = useState("");
   const [generationSize, setGenerationSize] = useState("medium");
   const [customLength, setCustomLength] = useState(1200);
+  useEffect(()=>{if(!editMode){setGenerationPrompt("");setGenerationOpen(false);}},[editMode]);
 
   useEffect(() => {
     setDraftTitle(resolvedTitle);
@@ -1689,10 +1700,25 @@ export function PlayerFacingEntityModal({
     [initialEditableHtml, resolvedContent, resolvedTitle]
   );
   const liveDraftCard = readDraftCard();
-  const hasDraftChanges =
+  const hasCardChanges =
     draftTitle.trim() !== initialDraftCard.title.trim() ||
     liveDraftCard.content !== initialDraftCard.content.trim() ||
     (liveDraftCard.contentHtml ?? "") !== (initialDraftCard.contentHtml ?? "");
+
+  const hasDraftChanges = hasCardChanges || Boolean(generationPrompt.trim());
+  const deviceDraft = useDeviceDraft({
+    ownerId,campaignId,target:`player-card:${entity.id}:${isNew ? "new" : cardIndex ?? 0}`,
+    revision:localRevision,value:{card:liveDraftCard,generationPrompt,generationSize,customLength},dirty:editMode&&hasDraftChanges,enabled:editMode,
+    restore: draft => {
+      const card=draft.value?.card;
+      if (typeof card?.title !== "string" || typeof card?.content !== "string") { setLocalError("Копия карточки повреждена. Скачайте её для проверки."); return false; }
+      syncDraftCard(card);setLocalRevision(draft.baseRevision);
+      const prompt=typeof draft.value.generationPrompt === "string" ? draft.value.generationPrompt : "";
+      setGenerationPrompt(prompt);setGenerationSize(["short","medium","large","custom"].includes(draft.value.generationSize)?draft.value.generationSize:"medium");setCustomLength(Number.isFinite(draft.value.customLength)?Math.max(300,Math.min(5000,draft.value.customLength)):1200);setGenerationOpen(Boolean(prompt));return true;
+    }
+  });
+  useWorkspaceGuard(editMode&&(hasDraftChanges||saving||formatting));
+  const serverCard = conflict?.playerCards?.[cardIndex ?? 0];
 
   const handleEditorInput = () => {
     if (!editorRef.current) {
@@ -1705,11 +1731,12 @@ export function PlayerFacingEntityModal({
   };
 
   const handleRequestClose = async () => {
-    if (editMode && hasDraftChanges && !await confirmAction("Закрыть карточку без сохранения?")) {
+    if (saving || formatting) return;
+    if (editMode && hasDraftChanges && !await confirmAction("Закрыть карточку без сохранения на сервере? Проверьте статус локального черновика; при ошибке хранения скачайте копию.")) {
       return;
     }
 
-    onClose();
+    deviceDraft.flush();onClose();
   };
 
   const handleCancelEdit = async () => {
@@ -1717,18 +1744,15 @@ export function PlayerFacingEntityModal({
       return;
     }
 
-    syncDraftCard(initialDraftCard);
+    deviceDraft.flush();syncDraftCard(initialDraftCard);
     onCancelEdit?.();
   };
 
-  const handleSave = async () => {
-    if (!onSave) {
-      return;
-    }
-
-    const nextCard = readDraftCard();
-    syncDraftCard(nextCard);
-    await onSave(nextCard);
+  const handleSave = async (asCopy=false) => {
+    if (!onSave || saving || formatting || deviceDraft.candidate) return;
+    setLocalError("");
+    const nextCard = readDraftCard();syncDraftCard(nextCard);
+    if (await onSave(nextCard,localRevision,asCopy)) deviceDraft.clear();
   };
 
   const handleAutoFormat = async () => {
@@ -1741,8 +1765,8 @@ export function PlayerFacingEntityModal({
       if (formatted) {
         syncDraftCard(formatted);
       }
-    } catch {
-      // Parent already reports the error to the shared UI notice area.
+    } catch (reason) {
+      setLocalError(reason instanceof Error ? reason.message : "Не удалось оформить карточку.");
     }
   };
 
@@ -1755,13 +1779,13 @@ export function PlayerFacingEntityModal({
         syncDraftCard(generated);
         setGenerationOpen(false);
       }
-    } catch {
-      // Parent reports the error in the shared notice area.
+    } catch (reason) {
+      setLocalError(reason instanceof Error ? reason.message : "Не удалось создать текст карточки.");
     }
   };
 
   return (
-    <AppModal label="Текст и карточки игроков" onClose={onClose}>
+    <AppModal label="Текст и карточки игроков" onClose={()=>void handleRequestClose()}>
       <div className="panel palette player-facing-modal" onClick={(event) => event.stopPropagation()} >
         <div className="stack wide player-facing-modal-layout">
           <div className="row player-facing-modal-head">
@@ -1770,6 +1794,8 @@ export function PlayerFacingEntityModal({
               {editMode ? (
                 <input
                   className="input player-facing-title-input"
+                  aria-label="Название карточки"
+                  disabled={saving||formatting}
                   onChange={(event) => setDraftTitle(event.target.value)}
                   placeholder="Название карточки"
                   value={draftTitle}
@@ -1781,37 +1807,17 @@ export function PlayerFacingEntityModal({
             </div>
 
             <div className="player-facing-modal-toolbar">
-              {editable && !editMode ? (
-                <button className="ghost fill" onClick={onEnterEdit} type="button">
-                  Редактировать
-                </button>
-              ) : null}
-              {editMode ? (
-                <button className="ghost player-facing-ai-button" disabled={formatting || saving} onClick={() => setGenerationOpen((value) => !value)} type="button">
-                  Сгенерировать
-                </button>
-              ) : null}
-              {editMode ? (
-                <button className="ghost player-facing-ai-button" disabled={formatting || saving} onClick={() => void handleAutoFormat()} type="button">
-                  {formatting ? <span aria-hidden="true" className="player-facing-button-spinner" /> : null}
-                  {formatting ? "AI форматирует" : "AI форматирование"}
-                </button>
-              ) : null}
-              {editMode ? (
-                <button className="ghost fill" disabled={saving || formatting} onClick={() => void handleSave()} type="button">
-                  {saving ? "Сохраняем..." : "Сохранить"}
-                </button>
-              ) : null}
-              {editMode ? (
-                <button className="ghost" disabled={saving} onClick={handleCancelEdit} type="button">
-                  Отмена
-                </button>
-              ) : null}
-              <button className="ghost" onClick={handleRequestClose} type="button">
-                Закрыть
-              </button>
+              {editable && !editMode && <button className="ghost" onClick={onEnterEdit} type="button">Редактировать</button>}
+              <button className="ghost" disabled={saving||formatting} onClick={()=>void handleRequestClose()} type="button">Закрыть</button>
             </div>
           </div>
+          <div className="player-facing-modal-body">
+          {editMode&&<DeviceDraftControls draft={deviceDraft} label="карточку"/>}
+          {(error||localError)&&<p className="form-error" role="alert">{localError||error}</p>}
+          {conflict&&<section className="card mini player-card-conflict" aria-label="Конфликт карточки">
+            <h3>Запись изменилась на сервере</h3><p>Ваш текст остался в редакторе. Сравните версии. Кнопка «Сохранить копию» добавит отдельную карточку и сохранит обе версии.</p>
+            <details><summary>Сравнить версии карточки</summary><div className="player-card-comparison"><section><h4>Мой текст</h4><strong>{draftTitle}</strong><p>{liveDraftCard.content}</p></section><section><h4>На сервере</h4><strong>{serverCard?.title}</strong><p>{serverCard?.content||conflict.playerContent||"На сервере этой карточки уже нет."}</p></section></div></details>
+          </section>}
 
           {editMode && generationOpen ? (
             <section className="card player-facing-generation-panel">
@@ -1840,14 +1846,16 @@ export function PlayerFacingEntityModal({
               {editMode ? (
                 <div className="player-facing-editor-layout">
                   <p className="copy player-facing-editor-copy">
-                    Редактируй карточку прямо в том виде, в котором будешь её показывать игрокам. Можно вставлять HTML со стилями и потом
-                    дооформить через AI.
+                    Измените текст, который увидят игроки.
                   </p>
                   <div className={`player-facing-editor-shell${formatting ? " is-formatting" : ""}`}>
                     <div
                       aria-busy={formatting}
+                      role="textbox"
+                      aria-label="Текст карточки для игроков"
+                      aria-multiline="true"
                       className="player-facing-rich player-facing-rich-editor"
-                      contentEditable={!formatting}
+                      contentEditable={!formatting&&!saving}
                       onInput={handleEditorInput}
                       ref={editorRef}
                       suppressContentEditableWarning
@@ -1895,6 +1903,15 @@ export function PlayerFacingEntityModal({
               )}
             </div>
           </section>
+          </div>
+          {editMode&&<footer className="actions player-facing-modal-footer">
+            <ActionMenu label="AI" ariaLabel="Инструменты AI для карточки">
+              <button className="ghost" disabled={formatting||saving} onClick={()=>setGenerationOpen(value=>!value)} type="button">Создать текст</button>
+              <button className="ghost" disabled={formatting||saving} onClick={()=>void handleAutoFormat()} type="button">{formatting?"AI оформляет…":"Оформить текст"}</button>
+            </ActionMenu>
+            <button className="ghost" disabled={saving||formatting} onClick={()=>void handleCancelEdit()} type="button">Отмена</button>
+            <button className="primary" aria-label={conflict?"Сохранить мою версию отдельной карточкой":undefined} disabled={saving||formatting||Boolean(deviceDraft.candidate)||!hasCardChanges} onClick={()=>void handleSave(Boolean(conflict))} type="button">{saving?"Сохраняем…":conflict?"Сохранить копию":"Сохранить"}</button>
+          </footer>}
         </div>
       </div>
     </AppModal>

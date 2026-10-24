@@ -4973,7 +4973,7 @@ export default function App() {
         </main>
 
         {!isCombatScreen && !hasFeatureOwnedDetailsPanel && (!campaign.readyCampaign || previewEntity?.kind === "player") && (previewEntity || (bestiaryController.isBrowseMode && bestiaryController.selectedBestiaryMonster)) ? (
-          <AppPreviewPanel onClose={bestiaryController.isBrowseMode ? undefined : () => { setPreviewEntityId(""); requestAnimationFrame(scrollContentToTop); }} onPointerDown={(event) => startResize("preview", event)}>
+          <AppPreviewPanel onClose={bestiaryController.isBrowseMode ? undefined : () => setPreviewEntityId("")} onPointerDown={(event) => startResize("preview", event)}>
           {bestiaryController.isBrowseMode ? (
             <BestiaryPreviewPanel controller={bestiaryController} />
           ) : (
@@ -5514,7 +5514,7 @@ export default function App() {
         selectedDestinationId={randomEventDestinationId}
       />
 
-      <PlayerFacingController controller={playerFacing} onClose={requestPlayerFacingViewClose} />
+      <PlayerFacingController controller={playerFacing} ownerId={authUserId} campaignId={activeCampaignId} readOnly={Boolean(campaign?.readyCampaign)} onClose={requestPlayerFacingViewClose} />
 
       <PreparedCombatModal
         bootError={bootError}

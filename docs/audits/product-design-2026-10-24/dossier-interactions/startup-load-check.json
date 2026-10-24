@@ -1,0 +1,66 @@
+{
+  "before": {
+    "source": "Fly release 189",
+    "javascript": [
+      {
+        "file": "/assets/index-D4yI-8mT.js",
+        "encoding": "gzip",
+        "transferBytes": 15399
+      },
+      {
+        "file": "/assets/vendor-react-Bmmb3bS-.js",
+        "encoding": "gzip",
+        "transferBytes": 45414
+      },
+      {
+        "file": "/assets/feature-combat-DQx1umGX.js",
+        "encoding": "gzip",
+        "transferBytes": 11396
+      },
+      {
+        "file": "/assets/feature-media-BeRpnR8T.js",
+        "encoding": "gzip",
+        "transferBytes": 6332
+      },
+      {
+        "file": "/assets/feature-quests-DADRQdcK.js",
+        "encoding": "gzip",
+        "transferBytes": 29614
+      },
+      {
+        "file": "/assets/feature-notes-events-iP_8eVG1.js",
+        "encoding": "gzip",
+        "transferBytes": 47149
+      }
+    ],
+    "transferBytes": 155304
+  },
+  "after": {
+    "source": "final local build; production verification pending",
+    "javascript": [
+      {
+        "file": "/assets/auth-ui-Cb1EzU97.js",
+        "encoding": "gzip",
+        "transferBytes": 21202
+      },
+      {
+        "file": "/assets/vendor-react-Bmmb3bS-.js",
+        "encoding": "gzip",
+        "transferBytes": 45414
+      },
+      {
+        "file": "/assets/workspace-ui-CZc7exfU.js",
+        "encoding": "gzip",
+        "transferBytes": 15392
+      },
+      {
+        "file": "/assets/index-7KN5kveF.js",
+        "encoding": "gzip",
+        "transferBytes": 3962
+      }
+    ],
+    "transferBytes": 85970
+  },
+  "savedBytes": 69334,
+  "reductionPercent": 44.6
+}

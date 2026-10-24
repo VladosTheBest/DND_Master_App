@@ -1,6 +1,15 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
+// Foundational UI must not be claimed transitively by a feature chunk.
+const workspaceUiModules = [
+  "/src/app-shared.tsx", "/src/rail-icon.tsx", "/src/app/api.ts", "/src/app/browser-storage.ts", "/src/app/format-duration.ts", "/src/app/AppModal.tsx", "/src/app/ActionMenu.tsx",
+  "/src/app/action-menu-position.ts", "/src/app/DeviceDraftControls.tsx",
+  "/src/app/device-drafts.ts", "/src/app/confirm-action.tsx", "/src/app/workspace-route.ts",
+  "/src/app/hooks/useNativeDialog.ts", "/src/app/hooks/useDeviceDraft.ts",
+  "/src/app/Workspace.module.css"
+];
+
 export default defineConfig({
   plugins: [react()],
   build: {
@@ -29,6 +38,9 @@ export default defineConfig({
           if (normalized.includes("/node_modules/")) {
             return undefined;
           }
+
+          if (normalized.endsWith("/src/auth-ui.tsx")) return "auth-ui";
+          if (workspaceUiModules.some(path => normalized.endsWith(path))) return "workspace-ui";
 
           if (normalized.includes("/src/items")) {
             return "feature-items";

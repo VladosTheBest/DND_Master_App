@@ -1,0 +1,3 @@
+const {build}=require('esbuild');const assert=require('node:assert/strict');
+(async()=>{const result=await build({entryPoints:['apps/web/src/app/format-duration.ts'],bundle:true,platform:'node',format:'cjs',write:false});const mod={exports:{}};new Function('module','exports',result.outputFiles[0].text)(mod,mod.exports);const f=mod.exports.formatPlaybackTime;
+for(const [seconds,expected] of [[0,'0:00'],[5,'0:05'],[61.9,'1:01'],[3601,'60:01'],[-3,'0:00'],[NaN,'0:00'],[Infinity,'0:00']])assert.equal(f(seconds),expected);console.log('Duration formatting: existing labels, fractional and invalid inputs preserved');})();

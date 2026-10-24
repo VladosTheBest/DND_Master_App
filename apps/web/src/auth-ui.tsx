@@ -3,7 +3,7 @@ import { browserStorage } from "./app/browser-storage";
 import { useEffect, useState, type FormEvent } from "react";
 import loginBgUrl from "./assets/login-bg.jpg";
 import { OAuthControls } from "./app/OAuthControls";
-import { formatPlaybackTime } from "./playback";
+import { formatPlaybackTime } from "./app/format-duration";
 import { RailIcon } from "./rail-icon";
 
 export function DndGenerationProgress({

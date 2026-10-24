@@ -1,3 +1,4 @@
+import { ActionMenu } from "../../app/ActionMenu";
 import { RecordIllustration } from "../entity-images/RecordIllustration";
 import { EntityRelationsPanel } from "../entity-links/EntityRelationsPanel";
 import { type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
@@ -348,12 +349,12 @@ export function EntityDetailsRenderer({
 
         {!readOnly ? <div className="actions record-actions">
           <button className="primary" onClick={()=>onEditEntity()} type="button">Редактировать</button>
-          <details className="record-actions-more"><summary aria-label="Другие действия с записью">Действия</summary><div>
+          <ActionMenu label="Действия" ariaLabel="Другие действия с записью">
             {onEditWithAI ? <button className="ghost" onClick={onEditWithAI} type="button">Изменить с AI</button> : null}
             <button className="ghost" onClick={onTogglePin} type="button">{activeEntityPinned ? "Убрать закладку" : "В закладки"}</button>
             <button className="ghost" onClick={onOpenPreview} type="button">Быстрый просмотр</button>
             {activeEntity.playlist?.length ? <button className="ghost" onClick={() => onPlayPlaylist()} type="button">{isEntityPlaylistActive(activeEntity.id) ? "Следующий трек" : "Случайный трек"}</button> : null}
-          </div></details>
+          </ActionMenu>
         </div> : null}
       </section>
       <RecordIllustration key={activeEntity.art?.url||activeEntity.id} url={activeEntity.art?.url} title={activeEntity.title} alt={activeEntity.art?.alt||activeEntity.art?.caption} onReplace={readOnly?undefined:()=>onEditEntity("art")} onGallery={readOnly?undefined:onOpenGallery}/>

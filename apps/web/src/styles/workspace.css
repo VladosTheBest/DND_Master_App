@@ -31,8 +31,8 @@ body::before { display: none; }
 .shell .combat-topbar { grid-template-columns: minmax(180px, 1fr) minmax(160px, 1fr) auto; }
 .action-menu { position: relative; }
 .action-menu-popover { position: absolute; right: 0; top: calc(100% + .5rem); width: 265px; max-width: calc(100vw - 2rem); max-height: 65vh; overflow: auto; padding: .45rem; border: 1px solid var(--line-strong); border-radius: 12px; background: #252b36; box-shadow: 0 14px 40px #0007; display: grid; gap: .25rem; z-index: 50; }
-.shell .action-menu-popover > button { text-align: left; justify-content: flex-start; width: 100%; padding: .75rem; border-color: transparent; background: transparent; }
-.shell .action-menu-popover > button:hover { background: #363d4d; }
+.action-menu-popover > button { text-align: left; justify-content: flex-start; width: 100%; padding: .75rem; border-color: transparent; background: transparent; color:var(--text); font-size:13px; min-height:40px; }
+.action-menu-popover > button:hover { background: #363d4d; }
 .preview-close { margin-bottom: .8rem; width: 100%; }
 .editor-disclosure { border: 1px solid var(--line); border-radius: 10px; padding: .8rem 1rem; background: #202631; }
 .editor-disclosure > summary { cursor: pointer; font-weight: 600; color: var(--text); padding: .25rem 0; }

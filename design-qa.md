@@ -45,3 +45,6 @@ P1: shallow baseline compact delta, зависимость открытого п
 Последний выпуск — Fly release 189 из commit 4fd24a7. Health check passing; главная, healthz/livez — 200, private API без сессии — 401; все 54 JS/CSS совпали с локальной сборкой. Итоговые hashes и статус авторизованного smoke записаны в [production-check.json](docs/audits/product-design-2026-10-24/npc-polish/production-check.json). До входа пользователя private production smoke остаётся непроверенным.
 
 Не проверялись реальное списание AI, внешние OAuth-provider credentials, физический touch/TV, live Foundry и все классы/уровни/административные роли. Игровые формулы/содержание immutable adventure и print-экспорт не менялись; частичное покрытие справочника остаётся явным ограничением, а не результатом редизайна.
+
+
+Свежий проход взаимодействий досье: [карточки, меню, preview и начальная загрузка](docs/audits/product-design-2026-10-24/dossier-interactions/README.md). Закрыты найденные обход dirty guard, keyboard Edit, скрытые 409, наложение сравнения, положение меню и игнорирование таблиц предмета. Повторены 26 корневых состояний; ограничения production авторизации остаются явными.

@@ -13,6 +13,7 @@ import { DeviceDraftControls } from "../../app/DeviceDraftControls";
 import { browserStorage } from "../../app/browser-storage";
 import "./items.css";
 import { ItemCategoryIcon } from "./ItemCategoryIcon";
+import { FormattedText } from "../formatting/FormattedText";
 import builtInItemsRaw from "../../../../../dnd_items_150_ru_official_basic_rules_2014.json";
 import { usePageSearchHotkey } from "../../app/hooks/usePageSearchHotkey";
 import {
@@ -929,9 +930,9 @@ export function ItemDetailModal({
                 <small>{detailLine}</small>
               </div>
 
-              <p className={`items-modal-summary ${descriptionPending || isLoadingDetail ? "is-loading" : ""}`}>
-                {descriptionText}
-              </p>
+              <div className={`items-modal-summary ${descriptionPending || isLoadingDetail ? "is-loading" : ""}`}>
+                <FormattedText content={!descriptionPending && !isLoadingDetail ? item.descriptionHtml?.trim() || descriptionText : descriptionText} />
+              </div>
             </div>
 
             <div aria-hidden="true" className="items-modal-hero-art">

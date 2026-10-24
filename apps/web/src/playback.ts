@@ -120,12 +120,7 @@ export const pickRandomTrackIndex = (tracks: PlaylistTrack[], excludeIndex?: num
   return nextIndex;
 };
 
-export const formatPlaybackTime = (seconds: number) => {
-  const safe = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
-  const minutes = Math.floor(safe / 60);
-  const remainder = safe % 60;
-  return `${minutes}:${String(remainder).padStart(2, "0")}`;
-};
+export { formatPlaybackTime } from "./app/format-duration";
 
 export const loadYouTubeIframeApi = (): Promise<NonNullable<Window["YT"]>> => {
   if (typeof window === "undefined") {

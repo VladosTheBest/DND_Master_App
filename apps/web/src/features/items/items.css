@@ -1473,3 +1473,7 @@
 .app-native-dialog .items-modal-primary-row>:is(.items-stat-card,.items-price-pill){min-width:0;width:100%;flex:none;background:var(--surface-raised);border-color:var(--line);padding:12px;box-shadow:none}
 .app-native-dialog .items-modal-primary-row .items-price-copy{min-width:0}.app-native-dialog .items-modal-primary-row .items-price-copy strong{white-space:normal;overflow-wrap:anywhere;font-size:14px}
 .app-native-dialog .items-modal-summary{color:#bcc4d2}
+
+/* Keep roll/result tables readable in narrow item dialogs. Wider tables retain keyboard scrolling. */
+.items-modal-summary table:has(tr:first-child > :nth-child(2):last-child) :is(th,td):first-child { min-width: 4rem; width: 4rem; }
+.items-modal-summary table:has(tr:first-child > :nth-child(2):last-child) :is(th,td):nth-child(2) { min-width: 12rem; }

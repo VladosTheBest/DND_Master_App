@@ -6,9 +6,7 @@ import type {
 } from "@shadow-edge/shared-types";
 import {
   badge,
-  createHeroPanelStyle,
-  entityImageTriggerProps,
-  gradients,
+  EntityVisual,
   isRewardableEntity,
   kindTitle
 } from "../app-shared";
@@ -143,19 +141,9 @@ export function AppPreviewContent({
           </button>
         </div>
 
-        <section
-          {...entityImageTriggerProps(
-            onOpenEntityImage ? () => onOpenEntityImage(previewEntity, previewEntity.art?.url?.trim() || undefined) : undefined
-          )}
-          aria-label={onOpenEntityImage ? `Открыть изображение «${previewEntity.title}»` : undefined}
-          className={`preview-hero ${onOpenEntityImage ? "entity-image-trigger" : ""}`.trim()}
-          onContextMenu={(event) => onOpenEntityActionMenu(previewEntity, event)}
-          style={createHeroPanelStyle(gradients[previewEntity.kind], previewEntity.art?.url)}
-          title={onOpenEntityImage ? `Открыть изображение «${previewEntity.title}»` : undefined}
-        >
-          <span>{kindTitle[previewEntity.kind]}</span>
-          <strong>{previewEntity.title}</strong>
-          <small>{previewEntity.subtitle}</small>
+        <section className="preview-record-heading" data-kind={previewEntity.kind} onContextMenu={(event)=>onOpenEntityActionMenu(previewEntity,event)}>
+          <EntityVisual entity={previewEntity} onOpenEntityImage={onOpenEntityImage}/>
+          <div><span>{kindTitle[previewEntity.kind]}</span><strong>{previewEntity.title}</strong><small>{previewEntity.subtitle}</small></div>
         </section>
 
         <p className="copy">{previewEntity.summary}</p>

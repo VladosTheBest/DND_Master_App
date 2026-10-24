@@ -1,0 +1,272 @@
+[
+  {
+    "screen": "dashboard",
+    "width": 1440,
+    "height": 1024,
+    "headings": [
+      "UX: тест третьего этапа",
+      "Сессия проверки UX",
+      "Сюжет в работе 0",
+      "Закреплённое 0",
+      "Группа за столом 1",
+      "Места активных квестов"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "players",
+    "width": 1440,
+    "height": 1024,
+    "headings": [
+      "Каждая легенда начинается с героя",
+      "Карточки группы"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "quests",
+    "width": 1440,
+    "height": 1024,
+    "headings": [
+      "Квесты"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "locations",
+    "width": 1440,
+    "height": 1024,
+    "headings": [
+      "Локации"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "npcs",
+    "width": 1440,
+    "height": 1024,
+    "headings": [
+      "НПС"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "events",
+    "width": 1440,
+    "height": 1024,
+    "headings": [
+      "События и сцены",
+      "Событие маршрута"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "notes",
+    "width": 1440,
+    "height": 1024,
+    "headings": [
+      "Заметки мастера",
+      "Связи 0"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "shops",
+    "width": 1440,
+    "height": 1024,
+    "headings": [
+      "Магазины",
+      "Ассортимент 0",
+      "Каталог товаров"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "monsters",
+    "width": 1440,
+    "height": 1024,
+    "headings": [
+      "Каталог монстров"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "items",
+    "width": 1440,
+    "height": 1024,
+    "headings": [
+      "Предметы",
+      "Каталог"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "rules",
+    "width": 1440,
+    "height": 1024,
+    "headings": [
+      "Правила",
+      "Исключения важнее общих правил"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "sessions",
+    "width": 1440,
+    "height": 1024,
+    "headings": [
+      "Сессии1",
+      "Сессия проверки UX",
+      "Сессия проверки UX"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "offline",
+    "width": 1440,
+    "height": 1024,
+    "headings": [
+      "Оффлайн Beta",
+      "Бой",
+      "Карта на ТВ",
+      "Инициатива",
+      "Сцены"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "dashboard",
+    "width": 390,
+    "height": 844,
+    "headings": [
+      "UX: тест третьего этапа",
+      "Сессия проверки UX",
+      "Сюжет в работе 0",
+      "Закреплённое 0",
+      "Группа за столом 1",
+      "Места активных квестов"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "players",
+    "width": 390,
+    "height": 844,
+    "headings": [
+      "Каждая легенда начинается с героя",
+      "Карточки группы"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "quests",
+    "width": 390,
+    "height": 844,
+    "headings": [
+      "Квесты"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "locations",
+    "width": 390,
+    "height": 844,
+    "headings": [
+      "Локации"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "npcs",
+    "width": 390,
+    "height": 844,
+    "headings": [
+      "НПС"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "events",
+    "width": 390,
+    "height": 844,
+    "headings": [
+      "События и сцены",
+      "Событие маршрута"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "notes",
+    "width": 390,
+    "height": 844,
+    "headings": [
+      "Заметки мастера",
+      "Связи 0"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "shops",
+    "width": 390,
+    "height": 844,
+    "headings": [
+      "Магазины",
+      "Ассортимент 0",
+      "Каталог товаров"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "monsters",
+    "width": 390,
+    "height": 844,
+    "headings": [
+      "Каталог монстров"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "items",
+    "width": 390,
+    "height": 844,
+    "headings": [
+      "Предметы",
+      "Каталог"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "rules",
+    "width": 390,
+    "height": 844,
+    "headings": [
+      "Правила",
+      "Исключения важнее общих правил"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "sessions",
+    "width": 390,
+    "height": 844,
+    "headings": [
+      "Сессии1",
+      "Сессия проверки UX",
+      "Сессия проверки UX"
+    ],
+    "overflow": false
+  },
+  {
+    "screen": "offline",
+    "width": 390,
+    "height": 844,
+    "headings": [
+      "Оффлайн Beta",
+      "Бой",
+      "Карта на ТВ",
+      "Инициатива",
+      "Сцены"
+    ],
+    "overflow": false
+  }
+]

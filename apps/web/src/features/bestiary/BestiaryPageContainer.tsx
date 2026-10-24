@@ -1,3 +1,4 @@
+import { ActionMenu } from "../../app/ActionMenu";
 import { RecordIllustration } from "../entity-images/RecordIllustration";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import type {
@@ -145,14 +146,14 @@ export function BestiaryPageContainer({
             action={
               <div className="npc-sheet-toolbar">
                 <button className="primary" onClick={() => onEditEntity(activeMonster.id,"stats")} type="button">Редактировать характеристики</button>
-                <details className="record-actions-more"><summary aria-label="Другие действия с монстром">Действия</summary><div>
+                <ActionMenu label="Действия" ariaLabel="Другие действия с монстром">
                   <button className="ghost" onClick={() => onEditEntity(activeMonster.id)} type="button">Редактировать запись</button>
                   <button className="ghost" onClick={() => onEditEntity(activeMonster.id,"art")} type="button">{activeMonster.art?.url ? "Заменить изображение" : "Добавить изображение"}</button>
                   <button className="ghost" onClick={() => onOpenGallery(activeMonster)} type="button">Галерея</button>
                   <button className="ghost" onClick={() => onEditWithAI(activeMonster)} type="button">Изменить с AI</button>
                   <button className="ghost" onClick={() => onTogglePin(activeMonster.id)} type="button">{activeMonsterPinned ? "Убрать закладку" : "В закладки"}</button>
                   <button className="ghost" onClick={() => onOpenPreview(activeMonster.id)} type="button">Быстрый просмотр</button>
-                </div></details>
+                </ActionMenu>
               </div>
             }
             defaultCollapsed={false}

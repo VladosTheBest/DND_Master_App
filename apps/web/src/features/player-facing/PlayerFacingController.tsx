@@ -3,9 +3,15 @@ import type { PlayerFacingCardsController } from "./usePlayerFacingCards";
 
 export function PlayerFacingController({
   controller,
+  ownerId,
+  campaignId,
+  readOnly = false,
   onClose
 }: {
   controller: PlayerFacingCardsController;
+  ownerId: string;
+  campaignId: string;
+  readOnly?: boolean;
   onClose: () => void;
 }) {
   const {
@@ -24,12 +30,19 @@ export function PlayerFacingController({
     return null;
   }
 
+  const protectedSource = readOnly && playerFacingEntity.kind !== "player";
   return (
     <PlayerFacingEntityModal
+      ownerId={ownerId}
+      campaignId={campaignId}
+      cardIndex={playerFacingView.cardIndex}
+      baseRevision={playerFacingView.baseRevision ?? 0}
+      error={controller.playerFacingModalError}
+      conflict={controller.playerFacingModalConflict}
       content={playerFacingView.content}
       contentHtml={playerFacingView.contentHtml}
-      editable={typeof playerFacingView.cardIndex === "number"}
-      editMode={Boolean(playerFacingView.editMode)}
+      editable={!protectedSource&&typeof playerFacingView.cardIndex === "number"}
+      editMode={!protectedSource&&Boolean(playerFacingView.editMode)}
       entity={playerFacingEntity}
       formatting={playerFacingModalFormatting}
       isNew={Boolean(playerFacingView.isNew)}

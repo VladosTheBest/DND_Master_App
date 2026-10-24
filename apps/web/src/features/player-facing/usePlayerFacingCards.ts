@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { isApiError } from "@shadow-edge/api-client";
 import type {
   CampaignData,
   CreateEntityInput,
@@ -15,6 +16,7 @@ import { api } from "../../app/api";
 
 export type PlayerFacingViewState = {
   entityId: string;
+  baseRevision?: number;
   title?: string;
   content: string;
   contentHtml?: string;
@@ -144,6 +146,8 @@ export function usePlayerFacingCards({
 }: UsePlayerFacingCardsParams) {
   const [playerFacingView, setPlayerFacingView] = useState<PlayerFacingViewState | null>(null);
   const [playerFacingModalSaving, setPlayerFacingModalSaving] = useState(false);
+  const [playerFacingModalError,setPlayerFacingModalError] = useState("");
+  const [playerFacingModalConflict,setPlayerFacingModalConflict] = useState<KnowledgeEntity|null>(null);
   const [playerFacingModalFormatting, setPlayerFacingModalFormatting] = useState(false);
 
   const playerFacingEntity =
@@ -169,8 +173,10 @@ export function usePlayerFacingCards({
     }
 
     setBootError("");
+    setPlayerFacingModalError(""); setPlayerFacingModalConflict(null);
     setPlayerFacingView({
       entityId: entity.id,
+      baseRevision: entity.revision ?? 0,
       title: selectedCard?.title?.trim() || entity.title,
       content,
       contentHtml,
@@ -238,9 +244,9 @@ export function usePlayerFacingCards({
     openPlayerFacingView(playerFacingEntity, card, { cardIndex, editMode: false, isNew: false });
   };
 
-  const savePlayerFacingCardFromModal = async (card: PlayerFacingCard) => {
+  const savePlayerFacingCardFromModal = async (card: PlayerFacingCard, expectedRevision?:number, asCopy=false):Promise<boolean> => {
     if (!activeCampaignId || !playerFacingEntity) {
-      return;
+      return false;
     }
 
     const cardIndex =
@@ -253,26 +259,25 @@ export function usePlayerFacingCards({
     const normalizedCard = sanitizeSinglePlayerFacingCard(playerFacingEntity.kind, card, cardIndex);
 
     if (!normalizedCard) {
-      setBootError("Добавь текст в карточку, а потом уже сохраняй её.");
-      return;
+      setPlayerFacingModalError("Добавьте текст в карточку перед сохранением.");
+      return false;
     }
 
     try {
       setPlayerFacingModalSaving(true);
-      setBootError("");
-      const nextForm = entityToForm(playerFacingEntity);
+      setBootError(""); setPlayerFacingModalError("");
+      const source = asCopy && playerFacingModalConflict ? playerFacingModalConflict : playerFacingEntity;
+      const nextForm = entityToForm(source);
+      nextForm.expectedRevision = asCopy ? source.revision ?? 0 : expectedRevision ?? playerFacingView?.baseRevision ?? 0;
       const nextCards = [...(nextForm.playerCards ?? [])];
 
-      if (cardIndex >= nextCards.length) {
-        nextCards.push(normalizedCard);
-      } else {
-        nextCards[cardIndex] = normalizedCard;
-      }
+      const targetIndex = asCopy ? nextCards.length : cardIndex;
+      if (targetIndex >= nextCards.length) nextCards.push(normalizedCard);
+      else nextCards[targetIndex] = normalizedCard;
 
       nextForm.playerCards = nextCards;
       const result = await api.updateEntity(activeCampaignId, playerFacingEntity.id, serializeEntityForm(nextForm));
       hydrateCampaign(result.campaign, result.entity.id);
-      setPreviewEntityId(result.entity.id);
 
       const updatedEntity = result.entity.kind === playerFacingEntity.kind ? result.entity : playerFacingEntity;
       const updatedCards = normalizePlayerFacingCardsForClient(
@@ -280,14 +285,17 @@ export function usePlayerFacingCards({
         updatedEntity.playerCards,
         updatedEntity.playerContent
       );
-      const resolvedIndex = Math.min(cardIndex, Math.max(updatedCards.length - 1, 0));
+      const resolvedIndex = Math.min(targetIndex, Math.max(updatedCards.length - 1, 0));
       openPlayerFacingView(updatedEntity, updatedCards[resolvedIndex], {
         cardIndex: resolvedIndex,
         editMode: false,
         isNew: false
       });
+      return true;
     } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось сохранить карточку для игроков.");
+      if (isApiError(error) && error.status === 409 && error.current) setPlayerFacingModalConflict(error.current as KnowledgeEntity);
+      setPlayerFacingModalError(error instanceof Error ? error.message : "Не удалось сохранить карточку для игроков.");
+      return false;
     } finally {
       setPlayerFacingModalSaving(false);
     }
@@ -408,6 +416,8 @@ export function usePlayerFacingCards({
     playerFacingEntity,
     playerFacingModalFormatting,
     playerFacingModalSaving,
+    playerFacingModalError,
+    playerFacingModalConflict,
     playerFacingView,
     requestPlayerFacingCardDeletion,
     savePlayerFacingCardFromModal
