@@ -1,3 +1,4 @@
+import type {EntityEditorNavigation} from "./features/entities/entity.types";
 import {CombatPlanConflictReview} from "./features/prepared-combat/CombatPlanConflictReview";
 import {RecordIllustration} from "./features/entity-images/RecordIllustration";
 import {sanitizeQuestAppearance} from "./features/entities/quest-appearance";
@@ -1528,6 +1529,7 @@ function CombatWorkbench({
 
 export default function App() {
   const [entityEditorSection,setEntityEditorSection]=useState("summary");
+  const [entityEditorNavigation,setEntityEditorNavigation]=useState<EntityEditorNavigation|null>(null);
   const workspaceRoute = useWorkspaceRoute();
   const routeKey = JSON.stringify(workspaceRoute);
   const [workspaceArea,setWorkspaceArea]=useState<"maps"|"chat"|null>(null);
@@ -1857,6 +1859,13 @@ export default function App() {
     uploadEntityArtFile,
     uploadEntityGalleryFile
   } = entityEditor;
+  const requestEditorNavigation=(entityId:string,section:string)=>setEntityEditorNavigation(current=>({entityId,section,requestId:(current?.requestId??0)+1}));
+  const editEntitySection=(entityId:string,section="summary")=>{
+    section=section||"summary";
+    setEntityEditorSection(section);requestEditorNavigation(entityId,section);
+    if(!entityEditor.entityModalOpen||entityEditor.editingEntityId!==entityId)openEntityEditor(entityId);
+  };
+
 
   const {
     addProjectImagesToEntityGalleryDraft,
@@ -3342,6 +3351,7 @@ export default function App() {
         allies: [],
         items: []
       };
+    requestEditorNavigation(entity.id,"combat");
     if(!(entity.kind==="quest"&&activeEntity?.id===entity.id&&activeModule==="quests"))focusCombatModule();
     setBootError("");
     setEntityCombatSetupState({
@@ -3523,7 +3533,7 @@ export default function App() {
         id: result.entity.id,
         kind: "quest",
         label: result.entity.title,
-        reason: "Связанный квест, созданный прямо из профиля этого НПС."
+        reason: "НПС выступает квестодателем этой записи."
       }
     ];
 
@@ -4847,7 +4857,8 @@ export default function App() {
                 <AppContentRouter
                 currentPlaybackTrackUrl={currentPlaybackTrackUrl}
                 onStopPlayback={stopPlayback}
-                entityEditingSection={combatSetupOpen&&entityCombatSetupState?.entityId===activeEntity?.id?"combat":entityEditor.entityModalOpen&&entityEditor.editingEntityId===activeEntity?.id?entityEditorSection:undefined}
+                editorNavigation={entityEditorNavigation&&entityEditorNavigation.entityId===activeEntity?.id?entityEditorNavigation:undefined}
+                entityEditingSection={entityEditorNavigation?.entityId===activeEntity?.id&&entityEditorNavigation?.section==="combat"&&combatSetupOpen&&entityCombatSetupState?.entityId===activeEntity?.id?"combat":entityEditor.entityModalOpen&&entityEditor.editingEntityId===activeEntity?.id?entityEditorSection:combatSetupOpen&&entityCombatSetupState?.entityId===activeEntity?.id?"combat":undefined}
                 cardsEditing={Boolean(playerFacing.playerFacingView?.editMode&&playerFacing.playerFacingEntity?.id===activeEntity?.id)}
                 ownerId={authUserId}
                 activeEntity={activeEntity}
@@ -4866,7 +4877,7 @@ export default function App() {
                     isEntityPlaylistActive={isEntityPlaylistActive}
                     onContentContextMenu={(entity, event) => entityLinkController.handleActiveEntityContentContextMenu(entity, "content", event)}
                     onCopyImageLink={handleCopyImageLink}
-                    onEditEntity={(id,section?:string)=>{setEntityEditorSection(section||"summary");if(!entityEditor.entityModalOpen||entityEditor.editingEntityId!==id)openEntityEditor(id);}}
+                    onEditEntity={editEntitySection}
                     onEditWithAI={aiProposalController.requestEntityProposal}
                     onOpenDirectory={() => openModuleDirectory("monsters", "Импорт")}
                     onOpenEntity={openEntity}
@@ -4902,7 +4913,7 @@ export default function App() {
                 normalizeWorldEventForClient={normalizeWorldEventForClient}
                 notesContentContextMenu={entityLinkController.handleNoteContentContextMenu}
                 onActiveEventChange={setSelectedWorldEventId}
-                onEditEntity={(id,section?:string)=>{setEntityEditorSection(section||"summary");if(!entityEditor.entityModalOpen||entityEditor.editingEntityId!==id)openEntityEditor(id);}}
+                onEditEntity={editEntitySection}
                 onEditWithAI={aiProposalController.requestEntityProposal}
                 onOpenDirectory={() => openModuleDirectory("quests")}
                 onOpenEntity={openEntity}
@@ -4929,7 +4940,7 @@ export default function App() {
                 serializeWorldEventInput={serializeWorldEventInput}
                 worldEventToForm={worldEventToForm}
               /></div>
-                {activeEntity&&["monster","quest","lore"].includes(activeEntity.kind)&&<aside className="record-context" id="record-relations" aria-label="Изображение и связи записи">{activeEntity.kind==="quest"&&<RecordIllustration url={activeEntity.art?.url} title={activeEntity.title} alt={activeEntity.art?.alt||activeEntity.art?.caption} onReplace={()=>{setEntityEditorSection("art");if(!entityEditor.entityModalOpen||entityEditor.editingEntityId!==activeEntity.id)openEntityEditor(activeEntity.id);}} onGallery={()=>{setEntityEditorSection("gallery");if(!entityEditor.entityModalOpen||entityEditor.editingEntityId!==activeEntity.id)openEntityEditor(activeEntity.id);}}/>}<EntityRelationsPanel campaignId={campaign.id} ownerId={authUserId} entity={activeEntity} onResolve={resolveLinkedEntity} onChanged={hydrateCampaign} onOpen={item=>{const target=resolveLinkedEntity(item);if(target)void openEntity(target.id);}}/></aside>}
+                {activeEntity&&["monster","quest","lore"].includes(activeEntity.kind)&&<aside className="record-context" id="record-relations" aria-label="Изображение и связи записи">{activeEntity.kind==="quest"&&<RecordIllustration url={activeEntity.art?.url} title={activeEntity.title} alt={activeEntity.art?.alt||activeEntity.art?.caption} onReplace={()=>editEntitySection(activeEntity.id,"art")} onGallery={()=>editEntitySection(activeEntity.id,"gallery")}/>}<EntityRelationsPanel campaignId={campaign.id} ownerId={authUserId} entity={activeEntity} onResolve={resolveLinkedEntity} onChanged={hydrateCampaign} onOpen={item=>{const target=resolveLinkedEntity(item);if(target)void openEntity(target.id);}}/></aside>}
               </div>
             ) : activeEntity ? (
               <EntityDetailsPage
@@ -4951,7 +4962,7 @@ export default function App() {
                 onContentContextMenu={(event) => entityLinkController.handleActiveEntityContentContextMenu(activeEntity, "content", event)}
                 onCreatePlayerFacingCard={() => openNewPlayerFacingEditor(activeEntity)}
                 onDeletePlayerFacingCard={(card, index) => requestPlayerFacingCardDeletion(activeEntity, card, index)}
-                onEditEntity={(section) => {setEntityEditorSection(section||"summary");if(!entityEditor.entityModalOpen||entityEditor.editingEntityId!==activeEntity.id)openEntityEditor(activeEntity.id);}}
+                onEditEntity={section=>editEntitySection(activeEntity.id,section)}
                 onEditWithAI={() => aiProposalController.requestEntityProposal(activeEntity)}
                 onEditPlayerFacingCard={(card, index) => openPlayerFacingEditor(activeEntity, card, index)}
                 onOpenEntityActionMenu={(event) => openEntityActionMenu(activeEntity, event)}
@@ -5017,7 +5028,7 @@ export default function App() {
               isEntityPlaylistActive={isEntityPlaylistActive}
               onCombatPartyLevelsChange={updateCombatPartyLevelText}
               onCopyImageLink={handleCopyImageLink}
-              onEdit={id=>{setEntityEditorSection("summary");openEntityEditor(id);}}
+              onEdit={id=>editEntitySection(id,"summary")}
               onOpenEntityPage={openEntity}
               onOpenEntityActionMenu={openEntityActionMenu}
               onOpenEntityImage={openEntityImage}

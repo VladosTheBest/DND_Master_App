@@ -1,3 +1,4 @@
+import type {EntityEditorNavigation} from "../entities/entity.types";
 import { useMemo, type ReactNode } from "react";
 import type {
   KnowledgeEntity,
@@ -18,6 +19,7 @@ import {
 } from "../../quests";
 
 export function QuestPageContainer({
+  editorNavigation,
   currentPlaybackTrackUrl,
   onStopPlayback,
   editingSection,
@@ -47,6 +49,7 @@ export function QuestPageContainer({
   resolveLinkedEntity,
   readOnly = false
 }: {
+  editorNavigation?:EntityEditorNavigation;
   editingSection?:string;
   cardsEditing?:boolean;
   campaignQuests: QuestEntity[];
@@ -174,6 +177,7 @@ export function QuestPageContainer({
 
   return (
     <QuestWorkspace
+      editorNavigation={editorNavigation}
       entityByTitle={new Map([...entityMap.values()].map(entity=>[entity.title.toLowerCase(),entity]))}
       playlistTrackUrl={currentPlaybackTrackUrl}
       onStopPlayback={onStopPlayback}

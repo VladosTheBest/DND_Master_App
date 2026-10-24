@@ -1,3 +1,4 @@
+import type {EntityEditorNavigation} from "./features/entities/entity.types";
 import {safeCardColor} from "./features/entities/reward-input";
 import {InlineEditorSurface} from "./app/InlineEditorSurface";
 import { ActionMenu } from "./app/ActionMenu";
@@ -951,6 +952,7 @@ function QuestPreviewEntityCard({
 export function QuestWorkspace({
   quest,
   editingSection,
+  editorNavigation,
   cardsEditing,
   entityByTitle,
   playlistTrackUrl,
@@ -988,6 +990,7 @@ export function QuestWorkspace({
 }: {
   quest: QuestEntity;
   editingSection?:string;
+  editorNavigation?:EntityEditorNavigation;
   cardsEditing?:boolean;
   entityByTitle:Map<string,KnowledgeEntity>;
   playlistTrackUrl?:string;
@@ -1029,7 +1032,8 @@ export function QuestWorkspace({
   const selected=selection.questId===quest.id?selection.tab:"overview";
   const selectTab=(tab:string)=>setSelection({questId:quest.id,tab});
   const sectionTab=(section:string)=>({summary:"overview",questMeta:"overview",appearance:"overview",content:"story",cards:"cards",combat:"combat",stats:"combat",rewards:"rewards",art:"media",gallery:"media",playlist:"media",media:"media"} as Record<string,string>)[section]||"overview";
-  useEffect(()=>{if(editingSection)selectTab(sectionTab(editingSection));},[editingSection,quest.id]);
+  // Navigation is an explicit request: closing another editor must not switch the tab.
+  useEffect(()=>{if(editorNavigation)selectTab(sectionTab(editorNavigation.section));},[editorNavigation,quest.id]);
   useEffect(()=>{if(cardsEditing)selectTab("cards");},[cardsEditing,quest.id]);
   const edit=(section="summary")=>{selectTab(sectionTab(section));onEdit(quest.id,section);};
   const slot=(section:string)=>!readOnly?<div className="entity-inline-slot" id={"entity-inline-"+quest.id+"-"+section}/>:null;

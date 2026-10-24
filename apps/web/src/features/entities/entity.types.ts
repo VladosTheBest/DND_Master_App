@@ -26,3 +26,5 @@ export type EntityActionMenuState = {
   x: number;
   y: number;
 };
+
+export type EntityEditorNavigation = { entityId:string; section:string; requestId:number };

@@ -1,3 +1,4 @@
+import type {EntityEditorNavigation} from "../features/entities/entity.types";
 import {lazy,Suspense} from "react";
 import type {
   CampaignData,
@@ -26,6 +27,7 @@ type RailAlias = "items" | "events" | "notes" | "shops" | "sessions";
 type ModuleId = "dashboard" | "combat" | "locations" | "players" | "npcs" | "monsters" | "quests" | "lore" | "rules";
 
 function ContentRouter({
+  editorNavigation,
   currentPlaybackTrackUrl,
   onStopPlayback,
   entityEditingSection,
@@ -80,6 +82,7 @@ function ContentRouter({
 }: {
   entityEditingSection?:string;
   cardsEditing?:boolean;
+  editorNavigation?:EntityEditorNavigation;
   ownerId: string;
   activeEntity: KnowledgeEntity | null;
   activeModule: ModuleId;
@@ -195,6 +198,7 @@ function ContentRouter({
   if (activeEntity?.kind === "quest" && activeModule === "quests") {
     return (
       <QuestPageContainer
+      editorNavigation={editorNavigation}
         currentPlaybackTrackUrl={currentPlaybackTrackUrl}
         onStopPlayback={onStopPlayback}
         editingSection={entityEditingSection}
