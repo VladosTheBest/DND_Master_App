@@ -20,4 +20,16 @@
 
 ## Проверки и выпуск
 
-Web build и существующие scripts test-workspace-routes, test-workspace-responses, test-authoring-transport, test-device-drafts, test-entity-comparison, test-scene-editing, test-editable-list-keys, test-build-manifest прошли. 137 TSX / 27 editing containers / 0 direct mutable-key проблем; 52 manifest entries без циклов, sign-in closure 4 entries без игровых chunks. Backend/shared types/HTTP/модели и цены AI/готовые шаблоны/игровые расчёты не менялись. Новая сборка и повторный production smoke будут зафиксированы после выпуска.
+Web build и существующие scripts test-workspace-routes, test-workspace-responses, test-authoring-transport, test-device-drafts, test-entity-comparison, test-scene-editing, test-editable-list-keys, test-build-manifest прошли. 137 TSX / 27 editing containers / 0 direct mutable-key проблем; 52 manifest entries без циклов, sign-in closure 4 entries без игровых chunks. Backend/shared types/HTTP/модели и цены AI/готовые шаблоны/игровые расчёты не менялись. Fly release **195**, source **c4ce164**. Health passing; root/healthz/livez 200, private API без сессии 401; HTML и все 56 JS/CSS совпадают — [production-check.json](production-check.json).
+
+## Повтор на выпуске 195 — все запрошенные шаги пройдены
+
+1. Предмет открыт напрямую вне текущей страницы каталога: полное описание и одна форматированная таблица; Escape закрывает окно. [Предмет](11-production-item-195.jpg).
+2. В QA-кампании выполнены unlink и повторный POST через фильтр локаций/поиск/выбор/пояснение. После полного reload обе записи показывают одну пару с новым пояснением. Сущности не удалялись. [Связи во вкладке](10-production-tabs-relations.jpg).
+3. Сохранённая сцена открыта на 195; X света изменён с 420 на 430 и сохранён через «Сохранить правки». После полного reload/reopen — X=430, Y=230, bright/dim=15/30; дверь остаётся (475,330)→(400,330), editor walls 4, door 1, light 1. Save disabled при отсутствии изменений. [Сцена](12-production-scene-195.jpg).
+4. Callback проверен созданием второй небольшой QA-кампании: сразу открылся её dashboard с совпадающим campaignId; «Кампания недоступна» отсутствует. [Создание](13-production-create-195.jpg).
+5. Production-вкладки проверены с клавиатуры (End → «Характеристики», один panel) и при 390×844: один panel, documentWidth=viewport=390, hash пустой. [Телефон](14-production-tabs-phone.jpg). После проверки viewport сброшен. Runtime console errors не обнаружены.
+
+При деплое существующая сессия завершилась. Причина подтверждена по auth.go: allowlist браузерных сессий хранится только в памяти; cookie не является самопроверяемым токеном. Пользователь повторно вошёл штатным способом и итоговый smoke выполнен. Долговечность сессий не менялась; это ограничение текущей архитектуры. В финальном повторе новый деплой не выполнялся. QA-кампании сохранены для воспроизводимости; существующие игровые кампании не менялись.
+
+Снимки 10–14 приняты после просмотра. Для 11–14 Chrome screenshot получен с явным clip в пределах проверенного viewport: обычный capture после emulation временно содержал лишнюю область compositor; ошибочный кадр предмета заменён. Это ограничение capture-инструмента, DOM/UI измерения приведены отдельно.

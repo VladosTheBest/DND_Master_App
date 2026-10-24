@@ -1,0 +1,447 @@
+{
+  "app": "dnd-master-app",
+  "deployment": {
+    "status": "deployed",
+    "sourceCommit": "c4ce164",
+    "verifiedAt": "2026-10-24T11:07:34.409971+00:00",
+    "http": [
+      {
+        "path": "/",
+        "status": 200
+      },
+      {
+        "path": "/healthz",
+        "status": 200
+      },
+      {
+        "path": "/livez",
+        "status": 200
+      },
+      {
+        "path": "/api/campaigns",
+        "status": 401
+      }
+    ],
+    "assets": [
+      {
+        "file": "assets/AdminSubscriptions-B6cyd7tb.css",
+        "status": 200,
+        "sha256": "7292847fdeaed625e1ef355ba7962b374fb88256a6a3faeaf8ef130a458aaef4",
+        "matches": true
+      },
+      {
+        "file": "assets/AdminSubscriptions-BaDTPorA.js",
+        "status": 200,
+        "sha256": "94793b3ba9f14e47b7045e2819d81157d219f79df72aa98143d998f12c00d621",
+        "matches": true
+      },
+      {
+        "file": "assets/AIChat-Bjgc64ql.js",
+        "status": 200,
+        "sha256": "cf0961f860316eaed8cc081b02f4e769b6daf1aa872613f0210f95a3502dbce6",
+        "matches": true
+      },
+      {
+        "file": "assets/AIChat-C3UMn7jn.css",
+        "status": 200,
+        "sha256": "e827ed31ae6182caaca95a8f9612f4cb38f88339e7189dd92ae0b5f814fabe8d",
+        "matches": true
+      },
+      {
+        "file": "assets/AIChatPage-Or0YtPBV.js",
+        "status": 200,
+        "sha256": "c6e3a21ec688307ee9a38c32624b53d508251bbdf460bc9f9dee4ca522cf1403",
+        "matches": true
+      },
+      {
+        "file": "assets/App-C36l4qKR.css",
+        "status": 200,
+        "sha256": "7e01632313f84f2b044c4047ba248eb21858a3865d6183820851358d76c2a5e1",
+        "matches": true
+      },
+      {
+        "file": "assets/App-Csl7zcU6.js",
+        "status": 200,
+        "sha256": "a13c653b56e3067b3754e26798fc0d5d8f223b6327e939b14860345ecf618ea6",
+        "matches": true
+      },
+      {
+        "file": "assets/auth-ui-_3hVQOJf.css",
+        "status": 200,
+        "sha256": "5b0f74bd1079433025dc02aa1224913b89b0b7578c7b0a3838454923323204c4",
+        "matches": true
+      },
+      {
+        "file": "assets/auth-ui-CnPRU1j7.js",
+        "status": 200,
+        "sha256": "3be360a797a94e82c5e4bfcc8fe309906fb080cce76e4e24f73ebf29e1c22367",
+        "matches": true
+      },
+      {
+        "file": "assets/BestiaryPageContainer-BJQuwwL5.css",
+        "status": 200,
+        "sha256": "b4c543b9eb20de04eb3349e5d1ce4053bdc92153bd2ffda9441569a87a3c3df5",
+        "matches": true
+      },
+      {
+        "file": "assets/BestiaryPageContainer-DPmnz7gt.js",
+        "status": 200,
+        "sha256": "81a15c43fc48c54a094004c724df128ad87ae29f738a8f1c0f7a9854c74950f7",
+        "matches": true
+      },
+      {
+        "file": "assets/browser-B5KacSIb.js",
+        "status": 200,
+        "sha256": "de4648cefec2327cd9c9c70fe385e165ab88e935b40b1fd49de4192da9c03463",
+        "matches": true
+      },
+      {
+        "file": "assets/CampaignCharacters-DOnGcp50.js",
+        "status": 200,
+        "sha256": "79194471450acfcf78d42796d56be679a3bb8e84c9b0a4c413c063690aaa64e4",
+        "matches": true
+      },
+      {
+        "file": "assets/character-pdf-DRw2seC1.js",
+        "status": 200,
+        "sha256": "038e3e608b04483019fd4a4e07d42fc3c17befdb5a0bb7cb22ca30ae981ceb38",
+        "matches": true
+      },
+      {
+        "file": "assets/character-rules-CvIaXI71.js",
+        "status": 200,
+        "sha256": "869ee94d1779b0968a9c56db79c28add24ea9734e95caaa91c3e35c659ebdbbe",
+        "matches": true
+      },
+      {
+        "file": "assets/CharacterPublicApp-BirPdD59.js",
+        "status": 200,
+        "sha256": "73fcb0bb166911b2db853da57fc23643c5fec6d11cca205945513ff1a500cbd2",
+        "matches": true
+      },
+      {
+        "file": "assets/characters-CPlwxhpC.css",
+        "status": 200,
+        "sha256": "b135895faf446cc8d79cad62dc4e3ec5321ce376c2b7876b2c7ba3c301828255",
+        "matches": true
+      },
+      {
+        "file": "assets/characters.api-BANlqgBJ.js",
+        "status": 200,
+        "sha256": "707e82e9d99d5bb77ce09fff4c4f055cd22f0cfbce708434a4c768d2a28f4e42",
+        "matches": true
+      },
+      {
+        "file": "assets/CodexConnectionPanel-B6V-6W36.js",
+        "status": 200,
+        "sha256": "6d175b09ff734dfa72af47b6d22f15c81e1c7c9ae0f2535cc2cf31f086227a4d",
+        "matches": true
+      },
+      {
+        "file": "assets/CombatPage-CCpq4UQO.js",
+        "status": 200,
+        "sha256": "adbb12e28005b3d36e9f183f295dae5e104dd05a29156406f948ebea2347d9ea",
+        "matches": true
+      },
+      {
+        "file": "assets/CombatPrepPage-qGUbtYli.js",
+        "status": 200,
+        "sha256": "62e4c7319877125b15091c4d23897e41669bc44562f482b84052de8a9cc7be4a",
+        "matches": true
+      },
+      {
+        "file": "assets/EntityEditorModal-DKT4IV98.js",
+        "status": 200,
+        "sha256": "91949f885557eda1b56dec3b954cf7c4e508b148b58416cf1fbece05aaacd833",
+        "matches": true
+      },
+      {
+        "file": "assets/EventsPageContainer-Bfvn3CiC.js",
+        "status": 200,
+        "sha256": "c7dd478cc28da2569c73f5d6df7814b89b88492f58f5852f03eb16919c022469",
+        "matches": true
+      },
+      {
+        "file": "assets/feature-combat-BdTaK02f.js",
+        "status": 200,
+        "sha256": "035fdb9dc5021119366748c9ed8c68a401e87eb23eae9c81ab723660e8a41a73",
+        "matches": true
+      },
+      {
+        "file": "assets/feature-media-DdIyLA8X.js",
+        "status": 200,
+        "sha256": "79dc43173be4d73062e5520a57d88c7b1b1a613abce9d3bc6f3909c79df500a2",
+        "matches": true
+      },
+      {
+        "file": "assets/feature-notes-events-B8Q297Ss.css",
+        "status": 200,
+        "sha256": "92969bb09c5cf41001041730d312c180612831f6d9e02c0f6e4383c715c406c3",
+        "matches": true
+      },
+      {
+        "file": "assets/feature-notes-events-pwE_oVT9.js",
+        "status": 200,
+        "sha256": "2c5242e8ff256c1e249db3471021f71eb2b53deb725a130788877038701aced3",
+        "matches": true
+      },
+      {
+        "file": "assets/feature-quests-DFXOVOUw.js",
+        "status": 200,
+        "sha256": "a68e5ca6b384b372fb0bbf6bc68b8bf03696d12234c3ec2a86c481138e827b8b",
+        "matches": true
+      },
+      {
+        "file": "assets/html2canvas.esm-CBrSDip1.js",
+        "status": 200,
+        "sha256": "b4f3add809a6d59f46260e8fd56cab240f3153def977386b230a839e8cb0b281",
+        "matches": true
+      },
+      {
+        "file": "assets/index-AzvKjvpk.css",
+        "status": 200,
+        "sha256": "6711ba88505b42c7d317185f3752d5d8ac1caa21a52b3b505aab6a289f91bb59",
+        "matches": true
+      },
+      {
+        "file": "assets/index-DvROrk_E.js",
+        "status": 200,
+        "sha256": "cd526cd494871c4dde9c0ba4b30b0505f14c52b14c3b626a13055403aff77455",
+        "matches": true
+      },
+      {
+        "file": "assets/index.es-CNzHhWf_.js",
+        "status": 200,
+        "sha256": "9c0c58670623972c4ef7ea835d1d6c117a1835dedfa0814e2a43b9e31cbc9893",
+        "matches": true
+      },
+      {
+        "file": "assets/ItemsPage-B0Aak3NR.css",
+        "status": 200,
+        "sha256": "09f9896758ce4ab234eac41fd72920533bb7edf658f6740dc81d5bd78d0d744a",
+        "matches": true
+      },
+      {
+        "file": "assets/ItemsPage-DApcG_L3.js",
+        "status": 200,
+        "sha256": "da98519c5156439f79df21538c1bd3e651edae39ad08351ac3f767ee5c10f495",
+        "matches": true
+      },
+      {
+        "file": "assets/jspdf.es.min-Om-J9HPq.js",
+        "status": 200,
+        "sha256": "e5be3febf635bea96782943bc453816d161f15f51cee9625c903c04de603b4d5",
+        "matches": true
+      },
+      {
+        "file": "assets/MapCreateForm-BZYAU_c0.css",
+        "status": 200,
+        "sha256": "881a20c97636c9247014e48f4d53741ccbed21e34ae988293158a0fc9a8b9cd2",
+        "matches": true
+      },
+      {
+        "file": "assets/MapCreateForm-D2K1E0sI.js",
+        "status": 200,
+        "sha256": "86df6c70d7be70826b86a97a499583b2bfcd8ed8c712ba4140a0cdd1b731041b",
+        "matches": true
+      },
+      {
+        "file": "assets/NotesPageContainer-V0e8J9Mn.js",
+        "status": 200,
+        "sha256": "d955234263ad0f0082d5526096dc539e1699bb2cccb563571ddc1a61a1f996d7",
+        "matches": true
+      },
+      {
+        "file": "assets/PersonalAISettings-CCtWDACb.css",
+        "status": 200,
+        "sha256": "c7294d97ab03963678316d263655de5cd49ec59d9fc3c86d9c5b235e9c5ae0dc",
+        "matches": true
+      },
+      {
+        "file": "assets/PersonalAISettings-DoLH2DhD.js",
+        "status": 200,
+        "sha256": "dc86600259010196fd4ba7659ddf6e36f342cc0f8274073e17d55886040b4eac",
+        "matches": true
+      },
+      {
+        "file": "assets/QuestPageContainer-LWwAS9T2.js",
+        "status": 200,
+        "sha256": "b2b03f658b90a96871662e69195cfe7c656ecce4ecaa25ada0e5274f56836b0c",
+        "matches": true
+      },
+      {
+        "file": "assets/ReadyAdventureReader-D8yPoSyC.js",
+        "status": 200,
+        "sha256": "8017c099eb9212844a11423769f3ad79be52c56438501854a7b4fdc72ef5869b",
+        "matches": true
+      },
+      {
+        "file": "assets/RulesPage-Bn6atcQW.js",
+        "status": 200,
+        "sha256": "fa4fb378657912eaa6cfca05002e07f92c6c27c8f185a81c404026107d19d198",
+        "matches": true
+      },
+      {
+        "file": "assets/RulesPage-CfzF5PBA.css",
+        "status": 200,
+        "sha256": "69ea6c6f3544098633b9143cb73a32fdf3083ab02d67b37f8357116308cd2f8c",
+        "matches": true
+      },
+      {
+        "file": "assets/session-pdf-B2bADnUY.js",
+        "status": 200,
+        "sha256": "48af7e378558834930f4ef42716625115644d0577f02e7f4ae9e63099dae1213",
+        "matches": true
+      },
+      {
+        "file": "assets/SessionMapModal-rjzSDyAp.js",
+        "status": 200,
+        "sha256": "dbb7a2ca0fc1ecbce41185b326381727a06486b5845f3539fff6c720518f7c55",
+        "matches": true
+      },
+      {
+        "file": "assets/SessionsPage-1hYdlM_K.js",
+        "status": 200,
+        "sha256": "cc14c7c57cabb6d8525c691e0b8fcaadfd9525cc2bc5eeb848b218bd29aceccc",
+        "matches": true
+      },
+      {
+        "file": "assets/SessionsPage-BzpYlS4J.css",
+        "status": 200,
+        "sha256": "7852f72ae234ba920cfc34d662675f1610ec54096c9abc3ef66781109ff30482",
+        "matches": true
+      },
+      {
+        "file": "assets/ShopsPage-CLO6i2wa.js",
+        "status": 200,
+        "sha256": "1340aea06b30587cf863a582f68bb4a9df4338df2434d61f89fe945822822a8d",
+        "matches": true
+      },
+      {
+        "file": "assets/ShopsPage-FWaw_h0p.css",
+        "status": 200,
+        "sha256": "434089b3eeb738759cfac3615e1bbbb0bbbc2a5d53f0dc71d486b9b33229d437",
+        "matches": true
+      },
+      {
+        "file": "assets/vendor-react-Bmmb3bS-.js",
+        "status": 200,
+        "sha256": "a22bc0b04b1fe2016f71546b384cadf0811b57fa836e40c9dcac35acf04d55b1",
+        "matches": true
+      },
+      {
+        "file": "assets/workspace-ui-DpX8_YJH.css",
+        "status": 200,
+        "sha256": "ce824efae77117d1deed1b3a590e01dea8ed587b96839be5dddfbf24ba835c68",
+        "matches": true
+      },
+      {
+        "file": "assets/workspace-ui-iIbxzDwX.js",
+        "status": 200,
+        "sha256": "abe12932ce7e9ade54f04cfb2478a605d05b256692b3312743fb36a9b62ef743",
+        "matches": true
+      },
+      {
+        "file": "assets/world-maps.api-B5Z4QQXH.js",
+        "status": 200,
+        "sha256": "8acafa7e72ed156e7fb90d52af1a1ee37726390ac5793d2d1082d00f4f05c97e",
+        "matches": true
+      },
+      {
+        "file": "assets/WorldMapsPage-F4UeE5I1.css",
+        "status": 200,
+        "sha256": "444b91446f749885673ee8e7451556725ea8ab65549d83c81aa1917171d073cd",
+        "matches": true
+      },
+      {
+        "file": "assets/WorldMapsPage-PjVSJrNs.js",
+        "status": 200,
+        "sha256": "4b7c41b5fefa68e118eda07299c753769b225872610639e912dccebe29b3be22",
+        "matches": true
+      }
+    ],
+    "allAssetsMatch": true,
+    "release": 195,
+    "image": "registry.fly.io/dnd-master-app:deployment-01M5PSD7YANGQG11VDDKFZZQNQ",
+    "machine": "d89064ef0e3758",
+    "healthCheck": "passing",
+    "previousImage": "registry.fly.io/dnd-master-app:deployment-01M5P029BSECK6XGBFCKNNQGCN"
+  },
+  "authorizedSmoke": {
+    "status": "passed",
+    "release": 195,
+    "verifiedAt": "2026-10-24T11:17:41.104850+00:00",
+    "method": "Ordinary signed-in Chrome UI; separate synthetic campaign; user reauthenticated after deploy; no session export",
+    "item": {
+      "directDetail": "passed",
+      "fullDescription": "passed",
+      "htmlTables": 1,
+      "escapeClose": "passed",
+      "evidence": "11-production-item-195.jpg"
+    },
+    "relations": {
+      "removePair": "passed",
+      "filter": "location",
+      "serverSearch": "passed",
+      "addPair": "passed",
+      "reloadBothSides": "passed",
+      "reasonPreserved": true,
+      "evidence": "10-production-tabs-relations.jpg"
+    },
+    "scene": {
+      "saveEdit": "passed",
+      "fullReloadAndReopen": "passed",
+      "editorWalls": 4,
+      "doors": 1,
+      "lights": 1,
+      "door": {
+        "start": [
+          475,
+          330
+        ],
+        "end": [
+          400,
+          330
+        ]
+      },
+      "light": {
+        "x": 430,
+        "y": 230,
+        "bright": 15,
+        "dim": 30
+      },
+      "saveDisabledAfterReopen": true,
+      "evidence": "12-production-scene-195.jpg"
+    },
+    "campaignCreation": {
+      "matchingDashboardURL": true,
+      "unavailableCampaignError": false,
+      "evidence": "13-production-create-195.jpg"
+    },
+    "tabs": {
+      "oneVisiblePanel": true,
+      "keyboardEnd": "passed",
+      "mobileWidth": 390,
+      "mobileDocumentWidth": 390,
+      "hash": "",
+      "evidence": "14-production-tabs-phone.jpg"
+    },
+    "runtimeConsoleErrors": []
+  },
+  "localChecks": {
+    "webBuild": "passed",
+    "editableKeyAudit": "137 TSX; 27 containers; 0 direct mutable-key issues",
+    "threeWayConflictSave": "revision20/21/22, preserved independent server/local changes and media/cards/stats/loot",
+    "explicitChoiceAndInvalidation": "passed",
+    "unknownBaselineRegression": "passed",
+    "viewportSizes": 4,
+    "dossierTabPanels": "7 NPC tabs, 6 location/player tabs; one visible panel; stable y=295; no hash change; keyboard passed",
+    "newCampaignNavigation": "local UI creation opened matching dashboard URL",
+    "staticChunkManifest": "acyclic; sign-in boundary preserved"
+  },
+  "knownBoundaries": [
+    "Browser sessions are in-memory and do not survive server restart/deploy. User reauthentication was required for the final repeat. Authentication persistence was not changed.",
+    "Physical touch and external Foundry/TV devices were not tested.",
+    "Synthetic QA campaigns/scene remain available; existing game campaigns were not modified."
+  ]
+}
