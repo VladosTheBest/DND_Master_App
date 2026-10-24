@@ -1661,7 +1661,10 @@ export default function App() {
   });
 
   const campaignCreation = useCampaignCreationController({
-    onCampaignCreated: (nextCampaign) => hydrateCampaign(nextCampaign),
+    onCampaignCreated: (nextCampaign) => {
+      hydrateCampaign(nextCampaign);
+      navigateWorkspace(workspaceURL({campaignId:nextCampaign.id,section:"dashboard"}));
+    },
     setBootError,
     setCampaigns,
     setSaving

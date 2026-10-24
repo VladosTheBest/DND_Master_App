@@ -1,7 +1,7 @@
 import { ActionMenu } from "../../app/ActionMenu";
 import { RecordIllustration } from "../entity-images/RecordIllustration";
 import { EntityRelationsPanel } from "../entity-links/EntityRelationsPanel";
-import { type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { useId, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { useWorkspaceRoute, workspaceURL } from "../../app/workspace-route";
 import type {
   CampaignData,
@@ -28,6 +28,7 @@ import { PlayerFacingCardStrip } from "../../quests";
 import { RichParagraphs } from "../../rich-text";
 
 export type EntityDetailsRendererProps = {
+  relationsSection?:ReactNode;
   ownerId?:string;
   onCampaignChanged?:(campaign:CampaignData)=>void;
   activeEntity: KnowledgeEntity;
@@ -126,6 +127,7 @@ function MasterKnowledgeCard({
 }
 
 export function EntityDetailsRenderer({
+  relationsSection,
   activeEntity,
   activeEntityPinned,
   activeEntityPlayerCards,
@@ -207,16 +209,12 @@ export function EntityDetailsRenderer({
     </section>
   ) : null;
 
-  const jumpToSection = (event: ReactMouseEvent<HTMLAnchorElement>, id: string) => {
-    const target = event.currentTarget.closest(".entity-dossier-layout")?.querySelector<HTMLElement>(`#${id}`);
-    if (!target) return;
-    event.preventDefault();
-    target.querySelector<HTMLButtonElement>(".collapsible-toggle[aria-expanded='false']")?.click();
-    requestAnimationFrame(() => {
-      target.scrollIntoView({ block: "start", behavior: "instant" });
-      target.focus({ preventScroll: true });
-    });
-  };
+  const tabsId=useId();
+  const [selection,setSelection]=useState({entityId:activeEntity.id,tab:"summary"});
+  const selectedTab=selection.entityId===activeEntity.id?selection.tab:"summary";
+  const tabItems=dossierLinks.filter(([id])=>id!=="record-relations"||relationsSection).map(([id,label])=>({id:id==="record-relations"?"relations":id.slice((dossierKind||"player").length+1),label}));
+  const selectTab=(tab:string)=>setSelection({entityId:activeEntity.id,tab});
+  const panel=(tab:string,children:ReactNode)=>dossierKind?<section role="tabpanel" id={`${tabsId}-panel-${tab}`} aria-labelledby={`${tabsId}-tab-${tab}`} tabIndex={0} hidden={selectedTab!==tab} className="dossier-tab-panel">{children}</section>:children;
 
   if (activeEntity.kind === "monster" && combatProfileEntity) {
     const openMonsterAlbum = () => {
@@ -326,7 +324,7 @@ export function EntityDetailsRenderer({
 
   return (
     <div className={`stack wide entity-details-page ${dossierKind ? `${dossierKind}-details-page` : ""}`.trim()}>
-      <div className={`record-intro ${activeEntity.kind === "npc" ? `npc-dossier-intro ${activeEntity.art?.url ? "has-portrait" : ""}` : ""}`} id={dossierKind ? `${dossierKind}-summary` : undefined} tabIndex={-1}>
+      <div className="record-intro dossier-heading">
       <section
         className={`card hero record-hero ${activeEntity.art?.url ? "record-with-art" : ""}`}
         data-long-title={activeEntity.title.length > 64 || undefined}
@@ -357,6 +355,17 @@ export function EntityDetailsRenderer({
           </ActionMenu>
         </div> : null}
       </section>
+      </div>
+      {dossierKind ? <div role="tablist" aria-label="Разделы досье" className="dossier-tabs" onKeyDown={event=>{
+        const keys=["ArrowRight","ArrowLeft","Home","End"];
+        if(event.altKey||event.ctrlKey||event.metaKey||!keys.includes(event.key)||!(event.target instanceof HTMLButtonElement))return;
+        const buttons=Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+        const current=buttons.indexOf(event.target);if(current<0)return;
+        event.preventDefault();const next=event.key==="Home"?0:event.key==="End"?buttons.length-1:(current+(event.key==="ArrowRight"?1:-1)+buttons.length)%buttons.length;
+        selectTab(tabItems[next].id);buttons[next].focus({preventScroll:true});
+      }}>{tabItems.map(tab=><button type="button" role="tab" key={tab.id} id={`${tabsId}-tab-${tab.id}`} aria-controls={`${tabsId}-panel-${tab.id}`} aria-selected={selectedTab===tab.id} tabIndex={selectedTab===tab.id?0:-1} onClick={()=>selectTab(tab.id)}>{tab.label}</button>)}</div>:null}
+      {panel("summary",<>
+      <div className={`record-intro dossier-summary ${activeEntity.kind==="npc"?`npc-dossier-intro ${activeEntity.art?.url?"has-portrait":""}`:""}`}>
       <RecordIllustration key={activeEntity.art?.url||activeEntity.id} url={activeEntity.art?.url} title={activeEntity.title} alt={activeEntity.art?.alt||activeEntity.art?.caption} onReplace={readOnly?undefined:()=>onEditEntity("art")} onGallery={readOnly?undefined:onOpenGallery}/>
       <section className="record-overview" aria-label="Краткое описание">
         <header className="record-block-heading"><h2>Кратко</h2>{!readOnly&&<button className="ghost record-edit-action" type="button" onClick={()=>onEditEntity("summary")}>{hasDescription(activeEntity.summary)?"Редактировать описание":"Добавить описание"}</button>}</header>
@@ -366,16 +375,11 @@ export function EntityDetailsRenderer({
         {visibleFacts.map(fact => <div key={fact.label}><dt>{fact.label}</dt><dd className={toneClass[fact.tone ?? "default"]}>{({Tense:"Напряжённо",Safe:"Безопасно",Dangerous:"Опасно",Deadly:"Смертельно",Site:"Место",City:"Город",Region:"Регион",Dungeon:"Подземелье",POI:"Точка интереса",Active:"Активно",Reserve:"Резерв",Guest:"Гость",Critical:"Ключевой",Ally:"Союзник",Threat:"Угроза",Unknown:"Не определён",Neutral:"Нейтральный",Hostile:"Враждебный",Friendly:"Дружелюбный"} as Record<string,string>)[fact.value]||fact.value}</dd></div>)}
       </dl> : null}
       </div>
-      {dossierKind ? (
-        <nav aria-label="Быстрые переходы по карточке" className="player-details-jumpbar">
-          <span>Разделы досье</span>
-          {dossierLinks.map(([id, label]) => (
-            <a key={id} href={`#${id}`} onClick={event=>jumpToSection(event,id)}>{label}</a>
-          ))}
-        </nav>
-      ) : null}
+      {rewardsSection}
+      {!combatProfileEntity&&preparedCombatSection}
+      </>)}
 
-      <div id={dossierKind ? `${dossierKind}-master-notes` : undefined} tabIndex={-1}>
+      {panel("master-notes",<div id={dossierKind ? `${dossierKind}-master-notes` : undefined} tabIndex={-1}>
       <MasterKnowledgeCard
         action={!readOnly&&<button className="ghost record-edit-action" type="button" onClick={()=>onEditEntity("content")}>{hasDescription(activeEntity.content)?"Редактировать сведения мастера":"Добавить сведения мастера"}</button>}
         content={activeEntity.content}
@@ -383,9 +387,9 @@ export function EntityDetailsRenderer({
         onContextMenu={onContentContextMenu}
         onMentionClick={onOpenPreview}
       />
-      </div>
+      </div>)}
 
-      <div id={dossierKind ? `${dossierKind}-handouts` : undefined} tabIndex={-1}>
+      {panel("handouts",<div id={dossierKind ? `${dossierKind}-handouts` : undefined} tabIndex={-1}>
         <PlayerFacingCardStrip
           cards={activeEntityPlayerCards}
           createDescription="Внешность, реплика или описание сцены — текст, который можно показать или зачитать игрокам."
@@ -402,24 +406,10 @@ export function EntityDetailsRenderer({
           onOpenCard={onOpenPlayerFacingCard}
           readOnly={readOnly}
         />
-      </div>
-
-      {preparedCombatSection}
-
-      {activeEntity.foundryCharacter ? (
-        <section className="panel" aria-label="Импортированный лист Foundry">
-          <h2>Лист Foundry</h2>
-          <p>Импортированные постоянные параметры. Выборы нашего конструктора не восстановлены; текущее состояние боя остаётся в Foundry.</p>
-          <p>HP: {activeEntity.foundryCharacter.maxHp} · КД: {activeEntity.foundryCharacter.armorClass} · Скорость: {activeEntity.foundryCharacter.speed}</p>
-          <p>{Object.entries(activeEntity.foundryCharacter.abilities).map(([name,value]) => `${name.toUpperCase()}: ${value}`).join(" · ")}</p>
-          {activeEntity.foundryCharacter.items.map((item,index) => (
-            <details key={`${item.id}-${index}`}><summary>{item.name}</summary><RichParagraphs content={item.description} entityByTitle={entityByTitle} onMentionClick={onOpenPreview} /></details>
-          ))}
-        </section>
-      ) : null}
+      </div>)}
 
       {activeEntity.kind === "location" ? (
-        <div id="location-shops" tabIndex={-1}>
+        panel("shops",<div id="location-shops" tabIndex={-1}>
         <CollapsibleSection
           key={`${activeEntity.id}-shops`}
           defaultCollapsed={!locationShops.length}
@@ -462,10 +452,10 @@ export function EntityDetailsRenderer({
             <p className="copy">Привяжи магазин к этой локации во вкладке “Магазин”, и он появится здесь как связанная торговая точка.</p>
           )}
         </CollapsibleSection>
-        </div>
+        </div>)
       ) : null}
 
-      <div className="player-detail-media-grid" id={dossierKind ? `${dossierKind}-media` : undefined} tabIndex={-1}>
+      {panel("media",<div className="player-detail-media-grid" id={dossierKind ? `${dossierKind}-media` : undefined} tabIndex={-1}>
       <PlaylistSection
         action={readOnly ? undefined : (
           <button className="ghost" onClick={onOpenPlaylistEditor} type="button">
@@ -498,10 +488,10 @@ export function EntityDetailsRenderer({
         onOpenFullscreen={onOpenGalleryViewer}
         title="Галерея"
       />
-      </div>
+      </div>)}
 
       {activeEntity.kind === "npc" ? (
-        <div id="npc-quests" tabIndex={-1}>
+        panel("quests",<div id="npc-quests" tabIndex={-1}>
         <CollapsibleSection
           key={`${activeEntity.id}-quests`}
           defaultCollapsed={!activeNpcQuests.length}
@@ -537,15 +527,32 @@ export function EntityDetailsRenderer({
             </p>
           )}
         </CollapsibleSection>
-        </div>
+        </div>)
       ) : null}
 
-      {rewardsSection}
+      {relationsSection&&panel("relations",relationsSection)}
+
+      {combatProfileEntity&&panel("stats",<>
+      {preparedCombatSection}
+
+      {activeEntity.foundryCharacter ? (
+        <section className="panel" aria-label="Импортированный лист Foundry">
+          <h2>Лист Foundry</h2>
+          <p>Импортированные постоянные параметры. Выборы нашего конструктора не восстановлены; текущее состояние боя остаётся в Foundry.</p>
+          <p>HP: {activeEntity.foundryCharacter.maxHp} · КД: {activeEntity.foundryCharacter.armorClass} · Скорость: {activeEntity.foundryCharacter.speed}</p>
+          <p>{Object.entries(activeEntity.foundryCharacter.abilities).map(([name,value]) => `${name.toUpperCase()}: ${value}`).join(" · ")}</p>
+          {activeEntity.foundryCharacter.items.map((item,index) => (
+            <details key={`${item.id}-${index}`}><summary>{item.name}</summary><RichParagraphs content={item.description} entityByTitle={entityByTitle} onMentionClick={onOpenPreview} /></details>
+          ))}
+        </section>
+      ) : null}
 
       <div id={dossierKind ? `${dossierKind}-stats` : undefined} tabIndex={-1}>
         {combatProfileEntity ? (<>
           {!combatProfileEntity.statBlock ? <section className="record-empty-section"><header className="record-block-heading"><h2>Характеристики</h2>{!readOnly&&<button className="ghost record-edit-action" type="button" onClick={()=>onEditEntity("stats")}>Добавить характеристики</button>}</header><p className="copy">Боевой профиль пока не добавлен.</p></section> : <CombatEntityStatSheet
             action={!readOnly&&<button className="ghost record-edit-action" type="button" onClick={()=>onEditEntity("stats")}>Редактировать характеристики</button>}
+            defaultCollapsed={false}
+            expandSections
             entity={combatProfileEntity}
             onOpenPortraitGallery={
               onOpenEntityImage
@@ -556,6 +563,7 @@ export function EntityDetailsRenderer({
           />}
         </>) : null}
       </div>
+      </>)}
     </div>
   );
 }
@@ -563,13 +571,15 @@ export function EntityDetailsRenderer({
 export function EntityDetailsPage(props: EntityDetailsRendererProps) {
   const route = useWorkspaceRoute();
 
-  return <div className="entity-dossier-layout">
-    <EntityDetailsRenderer {...props} />
-    <aside tabIndex={-1} id="record-relations" className="record-context" aria-label="Связи записи">
+  const hasTabs=["npc","player","location"].includes(props.activeEntity.kind);
+  const context=<aside tabIndex={-1} id="record-relations" className="record-context" aria-label="Связи записи">
       <EntityRelationsPanel campaignId={route.campaignId||""} ownerId={props.ownerId||""} entity={props.activeEntity} onResolve={props.onResolveRelatedEntity} onOpen={props.onOpenRelatedEntity} onChanged={props.onCampaignChanged}/>
       {props.activeEntity.kind === "location" ? <section><h3>Карта и сцена</h3><p className="copy">Откройте атлас или создайте карту для этого места.</p><a className="ghost record-map-action" href={workspaceURL({campaignId: route.campaignId, section: "maps", view: "new", context: JSON.stringify({locationId: props.activeEntity.id})})}>Открыть карты и сцены</a></section> : null}
       {props.activeNpcQuests.length ? <section><h3>Квесты НПС</h3>{props.activeNpcQuests.map(quest => <button className="record-context-link" type="button" key={quest.id} onClick={() => props.onPeekQuest(quest.id)}><span><strong>{quest.title}</strong><small>{quest.summary}</small></span></button>)}</section> : null}
       <small className="record-context-state">{props.readOnly ? "Готовая кампания · материалы защищены, связи хранятся в прохождении" : "Сохранённая запись · изменения через редактор"}</small>
-    </aside>
+    </aside>;
+  return <div className={`entity-dossier-layout${hasTabs?" has-dossier-tabs":""}`}>
+    <EntityDetailsRenderer key={props.activeEntity.id} {...props} relationsSection={hasTabs?context:undefined}/>
+    {!hasTabs&&context}
   </div>;
 }

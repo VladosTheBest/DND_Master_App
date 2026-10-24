@@ -487,3 +487,20 @@
 .entity-comparison-choice input{accent-color:var(--accent)}.entity-comparison-bulk summary,.entity-comparison-technical summary{font-size:12px;cursor:pointer;color:var(--text-soft)}.entity-comparison-bulk .actions{margin-top:10px}
 .entity-comparison-technical pre{max-height:240px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;font-size:12px}
 @media(max-width:600px){.entity-comparison-values{grid-template-columns:minmax(0,1fr)}.entity-comparison-choice label{display:flex;margin-right:0}.entity-conflict-review>button{width:100%;white-space:normal}}
+
+/* Dossier tabs replace anchor jumps; hidden panels never contribute to page height. */
+.entity-dossier-layout.has-dossier-tabs{grid-template-columns:minmax(0,1fr)}
+.shell .dossier-tabs{display:flex;flex-wrap:wrap;gap:4px;padding:6px;border:1px solid var(--line);border-radius:9px;background:var(--surface);min-width:0}
+.shell .dossier-tabs [role=tab]{flex:0 1 auto;min-height:42px;padding:9px 12px;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--text-soft);font-size:13px;line-height:1.4;white-space:normal}
+.shell .dossier-tabs [role=tab]:hover{background:var(--surface-raised);color:var(--text)}
+.shell .dossier-tabs [role=tab][aria-selected=true]{background:var(--accent-soft);border-color:var(--accent);color:var(--text);font-weight:600}
+.shell .dossier-tabs [role=tab]:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.dossier-tab-panel{min-width:0;display:grid;gap:20px;align-content:start;outline-offset:4px}
+.dossier-tab-panel[hidden]{display:none!important}
+.dossier-tab-panel>.record-context{max-height:none;overflow:visible;border:0;padding:0;width:100%}
+.npc-dossier-intro.dossier-summary.has-portrait{grid-template-rows:auto 1fr}
+.npc-dossier-intro.dossier-summary.has-portrait>.record-illustration{grid-row:1/3}
+.npc-dossier-intro.dossier-summary.has-portrait>.record-overview{grid-row:1}
+.npc-dossier-intro.dossier-summary.has-portrait>.record-facts{grid-row:2}
+@media(max-width:900px){.npc-dossier-intro.dossier-summary.has-portrait>.record-illustration,.npc-dossier-intro.dossier-summary.has-portrait>.record-overview,.npc-dossier-intro.dossier-summary.has-portrait>.record-facts{grid-row:auto}}
+@media(max-width:480px){.shell .dossier-tabs{gap:3px;padding:5px}.shell .dossier-tabs [role=tab]{flex:1 1 auto;padding:9px 8px}}
