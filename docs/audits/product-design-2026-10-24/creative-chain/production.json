@@ -1,0 +1,328 @@
+{
+  "release": 204,
+  "sourceCommit": "d930fd4",
+  "image": "registry.fly.io/dnd-master-app:deployment-01M5QPC32VMGRGV74S72EQDMXW",
+  "health": "passing",
+  "verifiedAt": "2026-10-24T19:33:53.083191+00:00",
+  "http": [
+    {
+      "path": "/",
+      "status": 200
+    },
+    {
+      "path": "/healthz",
+      "status": 200
+    },
+    {
+      "path": "/livez",
+      "status": 200
+    },
+    {
+      "path": "/api/campaigns",
+      "status": 401
+    }
+  ],
+  "assets": [
+    {
+      "file": "assets/AdminSubscriptions-B6cyd7tb.css",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/AdminSubscriptions-CxkRnmLj.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/AIChat-BzLZLait.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/AIChat-C3UMn7jn.css",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/AIChatPage-BDyjZzXZ.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/App-C36l4qKR.css",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/App-lXG0Ek49.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/auth-ui-_3hVQOJf.css",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/auth-ui-cqNhCM4U.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/BestiaryPageContainer-7tguI2Me.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/BestiaryPageContainer-BJQuwwL5.css",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/browser-B5KacSIb.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/CampaignCharacters-B52IcB5O.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/CardAppearance-CP_hM6tI.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/character-pdf-CgieXZUt.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/character-rules-CvIaXI71.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/CharacterPublicApp-DEqNHsfF.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/characters-CPlwxhpC.css",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/characters.api-BbQdmWD3.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/CodexConnectionPanel-COWNwyZW.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/CombatPage-CzejrfPy.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/CombatPrepPage-UAyBY2-U.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/CreatureWorkspace-BA_VLqEI.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/CreatureWorkspace-CnPvZQ4_.css",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/EntityEditorModal-CS8bJtkZ.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/EventsPageContainer-D-TxNUnH.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/feature-combat-2G2nrKdw.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/feature-media-Do140MnO.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/feature-notes-events-B_DrDZ-K.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/feature-notes-events-Dt78pwWd.css",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/feature-quests-B-TcVIZ8.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/feature-quests-D8t5xAee.css",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/html2canvas.esm-CBrSDip1.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/index-CBVPfkRY.css",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/index-CwtivoCI.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/index.es-BTj1Rp-H.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/ItemsPage-B0Aak3NR.css",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/ItemsPage-BbuxTItF.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/jspdf.es.min-CbYDOb-W.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/MapCreateForm-BjgbbJ_D.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/MapCreateForm-BZYAU_c0.css",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/NotesPageContainer-DJIuqITT.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/PersonalAISettings-CCtWDACb.css",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/PersonalAISettings-CfuIt2Vq.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/QuestPageContainer-BAfhB155.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/ReadyAdventureReader-D6ZNAgDS.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/RulesPage-BT2pEX7j.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/RulesPage-CfzF5PBA.css",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/session-pdf-CZTuK2m6.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/SessionMapModal-DubSc0_r.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/SessionsPage-BzpYlS4J.css",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/SessionsPage-GL0FRUCE.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/ShopsPage-B0OFldkf.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/ShopsPage-FWaw_h0p.css",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/vendor-react-Bmmb3bS-.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/workspace-ui-DF2Iceiv.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/workspace-ui-DpX8_YJH.css",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/world-maps.api-D_ZvbKbM.js",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/WorldMapsPage-Bbp6MwU3.css",
+      "status": 200,
+      "matches": true
+    },
+    {
+      "file": "assets/WorldMapsPage-JtfvzSZg.js",
+      "status": 200,
+      "matches": true
+    }
+  ],
+  "authorizedSmoke": "not_run"
+}
