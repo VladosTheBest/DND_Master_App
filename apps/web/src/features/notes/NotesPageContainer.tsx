@@ -220,8 +220,9 @@ export function NotesPageContainer({
       <pre style={{whiteSpace:"pre-wrap"}}>{conflict.title}{"\n"}{conflict.content}</pre>
       <button className="ghost" onClick={() => { setBaseRevision(conflict.revision ?? 0); hydrateCampaign({ ...campaign, lore: campaign.lore.map(n => n.id === conflict.id ? conflict as LoreNoteEntity : n) }); setConflict(null); setError(""); }}>Подготовить мой текст поверх этой версии</button>
     </div>}
-    {activeLoreNote&&onEditEntity&&<div className="note-record-actions"><div className="actions"><button className="ghost" onClick={()=>onEditEntity(activeLoreNote.id,"summary")}>Свойства заметки</button><button className="ghost" onClick={()=>onEditEntity(activeLoreNote.id,"art")}>{activeLoreNote.art?.url?"Заменить изображение":"Добавить изображение"}</button><button className="ghost" onClick={()=>onEditEntity(activeLoreNote.id,"media")}>Музыка и галерея</button></div>{activeLoreNote.art?.url&&<RecordIllustration key={activeLoreNote.art.url} url={activeLoreNote.art.url} title={activeLoreNote.title}/>}</div>}
+    {activeLoreNote&&!campaign.readyCampaign&&onEditEntity&&<div className="note-record-actions"><div className="actions"><button className="ghost" onClick={()=>onEditEntity(activeLoreNote.id,"summary")}>Свойства заметки</button><button className="ghost" onClick={()=>onEditEntity(activeLoreNote.id,"art")}>{activeLoreNote.art?.url?"Заменить изображение":"Добавить изображение"}</button><button className="ghost" onClick={()=>onEditEntity(activeLoreNote.id,"media")}>Музыка и галерея</button></div>{activeLoreNote.art?.url&&<RecordIllustration key={activeLoreNote.art.url} url={activeLoreNote.art.url} title={activeLoreNote.title}/>}</div>}
     <NotesWorkspace
+      readOnly={Boolean(campaign.readyCampaign)}
       entityByTitle={new Map([...entityMap.values()].map((entity) => [entity.title, entity]))}
       campaignId={activeCampaignId}
       dirty={noteEditorDirty}

@@ -425,20 +425,22 @@ export function SessionsPage({
   return (
     <div className="sessions-page">
       <DeviceDraftControls draft={importDraft} label="черновик импорта"/>
+      <details className="session-flow-help"><summary>Как работать с сессией · 5 шагов</summary>
       <nav className={workspaceStyles.steps} aria-label="Работа с сессией">
         <div aria-current={!selected&&!draft?"step":undefined}><button onClick={()=>fileRef.current?.click()}>1. Загрузить текст</button><small>Один или несколько TXT</small></div>
         <div aria-current={draft?"step":undefined}><button disabled={!draft&&!selected} onClick={()=>{if(draft)document.querySelector(".session-import-parts")?.scrollIntoView({block:"center"});else setTab("Полный текст");}}>2. Проверить текст и участников</button></div>
         <div aria-current={selected&&!selected.analysis?"step":undefined}><button disabled={!selected||analysisUnavailable||!aiAvailable} onClick={()=>void analyze()}>3. Анализировать</button><small>Запускается только по нажатию</small></div>
         <div aria-current={selected?.analysis?"step":undefined}><button disabled={!selected?.analysis} onClick={()=>setTab("Обзор")}>4. Проверить изменения</button><small>Отчёт сохранён отдельно; предложения применяются вручную</small></div>
         <div><button disabled={!selected?.analysis} onClick={()=>setTab("Мастеру")}>5. Подготовить следующую игру</button></div>
-      </nav>
+      </nav></details>
       <header className="sessions-heading">
         <div>
           <span className="session-eyebrow">ХРОНИКИ КАМПАНИИ</span>
-          <AIConnectionSummary feature="sessionAnalysis" onAvailable={setAIAvailable}/><h1>
+          <h1>
             Сессии<span>{sessions.length}</span>
           </h1>
-          <p>Всё, что случилось за игровым столом.</p>
+          <p>Записи, итоги и подготовка следующей игры.</p>
+          <AIConnectionSummary feature="sessionAnalysis" onAvailable={setAIAvailable}/>
         </div>
         <button
           className="primary session-import-btn"
@@ -587,10 +589,9 @@ export function SessionsPage({
           ) : !selected ? (
             <div className="session-empty">
               <div className="session-empty-icon">✦</div>
-              <h2>Первая страница вашей истории</h2>
+              <h2>Добавьте первую сессию</h2>
               <p>
-                В Quill откройте сессию и нажмите «Сохранить текст». Затем
-                импортируйте полученный TXT-файл сюда.
+                Выберите один или несколько TXT с расшифровкой игры. Для записи в Quill используйте «Сохранить текст».
               </p>
               <button
                 className="primary"

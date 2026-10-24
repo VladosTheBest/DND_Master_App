@@ -1,0 +1,311 @@
+[
+  {
+    "page": "Главная",
+    "width": 1440,
+    "contentWidth": 1146,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Главная",
+    "width": 768,
+    "contentWidth": 759,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Главная",
+    "width": 390,
+    "contentWidth": 381,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Сессии",
+    "width": 1440,
+    "contentWidth": 1146,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Сессии",
+    "width": 768,
+    "contentWidth": 759,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Сессии",
+    "width": 390,
+    "contentWidth": 381,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Игроки",
+    "width": 1440,
+    "contentWidth": 1146,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Игроки",
+    "width": 768,
+    "contentWidth": 759,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Игроки",
+    "width": 390,
+    "contentWidth": 381,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Квесты",
+    "width": 1440,
+    "contentWidth": 1146,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Квесты",
+    "width": 768,
+    "contentWidth": 759,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Квесты",
+    "width": 390,
+    "contentWidth": 381,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Локации",
+    "width": 1440,
+    "contentWidth": 1146,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Локации",
+    "width": 768,
+    "contentWidth": 759,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Локации",
+    "width": 390,
+    "contentWidth": 381,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "НПС",
+    "width": 1440,
+    "contentWidth": 1146,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "НПС",
+    "width": 768,
+    "contentWidth": 768,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "НПС",
+    "width": 390,
+    "contentWidth": 381,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "События",
+    "width": 1440,
+    "contentWidth": 1146,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "События",
+    "width": 768,
+    "contentWidth": 759,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "События",
+    "width": 390,
+    "contentWidth": 381,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Заметки",
+    "width": 1440,
+    "contentWidth": 1146,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Заметки",
+    "width": 768,
+    "contentWidth": 759,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Заметки",
+    "width": 390,
+    "contentWidth": 381,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Магазин",
+    "width": 1440,
+    "contentWidth": 1146,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Магазин",
+    "width": 768,
+    "contentWidth": 759,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Магазин",
+    "width": 390,
+    "contentWidth": 381,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Монстры",
+    "width": 1440,
+    "contentWidth": 1146,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Монстры",
+    "width": 768,
+    "contentWidth": 759,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Монстры",
+    "width": 390,
+    "contentWidth": 381,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Предметы",
+    "width": 1440,
+    "contentWidth": 1146,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Предметы",
+    "width": 768,
+    "contentWidth": 759,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Предметы",
+    "width": 390,
+    "contentWidth": 381,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Правила",
+    "width": 1440,
+    "contentWidth": 1146,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Правила",
+    "width": 768,
+    "contentWidth": 759,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Правила",
+    "width": 390,
+    "contentWidth": 381,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Оффлайн Beta",
+    "width": 1440,
+    "contentWidth": 1146,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Оффлайн Beta",
+    "width": 768,
+    "contentWidth": 759,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "Оффлайн Beta",
+    "width": 390,
+    "contentWidth": 381,
+    "errorBoundary": false,
+    "overflow": false
+  },
+  {
+    "page": "AI-чат",
+    "width": 1440,
+    "contentWidth": 1146,
+    "overflow": false
+  },
+  {
+    "page": "AI-чат",
+    "width": 768,
+    "contentWidth": 759,
+    "overflow": false
+  },
+  {
+    "page": "AI-чат",
+    "width": 390,
+    "contentWidth": 381,
+    "overflow": false
+  },
+  {
+    "page": "Карты и сцены",
+    "width": 1440,
+    "contentWidth": 1146,
+    "overflow": false
+  },
+  {
+    "page": "Карты и сцены",
+    "width": 768,
+    "contentWidth": 759,
+    "overflow": false
+  },
+  {
+    "page": "Карты и сцены",
+    "width": 390,
+    "contentWidth": 381,
+    "overflow": false
+  }
+]

@@ -1,6 +1,12 @@
+import { WorkspaceTabs } from "../../app/WorkspaceTabs";
+import { InPlaceText } from "../entities/InPlaceText";
 import { useWorkspaceGuard } from "../../app/workspace-route";
 import { useWorkspaceListState } from "../../app/workspace-route";
-import { navigateWorkspace, workspaceURL, readWorkspaceRoute } from "../../app/workspace-route";
+import {
+  navigateWorkspace,
+  workspaceURL,
+  readWorkspaceRoute,
+} from "../../app/workspace-route";
 import { confirmAction } from "../../app/confirm-action";
 import { DeviceDraftControls } from "../../app/DeviceDraftControls";
 import { useCustomItems } from "../items/custom-items.api";
@@ -12,7 +18,10 @@ import builtInItemsRaw from "../../../../../dnd_items_150_ru_official_basic_rule
 import { api } from "../../app/api";
 import { ItemDetailModal } from "../items/ItemsPage";
 import { ItemCategoryIcon } from "../items/ItemCategoryIcon";
-import { buildBuiltInItemLookup, enrichRemoteItemWithBuiltInMetrics } from "../items/items.utils";
+import {
+  buildBuiltInItemLookup,
+  enrichRemoteItemWithBuiltInMetrics,
+} from "../items/items.utils";
 import type { Item } from "../items/items.types";
 import { useItemsCatalogController } from "../items/useItemsCatalogController";
 import {
@@ -21,7 +30,7 @@ import {
   useMemo,
   useRef,
   useState,
-  type DragEvent
+  type DragEvent,
 } from "react";
 import type {
   AIProposal,
@@ -29,7 +38,7 @@ import type {
   CampaignShop,
   ItemCatalogCategory,
   LocationEntity,
-  ShopInventoryItem
+  ShopInventoryItem,
 } from "@shadow-edge/shared-types";
 
 type RawBuiltInItem = {
@@ -72,7 +81,8 @@ type ShopIconName =
   | "sword";
 
 const customItemsStorageVersion = "v1";
-const customItemsStorageKey = (campaignId: string) => `shadow-edge.items.custom.${customItemsStorageVersion}.${campaignId}`;
+const customItemsStorageKey = (campaignId: string) =>
+  `shadow-edge.items.custom.${customItemsStorageVersion}.${campaignId}`;
 
 const itemCategoryLabels: Record<string, string> = {
   armor: "Доспехи",
@@ -87,21 +97,44 @@ const itemCategoryLabels: Record<string, string> = {
   gear: "Снаряжение",
   focus: "Фокусы",
   clothing: "Одежда",
-  other: "Разное"
+  other: "Разное",
 };
 
 const rarityGroup = (value?: string | null) => {
- const text = (value || "").toLocaleLowerCase("ru-RU");
- if (text.startsWith("очень редк")) return "Очень редкие";
- if (text.startsWith("необычн")) return "Необычные";
- if (text.startsWith("обычн")) return "Обычные";
- if (text.startsWith("редк") && !text.includes("варьируется")) return "Редкие";
- if (text.startsWith("легендарн")) return "Легендарные";
- if (text.includes("артефакт")) return "Артефакты";
- return value || "Не указана";
+  const text = (value || "").toLocaleLowerCase("ru-RU");
+  if (text.startsWith("очень редк")) return "Очень редкие";
+  if (text.startsWith("необычн")) return "Необычные";
+  if (text.startsWith("обычн")) return "Обычные";
+  if (text.startsWith("редк") && !text.includes("варьируется")) return "Редкие";
+  if (text.startsWith("легендарн")) return "Легендарные";
+  if (text.includes("артефакт")) return "Артефакты";
+  return value || "Не указана";
 };
 
-const subtypeLabels: Record<string, string> = { light: "Лёгкая броня", medium: "Средняя броня", heavy: "Тяжёлая броня", shield: "Щит", simple_melee: "Простое рукопашное", simple_ranged: "Простое дальнобойное", martial_melee: "Воинское рукопашное", martial_ranged: "Воинское дальнобойное", holy_symbol: "Священный символ", arcane_focus: "Магическая фокусировка", druidic_focus: "Фокусировка друида", consumable: "Расходник", ammunition: "Боеприпасы", container: "Контейнер", gear: "Снаряжение", apparel: "Одежда", poison: "Яд", potion: "Зелье", tool: "Инструмент", gaming_set: "Игровой набор", "musical instrument": "Музыкальный инструмент", musical_instrument: "Музыкальный инструмент" };
+const subtypeLabels: Record<string, string> = {
+  light: "Лёгкая броня",
+  medium: "Средняя броня",
+  heavy: "Тяжёлая броня",
+  shield: "Щит",
+  simple_melee: "Простое рукопашное",
+  simple_ranged: "Простое дальнобойное",
+  martial_melee: "Воинское рукопашное",
+  martial_ranged: "Воинское дальнобойное",
+  holy_symbol: "Священный символ",
+  arcane_focus: "Магическая фокусировка",
+  druidic_focus: "Фокусировка друида",
+  consumable: "Расходник",
+  ammunition: "Боеприпасы",
+  container: "Контейнер",
+  gear: "Снаряжение",
+  apparel: "Одежда",
+  poison: "Яд",
+  potion: "Зелье",
+  tool: "Инструмент",
+  gaming_set: "Игровой набор",
+  "musical instrument": "Музыкальный инструмент",
+  musical_instrument: "Музыкальный инструмент",
+};
 
 const normalizeSearch = (value: string) =>
   value
@@ -130,7 +163,12 @@ const normalizeOptionalNumber = (value: unknown) => {
 };
 
 const normalizeBuiltInCategory = (value?: string | null): Item["category"] => {
-  if (value === "armor" || value === "weapon" || value === "focus" || value === "tool") {
+  if (
+    value === "armor" ||
+    value === "weapon" ||
+    value === "focus" ||
+    value === "tool"
+  ) {
     return value;
   }
   if (value === "item") {
@@ -139,35 +177,44 @@ const normalizeBuiltInCategory = (value?: string | null): Item["category"] => {
   return "other";
 };
 
-const builtInItems: Item[] = ((builtInItemsRaw as RawBuiltInItem[]) ?? []).map((raw, index) => ({
-  id: `builtin-${raw.id ?? raw.name_en ?? raw.name_ru ?? index}`,
-  source: "builtin",
-  name: normalizeOptionalText(raw.name_ru) ?? normalizeOptionalText(raw.name_en) ?? "Без названия",
-  category: normalizeBuiltInCategory(raw.category),
-  subcategory: normalizeOptionalText(raw.subtype),
-  rarity: null,
-  description:
-    normalizeOptionalText(raw.description_ru) ??
-    normalizeOptionalText(raw.effects_ru) ??
-    "Описание отсутствует.",
-  buyPriceGp: normalizeOptionalNumber(raw.buy_price_gp),
-  sellPriceGp: normalizeOptionalNumber(raw.sell_price_gp),
-  reference: normalizeOptionalText(raw.source) ?? null
-}));
+const builtInItems: Item[] = ((builtInItemsRaw as RawBuiltInItem[]) ?? []).map(
+  (raw, index) => ({
+    id: `builtin-${raw.id ?? raw.name_en ?? raw.name_ru ?? index}`,
+    source: "builtin",
+    name:
+      normalizeOptionalText(raw.name_ru) ??
+      normalizeOptionalText(raw.name_en) ??
+      "Без названия",
+    category: normalizeBuiltInCategory(raw.category),
+    subcategory: normalizeOptionalText(raw.subtype),
+    rarity: null,
+    description:
+      normalizeOptionalText(raw.description_ru) ??
+      normalizeOptionalText(raw.effects_ru) ??
+      "Описание отсутствует.",
+    buyPriceGp: normalizeOptionalNumber(raw.buy_price_gp),
+    sellPriceGp: normalizeOptionalNumber(raw.sell_price_gp),
+    reference: normalizeOptionalText(raw.source) ?? null,
+  }),
+);
 
 const builtInItemLookup = buildBuiltInItemLookup(builtInItems);
 
-
-const createId = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+const createId = (prefix: string) =>
+  `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
 const formatNumber = (value: number) =>
-  new Intl.NumberFormat("ru-RU", { maximumFractionDigits: value % 1 === 0 ? 0 : 2 }).format(value);
+  new Intl.NumberFormat("ru-RU", {
+    maximumFractionDigits: value % 1 === 0 ? 0 : 2,
+  }).format(value);
 
-const formatGold = (value?: number | null) => (value == null ? "цена не указана" : `${formatNumber(value)} зм`);
+const formatGold = (value?: number | null) =>
+  value == null ? "цена не указана" : `${formatNumber(value)} зм`;
 
 const itemPrice = (item: Item) => item.buyPriceGp ?? item.sellPriceGp ?? null;
 
-const itemPriceLabel = (item: Item) => item.buyPriceLabel ?? item.sellPriceLabel ?? formatGold(itemPrice(item));
+const itemPriceLabel = (item: Item) =>
+  item.buyPriceLabel ?? item.sellPriceLabel ?? formatGold(itemPrice(item));
 
 const shopToDraft = (shop?: CampaignShop | null): ShopDraft => ({
   id: shop?.id ?? createId("shop"),
@@ -176,11 +223,14 @@ const shopToDraft = (shop?: CampaignShop | null): ShopDraft => ({
   description: shop?.description ?? "",
   gmNotes: shop?.gmNotes ?? "",
   art: shop?.art,
-  gallery: shop?.gallery?.map(image => ({ ...image })) ?? [],
-  inventory: shop?.inventory?.map((entry) => ({ ...entry })) ?? []
+  gallery: shop?.gallery?.map((image) => ({ ...image })) ?? [],
+  inventory: shop?.inventory?.map((entry) => ({ ...entry })) ?? [],
 });
 
-const draftToShop = (draft: ShopDraft, locations: LocationEntity[]): CampaignShop => {
+const draftToShop = (
+  draft: ShopDraft,
+  locations: LocationEntity[],
+): CampaignShop => {
   const location = locations.find((entry) => entry.id === draft.locationId);
   return {
     id: draft.id,
@@ -191,15 +241,16 @@ const draftToShop = (draft: ShopDraft, locations: LocationEntity[]): CampaignSho
     gmNotes: draft.gmNotes.trim() || undefined,
     art: draft.art,
     gallery: draft.gallery,
-    inventory: draft.inventory
+    inventory: draft.inventory,
   };
 };
-
 
 const itemSubtypeLabel = (item?: Item | null, fallbackCategory?: string) => {
   const category = item?.category ?? fallbackCategory ?? "other";
   const base = itemCategoryLabels[category] ?? "Предмет";
-  return item?.subcategory ? `${base} (${subtypeLabels[item.subcategory] || item.subcategory})` : base;
+  return item?.subcategory
+    ? `${base} (${subtypeLabels[item.subcategory] || item.subcategory})`
+    : base;
 };
 
 function ShopIcon({ name }: { name: ShopIconName }) {
@@ -208,7 +259,7 @@ function ShopIcon({ name }: { name: ShopIconName }) {
     stroke: "currentColor",
     strokeLinecap: "round" as const,
     strokeLinejoin: "round" as const,
-    strokeWidth: 1.8
+    strokeWidth: 1.8,
   };
 
   switch (name) {
@@ -236,7 +287,10 @@ function ShopIcon({ name }: { name: ShopIconName }) {
     case "sliders":
       return (
         <svg className="shops-icon-svg" viewBox="0 0 20 20">
-          <path {...common} d="M4 6.2h5.2M12.4 6.2H16M4 13.8h3.4M10.6 13.8H16" />
+          <path
+            {...common}
+            d="M4 6.2h5.2M12.4 6.2H16M4 13.8h3.4M10.6 13.8H16"
+          />
           <circle {...common} cx="10.8" cy="6.2" r="1.6" />
           <circle {...common} cx="9" cy="13.8" r="1.6" />
         </svg>
@@ -244,7 +298,10 @@ function ShopIcon({ name }: { name: ShopIconName }) {
     case "location":
       return (
         <svg className="shops-icon-svg" viewBox="0 0 20 20">
-          <path {...common} d="M10 17s4.3-4.6 4.3-8A4.3 4.3 0 0 0 10 4.7 4.3 4.3 0 0 0 5.7 9c0 3.4 4.3 8 4.3 8Z" />
+          <path
+            {...common}
+            d="M10 17s4.3-4.6 4.3-8A4.3 4.3 0 0 0 10 4.7 4.3 4.3 0 0 0 5.7 9c0 3.4 4.3 8 4.3 8Z"
+          />
           <circle {...common} cx="10" cy="9" r="1.5" />
         </svg>
       );
@@ -252,7 +309,10 @@ function ShopIcon({ name }: { name: ShopIconName }) {
       return (
         <svg className="shops-icon-svg" viewBox="0 0 20 20">
           <ellipse {...common} cx="10" cy="5.8" rx="5.2" ry="2.4" />
-          <path {...common} d="M4.8 5.8v5.8c0 1.3 2.3 2.4 5.2 2.4s5.2-1.1 5.2-2.4V5.8M4.8 8.7c0 1.3 2.3 2.4 5.2 2.4s5.2-1.1 5.2-2.4" />
+          <path
+            {...common}
+            d="M4.8 5.8v5.8c0 1.3 2.3 2.4 5.2 2.4s5.2-1.1 5.2-2.4V5.8M4.8 8.7c0 1.3 2.3 2.4 5.2 2.4s5.2-1.1 5.2-2.4"
+          />
         </svg>
       );
     case "box":
@@ -273,20 +333,29 @@ function ShopIcon({ name }: { name: ShopIconName }) {
     case "trash":
       return (
         <svg className="shops-icon-svg" viewBox="0 0 20 20">
-          <path {...common} d="M5.2 6.4h9.6M8.3 6.4V4.8h3.4v1.6M6.5 8.2l.5 7h6l.5-7M8.8 9.7v3.8M11.2 9.7v3.8" />
+          <path
+            {...common}
+            d="M5.2 6.4h9.6M8.3 6.4V4.8h3.4v1.6M6.5 8.2l.5 7h6l.5-7M8.8 9.7v3.8M11.2 9.7v3.8"
+          />
         </svg>
       );
     case "shield":
       return (
         <svg className="shops-icon-svg" viewBox="0 0 20 20">
-          <path {...common} d="M10 3.4 15 5v4.2c0 3.1-1.9 5.6-5 7.4-3.1-1.8-5-4.3-5-7.4V5l5-1.6Z" />
+          <path
+            {...common}
+            d="M10 3.4 15 5v4.2c0 3.1-1.9 5.6-5 7.4-3.1-1.8-5-4.3-5-7.4V5l5-1.6Z"
+          />
           <path {...common} d="M10 5.6v8.1M7.2 8.4h5.6" />
         </svg>
       );
     case "sword":
       return (
         <svg className="shops-icon-svg" viewBox="0 0 20 20">
-          <path {...common} d="M13.9 3.8 7.8 9.9M5.3 12.4l2.3-2.3 2.3 2.3-2.3 2.3-2.3-2.3Z" />
+          <path
+            {...common}
+            d="M13.9 3.8 7.8 9.9M5.3 12.4l2.3-2.3 2.3 2.3-2.3 2.3-2.3-2.3Z"
+          />
           <path {...common} d="m4.2 15.8 2-2M6.1 8.9l5 5" />
         </svg>
       );
@@ -296,16 +365,35 @@ function ShopIcon({ name }: { name: ShopIconName }) {
 }
 
 function CoinPrice({ value }: { value?: number | null }) {
-  if (value == null) return <span className="shops-price-unknown">Цена не указана</span>;
-  const unit = value > 0 && value < 0.1 ? "copper" : value > 0 && value < 1 ? "silver" : "gold";
+  if (value == null)
+    return <span className="shops-price-unknown">Цена не указана</span>;
+  const unit =
+    value > 0 && value < 0.1
+      ? "copper"
+      : value > 0 && value < 1
+        ? "silver"
+        : "gold";
   const amount = value * (unit === "copper" ? 100 : unit === "silver" ? 10 : 1);
   const label = `${formatNumber(amount)} (${unit === "gold" ? "золотые" : unit === "silver" ? "серебряные" : "медные"} монеты)`;
-  return <span className="shops-money" aria-label={label} title={label}>
-    <span aria-hidden="true">{formatNumber(amount)}</span><span className={`shops-coin ${unit}`} aria-hidden="true">{unit === "gold" ? "G" : unit === "silver" ? "S" : "C"}</span>
-  </span>;
+  return (
+    <span className="shops-money" aria-label={label} title={label}>
+      <span aria-hidden="true">{formatNumber(amount)}</span>
+      <span className={`shops-coin ${unit}`} aria-hidden="true">
+        {unit === "gold" ? "G" : unit === "silver" ? "S" : "C"}
+      </span>
+    </span>
+  );
 }
 
-function ShopImageViewer({ src, alt, onClose }: { src: string; alt: string; onClose: () => void }) {
+function ShopImageViewer({
+  src,
+  alt,
+  onClose,
+}: {
+  src: string;
+  alt: string;
+  onClose: () => void;
+}) {
   const dialog = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const previousFocus = document.activeElement;
@@ -316,61 +404,143 @@ function ShopImageViewer({ src, alt, onClose }: { src: string; alt: string; onCl
       if (previousFocus instanceof HTMLElement) previousFocus.focus();
     };
   }, []);
-  return createPortal(<dialog ref={dialog} className="shops-image-viewer" aria-label="Изображение магазина" onKeyDown={event => { if (event.key === "Tab") { event.preventDefault(); dialog.current?.querySelector<HTMLButtonElement>("button")?.focus(); } }} onCancel={onClose} onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
-    <button type="button" autoFocus className="shops-secondary-action" onClick={onClose}>Закрыть изображение</button>
-    <img src={src} alt={alt} />
-  </dialog>, document.body);
+  return createPortal(
+    <dialog
+      ref={dialog}
+      className="shops-image-viewer"
+      aria-label="Изображение магазина"
+      onKeyDown={(event) => {
+        if (event.key === "Tab") {
+          event.preventDefault();
+          dialog.current?.querySelector<HTMLButtonElement>("button")?.focus();
+        }
+      }}
+      onCancel={onClose}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <button
+        type="button"
+        autoFocus
+        className="shops-secondary-action"
+        onClick={onClose}
+      >
+        Закрыть изображение
+      </button>
+      <img src={src} alt={alt} />
+    </dialog>,
+    document.body,
+  );
 }
 
 function ShopThumb({ seed, active }: { seed: string; active?: boolean }) {
   return (
-    <span className={`shops-thumb ${active ? "active" : ""}`} data-seed={seed.length % 6}>
+    <span
+      className={`shops-thumb ${active ? "active" : ""}`}
+      data-seed={seed.length % 6}
+    >
       <ShopIcon name="shop" />
     </span>
   );
 }
 
-function ItemThumb({ item, category }: { item?: Item | null; category?: string }) {
-  return (
-    <ItemCategoryIcon category={item?.category ?? category} />
-  );
+function ItemThumb({
+  item,
+  category,
+}: {
+  item?: Item | null;
+  category?: string;
+}) {
+  return <ItemCategoryIcon category={item?.category ?? category} />;
 }
 
 export function ShopsPage({
   ownerId,
   campaign,
   focusedShopId,
-  hydrateCampaign
+  hydrateCampaign,
 }: {
   ownerId: string;
   campaign: CampaignData;
   focusedShopId?: string;
   hydrateCampaign: (campaign: CampaignData) => void;
 }) {
-  const [selectedShopId, setSelectedShopId] = useState(campaign.shops[0]?.id ?? "");
-  const [draft, setDraft] = useState<ShopDraft>(() => shopToDraft(campaign.shops[0]));
+  const [selectedShopId, setSelectedShopId] = useState(
+    campaign.shops[0]?.id ?? "",
+  );
+  const [shopSection, setShopSection] = useState("stock");
+  const [editingText, setEditingText] = useState(!campaign.shops.length);
+  useEffect(() => {
+    setShopSection("stock");
+    setEditingText(!selectedShopId);
+  }, [selectedShopId]);
+  const [draft, setDraft] = useState<ShopDraft>(() =>
+    shopToDraft(campaign.shops[0]),
+  );
   const baselineDraft = useRef(JSON.stringify(draft));
   const [draftRevision, setDraftRevision] = useState(campaign.revision ?? 0);
-  const [conflictCampaign, setConflictCampaign] = useState<CampaignData | null>(null);
-  const replaceDraft = (shop: CampaignShop | null | undefined, revision = campaign.revision ?? 0) => {
-    const next = shopToDraft(shop); baselineDraft.current = JSON.stringify(next);
-    setDraft(next); setDraftRevision(revision); setConflictCampaign(null);
+  const [conflictCampaign, setConflictCampaign] = useState<CampaignData | null>(
+    null,
+  );
+  const replaceDraft = (
+    shop: CampaignShop | null | undefined,
+    revision = campaign.revision ?? 0,
+  ) => {
+    const next = shopToDraft(shop);
+    baselineDraft.current = JSON.stringify(next);
+    setDraft(next);
+    setDraftRevision(revision);
+    setConflictCampaign(null);
   };
-  const {items:customItems,error:customItemsError} = useCustomItems(campaign.id);
-  const [itemQuery, setItemQuery] = useWorkspaceListState<string>("shops.items","");
-  const [shopQuery, setShopQuery] = useWorkspaceListState<string>("q","");
-  const [categoryFilter, setCategoryFilter] = useWorkspaceListState<CatalogCategoryFilter>("shops.category","all");
-  const [sourceFilter, setSourceFilter] = useWorkspaceListState<string>("shops.source","all");
-  const [rarityFilter, setRarityFilter] = useWorkspaceListState<string>("shops.rarity","all");
-  const [armorFilter, setArmorFilter] = useWorkspaceListState<string>("shops.armor","all");
-  const [priceFilter, setPriceFilter] = useWorkspaceListState<string>("shops.price","all");
-  const [catalogSort, setCatalogSort] = useWorkspaceListState<string>("shops.sort","name");
+  const { items: customItems, error: customItemsError } = useCustomItems(
+    campaign.id,
+  );
+  const [itemQuery, setItemQuery] = useWorkspaceListState<string>(
+    "shops.items",
+    "",
+  );
+  const [shopQuery, setShopQuery] = useWorkspaceListState<string>("q", "");
+  const [categoryFilter, setCategoryFilter] =
+    useWorkspaceListState<CatalogCategoryFilter>("shops.category", "all");
+  const [sourceFilter, setSourceFilter] = useWorkspaceListState<string>(
+    "shops.source",
+    "all",
+  );
+  const [rarityFilter, setRarityFilter] = useWorkspaceListState<string>(
+    "shops.rarity",
+    "all",
+  );
+  const [armorFilter, setArmorFilter] = useWorkspaceListState<string>(
+    "shops.armor",
+    "all",
+  );
+  const [priceFilter, setPriceFilter] = useWorkspaceListState<string>(
+    "shops.price",
+    "all",
+  );
+  const [catalogSort, setCatalogSort] = useWorkspaceListState<string>(
+    "shops.sort",
+    "name",
+  );
   const [visibleCount, setVisibleCount] = useState(48);
-  const [stockQuery, setStockQuery] = useWorkspaceListState<string>("shops.stock","");
-  const [stockCategory, setStockCategory] = useWorkspaceListState<string>("shops.stockCategory","all");
-  const [imageViewer, setImageViewer] = useState<{src: string; alt: string} | null>(null);
+  const [stockQuery, setStockQuery] = useWorkspaceListState<string>(
+    "shops.stock",
+    "",
+  );
+  const [stockCategory, setStockCategory] = useWorkspaceListState<string>(
+    "shops.stockCategory",
+    "all",
+  );
+  const [imageViewer, setImageViewer] = useState<{
+    src: string;
+    alt: string;
+  } | null>(null);
 
-  const [sortMode, setSortMode] = useWorkspaceListState<SortMode>("shops.inventorySort","default");
+  const [sortMode, setSortMode] = useWorkspaceListState<SortMode>(
+    "shops.inventorySort",
+    "default",
+  );
   const [draggingItemId, setDraggingItemId] = useState("");
   const [stockDropActive, setStockDropActive] = useState(false);
   const [selectedInfoItemId, setSelectedInfoItemId] = useState("");
@@ -386,23 +556,67 @@ export function ShopsPage({
     catalogLoading,
     catalogError,
     loadingCatalogItemIds,
-    ensureCatalogItemDetail, detailErrors, retryCatalog,hasMore,loadMore,catalogTotal
-  } = useItemsCatalogController({ campaignId: campaign.id,filters:{q:itemQuery,category:categoryFilter==="all"?undefined:categoryFilter,source:sourceFilter==="dndsu-magic"||sourceFilter==="dndsu-equipment"?sourceFilter:undefined,armorType:(["light","medium","heavy","shield"] as const).find(value=>value===armorFilter),price:priceFilter,rarity:rarityFilter,sort:catalogSort==="name"?"name-asc":catalogSort},enabled:sourceFilter!=="builtin"&&sourceFilter!=="custom" });
-
+    ensureCatalogItemDetail,
+    detailErrors,
+    retryCatalog,
+    hasMore,
+    loadMore,
+    catalogTotal,
+  } = useItemsCatalogController({
+    campaignId: campaign.id,
+    filters: {
+      q: itemQuery,
+      category: categoryFilter === "all" ? undefined : categoryFilter,
+      source:
+        sourceFilter === "dndsu-magic" || sourceFilter === "dndsu-equipment"
+          ? sourceFilter
+          : undefined,
+      armorType: (["light", "medium", "heavy", "shield"] as const).find(
+        (value) => value === armorFilter,
+      ),
+      price: priceFilter,
+      rarity: rarityFilter,
+      sort: catalogSort === "name" ? "name-asc" : catalogSort,
+    },
+    enabled: sourceFilter !== "builtin" && sourceFilter !== "custom",
+  });
 
   useEffect(() => {
-    const selected = campaign.shops.find((shop) => shop.id === selectedShopId) ?? campaign.shops[0] ?? null;
-    if (JSON.stringify(draft) !== baselineDraft.current && selectedShopId === selected?.id) return;
+    const selected =
+      campaign.shops.find((shop) => shop.id === selectedShopId) ??
+      campaign.shops[0] ??
+      null;
+    if (
+      JSON.stringify(draft) !== baselineDraft.current &&
+      selectedShopId === selected?.id
+    )
+      return;
     setSelectedShopId(selected?.id ?? "");
     replaceDraft(selected);
   }, [campaign.shops, selectedShopId]);
   useEffect(() => {
     let cancelled = false;
-    setImageProposal(null); setImageDirection("");
-    if (selectedShopId) void api.listAIProposals({ campaignId: campaign.id, status: "pending" }).then(proposals => {
-      if (!cancelled) setImageProposal(proposals.find(p => p.target.entityKind === "shop" && p.target.entityId === selectedShopId) ?? null);
-    }).catch(() => { /* Generation reports actionable connection errors separately. */ });
-    return () => { cancelled = true; };
+    setImageProposal(null);
+    setImageDirection("");
+    if (selectedShopId)
+      void api
+        .listAIProposals({ campaignId: campaign.id, status: "pending" })
+        .then((proposals) => {
+          if (!cancelled)
+            setImageProposal(
+              proposals.find(
+                (p) =>
+                  p.target.entityKind === "shop" &&
+                  p.target.entityId === selectedShopId,
+              ) ?? null,
+            );
+        })
+        .catch(() => {
+          /* Generation reports actionable connection errors separately. */
+        });
+    return () => {
+      cancelled = true;
+    };
   }, [selectedShopId, campaign.id]);
 
   useEffect(() => {
@@ -421,13 +635,18 @@ export function ShopsPage({
   const allItems = useMemo(
     () => [
       ...builtInItems,
-      ...catalogItems.map((item) => enrichRemoteItemWithBuiltInMetrics(item, builtInItemLookup)),
-      ...customItems
+      ...catalogItems.map((item) =>
+        enrichRemoteItemWithBuiltInMetrics(item, builtInItemLookup),
+      ),
+      ...customItems,
     ],
-    [catalogItems, customItems]
+    [catalogItems, customItems],
   );
 
-  const itemById = useMemo(() => new Map(allItems.map((item) => [item.id, item])), [allItems]);
+  const itemById = useMemo(
+    () => new Map(allItems.map((item) => [item.id, item])),
+    [allItems],
+  );
 
   const filteredShops = useMemo(() => {
     const query = normalizeSearch(shopQuery);
@@ -435,160 +654,366 @@ export function ShopsPage({
       return campaign.shops;
     }
     return campaign.shops.filter((shop) =>
-      normalizeSearch([shop.name, shop.locationLabel, shop.description].filter(Boolean).join(" ")).includes(query)
+      normalizeSearch(
+        [shop.name, shop.locationLabel, shop.description]
+          .filter(Boolean)
+          .join(" "),
+      ).includes(query),
     );
   }, [campaign.shops, shopQuery]);
 
   const filteredItems = useMemo(() => {
     const query = normalizeSearch(itemQuery);
-    return allItems.filter((item) => {
-      if (categoryFilter !== "all" && item.category !== categoryFilter) {
-        return false;
-      }
-      if (!query) {
+    return allItems
+      .filter((item) => {
+        if (categoryFilter !== "all" && item.category !== categoryFilter) {
+          return false;
+        }
+        if (!query) {
+          return true;
+        }
+        return normalizeSearch(
+          [
+            item.name,
+            item.description,
+            item.rarity,
+            item.subcategory,
+            item.reference,
+          ]
+            .filter(Boolean)
+            .join(" "),
+        ).includes(query);
+      })
+      .filter((item) => {
+        if (sourceFilter !== "all" && item.source !== sourceFilter)
+          return false;
+        if (rarityFilter !== "all" && rarityGroup(item.rarity) !== rarityFilter)
+          return false;
+        if (
+          categoryFilter === "armor" &&
+          armorFilter !== "all" &&
+          (item.armorType || item.subcategory) !== armorFilter
+        )
+          return false;
+        const price = itemPrice(item);
+        if (priceFilter === "unknown") return price == null;
+        if (priceFilter !== "all" && price == null) return false;
+        if (priceFilter === "under-10" && price! >= 10) return false;
+        if (priceFilter === "10-100" && (price! < 10 || price! > 100))
+          return false;
+        if (priceFilter === "100-500" && (price! <= 100 || price! > 500))
+          return false;
+        if (priceFilter === "500-plus" && price! <= 500) return false;
         return true;
-      }
-      return normalizeSearch([item.name, item.description, item.rarity, item.subcategory, item.reference].filter(Boolean).join(" ")).includes(query);
-    }).filter((item) => {
-      if (sourceFilter !== "all" && item.source !== sourceFilter) return false;
-      if (rarityFilter !== "all" && rarityGroup(item.rarity) !== rarityFilter) return false;
-      if (categoryFilter === "armor" && armorFilter !== "all" && (item.armorType || item.subcategory) !== armorFilter) return false;
-      const price = itemPrice(item);
-      if (priceFilter === "unknown") return price == null;
-      if (priceFilter !== "all" && price == null) return false;
-      if (priceFilter === "under-10" && price! >= 10) return false;
-      if (priceFilter === "10-100" && (price! < 10 || price! > 100)) return false;
-      if (priceFilter === "100-500" && (price! <= 100 || price! > 500)) return false;
-      if (priceFilter === "500-plus" && price! <= 500) return false;
-      return true;
-    }).sort((a, b) => catalogSort === "name" ? a.name.localeCompare(b.name, "ru") :
-      itemPrice(a) == null ? (itemPrice(b) == null ? 0 : 1) : itemPrice(b) == null ? -1 :
-      (itemPrice(a)! - itemPrice(b)!) * (catalogSort === "price-desc" ? -1 : 1));
-  }, [allItems, categoryFilter, itemQuery, sourceFilter, rarityFilter, armorFilter, priceFilter, catalogSort]);
-  useEffect(() => setVisibleCount(48), [categoryFilter, itemQuery, sourceFilter, rarityFilter, armorFilter, priceFilter, catalogSort]);
-  const rarities = useMemo(() => [...new Set(allItems.map(item => rarityGroup(item.rarity)))].sort(), [allItems]);
+      })
+      .sort((a, b) =>
+        catalogSort === "name"
+          ? a.name.localeCompare(b.name, "ru")
+          : itemPrice(a) == null
+            ? itemPrice(b) == null
+              ? 0
+              : 1
+            : itemPrice(b) == null
+              ? -1
+              : (itemPrice(a)! - itemPrice(b)!) *
+                (catalogSort === "price-desc" ? -1 : 1),
+      );
+  }, [
+    allItems,
+    categoryFilter,
+    itemQuery,
+    sourceFilter,
+    rarityFilter,
+    armorFilter,
+    priceFilter,
+    catalogSort,
+  ]);
+  useEffect(
+    () => setVisibleCount(48),
+    [
+      categoryFilter,
+      itemQuery,
+      sourceFilter,
+      rarityFilter,
+      armorFilter,
+      priceFilter,
+      catalogSort,
+    ],
+  );
+  const rarities = useMemo(
+    () => [...new Set(allItems.map((item) => rarityGroup(item.rarity)))].sort(),
+    [allItems],
+  );
   const dirty = JSON.stringify(draft) !== baselineDraft.current;
   useWorkspaceGuard(dirty);
-  const deviceDraft = useDeviceDraft({ ownerId, campaignId: campaign.id, target: `shop:${selectedShopId || "new"}`,
-    revision: draftRevision, value: draft, dirty, enabled: true,
-    restore: ({value, baseRevision}) => { if (!value || typeof value.name !== "string" || !Array.isArray(value.inventory)) return false; setDraft(value); setDraftRevision(baseRevision); }
+  const deviceDraft = useDeviceDraft({
+    ownerId,
+    campaignId: campaign.id,
+    target: `shop:${selectedShopId || "new"}`,
+    revision: draftRevision,
+    value: draft,
+    dirty,
+    enabled: true,
+    restore: ({ value, baseRevision }) => {
+      if (
+        !value ||
+        typeof value.name !== "string" ||
+        !Array.isArray(value.inventory)
+      )
+        return false;
+      setDraft(value);
+      setDraftRevision(baseRevision);
+    },
   });
   useEffect(() => {
-    const beforeUnload = (event: BeforeUnloadEvent) => { if (dirty) event.preventDefault(); };
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (dirty) event.preventDefault();
+    };
     window.addEventListener("beforeunload", beforeUnload);
     return () => window.removeEventListener("beforeunload", beforeUnload);
   }, [dirty]);
 
-  useEffect(()=>{if(!selectedShopId||focusedShopId&&focusedShopId!==selectedShopId)return;const current=readWorkspaceRoute();if(current.section==="shops"&&current.target!==selectedShopId)navigateWorkspace(workspaceURL({...current,target:selectedShopId}),true);},[selectedShopId,focusedShopId]);
-  const selectedShop = campaign.shops.find((shop) => shop.id === selectedShopId) ?? null;
-  const selectedLocation = campaign.locations.find((location) => location.id === draft.locationId) ?? null;
-  const selectedInfoItem = selectedInfoItemId ? itemById.get(selectedInfoItemId) ?? null : null;
+  useEffect(() => {
+    if (!selectedShopId || (focusedShopId && focusedShopId !== selectedShopId))
+      return;
+    const current = readWorkspaceRoute();
+    if (current.section === "shops" && current.target !== selectedShopId)
+      navigateWorkspace(
+        workspaceURL({ ...current, target: selectedShopId }),
+        true,
+      );
+  }, [selectedShopId, focusedShopId]);
+  const selectedShop =
+    campaign.shops.find((shop) => shop.id === selectedShopId) ?? null;
+  const selectedLocation =
+    campaign.locations.find((location) => location.id === draft.locationId) ??
+    null;
+  const selectedInfoItem = selectedInfoItemId
+    ? (itemById.get(selectedInfoItemId) ?? null)
+    : null;
   const totalPrice = draft.inventory.reduce((sum, entry) => {
     const liveItem = itemById.get(entry.itemId);
-    const price = entry.priceMode === "manual" ? entry.manualPriceGp : liveItem ? itemPrice(liveItem) : entry.itemPriceGp;
+    const price =
+      entry.priceMode === "manual"
+        ? entry.manualPriceGp
+        : liveItem
+          ? itemPrice(liveItem)
+          : entry.itemPriceGp;
     return price == null ? sum : sum + price * (entry.quantity ?? 1);
   }, 0);
 
   const sortedInventory = useMemo(() => {
-    const inventory = draft.inventory.filter(entry => (stockCategory === "all" || entry.category === stockCategory) && normalizeSearch(`${itemById.get(entry.itemId)?.name ?? entry.itemName} ${entry.note || ""}`).includes(normalizeSearch(stockQuery)));
+    const inventory = draft.inventory.filter(
+      (entry) =>
+        (stockCategory === "all" || entry.category === stockCategory) &&
+        normalizeSearch(
+          `${itemById.get(entry.itemId)?.name ?? entry.itemName} ${entry.note || ""}`,
+        ).includes(normalizeSearch(stockQuery)),
+    );
     if (sortMode === "name") {
       inventory.sort((left, right) => {
         const leftItem = itemById.get(left.itemId);
         const rightItem = itemById.get(right.itemId);
-        return (leftItem?.name ?? left.itemName).localeCompare(rightItem?.name ?? right.itemName, "ru");
+        return (leftItem?.name ?? left.itemName).localeCompare(
+          rightItem?.name ?? right.itemName,
+          "ru",
+        );
       });
     }
     if (sortMode === "price") {
       inventory.sort((left, right) => {
         const leftItem = itemById.get(left.itemId);
         const rightItem = itemById.get(right.itemId);
-        const leftPrice = left.priceMode === "manual" ? left.manualPriceGp : leftItem ? itemPrice(leftItem) : left.itemPriceGp;
-        const rightPrice = right.priceMode === "manual" ? right.manualPriceGp : rightItem ? itemPrice(rightItem) : right.itemPriceGp;
-        return (leftPrice ?? Number.MAX_SAFE_INTEGER) - (rightPrice ?? Number.MAX_SAFE_INTEGER);
+        const leftPrice =
+          left.priceMode === "manual"
+            ? left.manualPriceGp
+            : leftItem
+              ? itemPrice(leftItem)
+              : left.itemPriceGp;
+        const rightPrice =
+          right.priceMode === "manual"
+            ? right.manualPriceGp
+            : rightItem
+              ? itemPrice(rightItem)
+              : right.itemPriceGp;
+        return (
+          (leftPrice ?? Number.MAX_SAFE_INTEGER) -
+          (rightPrice ?? Number.MAX_SAFE_INTEGER)
+        );
       });
     }
     return inventory;
   }, [draft.inventory, itemById, sortMode, stockCategory, stockQuery]);
 
-  const updateDraft = <Key extends keyof ShopDraft>(key: Key, value: ShopDraft[Key]) => {
+  const updateDraft = <Key extends keyof ShopDraft>(
+    key: Key,
+    value: ShopDraft[Key],
+  ) => {
     setDraft((current) => ({ ...current, [key]: value }));
     setNotice("");
     setError("");
   };
 
-  const updateInventoryItem = (entryId: string, patch: Partial<ShopInventoryItem>) => {
+  const updateInventoryItem = (
+    entryId: string,
+    patch: Partial<ShopInventoryItem>,
+  ) => {
     setDraft((current) => ({
       ...current,
-      inventory: current.inventory.map((entry) => (entry.id === entryId ? { ...entry, ...patch } : entry))
+      inventory: current.inventory.map((entry) =>
+        entry.id === entryId ? { ...entry, ...patch } : entry,
+      ),
     }));
     setNotice("");
     setError("");
   };
 
   const shopImageUrl = draft.art?.url;
-  const imagePreview = imageProposal?.mediaIntents.find(intent => intent.field === "art.url" && intent.status === "staged" && intent.selected !== false)?.previewUrl;
+  const imagePreview = imageProposal?.mediaIntents.find(
+    (intent) =>
+      intent.field === "art.url" &&
+      intent.status === "staged" &&
+      intent.selected !== false,
+  )?.previewUrl;
   const handleGenerateImage = async () => {
     if (!selectedShop || dirty || imageBusy) return;
-    setImageBusy(true); setError(""); setNotice("");
+    setImageBusy(true);
+    setError("");
+    setNotice("");
     try {
-      const result = await api.runCodexPrompt({ campaignId: campaign.id,
-        imageTarget: { entityId: selectedShop.id, entityKind: "shop" }, includeImages: true,
-        prompt: imageDirection.trim() });
-      const proposals = await Promise.all(result.proposalIds.map(id => api.getAIProposal(id)));
-      const proposal = proposals.find(p => p.status === "pending" && p.target.entityKind === "shop" && p.target.entityId === selectedShop.id);
-      if (!proposal) throw new Error(result.warning || "Генератор не вернул изображение магазина. Проверь подключение Codex в AI-помощнике.");
-      if (!proposal.mediaIntents.some(intent => intent.field === "art.url" && intent.status === "staged" && intent.selected !== false && intent.previewUrl)) {
-        throw new Error(result.warning || "Генератор не подготовил изображение. Прежний вариант сохранён, можно повторить попытку.");
+      const result = await api.runCodexPrompt({
+        campaignId: campaign.id,
+        imageTarget: { entityId: selectedShop.id, entityKind: "shop" },
+        includeImages: true,
+        prompt: imageDirection.trim(),
+      });
+      const proposals = await Promise.all(
+        result.proposalIds.map((id) => api.getAIProposal(id)),
+      );
+      const proposal = proposals.find(
+        (p) =>
+          p.status === "pending" &&
+          p.target.entityKind === "shop" &&
+          p.target.entityId === selectedShop.id,
+      );
+      if (!proposal)
+        throw new Error(
+          result.warning ||
+            "Генератор не вернул изображение магазина. Проверь подключение Codex в AI-помощнике.",
+        );
+      if (
+        !proposal.mediaIntents.some(
+          (intent) =>
+            intent.field === "art.url" &&
+            intent.status === "staged" &&
+            intent.selected !== false &&
+            intent.previewUrl,
+        )
+      ) {
+        throw new Error(
+          result.warning ||
+            "Генератор не подготовил изображение. Прежний вариант сохранён, можно повторить попытку.",
+        );
       }
       setImageProposal(proposal);
       if (imageProposal && imageProposal.id !== proposal.id) {
-        try { await api.rejectAIProposal(imageProposal.id); }
-        catch { setError("Новое изображение готово. Предыдущий вариант можно отклонить в черновиках AI."); }
+        try {
+          await api.rejectAIProposal(imageProposal.id);
+        } catch {
+          setError(
+            "Новое изображение готово. Предыдущий вариант можно отклонить в черновиках AI.",
+          );
+        }
       }
-      setNotice(result.warning || "Изображение подготовлено. Просмотри его перед сохранением.");
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Не удалось создать изображение."); }
-    finally { setImageBusy(false); }
+      setNotice(
+        result.warning ||
+          "Изображение подготовлено. Просмотри его перед сохранением.",
+      );
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Не удалось создать изображение.",
+      );
+    } finally {
+      setImageBusy(false);
+    }
   };
   const handleApplyImage = async () => {
     if (!imageProposal || dirty || imageBusy) return;
-    setImageBusy(true); setError("");
+    setImageBusy(true);
+    setError("");
     try {
       const result = await api.applyAIProposal(imageProposal.id);
       if (result.campaign) hydrateCampaign(result.campaign);
-      setImageProposal(null); setNotice("Изображение сохранено и добавлено в галерею магазина.");
-    } catch (reason) { setError(reason instanceof Error ? reason.message : "Не удалось сохранить изображение."); }
-    finally { setImageBusy(false); }
+      setImageProposal(null);
+      setNotice("Изображение сохранено и добавлено в галерею магазина.");
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Не удалось сохранить изображение.",
+      );
+    } finally {
+      setImageBusy(false);
+    }
   };
   const handleRejectImage = async () => {
     if (!imageProposal) return;
-    setImageBusy(true); setError("");
-    try { await api.rejectAIProposal(imageProposal.id); setImageProposal(null); setNotice(""); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : "Не удалось отклонить изображение."); }
-    finally { setImageBusy(false); }
+    setImageBusy(true);
+    setError("");
+    try {
+      await api.rejectAIProposal(imageProposal.id);
+      setImageProposal(null);
+      setNotice("");
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Не удалось отклонить изображение.",
+      );
+    } finally {
+      setImageBusy(false);
+    }
   };
 
   const handleCreateShop = async () => {
-    if (dirty && !await confirmAction("Создать новый магазин? Несохранённые изменения будут потеряны.")) return;
+    if (
+      dirty &&
+      !(await confirmAction(
+        "Создать новый магазин? Несохранённые изменения будут потеряны.",
+      ))
+    )
+      return;
     setSaving(true);
     setNotice("");
     setError("");
     const nextShop: CampaignShop = {
       id: createId("shop"),
       name: `Новый магазин ${campaign.shops.length + 1}`,
-      inventory: []
+      inventory: [],
     };
 
     try {
-      const updatedCampaign = await api.updateCampaign(campaign.id, { expectedRevision: campaign.revision ?? 0,
-        shops: [nextShop, ...campaign.shops]
+      const updatedCampaign = await api.updateCampaign(campaign.id, {
+        expectedRevision: campaign.revision ?? 0,
+        shops: [nextShop, ...campaign.shops],
       });
       hydrateCampaign(updatedCampaign);
       setSelectedShopId(nextShop.id);
-      {const current=readWorkspaceRoute();if(current.campaignId===campaign.id&&current.section==="shops")navigateWorkspace(workspaceURL({...current,target:nextShop.id}));}
+      {
+        const current = readWorkspaceRoute();
+        if (current.campaignId === campaign.id && current.section === "shops")
+          navigateWorkspace(workspaceURL({ ...current, target: nextShop.id }));
+      }
       replaceDraft(nextShop, updatedCampaign.revision ?? 0);
       startTransition(() => setNotice("Новый магазин создан."));
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Не удалось создать магазин.");
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Не удалось создать магазин.",
+      );
     } finally {
       setSaving(false);
     }
@@ -596,8 +1021,21 @@ export function ShopsPage({
 
   const handleSelectShop = async (shopId: string) => {
     if (shopId === selectedShopId || saving || imageBusy) return;
-    if (dirty && !await confirmAction("Перейти в другой магазин? Несохранённые изменения будут потеряны.")) return;
-    navigateWorkspace(workspaceURL({...readWorkspaceRoute(),campaignId:campaign.id,section:"shops",target:shopId}));
+    if (
+      dirty &&
+      !(await confirmAction(
+        "Перейти в другой магазин? Несохранённые изменения будут потеряны.",
+      ))
+    )
+      return;
+    navigateWorkspace(
+      workspaceURL({
+        ...readWorkspaceRoute(),
+        campaignId: campaign.id,
+        section: "shops",
+        target: shopId,
+      }),
+    );
     const shop = campaign.shops.find((entry) => entry.id === shopId) ?? null;
     setSelectedShopId(shop?.id ?? "");
     replaceDraft(shop);
@@ -606,7 +1044,8 @@ export function ShopsPage({
   };
 
   const handleResetDraft = () => {
-    deviceDraft.discard(); replaceDraft(selectedShop);
+    deviceDraft.discard();
+    replaceDraft(selectedShop);
     setNotice("");
     setError("");
   };
@@ -623,13 +1062,17 @@ export function ShopsPage({
       itemPriceGp: itemPrice(item),
       itemPriceLabel: itemPriceLabel(item),
       quantity: 1,
-      note: ""
+      note: "",
     };
     setDraft((current) => ({
       ...current,
-      inventory: current.inventory.some(entry => entry.itemId === item.id)
-        ? current.inventory.map(entry => entry.itemId === item.id ? { ...entry, quantity: (entry.quantity ?? 1) + 1 } : entry)
-        : [stockItem, ...current.inventory]
+      inventory: current.inventory.some((entry) => entry.itemId === item.id)
+        ? current.inventory.map((entry) =>
+            entry.itemId === item.id
+              ? { ...entry, quantity: (entry.quantity ?? 1) + 1 }
+              : entry,
+          )
+        : [stockItem, ...current.inventory],
     }));
     setNotice("");
     setError("");
@@ -643,7 +1086,10 @@ export function ShopsPage({
     setSelectedInfoItemId(item.id);
   };
 
-  const handleCatalogDragStart = (event: DragEvent<HTMLElement>, item: Item) => {
+  const handleCatalogDragStart = (
+    event: DragEvent<HTMLElement>,
+    item: Item,
+  ) => {
     setDraggingItemId(item.id);
     event.dataTransfer.effectAllowed = "copy";
     event.dataTransfer.setData("text/plain", item.id);
@@ -672,7 +1118,10 @@ export function ShopsPage({
   };
 
   const handleSave = async () => {
-    if (deviceDraft.candidate || conflictCampaign) { setError("Сначала разберите найденный черновик или конфликт версий."); return; }
+    if (deviceDraft.candidate || conflictCampaign) {
+      setError("Сначала разберите найденный черновик или конфликт версий.");
+      return;
+    }
     if (!draft.name.trim()) {
       setError("Укажи название магазина.");
       return;
@@ -684,24 +1133,42 @@ export function ShopsPage({
     try {
       const nextShop = draftToShop(draft, campaign.locations);
       const shops = selectedShop
-        ? campaign.shops.map((shop) => (shop.id === nextShop.id ? nextShop : shop))
+        ? campaign.shops.map((shop) =>
+            shop.id === nextShop.id ? nextShop : shop,
+          )
         : [nextShop, ...campaign.shops];
-      const updatedCampaign = await api.updateCampaign(campaign.id, { expectedRevision: draftRevision, shops });
-      deviceDraft.clear(); replaceDraft(nextShop, updatedCampaign.revision ?? 0);
+      const updatedCampaign = await api.updateCampaign(campaign.id, {
+        expectedRevision: draftRevision,
+        shops,
+      });
+      deviceDraft.clear();
+      replaceDraft(nextShop, updatedCampaign.revision ?? 0);
       hydrateCampaign(updatedCampaign);
       setSelectedShopId(nextShop.id);
-      {const current=readWorkspaceRoute();if(current.campaignId===campaign.id&&current.section==="shops")navigateWorkspace(workspaceURL({...current,target:nextShop.id}));}
+      {
+        const current = readWorkspaceRoute();
+        if (current.campaignId === campaign.id && current.section === "shops")
+          navigateWorkspace(workspaceURL({ ...current, target: nextShop.id }));
+      }
       startTransition(() => setNotice("Магазин сохранён."));
     } catch (reason) {
-      if (isApiError(reason) && reason.status === 409 && reason.current) setConflictCampaign(reason.current as CampaignData);
-      setError(reason instanceof Error ? reason.message : "Не удалось сохранить магазин.");
+      if (isApiError(reason) && reason.status === 409 && reason.current)
+        setConflictCampaign(reason.current as CampaignData);
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Не удалось сохранить магазин.",
+      );
     } finally {
       setSaving(false);
     }
   };
 
   const handleDeleteShop = async () => {
-    if (!selectedShop || !await confirmAction(`Удалить магазин «${selectedShop.name}»?`)) {
+    if (
+      !selectedShop ||
+      !(await confirmAction(`Удалить магазин «${selectedShop.name}»?`))
+    ) {
       return;
     }
 
@@ -709,353 +1176,998 @@ export function ShopsPage({
     setError("");
     setNotice("");
     try {
-      const updatedCampaign = await api.updateCampaign(campaign.id, { expectedRevision: campaign.revision ?? 0,
-        shops: campaign.shops.filter((shop) => shop.id !== selectedShop.id)
+      const updatedCampaign = await api.updateCampaign(campaign.id, {
+        expectedRevision: campaign.revision ?? 0,
+        shops: campaign.shops.filter((shop) => shop.id !== selectedShop.id),
       });
       hydrateCampaign(updatedCampaign);
       setSelectedShopId(updatedCampaign.shops[0]?.id ?? "");
-      {const current=readWorkspaceRoute();if(current.campaignId===campaign.id&&current.section==="shops")navigateWorkspace(workspaceURL({...current,target:updatedCampaign.shops[0]?.id||""}),true);}
+      {
+        const current = readWorkspaceRoute();
+        if (current.campaignId === campaign.id && current.section === "shops")
+          navigateWorkspace(
+            workspaceURL({
+              ...current,
+              target: updatedCampaign.shops[0]?.id || "",
+            }),
+            true,
+          );
+      }
       setNotice("Магазин удалён.");
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Не удалось удалить магазин.");
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Не удалось удалить магазин.",
+      );
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <fieldset disabled={saving || imageBusy} style={{border:0,padding:0,minWidth:0}}><div className="shops-workspace">
-      {customItemsError&&<p role="alert">{customItemsError}</p>}
-      <DeviceDraftControls draft={deviceDraft} label="черновик магазина"/>
-      {conflictCampaign && <section className="card mini"><h3>Конфликт версий магазина</h3>
-        <p>Проверьте текущий магазин на сервере. Подтверждение подготовит ваш магазин целиком поверх этой версии, включая ассортимент. Сохранение выполняется отдельно.</p>
-        <pre style={{whiteSpace:"pre-wrap"}}>{JSON.stringify(conflictCampaign.shops.find(s => s.id === selectedShopId) ?? null, null, 2)}</pre>
-        <button className="ghost" onClick={() => { hydrateCampaign(conflictCampaign); setDraftRevision(conflictCampaign.revision ?? 0); setConflictCampaign(null); setError(""); }}>Подготовить мой магазин поверх этой версии</button>
-      </section>}
-      <aside className="shops-panel shops-directory-panel">
-        <div className="shops-panel-header">
-          <div className="shops-title-row">
-            <span className="shops-title-icon">
-              <ShopIcon name="shop" />
-            </span>
-            <h1>Магазины</h1>
-          </div>
-          <button className="shops-primary-action" disabled={saving || imageBusy} onClick={() => void handleCreateShop()} type="button">
-            <ShopIcon name="plus" />
-            <span>Новый магазин</span>
-          </button>
-        </div>
-
-        <div className="shops-search-row">
-          <label className="shops-search-box">
-            <ShopIcon name="search" />
-            <input aria-label="Поиск магазинов" onChange={(event) => setShopQuery(event.target.value)} placeholder="Поиск магазинов..." value={shopQuery} />
-          </label>
-
-        </div>
-
-        <div className="shops-list">
-          {filteredShops.length ? (
-            filteredShops.map((shop) => (
-              <button
-                key={shop.id}
-                className={`shops-list-card ${shop.id === selectedShopId ? "active" : ""}`}
-                aria-pressed={shop.id === selectedShopId}
-                onClick={() => handleSelectShop(shop.id)}
-                type="button"
-              >
-                {shop.art?.url ? <img className="shops-list-image" src={shop.art.url} alt="" loading="lazy" /> : <ShopThumb active={shop.id === selectedShopId} seed={shop.name} />}
-                <span className="shops-list-copy">
-                  <strong>{shop.name}</strong>
-                  <small>{shop.locationLabel || "Без локации"}</small>
-                  <small>Позиций: {shop.inventory.length}</small>
-                </span>
-
-              </button>
-            ))
-          ) : (
-            <div className="shops-empty-state compact">
-              <strong>Магазины не найдены</strong>
-              <span>Смени поиск или создай новую лавку.</span>
-            </div>
-          )}
-        </div>
-
-        <div className="shops-directory-foot">Показано {filteredShops.length} из {campaign.shops.length} магазинов</div>
-      </aside>
-
-      {imageBusy ? <p role="status">Готовлю изображение магазина. Пожалуйста, дождись завершения…</p> : null}
-      <main className="shops-panel shops-editor-panel" {...((saving || imageBusy) ? { inert: "" } : {})}>
-        <div className="shops-editor-hero">
-          <ShopThumb active seed={draft.name || "shop"} />
-          <div className="shops-editor-title">
-            <input
-              className="shops-name-input"
-              onChange={(event) => updateDraft("name", event.target.value)}
-              placeholder="Название магазина"
-              value={draft.name}
-              aria-label="Название магазина"
-            />
-            <div className="shops-editor-meta">
-              <label className="shops-select-pill">
-                <ShopIcon name="location" />
-                <select aria-label="Локация магазина" onChange={(event) => updateDraft("locationId", event.target.value)} value={draft.locationId}>
-                  <option value="">Без локации</option>
-                  {campaign.locations.map((location) => (
-                    <option key={location.id} value={location.id}>
-                      {location.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-            </div>
-          </div>
-          <div className="shops-hero-actions">
-            {dirty ? <small role="status">Есть изменения</small> : null}
-            <button className="shops-secondary-action" disabled={saving || imageBusy || !dirty} onClick={handleResetDraft} type="button">
-              Отмена
+    <fieldset
+      onKeyDown={(event) => {
+        if (
+          (event.ctrlKey || event.metaKey) &&
+          event.key.toLowerCase() === "s"
+        ) {
+          event.preventDefault();
+          if (dirty && !saving && !imageBusy) void handleSave();
+        }
+      }}
+      disabled={saving || imageBusy}
+      style={{ border: 0, padding: 0, minWidth: 0 }}
+    >
+      <div className="shops-workspace">
+        {customItemsError && <p role="alert">{customItemsError}</p>}
+        <DeviceDraftControls draft={deviceDraft} label="черновик магазина" />
+        {conflictCampaign && (
+          <section className="card mini">
+            <h3>Конфликт версий магазина</h3>
+            <p>
+              Проверьте текущий магазин на сервере. Подтверждение подготовит ваш
+              магазин целиком поверх этой версии, включая ассортимент.
+              Сохранение выполняется отдельно.
+            </p>
+            <pre style={{ whiteSpace: "pre-wrap" }}>
+              {JSON.stringify(
+                conflictCampaign.shops.find((s) => s.id === selectedShopId) ??
+                  null,
+                null,
+                2,
+              )}
+            </pre>
+            <button
+              className="ghost"
+              onClick={() => {
+                hydrateCampaign(conflictCampaign);
+                setDraftRevision(conflictCampaign.revision ?? 0);
+                setConflictCampaign(null);
+                setError("");
+              }}
+            >
+              Подготовить мой магазин поверх этой версии
             </button>
-            <button className="shops-primary-action" disabled={saving || imageBusy} onClick={() => void handleSave()} type="button">
-              {saving ? "Сохраняю..." : "Сохранить"}
+          </section>
+        )}
+        <aside className="shops-panel shops-directory-panel">
+          <div className="shops-panel-header">
+            <div className="shops-title-row">
+              <span className="shops-title-icon">
+                <ShopIcon name="shop" />
+              </span>
+              <h1>Магазины</h1>
+            </div>
+            <button
+              className="shops-primary-action"
+              disabled={saving || imageBusy}
+              onClick={() => void handleCreateShop()}
+              type="button"
+            >
+              <ShopIcon name="plus" />
+              <span>Новый магазин</span>
             </button>
           </div>
-        </div>
 
-        {selectedInfoItemId&&detailErrors[selectedInfoItemId]&&<p role="alert">{detailErrors[selectedInfoItemId]} <button onClick={()=>ensureCatalogItemDetail(selectedInfoItemId)}>Повторить описание</button></p>}
-        {notice || error || catalogError ? (
-          <div className="shops-status-stack">
-            {notice ? <div role="status" className="notes-status notes-status-success">{notice}</div> : null}
-            {error ? <div role="alert" className="notes-status notes-status-error">{error}</div> : null}
-            {catalogError ? <div className="notes-status notes-status-error">Каталог предметов недоступен: {catalogError} <button onClick={retryCatalog}>Повторить</button></div> : null}
-          </div>
-        ) : null}
-
-        <div className={`shops-overview-grid ${draft.art?.url ? "has-image" : ""}`}>
-          <label className="shops-description-card"><span className="shops-field-caption">Описание для посетителей</span>
-            <textarea
-              onChange={(event) => updateDraft("description", event.target.value)}
-              aria-label="Описание магазина"
-              placeholder="Что видят посетители: интерьер, владелец, атмосфера, условия торговли…"
-              value={draft.description}
-            />
-            <span className="shops-edit-mark">✎</span>
-          </label>
-          {shopImageUrl ? <button type="button" aria-haspopup="dialog" className="shops-cover" aria-label={`Открыть изображение магазина «${draft.name}»`} onClick={() => setImageViewer({src: shopImageUrl, alt: draft.art?.alt || draft.name})}>
-            <img src={shopImageUrl} alt={draft.art?.alt || draft.name} /><span>Открыть изображение ↗</span>
-          </button> : null}
-        </div>
-
-        <details className="shops-image-details" open={Boolean(imagePreview)}><summary>Изображение магазина{draft.art?.url ? " · добавлено" : " · создать по описанию"}</summary>
-        <section className="shops-art" aria-label="Изображение магазина">
-          {imagePreview ? <button type="button" className="shops-cover" aria-label="Открыть предпросмотр изображения" onClick={() => setImageViewer({src: imagePreview, alt: "Предпросмотр изображения магазина"})}><img src={imagePreview} alt="Предпросмотр изображения магазина" /><span>Открыть предпросмотр ↗</span></button> : null}
-          <div className="shops-art-controls">
-            <strong>{imagePreview ? "Новое изображение · предпросмотр" : "Изображение магазина"}</strong>
-            <p>По описанию и ассортименту, с учётом количества товаров. Утверждённые варианты сохраняются в галерее.</p>
-            <details><summary>Пожелания к изображению</summary><label>Атмосфера и стиль<textarea value={imageDirection} disabled={imageBusy} onChange={e => setImageDirection(e.target.value)} placeholder="Например: тёплый свет свечей, тесная лавка алхимика…" /></label></details>
-            {dirty || !selectedShop ? <small>Сначала сохрани магазин и ассортимент.</small> : null}
-            {imageProposal ? <div className="shops-hero-actions">
-              <button className="shops-primary-action" disabled={!imagePreview || imageBusy || dirty} onClick={() => void handleApplyImage()} type="button">Использовать изображение</button>
-              <button className="shops-secondary-action" disabled={imageBusy || saving || dirty || !selectedShop} onClick={() => void handleGenerateImage()} type="button">Сгенерировать заново</button>
-              <button className="shops-secondary-action" disabled={imageBusy} onClick={() => void handleRejectImage()} type="button">Отклонить</button>
-            </div> : <button className="shops-secondary-action" disabled={imageBusy || saving || dirty || !selectedShop} onClick={() => void handleGenerateImage()} type="button">{imageBusy ? "Создаю изображение…" : shopImageUrl ? "Сгенерировать заново" : "Сгенерировать изображение"}</button>}
-            {imageBusy ? <small role="status">Это может занять несколько минут. Дождись результата.</small> : null}
-          </div>
-        </section>
-        </details>
-
-        {draft.gallery.length > 0 ? <details className="shops-image-details shops-gallery"><summary>Галерея · {draft.gallery.length}</summary>
-          <div className="shops-gallery-grid">{draft.gallery.map(image => <button key={image.url} type="button" aria-haspopup="dialog" aria-label={`Открыть: ${image.title || draft.name}`} onClick={() => setImageViewer({ src: image.url, alt: image.title || draft.name })}>
-            <img src={image.url} alt={image.title || draft.name} loading="lazy" /><span>{image.title || "Изображение магазина"}</span>
-          </button>)}</div>
-        </details> : null}
-
-        <details className="shops-gm-notes">
-          <summary>Только мастеру · скрытые находки и проверки{draft.gmNotes.trim() ? " •" : ""}</summary>
-          <label>Секреты магазина
-            <textarea value={draft.gmNotes} onChange={event => updateDraft("gmNotes", event.target.value)} rows={6}
-              placeholder={`Например: Внимательность СЛ 14 — царапины у потайного ящика.
-Расследование СЛ 16 — двойное дно, внутри письмо.
-Проницательность СЛ 12 — торговец скрывает происхождение кольца.`} />
-          </label>
-          <small>Эти записи хранятся отдельно от описания и не используются для изображения магазина.</small>
-        </details>
-
-        <section
-          className={`shops-stock-section ${stockDropActive ? "drop-active" : ""}`}
-          onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setStockDropActive(false); }}
-          onDragOver={handleStockDragOver}
-          onDrop={handleStockDrop}
-        >
-          <div className="shops-stock-head">
-            <h2>Ассортимент <small>{draft.inventory.length}</small></h2>
-            <button type="button" className="shops-secondary-action" onClick={() => document.getElementById("shop-catalog-search")?.focus()}>Добавить товары</button>
-            <span className="shops-head-line" />
-            <label className="shops-sort-select">
-              <span>Сортировка:</span>
-              <select onChange={(event) => setSortMode(event.target.value as SortMode)} value={sortMode}>
-                <option value="default">По умолчанию</option>
-                <option value="name">По названию</option>
-                <option value="price">По цене</option>
-              </select>
+          <div className="shops-search-row">
+            <label className="shops-search-box">
+              <ShopIcon name="search" />
+              <input
+                aria-label="Поиск магазинов"
+                onChange={(event) => setShopQuery(event.target.value)}
+                placeholder="Поиск магазинов..."
+                value={shopQuery}
+              />
             </label>
           </div>
 
-          <div className="shops-stock-toolbar">
-            <label className="shops-search-box"><ShopIcon name="search" /><input aria-label="Поиск в ассортименте" placeholder="Найти на витрине…" value={stockQuery} onChange={e => setStockQuery(e.target.value)} /></label>
-            <select aria-label="Категория ассортимента" value={stockCategory} onChange={e => setStockCategory(e.target.value)}><option value="all">Все категории</option>{Object.entries(itemCategoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>
-            <span className="shops-stock-total" title="Сумма известных цен с учётом количества; товары без цены не включены">Оценка <CoinPrice value={totalPrice} /></span>
-          </div>
-          {stockDropActive ? <p role="status">Отпустите, чтобы добавить товар</p> : null}
-          <div className="shops-stock-table">
-
-
-            {sortedInventory.length ? (
-              sortedInventory.map((entry) => {
-                const liveItem = itemById.get(entry.itemId);
-                const effectivePrice = entry.priceMode === "manual" ? entry.manualPriceGp : liveItem ? itemPrice(liveItem) : entry.itemPriceGp;
-                return (
-                  <article className="shops-stock-row" key={entry.id}>
-
-                    <button
-                      className="shops-stock-product shops-stock-product-button"
-                      disabled={!liveItem&&!entry.itemSource?.startsWith("dndsu-")}
-                      onClick={() => {if(liveItem)handleOpenItemInfo(liveItem);else {setSelectedInfoItemId(entry.itemId);ensureCatalogItemDetail(entry.itemId);}}}
-                      title={liveItem ? "Открыть карточку предмета" : "Предмет не найден в каталоге"}
-                      type="button"
-                    >
-                      <ItemThumb category={entry.category} item={liveItem} />
-                      <span><strong>{liveItem?.name ?? entry.itemName}</strong><small>{itemSubtypeLabel(liveItem, entry.category)}</small></span>
-                    </button>
-                    <div className="shops-stock-price"><CoinPrice value={effectivePrice} /><small>за штуку</small></div>
-                    <details className="shops-stock-options"><summary>Цена и заметка{entry.priceMode === "manual" || entry.note ? " •" : ""}</summary>
-                      <label>Цена<select aria-label={`Цена: ${entry.itemName}`} onChange={event => updateInventoryItem(entry.id, {priceMode: event.target.value as "item" | "manual"})} value={entry.priceMode}><option value="item">Из каталога</option><option value="manual">Своя цена</option></select></label>
-                      {entry.priceMode === "manual" ? <label>В золотых монетах<input aria-label={`Своя цена в зм: ${entry.itemName}`} type="number" min={0} step="0.01" value={entry.manualPriceGp ?? ""} placeholder="Цена" onChange={event => updateInventoryItem(entry.id, {manualPriceGp: normalizeOptionalNumber(event.target.value)})} /></label> : null}
-                      <label>Заметка мастера<input aria-label={`Заметка: ${entry.itemName}`} onChange={event => updateInventoryItem(entry.id, {note: event.target.value})} placeholder="Особенности товара…" value={entry.note ?? ""} /></label>
-                    </details>
-                    <div className="shops-quantity-cell">
-                      <button aria-label={`Уменьшить количество: ${entry.itemName}`} disabled={(entry.quantity ?? 1) === 0} onClick={() => updateInventoryItem(entry.id, { quantity: Math.max(0, (entry.quantity ?? 1) - 1) })} type="button">
-                        −
-                      </button>
-                      <input
-                        min={0}
-                        onChange={(event) => updateInventoryItem(entry.id, { quantity: Math.max(0, Number.parseInt(event.target.value, 10) || 0) })}
-                        type="number"
-                        aria-label={`Количество: ${entry.itemName}`}
-                        value={entry.quantity ?? 1}
-                      />
-                      <button aria-label={`Увеличить количество: ${entry.itemName}`} onClick={() => updateInventoryItem(entry.id, { quantity: (entry.quantity ?? 1) + 1 })} type="button">
-                        +
-                      </button>
-                    </div>
-                    <button
-                      className="shops-delete-stock"
-                      onClick={() => updateDraft("inventory", draft.inventory.filter((item) => item.id !== entry.id))}
-                      title="Убрать товар"
-                      aria-label={`Убрать товар: ${entry.itemName}`}
-                      type="button"
-                    >
-                      <ShopIcon name="trash" />
-                    </button>
-                  </article>
-                );
-              })
+          <div className="shops-list">
+            {filteredShops.length ? (
+              filteredShops.map((shop) => (
+                <button
+                  key={shop.id}
+                  className={`shops-list-card ${shop.id === selectedShopId ? "active" : ""}`}
+                  aria-pressed={shop.id === selectedShopId}
+                  onClick={() => handleSelectShop(shop.id)}
+                  type="button"
+                >
+                  {shop.art?.url ? (
+                    <img
+                      className="shops-list-image"
+                      src={shop.art.url}
+                      alt=""
+                      loading="lazy"
+                    />
+                  ) : (
+                    <ShopThumb
+                      active={shop.id === selectedShopId}
+                      seed={shop.name}
+                    />
+                  )}
+                  <span className="shops-list-copy">
+                    <strong>{shop.name}</strong>
+                    <small>{shop.locationLabel || "Без локации"}</small>
+                    <small>Позиций: {shop.inventory.length}</small>
+                  </span>
+                </button>
+              ))
             ) : (
-              <div className={`shops-empty-state ${stockDropActive ? "drop-active" : ""}`}>
-                <strong>{draft.inventory.length ? "Товары не найдены" : "Витрина пуста"}</strong>
-                {draft.inventory.length ? <button type="button" className="shops-secondary-action" onClick={() => {setStockQuery(""); setStockCategory("all");}}>Сбросить поиск</button> : <span>Добавьте товары из каталога ниже.</span>}
+              <div className="shops-empty-state compact">
+                <strong>Магазины не найдены</strong>
+                <span>Смени поиск или создай новую лавку.</span>
               </div>
             )}
           </div>
 
-          {selectedShop ? (
-            <button className="shops-delete-shop" disabled={saving || imageBusy} onClick={() => void handleDeleteShop()} type="button">
-              Удалить магазин
+          <div className="shops-directory-foot">
+            Показано {filteredShops.length} из {campaign.shops.length} магазинов
+          </div>
+        </aside>
+
+        {imageBusy ? (
+          <p role="status">
+            Готовлю изображение магазина. Пожалуйста, дождись завершения…
+          </p>
+        ) : null}
+        <main
+          className="shops-panel shops-editor-panel"
+          {...(saving || imageBusy ? { inert: "" } : {})}
+        >
+          <div className="shops-editor-hero">
+            {shopImageUrl ? (
+              <button
+                className="shops-identity-image"
+                type="button"
+                aria-label="Открыть изображение магазина"
+                onClick={() =>
+                  setImageViewer({ src: shopImageUrl, alt: draft.name })
+                }
+              >
+                <img src={shopImageUrl} alt={draft.art?.alt || draft.name} />
+              </button>
+            ) : (
+              <ShopThumb active seed={draft.name || "shop"} />
+            )}
+            <div className="shops-editor-title">
+              <h2 className="shops-inplace-title">
+                <InPlaceText
+                  label="Название магазина"
+                  value={draft.name}
+                  editing={editingText && !saving && !imageBusy}
+                  onChange={(value) => updateDraft("name", value)}
+                  placeholder="Название магазина"
+                />
+              </h2>
+              <div className="shops-editor-meta">
+                <label className="shops-select-pill">
+                  <ShopIcon name="location" />
+                  <select
+                    disabled={!editingText}
+                    aria-label="Локация магазина"
+                    onChange={(event) =>
+                      updateDraft("locationId", event.target.value)
+                    }
+                    value={draft.locationId}
+                  >
+                    <option value="">Без локации</option>
+                    {campaign.locations.map((location) => (
+                      <option key={location.id} value={location.id}>
+                        {location.title}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </div>
+            <div className="shops-hero-actions">
+              <button
+                className="shops-secondary-action"
+                type="button"
+                onClick={() => setEditingText((v) => !v)}
+              >
+                {editingText ? "Завершить правку" : "Редактировать"}
+              </button>
+              <small role="status">
+                {dirty ? "Есть изменения" : "Сохранено"}
+              </small>
+              <button
+                className="shops-secondary-action"
+                disabled={saving || imageBusy || !dirty}
+                onClick={handleResetDraft}
+                type="button"
+              >
+                Отмена
+              </button>
+              <button
+                className="shops-primary-action"
+                disabled={saving || imageBusy || !dirty}
+                onClick={() => void handleSave()}
+                type="button"
+              >
+                {saving ? "Сохраняю..." : "Сохранить"}
+              </button>
+            </div>
+          </div>
+
+          {selectedInfoItemId && detailErrors[selectedInfoItemId] && (
+            <p role="alert">
+              {detailErrors[selectedInfoItemId]}{" "}
+              <button
+                onClick={() => ensureCatalogItemDetail(selectedInfoItemId)}
+              >
+                Повторить описание
+              </button>
+            </p>
+          )}
+          {notice || error || catalogError ? (
+            <div className="shops-status-stack">
+              {notice ? (
+                <div
+                  role="status"
+                  className="notes-status notes-status-success"
+                >
+                  {notice}
+                </div>
+              ) : null}
+              {error ? (
+                <div role="alert" className="notes-status notes-status-error">
+                  {error}
+                </div>
+              ) : null}
+              {catalogError ? (
+                <div className="notes-status notes-status-error">
+                  Каталог предметов недоступен: {catalogError}{" "}
+                  <button onClick={retryCatalog}>Повторить</button>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          <WorkspaceTabs
+            id="shop-workspace"
+            label="Разделы магазина"
+            value={shopSection}
+            onChange={setShopSection}
+            tabs={[
+              ["stock", "Ассортимент"],
+              ["description", "Описание"],
+              ["gm", "Мастеру"],
+              ["media", "Медиа"],
+              ["catalog", "Добавить товары"],
+            ]}
+          />
+          <section
+            role="tabpanel"
+            id="shop-workspace-panel-description"
+            aria-labelledby="shop-workspace-tab-description"
+            hidden={shopSection !== "description"}
+            tabIndex={0}
+            className="shops-inplace-description"
+          >
+            <h3>Описание для посетителей</h3>
+            <InPlaceText
+              label="Описание магазина"
+              value={draft.description}
+              editing={editingText && !saving && !imageBusy}
+              rich
+              multiline
+              onChange={(value) => updateDraft("description", value)}
+              placeholder="Интерьер, владелец и условия торговли…"
+            />
+          </section>
+          <section
+            role="tabpanel"
+            id="shop-workspace-panel-media"
+            aria-labelledby="shop-workspace-tab-media"
+            hidden={shopSection !== "media"}
+            tabIndex={0}
+          >
+            <section className="shops-image-details">
+              <h3>Изображение магазина</h3>
+              <section className="shops-art" aria-label="Изображение магазина">
+                {imagePreview ? (
+                  <button
+                    type="button"
+                    className="shops-cover"
+                    aria-label="Открыть предпросмотр изображения"
+                    onClick={() =>
+                      setImageViewer({
+                        src: imagePreview,
+                        alt: "Предпросмотр изображения магазина",
+                      })
+                    }
+                  >
+                    <img
+                      src={imagePreview}
+                      alt="Предпросмотр изображения магазина"
+                    />
+                    <span>Открыть предпросмотр ↗</span>
+                  </button>
+                ) : null}
+                <div className="shops-art-controls">
+                  <strong>
+                    {imagePreview
+                      ? "Новое изображение · предпросмотр"
+                      : "Изображение магазина"}
+                  </strong>
+                  <p>
+                    По описанию и ассортименту, с учётом количества товаров.
+                    Утверждённые варианты сохраняются в галерее.
+                  </p>
+                  <details>
+                    <summary>Пожелания к изображению</summary>
+                    <label>
+                      Атмосфера и стиль
+                      <textarea
+                        value={imageDirection}
+                        disabled={imageBusy}
+                        onChange={(e) => setImageDirection(e.target.value)}
+                        placeholder="Например: тёплый свет свечей, тесная лавка алхимика…"
+                      />
+                    </label>
+                  </details>
+                  {dirty || !selectedShop ? (
+                    <small>Сначала сохрани магазин и ассортимент.</small>
+                  ) : null}
+                  {imageProposal ? (
+                    <div className="shops-hero-actions">
+                      <button
+                        className="shops-primary-action"
+                        disabled={!imagePreview || imageBusy || dirty}
+                        onClick={() => void handleApplyImage()}
+                        type="button"
+                      >
+                        Использовать изображение
+                      </button>
+                      <button
+                        className="shops-secondary-action"
+                        disabled={imageBusy || saving || dirty || !selectedShop}
+                        onClick={() => void handleGenerateImage()}
+                        type="button"
+                      >
+                        Сгенерировать заново
+                      </button>
+                      <button
+                        className="shops-secondary-action"
+                        disabled={imageBusy}
+                        onClick={() => void handleRejectImage()}
+                        type="button"
+                      >
+                        Отклонить
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      className="shops-secondary-action"
+                      disabled={imageBusy || saving || dirty || !selectedShop}
+                      onClick={() => void handleGenerateImage()}
+                      type="button"
+                    >
+                      {imageBusy
+                        ? "Создаю изображение…"
+                        : shopImageUrl
+                          ? "Сгенерировать заново"
+                          : "Сгенерировать изображение"}
+                    </button>
+                  )}
+                  {imageBusy ? (
+                    <small role="status">
+                      Это может занять несколько минут. Дождись результата.
+                    </small>
+                  ) : null}
+                </div>
+              </section>
+            </section>
+
+            {draft.gallery.length > 0 ? (
+              <section className="shops-image-details shops-gallery">
+                <h3>Галерея · {draft.gallery.length}</h3>
+                <div className="shops-gallery-grid">
+                  {draft.gallery.map((image) => (
+                    <button
+                      key={image.url}
+                      type="button"
+                      aria-haspopup="dialog"
+                      aria-label={`Открыть: ${image.title || draft.name}`}
+                      onClick={() =>
+                        setImageViewer({
+                          src: image.url,
+                          alt: image.title || draft.name,
+                        })
+                      }
+                    >
+                      <img
+                        src={image.url}
+                        alt={image.title || draft.name}
+                        loading="lazy"
+                      />
+                      <span>{image.title || "Изображение магазина"}</span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ) : null}
+          </section>
+
+          <section
+            role="tabpanel"
+            id="shop-workspace-panel-gm"
+            aria-labelledby="shop-workspace-tab-gm"
+            hidden={shopSection !== "gm"}
+            tabIndex={0}
+            className="shops-gm-notes"
+          >
+            <h3>Скрытые находки и проверки</h3>
+            <InPlaceText
+              label="Секреты магазина"
+              value={draft.gmNotes}
+              editing={editingText && !saving && !imageBusy}
+              rich
+              multiline
+              onChange={(value) => updateDraft("gmNotes", value)}
+              placeholder="Секреты, проверки и особые условия…"
+            />
+            <p className="copy">
+              Только мастеру. Не используются для генерации изображения.
+            </p>
+          </section>
+
+          <section
+            role="tabpanel"
+            id="shop-workspace-panel-stock"
+            aria-labelledby="shop-workspace-tab-stock"
+            hidden={shopSection !== "stock"}
+            tabIndex={0}
+            className={`shops-stock-section ${stockDropActive ? "drop-active" : ""}`}
+            onDragLeave={(event) => {
+              if (
+                !event.currentTarget.contains(
+                  event.relatedTarget as Node | null,
+                )
+              )
+                setStockDropActive(false);
+            }}
+            onDragOver={handleStockDragOver}
+            onDrop={handleStockDrop}
+          >
+            <div className="shops-stock-head">
+              <h2>
+                Ассортимент <small>{draft.inventory.length}</small>
+              </h2>
+              <button
+                type="button"
+                className="shops-secondary-action"
+                onClick={() => {
+                  setShopSection("catalog");
+                  requestAnimationFrame(() =>
+                    document.getElementById("shop-catalog-search")?.focus(),
+                  );
+                }}
+              >
+                Добавить товары
+              </button>
+              <span className="shops-head-line" />
+              <label className="shops-sort-select">
+                <span>Сортировка:</span>
+                <select
+                  onChange={(event) =>
+                    setSortMode(event.target.value as SortMode)
+                  }
+                  value={sortMode}
+                >
+                  <option value="default">По умолчанию</option>
+                  <option value="name">По названию</option>
+                  <option value="price">По цене</option>
+                </select>
+              </label>
+            </div>
+
+            <div className="shops-stock-toolbar">
+              <label className="shops-search-box">
+                <ShopIcon name="search" />
+                <input
+                  aria-label="Поиск в ассортименте"
+                  placeholder="Найти на витрине…"
+                  value={stockQuery}
+                  onChange={(e) => setStockQuery(e.target.value)}
+                />
+              </label>
+              <select
+                aria-label="Категория ассортимента"
+                value={stockCategory}
+                onChange={(e) => setStockCategory(e.target.value)}
+              >
+                <option value="all">Все категории</option>
+                {Object.entries(itemCategoryLabels).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+              <span
+                className="shops-stock-total"
+                title="Сумма известных цен с учётом количества; товары без цены не включены"
+              >
+                Оценка <CoinPrice value={totalPrice} />
+              </span>
+            </div>
+            {stockDropActive ? (
+              <p role="status">Отпустите, чтобы добавить товар</p>
+            ) : null}
+            <div className="shops-stock-table">
+              {sortedInventory.length ? (
+                sortedInventory.map((entry) => {
+                  const liveItem = itemById.get(entry.itemId);
+                  const effectivePrice =
+                    entry.priceMode === "manual"
+                      ? entry.manualPriceGp
+                      : liveItem
+                        ? itemPrice(liveItem)
+                        : entry.itemPriceGp;
+                  return (
+                    <article className="shops-stock-row" key={entry.id}>
+                      <button
+                        className="shops-stock-product shops-stock-product-button"
+                        disabled={
+                          !liveItem && !entry.itemSource?.startsWith("dndsu-")
+                        }
+                        onClick={() => {
+                          if (liveItem) handleOpenItemInfo(liveItem);
+                          else {
+                            setSelectedInfoItemId(entry.itemId);
+                            ensureCatalogItemDetail(entry.itemId);
+                          }
+                        }}
+                        title={
+                          liveItem
+                            ? "Открыть карточку предмета"
+                            : "Предмет не найден в каталоге"
+                        }
+                        type="button"
+                      >
+                        <ItemThumb category={entry.category} item={liveItem} />
+                        <span>
+                          <strong>{liveItem?.name ?? entry.itemName}</strong>
+                          <small>
+                            {itemSubtypeLabel(liveItem, entry.category)}
+                          </small>
+                        </span>
+                      </button>
+                      <div className="shops-stock-price">
+                        <CoinPrice value={effectivePrice} />
+                        <small>за штуку</small>
+                      </div>
+                      <details className="shops-stock-options">
+                        <summary>
+                          Цена и заметка
+                          {entry.priceMode === "manual" || entry.note
+                            ? " •"
+                            : ""}
+                        </summary>
+                        <label>
+                          Цена
+                          <select
+                            aria-label={`Цена: ${entry.itemName}`}
+                            onChange={(event) =>
+                              updateInventoryItem(entry.id, {
+                                priceMode: event.target.value as
+                                  "item" | "manual",
+                              })
+                            }
+                            value={entry.priceMode}
+                          >
+                            <option value="item">Из каталога</option>
+                            <option value="manual">Своя цена</option>
+                          </select>
+                        </label>
+                        {entry.priceMode === "manual" ? (
+                          <label>
+                            В золотых монетах
+                            <input
+                              aria-label={`Своя цена в зм: ${entry.itemName}`}
+                              type="number"
+                              min={0}
+                              step="0.01"
+                              value={entry.manualPriceGp ?? ""}
+                              placeholder="Цена"
+                              onChange={(event) =>
+                                updateInventoryItem(entry.id, {
+                                  manualPriceGp: normalizeOptionalNumber(
+                                    event.target.value,
+                                  ),
+                                })
+                              }
+                            />
+                          </label>
+                        ) : null}
+                        <label>
+                          Заметка мастера
+                          <input
+                            aria-label={`Заметка: ${entry.itemName}`}
+                            onChange={(event) =>
+                              updateInventoryItem(entry.id, {
+                                note: event.target.value,
+                              })
+                            }
+                            placeholder="Особенности товара…"
+                            value={entry.note ?? ""}
+                          />
+                        </label>
+                      </details>
+                      <div className="shops-quantity-cell">
+                        <button
+                          aria-label={`Уменьшить количество: ${entry.itemName}`}
+                          disabled={(entry.quantity ?? 1) === 0}
+                          onClick={() =>
+                            updateInventoryItem(entry.id, {
+                              quantity: Math.max(0, (entry.quantity ?? 1) - 1),
+                            })
+                          }
+                          type="button"
+                        >
+                          −
+                        </button>
+                        <input
+                          min={0}
+                          onChange={(event) =>
+                            updateInventoryItem(entry.id, {
+                              quantity: Math.max(
+                                0,
+                                Number.parseInt(event.target.value, 10) || 0,
+                              ),
+                            })
+                          }
+                          type="number"
+                          aria-label={`Количество: ${entry.itemName}`}
+                          value={entry.quantity ?? 1}
+                        />
+                        <button
+                          aria-label={`Увеличить количество: ${entry.itemName}`}
+                          onClick={() =>
+                            updateInventoryItem(entry.id, {
+                              quantity: (entry.quantity ?? 1) + 1,
+                            })
+                          }
+                          type="button"
+                        >
+                          +
+                        </button>
+                      </div>
+                      <button
+                        className="shops-delete-stock"
+                        onClick={() =>
+                          updateDraft(
+                            "inventory",
+                            draft.inventory.filter(
+                              (item) => item.id !== entry.id,
+                            ),
+                          )
+                        }
+                        title="Убрать товар"
+                        aria-label={`Убрать товар: ${entry.itemName}`}
+                        type="button"
+                      >
+                        <ShopIcon name="trash" />
+                      </button>
+                    </article>
+                  );
+                })
+              ) : (
+                <div
+                  className={`shops-empty-state ${stockDropActive ? "drop-active" : ""}`}
+                >
+                  <strong>
+                    {draft.inventory.length
+                      ? "Товары не найдены"
+                      : "Витрина пуста"}
+                  </strong>
+                  {draft.inventory.length ? (
+                    <button
+                      type="button"
+                      className="shops-secondary-action"
+                      onClick={() => {
+                        setStockQuery("");
+                        setStockCategory("all");
+                      }}
+                    >
+                      Сбросить поиск
+                    </button>
+                  ) : (
+                    <span>Откройте вкладку «Добавить товары».</span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {selectedShop ? (
+              <button
+                className="shops-delete-shop"
+                disabled={saving || imageBusy}
+                onClick={() => void handleDeleteShop()}
+                type="button"
+              >
+                Удалить магазин
+              </button>
+            ) : null}
+          </section>
+        </main>
+
+        <aside
+          role="tabpanel"
+          id="shop-workspace-panel-catalog"
+          aria-labelledby="shop-workspace-tab-catalog"
+          hidden={shopSection !== "catalog"}
+          tabIndex={0}
+          className="shops-panel shops-catalog-panel"
+          {...(saving || imageBusy ? { inert: "" } : {})}
+        >
+          <div className="shops-catalog-head">
+            <div className="shops-title-row">
+              <span className="shops-title-icon">
+                <ShopIcon name="box" />
+              </span>
+              <h2>Каталог товаров</h2>
+            </div>
+          </div>
+
+          <label className="shops-search-box">
+            <ShopIcon name="search" />
+            <input
+              id="shop-catalog-search"
+              aria-label="Поиск товаров"
+              onChange={(event) => setItemQuery(event.target.value)}
+              placeholder="Поиск в каталоге..."
+              value={itemQuery}
+            />
+          </label>
+
+          <details className="shops-filter-details">
+            <summary>
+              Фильтры
+              {[
+                categoryFilter,
+                sourceFilter,
+                rarityFilter,
+                armorFilter,
+                priceFilter,
+              ].some((value) => value !== "all")
+                ? ` · ${[categoryFilter, sourceFilter, rarityFilter, armorFilter, priceFilter].filter((value) => value !== "all").length}`
+                : ""}
+            </summary>
+            <div className="shops-catalog-filters">
+              <label>
+                Категория
+                <select
+                  value={categoryFilter}
+                  onChange={(e) =>
+                    setCategoryFilter(e.target.value as CatalogCategoryFilter)
+                  }
+                >
+                  <option value="all">Все категории</option>
+                  {Object.entries(itemCategoryLabels).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Источник
+                <select
+                  value={sourceFilter}
+                  onChange={(e) => setSourceFilter(e.target.value)}
+                >
+                  <option value="all">Все источники</option>
+                  <option value="builtin">Базовые предметы</option>
+                  <option value="custom">Мои предметы</option>
+                  <option value="dndsu-equipment">DnD.su · снаряжение</option>
+                  <option value="dndsu-magic">DnD.su · магические</option>
+                </select>
+              </label>
+              <label>
+                Редкость
+                <select
+                  value={rarityFilter}
+                  onChange={(e) => setRarityFilter(e.target.value)}
+                >
+                  <option value="all">Любая редкость</option>
+                  {rarities.map((value) => (
+                    <option key={value}>{value}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Цена
+                <select
+                  value={priceFilter}
+                  onChange={(e) => setPriceFilter(e.target.value)}
+                >
+                  <option value="all">Любая цена</option>
+                  <option value="under-10">До 10 зм</option>
+                  <option value="10-100">10–100 зм</option>
+                  <option value="100-500">Больше 100–500 зм</option>
+                  <option value="500-plus">Больше 500 зм</option>
+                  <option value="unknown">Без цены</option>
+                </select>
+              </label>
+              {categoryFilter === "armor" ? (
+                <label>
+                  Тип брони
+                  <select
+                    value={armorFilter}
+                    onChange={(e) => setArmorFilter(e.target.value)}
+                  >
+                    <option value="all">Любой тип</option>
+                    <option value="light">Лёгкая</option>
+                    <option value="medium">Средняя</option>
+                    <option value="heavy">Тяжёлая</option>
+                    <option value="shield">Щиты</option>
+                  </select>
+                </label>
+              ) : null}
+              <label>
+                Порядок
+                <select
+                  value={catalogSort}
+                  onChange={(e) => setCatalogSort(e.target.value)}
+                >
+                  <option value="name">По названию</option>
+                  <option value="price-asc">Сначала дешевле</option>
+                  <option value="price-desc">Сначала дороже</option>
+                </select>
+              </label>
+              <button
+                type="button"
+                className="shops-secondary-action"
+                onClick={() => {
+                  setItemQuery("");
+                  setCategoryFilter("all");
+                  setSourceFilter("all");
+                  setRarityFilter("all");
+                  setArmorFilter("all");
+                  setPriceFilter("all");
+                }}
+              >
+                Сбросить фильтры
+              </button>
+            </div>
+          </details>
+          <div
+            className={`shops-catalog-drop ${stockDropActive ? "drop-active" : ""}`}
+            onDragOver={handleStockDragOver}
+            onDrop={handleStockDrop}
+            onDragLeave={(event) => {
+              if (
+                !event.currentTarget.contains(
+                  event.relatedTarget as Node | null,
+                )
+              )
+                setStockDropActive(false);
+            }}
+          >
+            <strong>
+              {stockDropActive
+                ? "Отпусти товар здесь"
+                : `Позиций в ассортименте: ${draft.inventory.length}`}
+            </strong>
+            <span>Перетащи сюда товар из каталога или нажми «Добавить»</span>
+            <button
+              type="button"
+              className="shops-primary-action"
+              disabled={!dirty || saving || imageBusy}
+              onClick={() => void handleSave()}
+            >
+              Сохранить ассортимент
+            </button>
+          </div>
+          <div className="shops-picker-list">
+            {filteredItems.slice(0, visibleCount).map((item) => (
+              <article
+                className={`shops-picker-item ${draggingItemId === item.id ? "dragging" : ""}`}
+                draggable
+                key={item.id}
+                onDragEnd={handleCatalogDragEnd}
+                onDragStart={(event) => handleCatalogDragStart(event, item)}
+              >
+                <button
+                  className="shops-picker-info"
+                  onClick={() => handleOpenItemInfo(item)}
+                  type="button"
+                >
+                  <ItemThumb item={item} />
+                  <span className="shops-picker-copy">
+                    <strong>{item.name}</strong>
+                    <small>
+                      {itemSubtypeLabel(item)} · {item.rarity || "Без редкости"}
+                    </small>
+                    <small>
+                      {item.buyPriceLabel || item.sellPriceLabel ? (
+                        itemPriceLabel(item)
+                      ) : (
+                        <CoinPrice value={itemPrice(item)} />
+                      )}
+                    </small>
+                  </span>
+                </button>
+                <button
+                  className="shops-picker-add"
+                  onClick={() => handleAddItem(item)}
+                  title={`Добавить ${item.name} в магазин`}
+                  aria-label={`Добавить ${item.name}`}
+                  type="button"
+                >
+                  {draft.inventory.some((entry) => entry.itemId === item.id)
+                    ? "+1"
+                    : "Добавить"}
+                </button>
+              </article>
+            ))}
+          </div>
+
+          {!filteredItems.length ? (
+            <p role="status">
+              Товаров не найдено. Измени запрос или сбрось фильтры.
+            </p>
+          ) : null}
+          <div className="shops-catalog-foot" aria-live="polite">
+            {catalogLoading
+              ? "Загружаю внешний каталог…"
+              : `Показано ${Math.min(visibleCount, filteredItems.length)} · внешний каталог ${catalogTotal} товаров`}
+          </div>
+          {visibleCount < filteredItems.length || hasMore ? (
+            <button
+              className="shops-secondary-action"
+              type="button"
+              disabled={catalogLoading}
+              onClick={() => {
+                setVisibleCount((count) => count + 48);
+                if (hasMore) void loadMore();
+              }}
+            >
+              Показать ещё 48
             </button>
           ) : null}
-        </section>
-      </main>
-
-      <aside className="shops-panel shops-catalog-panel" {...((saving || imageBusy) ? { inert: "" } : {})}>
-        <div className="shops-catalog-head">
-          <div className="shops-title-row">
-            <span className="shops-title-icon">
-              <ShopIcon name="box" />
-            </span>
-            <h2>Каталог товаров</h2>
-          </div>
-        </div>
-
-        <label className="shops-search-box">
-          <ShopIcon name="search" />
-          <input id="shop-catalog-search" aria-label="Поиск товаров" onChange={(event) => setItemQuery(event.target.value)} placeholder="Поиск в каталоге..." value={itemQuery} />
-        </label>
-
-        <details className="shops-filter-details"><summary>Фильтры{[categoryFilter,sourceFilter,rarityFilter,armorFilter,priceFilter].some(value => value !== "all") ? ` · ${[categoryFilter,sourceFilter,rarityFilter,armorFilter,priceFilter].filter(value => value !== "all").length}` : ""}</summary><div className="shops-catalog-filters">
-          <label>Категория<select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value as CatalogCategoryFilter)}>
-            <option value="all">Все категории</option>{Object.entries(itemCategoryLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-          </select></label>
-          <label>Источник<select value={sourceFilter} onChange={e => setSourceFilter(e.target.value)}>
-            <option value="all">Все источники</option><option value="builtin">Базовые предметы</option><option value="custom">Мои предметы</option><option value="dndsu-equipment">DnD.su · снаряжение</option><option value="dndsu-magic">DnD.su · магические</option>
-          </select></label>
-          <label>Редкость<select value={rarityFilter} onChange={e => setRarityFilter(e.target.value)}>
-            <option value="all">Любая редкость</option>{rarities.map(value => <option key={value}>{value}</option>)}
-          </select></label>
-          <label>Цена<select value={priceFilter} onChange={e => setPriceFilter(e.target.value)}>
-            <option value="all">Любая цена</option><option value="under-10">До 10 зм</option><option value="10-100">10–100 зм</option><option value="100-500">Больше 100–500 зм</option><option value="500-plus">Больше 500 зм</option><option value="unknown">Без цены</option>
-          </select></label>
-          {categoryFilter === "armor" ? <label>Тип брони<select value={armorFilter} onChange={e => setArmorFilter(e.target.value)}>
-            <option value="all">Любой тип</option><option value="light">Лёгкая</option><option value="medium">Средняя</option><option value="heavy">Тяжёлая</option><option value="shield">Щиты</option>
-          </select></label> : null}
-          <label>Порядок<select value={catalogSort} onChange={e => setCatalogSort(e.target.value)}><option value="name">По названию</option><option value="price-asc">Сначала дешевле</option><option value="price-desc">Сначала дороже</option></select></label>
-          <button type="button" className="shops-secondary-action" onClick={() => { setItemQuery(""); setCategoryFilter("all"); setSourceFilter("all"); setRarityFilter("all"); setArmorFilter("all"); setPriceFilter("all"); }}>Сбросить фильтры</button>
-        </div>
-
-        </details>
-        <div className={`shops-catalog-drop ${stockDropActive ? "drop-active" : ""}`}
-          onDragOver={handleStockDragOver} onDrop={handleStockDrop}
-          onDragLeave={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setStockDropActive(false); }}>
-          <strong>{stockDropActive ? "Отпусти товар здесь" : `Позиций в ассортименте: ${draft.inventory.length}`}</strong>
-          <span>Перетащи сюда товар из каталога или нажми «Добавить»</span>
-          <button type="button" className="shops-primary-action" disabled={!dirty || saving || imageBusy} onClick={() => void handleSave()}>Сохранить ассортимент</button>
-        </div>
-        <div className="shops-picker-list">
-          {filteredItems.slice(0, visibleCount).map((item) => (
-            <article
-              className={`shops-picker-item ${draggingItemId === item.id ? "dragging" : ""}`}
-              draggable
-              key={item.id}
-              onDragEnd={handleCatalogDragEnd}
-              onDragStart={(event) => handleCatalogDragStart(event, item)}
-            >
-              <button className="shops-picker-info" onClick={() => handleOpenItemInfo(item)} type="button">
-                <ItemThumb item={item} />
-                <span className="shops-picker-copy">
-                  <strong>{item.name}</strong>
-                  <small>{itemSubtypeLabel(item)} · {item.rarity || "Без редкости"}</small>
-                  <small>{item.buyPriceLabel || item.sellPriceLabel ? itemPriceLabel(item) : <CoinPrice value={itemPrice(item)} />}</small>
-                </span>
-              </button>
-              <button className="shops-picker-add" onClick={() => handleAddItem(item)} title={`Добавить ${item.name} в магазин`} aria-label={`Добавить ${item.name}`} type="button">
-                {draft.inventory.some(entry => entry.itemId === item.id) ? "+1" : "Добавить"}
-              </button>
-            </article>
-          ))}
-        </div>
-
-        {!filteredItems.length ? <p role="status">Товаров не найдено. Измени запрос или сбрось фильтры.</p> : null}
-        <div className="shops-catalog-foot" aria-live="polite">{catalogLoading ? "Загружаю внешний каталог…" : `Показано ${Math.min(visibleCount, filteredItems.length)} · внешний каталог ${catalogTotal} товаров`}</div>
-        {visibleCount < filteredItems.length || hasMore ? <button className="shops-secondary-action" type="button" disabled={catalogLoading} onClick={() => {setVisibleCount(count => count + 48);if(hasMore)void loadMore();}}>Показать ещё 48</button> : null}
-      </aside>
-      {imageViewer ? <ShopImageViewer src={imageViewer.src} alt={imageViewer.alt} onClose={() => setImageViewer(null)} /> : null}
-      {selectedInfoItem ? (
-        <ItemDetailModal
-          item={selectedInfoItem}
-          detailError={detailErrors[selectedInfoItem.id]} onRetry={()=>ensureCatalogItemDetail(selectedInfoItem.id)}
-          isLoadingDetail={loadingCatalogItemIds.includes(selectedInfoItem.id)}
-          onClose={() => setSelectedInfoItemId("")}
-        />
-      ) : null}
-    </div></fieldset>
+        </aside>
+        {imageViewer ? (
+          <ShopImageViewer
+            src={imageViewer.src}
+            alt={imageViewer.alt}
+            onClose={() => setImageViewer(null)}
+          />
+        ) : null}
+        {selectedInfoItem ? (
+          <ItemDetailModal
+            item={selectedInfoItem}
+            detailError={detailErrors[selectedInfoItem.id]}
+            onRetry={() => ensureCatalogItemDetail(selectedInfoItem.id)}
+            isLoadingDetail={loadingCatalogItemIds.includes(
+              selectedInfoItem.id,
+            )}
+            onClose={() => setSelectedInfoItemId("")}
+          />
+        ) : null}
+      </div>
+    </fieldset>
   );
 }

@@ -61,47 +61,6 @@
 .creature-tags p {
   overflow-wrap: anywhere;
 }
-.inplace-text {
-  min-width: 0;
-  outline: 0;
-  border-radius: 4px;
-  overflow-wrap: anywhere;
-  white-space: pre-wrap;
-  line-height: inherit;
-  min-height: 1.5em;
-  color: inherit;
-}
-.inplace-text:empty:before {
-  content: attr(data-placeholder);
-  color: var(--text-muted);
-  font-weight: 400;
-  font-size: 13px;
-}
-.inplace-text[data-editing] {
-  outline: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent);
-  outline-offset: 3px;
-  cursor: text;
-}
-.inplace-text[data-editing]:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-}
-.inplace-text.formatted-text {
-  white-space: normal;
-}
-.inplace-text.formatted-text > p {
-  margin: 0 0 12px;
-}
-.inplace-text.formatted-text > p:last-child {
-  margin-bottom: 0;
-}
-.inplace-text .mention {
-  font: inherit;
-  cursor: pointer;
-}
-.inplace-text[data-editing] .mention {
-  cursor: default;
-}
 .creature-select {
   display: block;
   width: 100%;
@@ -717,59 +676,6 @@
 .creature-draft-menu > div {
   max-height: 60dvh;
   overflow: auto;
-}
-.inplace-wiki-picker {
-  position: fixed;
-  z-index: 1400;
-  width: min(320px, calc(100vw - 16px));
-  max-height: calc(100dvh - 16px);
-  overflow: auto;
-  background: var(--surface, #222733);
-  color: var(--text, #edf0f5);
-  border: 1px solid var(--line, #424854);
-  border-radius: 10px;
-  padding: 12px;
-  box-shadow: 0 12px 36px #0006;
-  font:
-    13px/1.5 Inter,
-    "Segoe UI",
-    sans-serif;
-}
-.inplace-wiki-picker header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-.inplace-wiki-picker header button {
-  min-width: 32px;
-  min-height: 32px;
-}
-.inplace-wiki-results {
-  display: grid;
-  gap: 4px;
-  max-height: 230px;
-  overflow: auto;
-  margin-top: 8px;
-}
-.inplace-wiki-results button {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  text-align: left;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: inherit;
-  padding: 9px 6px;
-  min-width: 0;
-}
-.inplace-wiki-results button:hover {
-  background: #ffffff0a;
-}
-.inplace-wiki-results small {
-  color: var(--text-muted);
-  flex-shrink: 0;
 }
 .creature-entry .formatted-text strong {
   color: inherit;

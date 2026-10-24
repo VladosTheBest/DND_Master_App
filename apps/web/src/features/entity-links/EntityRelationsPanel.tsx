@@ -32,8 +32,8 @@ export function EntityRelationsPanel(props: Props) {
   );
 }
 function Relations({
-  inlineEdit = false,
-  compact = false,
+  inlineEdit = true,
+  compact = true,
   campaignId,
   ownerId,
   entity,

@@ -1,0 +1,10 @@
+{
+  "noteSaveReload": true,
+  "eventSceneRetained": true,
+  "eventTwoLinesRetained": true,
+  "eventOutcomeRetained": true,
+  "eventLootRetained": true,
+  "shopTextSaveReload": true,
+  "shopSecretsSaveReload": true,
+  "shopQuantitySaveReload": true
+}

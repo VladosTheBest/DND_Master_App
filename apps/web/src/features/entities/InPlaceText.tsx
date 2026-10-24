@@ -1,3 +1,4 @@
+import "./inplace-text.css";
 import { InPlaceWikiPicker } from "./InPlaceWikiPicker";
 import { insertEditableWiki } from "./inplace-wiki";
 import { sanitizePlayerFacingHTML } from "../../player-facing-rich";

@@ -11,6 +11,7 @@ import "./app.css";
 import "./styles/fantasy-theme.css";
 import "./styles/workspace.css";
 import "./styles/product-design.css";
+import "./styles/workspace-polish.css";
 
 installWorkspaceLinks();
 
