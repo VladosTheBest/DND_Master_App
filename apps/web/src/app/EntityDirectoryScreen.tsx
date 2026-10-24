@@ -74,7 +74,7 @@ export function EntityDirectoryScreen({
   const searchInputRef = usePageSearchHotkey<HTMLInputElement>();
 
   return (
-    <div className={`stack wide${activeModule==="locations"?" location-directory":""}`}>
+    <div className={`stack wide${activeModule==="locations"||activeModule==="npcs"?" location-directory":""}`}>
       <section className="card section-card directory-screen">
         <div className="directory-head">
           <div>
@@ -181,8 +181,8 @@ export function EntityDirectoryScreen({
                           <strong>{entity.title}</strong>
                           <span className={badge()}>{entity.kind==="location" ? ({City:"Город",Region:"Регион",Dungeon:"Подземелье",POI:"Точка интереса",Site:"Место"} as Record<string,string>)[entity.category]||"Место" : kindTitle[entity.kind]}</span>
                         </span>
-                        {entity.kind!=="location"&&<small>{entity.subtitle}</small>}
-                        <p>{truncateInlineText(entity.summary&&entity.summary!=="Описание пока не заполнено."?entity.summary:entity.subtitle||"Описание пока не добавлено", 150)}</p>{entity.kind!=="location"&&<small>{({location:"Открыть место и связи",npc:"Открыть НПС и связи",player:"Открыть персонажа и лист",monster:"Открыть характеристики",quest:"Продолжить квест",lore:"Открыть заметку"})[entity.kind]}</small>}
+                        {entity.kind!=="location"&&entity.kind!=="npc"&&<small>{entity.subtitle}</small>}
+                        <p>{truncateInlineText(entity.summary&&entity.summary!=="Описание пока не заполнено."?entity.summary:entity.subtitle||"Описание пока не добавлено", 150)}</p>{entity.kind!=="location"&&entity.kind!=="npc"&&<small>{({location:"Открыть место и связи",npc:"Открыть НПС и связи",player:"Открыть персонажа и лист",monster:"Открыть характеристики",quest:"Продолжить квест",lore:"Открыть заметку"})[entity.kind]}</small>}
                       </button>
                       {entity.kind==="location"&&<a className="ghost directory-map-link" href={workspaceURL({campaignId,section:"maps",view:"new",context:JSON.stringify({locationId:entity.id})})}>Карта или сцена места →</a>}
                     </article>

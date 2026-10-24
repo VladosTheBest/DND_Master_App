@@ -217,13 +217,13 @@ export function BestiaryPageContainer({
   }
 
   return (
-    <div className="stack wide">
+    <div className="stack wide location-directory creature-directory">
       <section className="card section-card directory-screen">
         <div className="directory-head">
           <div>
             <p className="eyebrow">Монстры кампании</p>
-            <h2>Выбери запись</h2>
-            <p className="copy">Сначала показываю весь список импортированных монстров. Когда выберешь запись, здесь откроется полноценная страница монстра.</p>
+            <h1>Монстры кампании</h1>
+            <p className="copy">Характеристики, действия и заметки ваших существ.</p>
           </div>
           <div className="actions">
             <button className="ghost" onClick={onOpenDirectory} type="button">

@@ -110,7 +110,7 @@ export function useEntityEditorController({
   useLayoutEffect(() => {
     if (entityModalOpen) baseline.current = JSON.stringify({ entityForm, draftPrompt });
   }, [entityModalOpen]);
-  const hasUnsavedEntityChanges = () => entityArtUploading || Boolean(galleryUploadKey) || JSON.stringify({ entityForm, draftPrompt }) !== baseline.current;
+  const hasUnsavedEntityChanges = () => entityArtUploading || Boolean(galleryUploadKey) || playerCardFormattingIndex!==null || JSON.stringify({ entityForm, draftPrompt }) !== baseline.current;
 
   const baseForm = useRef<CreateEntityInput|null>(entityForm);
   const [conflict, setConflict] = useState<KnowledgeEntity | null>(null);
@@ -574,7 +574,7 @@ export function useEntityEditorController({
 
       return {
         ...current,
-        rewardProfile: updater(current.rewardProfile ?? createEmptyMonsterRewardProfile())
+        rewardProfile: updater(current.rewardProfile ?? {...createEmptyMonsterRewardProfile(),loot:[]})
       };
     });
   };

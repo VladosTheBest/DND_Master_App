@@ -3,6 +3,7 @@ import type { PlayerFacingCardsController } from "./usePlayerFacingCards";
 
 export function PlayerFacingController({
   inlineTargetId,
+  onEditInPlace,
   controller,
   ownerId,
   campaignId,
@@ -10,6 +11,7 @@ export function PlayerFacingController({
   onClose
 }: {
   inlineTargetId?:string;
+  onEditInPlace?:()=>void;
   controller: PlayerFacingCardsController;
   ownerId: string;
   campaignId: string;
@@ -53,7 +55,7 @@ export function PlayerFacingController({
       onGenerate={generatePlayerFacingCardFromModal}
       onCancelEdit={cancelPlayerFacingEditMode}
       onClose={onClose}
-      onEnterEdit={enterPlayerFacingEditMode}
+      onEnterEdit={onEditInPlace||enterPlayerFacingEditMode}
       onSave={savePlayerFacingCardFromModal}
       saving={playerFacingModalSaving}
       title={playerFacingView.title}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { confirmAction } from "./confirm-action";
 
 export const workspaceSections = ["dashboard","offline","combat","locations","players","npcs","monsters","quests","notes","events","shops","items","sessions","rules","maps","chat"] as const;
@@ -40,7 +40,7 @@ export function useWorkspaceListState<T extends string|number|boolean|null>(key:
 const guards=new Map<object,string>();
 export async function allowWorkspaceNavigation(){return !guards.size||await confirmAction([...guards.values()][0]);}
 export function useWorkspaceGuard(dirty:boolean,message="Есть несохранённые изменения. Перейти? Локальная копия останется доступна для восстановления.") {
-  useEffect(()=>{if(!dirty)return;const key={};guards.set(key,message);return()=>{guards.delete(key);};},[dirty,message]);
+  useLayoutEffect(()=>{if(!dirty)return;const key={};guards.set(key,message);return()=>{guards.delete(key);};},[dirty,message]);
 }
 const eventName="workspace-navigation";
 let committedIndex=0;

@@ -1,0 +1,8 @@
+{
+  "hp": true,
+  "ability": true,
+  "bold": true,
+  "wiki": true,
+  "appendedText": true,
+  "untouchedActions": true
+}

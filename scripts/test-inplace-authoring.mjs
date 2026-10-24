@@ -1,0 +1,30 @@
+import assert from 'node:assert/strict';
+import {build} from 'esbuild';
+const load=async path=>{const result=await build({entryPoints:[path],bundle:true,write:false,format:'esm',platform:'node'});return import('data:text/javascript;base64,'+Buffer.from(result.outputFiles[0].text).toString('base64'));};
+const {editableMarkdown}=await load('apps/web/src/features/entities/inplace-markdown.ts');
+const text=value=>({nodeType:3,textContent:value});
+function element(tag,children=[],attrs={}){
+ const node={nodeType:1,tagName:tag.toUpperCase(),childNodes:children,getAttribute:key=>attrs[key]??null};
+ Object.defineProperty(node,'textContent',{get:()=>children.map(c=>c.textContent).join('')});
+ Object.defineProperty(node,'children',{get:()=>children.filter(c=>c.nodeType===1)});
+ node.querySelectorAll=selector=>children.flatMap(c=>c.nodeType===1?[...(c.tagName.toLowerCase()===selector?[c]:[]),...c.querySelectorAll(selector)]:[]);
+ node.querySelector=selector=>node.querySelectorAll(selector)[0]||null;
+ return node;
+}
+const root=children=>element('div',children);
+assert.equal(editableMarkdown(root([element('p',[element('strong',[text('Important')]),text(' and '),element('span',[text('Alias')],{'data-wiki':'[[Original target|Alias]]'}),text(' appended')])])),'**Important** and [[Original target|Alias]] appended');
+assert.equal(editableMarkdown(root([element('h2',[text('Notes')]),element('ul',[element('li',[text('One')]),element('li',[text('Two')])])])),'## Notes\n\n\n- One\n- Two');
+assert.equal(editableMarkdown(root([element('p',[text('<script>alert(1)</script> *literal*')])])),'\\<script\\>alert(1)\\</script\\> \\*literal\\*');
+assert.equal(editableMarkdown(root([element('pre',[element('code',[text('a < b\n*literal*')])])])),'```\na < b\n*literal*\n```');
+assert.equal(editableMarkdown(root([element('ol',[element('li',[text('Third')])],{start:'3'})])),'3. Third');
+assert.equal(editableMarkdown(root([element('table',[element('tr',[element('th',[text('A')]),element('th',[text('B')])]),element('tr',[element('td',[text('x|y')]),element('td',[text('z')])])])])),'| A | B |\n| --- | --- |\n| x\\|y | z |');
+assert.equal(editableMarkdown(root([element('p',[element('strong',[]),element('strong',[element('span',[text('Alias')],{'data-wiki':'[[Target|Alias]]'})]),text(' following')])])), '**[[Target|Alias]]** following');
+const {sanitizeStatEntries}=await load('apps/web/src/features/entities/stat-entry-input.ts');
+assert.equal(editableMarkdown(root([element('p',[element('a',[text('Source')],{href:'https://example.com/a(b)',title:'Rules'}),text(' '),element('img',[],{src:'/uploads/map.png',alt:'Map'})])])), '[Source](<https://example.com/a(b)> "Rules") ![Map](</uploads/map.png>)');
+const foundry={version:1,activityType:'attack',source:'opaque imported mechanics'};
+const original={name:' Bite ',description:' Text ',damage:' 1d8 ',foundry};
+assert.deepEqual(sanitizeStatEntries([original])[0],{...original,name:'Bite',description:'Text',damage:'1d8',subtitle:undefined,toHit:undefined,saveDc:undefined});
+assert.deepEqual(original,{name:' Bite ',description:' Text ',damage:' 1d8 ',foundry});
+assert.equal(sanitizeStatEntries([{name:'',description:''}]).length,0);
+assert.equal(sanitizeStatEntries([{name:'',description:'',foundry}])[0].foundry,foundry);
+console.log('Passed: rich text, wiki target/alias, headings, lists, literal HTML, code, tables; imported mechanics and input immutability.');

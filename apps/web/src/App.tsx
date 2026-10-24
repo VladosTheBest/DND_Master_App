@@ -1,3 +1,4 @@
+import {sanitizeStatEntries} from "./features/entities/stat-entry-input";
 import type {EntityEditorNavigation} from "./features/entities/entity.types";
 import {CombatPlanConflictReview} from "./features/prepared-combat/CombatPlanConflictReview";
 import {RecordIllustration} from "./features/entity-images/RecordIllustration";
@@ -155,6 +156,7 @@ import {
   sanitizePreparedCombatPlans,
   targetThresholdValue
 } from "./features/combat/combat.utils";
+const CreatureWorkspace = lazy(()=>import("./features/entities/CreatureWorkspace").then(module=>({default:module.CreatureWorkspace})));
 const EntityEditorModal = lazy(()=>import("./features/entities/EntityEditorModal").then(module=>({default:module.EntityEditorModal})));
 import { EntityDetailsPage, EntityDetailsRenderer } from "./features/entities/EntityDetailsPage";
 import "./features/entities/entities.css";
@@ -736,13 +738,11 @@ const entityToForm = (entity: KnowledgeEntity): CreateEntityInput => {
     importance: "importance" in entity ? entity.importance : undefined,
     locationId: "locationId" in entity ? entity.locationId : undefined,
     statBlock:
-      entity.kind === "player" || entity.kind === "npc" || entity.kind === "monster"
-        ? cloneNpcStatBlock(entity.statBlock) ?? createEmptyNpcStatBlock()
-        : undefined,
+      entity.kind === "player" ? cloneNpcStatBlock(entity.statBlock) ?? createEmptyNpcStatBlock()
+        : entity.kind === "npc" || entity.kind === "monster" ? cloneNpcStatBlock(entity.statBlock) : undefined,
     rewardProfile:
-      entity.kind === "npc" || entity.kind === "monster" || entity.kind === "quest"
-        ? cloneMonsterRewardProfile(normalizeRewardProfileForClient(entity.rewardProfile)) ?? createEmptyMonsterRewardProfile()
-        : undefined,
+      entity.kind === "npc" || entity.kind === "monster" ? cloneMonsterRewardProfile(normalizeRewardProfileForClient(entity.rewardProfile))
+        : entity.kind === "quest" ? cloneMonsterRewardProfile(normalizeRewardProfileForClient(entity.rewardProfile)) ?? createEmptyMonsterRewardProfile() : undefined,
     questAppearance: entity.kind==="quest"&&entity.questAppearance?{...entity.questAppearance}:undefined,
     urgency: "urgency" in entity ? entity.urgency : undefined,
     issuerId: "issuerId" in entity ? entity.issuerId : undefined,
@@ -794,26 +794,6 @@ const sanitizeGalleryImages = (items: GalleryImage[] = []) =>
       title: item.title || `Изображение ${index + 1}`,
       url: item.url,
       caption: item.caption
-    }));
-
-const sanitizeStatEntries = (entries: StatBlockEntry[] = []) =>
-  entries
-    .map((entry) => ({
-      name: entry.name.trim(),
-      subtitle: sanitizeOptionalText(entry.subtitle),
-      toHit: sanitizeOptionalText(entry.toHit),
-      damage: sanitizeOptionalText(entry.damage),
-      saveDc: sanitizeOptionalText(entry.saveDc),
-      description: entry.description.trim()
-    }))
-    .filter((entry) => entry.name || entry.description || entry.toHit || entry.damage || entry.saveDc || entry.subtitle)
-    .map((entry) => ({
-      name: entry.name || "Unnamed Entry",
-      subtitle: entry.subtitle,
-      toHit: entry.toHit,
-      damage: entry.damage,
-      saveDc: entry.saveDc,
-      description: entry.description || "Description pending."
     }));
 
 const sanitizeSpellcasting = (spellcasting?: SpellcastingBlock | null): SpellcastingBlock | null => {
@@ -945,7 +925,7 @@ const serializeEntityForm = (form: CreateEntityInput): CreateEntityInput => {
         status: form.status as CreateEntityInput["status"],
         importance: form.importance as CreateEntityInput["importance"],
         locationId: sanitizeOptionalText(form.locationId),
-        statBlock: sanitizeNpcStatBlock(form.statBlock ?? createEmptyNpcStatBlock()),
+        statBlock: sanitizeNpcStatBlock(form.statBlock),
         rewardProfile: sanitizeMonsterRewardProfile(form.rewardProfile)
       };
     case "quest":
@@ -4844,6 +4824,17 @@ export default function App() {
               />
             ) : activeRailAlias === "sessions" ? (
               <SessionsPage key={campaign.id} initialSessionId={workspaceRoute.target} campaignId={campaign.id} onOpenAI={aiProposalController.openInbox} onOpenProposal={(id) => void aiProposalController.openProposal(id)} />
+            ) : activeEntity && (activeEntity.kind === "npc" || activeEntity.kind === "monster") ? (
+              <CreatureWorkspace key={activeEntity.id} entity={activeEntity} campaign={campaign} ownerId={authUserId} controller={entityEditor}
+                navigation={entityEditorNavigation?.entityId===activeEntity.id?entityEditorNavigation:undefined}
+                saving={saving} error={bootError} onStart={section=>editEntitySection(activeEntity.id,section)} onClose={requestEntityModalClose}
+                onChanged={hydrateCampaign} onOpen={id=>void openEntity(id)} onResolve={resolveLinkedEntity}
+                onPreview={()=>openPreview(activeEntity.id)} onCreateQuest={()=>{if(activeEntity.kind==="npc")openNpcQuestModal(activeEntity);}}
+                onAI={()=>aiProposalController.requestEntityProposal(activeEntity)} pinned={activeEntityPinned} onPin={()=>togglePin(activeEntity.id)}
+                onShowCard={index=>{const card=activeEntityPlayerCards[index];if(card)openPlayerFacingView(activeEntity,card,{cardIndex:index});}}
+                onGallery={index=>openEntityGalleryViewer(activeEntity,index)}
+                onPlay={index=>playEntityPlaylist(activeEntity,index,false)} onStop={stopPlayback}
+                playbackLabel={currentPlaybackTrackLabel} playlistActive={isEntityPlaylistActive(activeEntity.id)}/>
             ) : activeModule === "monsters" ||
               activeModule === "rules" ||
               activeRailAlias === "items" ||
@@ -4866,8 +4857,8 @@ export default function App() {
                 activeRailAlias={activeRailAlias}
                 bestiaryContent={
                   <BestiaryPageContainer
-                    activeMonster={activeEntity?.kind === "monster" ? activeEntity : null}
-                    activeMonsterPinned={activeEntity?.kind === "monster" ? activeEntityPinned : false}
+                    activeMonster={null}
+                    activeMonsterPinned={false}
                     activeTab={activeTab}
                     composeVisibleQuickFacts={composeVisibleQuickFacts}
                     controller={bestiaryController}
@@ -4971,11 +4962,7 @@ export default function App() {
                 onOpenGallery={() => openEntityGalleryModal(activeEntity)}
                 onOpenGalleryAlbum={openGalleryViewer}
                 onOpenGalleryViewer={(index) => openEntityGalleryViewer(activeEntity, index)}
-                onOpenNpcQuestModal={() => {
-                  if (activeEntity.kind === "npc") {
-                    openNpcQuestModal(activeEntity);
-                  }
-                }}
+                onOpenNpcQuestModal={() => openEntityModal("quest")}
                 onOpenPlayerFacingCard={(card, index) => openPlayerFacingView(activeEntity, card, { cardIndex: index })}
                 onOpenPlaylistEditor={() => openEntityPlaylistModal(activeEntity)}
                 onOpenPreview={() => openPreview(activeEntity.id)}
@@ -5523,7 +5510,7 @@ export default function App() {
         </AppModal>
       ) : null}
 
-      {entityEditor.entityModalOpen&&<EntityEditorModal
+      {entityEditor.entityModalOpen&&!(entityEditor.isEditingEntity&&activeEntity&&entityEditor.editingEntityId===activeEntity.id&&(activeEntity.kind==="npc"||activeEntity.kind==="monster"))&&<EntityEditorModal
         inlineTargetId={entityEditor.isEditingEntity&&activeEntity&&entityEditor.editingEntityId===activeEntity.id?"entity-inline-"+activeEntity.id+"-"+entityEditorSection:undefined}
         section={entityEditorSection}
         campaign={campaign}
@@ -5557,7 +5544,7 @@ export default function App() {
         selectedDestinationId={randomEventDestinationId}
       />
 
-      <PlayerFacingController inlineTargetId={activeEntity&&playerFacing.playerFacingEntity?.id===activeEntity.id?"entity-inline-"+activeEntity.id+"-cards":undefined} controller={playerFacing} ownerId={authUserId} campaignId={activeCampaignId} readOnly={Boolean(campaign?.readyCampaign)} onClose={requestPlayerFacingViewClose} />
+      <PlayerFacingController onEditInPlace={activeEntity&&(activeEntity.kind==="npc"||activeEntity.kind==="monster")&&playerFacing.playerFacingEntity?.id===activeEntity.id?()=>{void requestPlayerFacingViewClose();editEntitySection(activeEntity.id,"cards");}:undefined} inlineTargetId={activeEntity&&playerFacing.playerFacingEntity?.id===activeEntity.id?"entity-inline-"+activeEntity.id+"-cards":undefined} controller={playerFacing} ownerId={authUserId} campaignId={activeCampaignId} readOnly={Boolean(campaign?.readyCampaign)} onClose={requestPlayerFacingViewClose} />
 
       <PreparedCombatModal
         bootError={bootError}

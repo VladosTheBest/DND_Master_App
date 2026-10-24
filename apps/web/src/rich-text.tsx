@@ -15,15 +15,7 @@ const parseWikiLinkToken = (token: string) => {
   };
 };
 
-export const createWikiLinkMarkup = (targetTitle: string, label: string) => {
-  const safeTarget = targetTitle.replace(/\]\]/g, "").trim();
-  const safeLabel = label.replace(/\]\]/g, "").replace(/\|/g, " ").trim();
-  if (!safeTarget) {
-    return label;
-  }
-
-  return safeLabel && safeLabel !== safeTarget ? `[[${safeTarget}|${safeLabel}]]` : `[[${safeTarget}]]`;
-};
+export {createWikiLinkMarkup} from "./features/entity-links/wiki-link-markup";
 
 type RichSegment = {
   key: string;

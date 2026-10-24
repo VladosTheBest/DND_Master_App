@@ -1,0 +1,840 @@
+/* The same creature dossier is both the reading and editing surface. */
+.creature-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: 32px;
+  width: 100%;
+  max-width: 1440px;
+  margin-inline: auto;
+  align-items: start;
+}
+.creature-main,
+.creature-context {
+  min-width: 0;
+}
+.creature-main {
+  display: grid;
+  gap: 22px;
+}
+.creature-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: start;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+.creature-heading > div:first-child {
+  min-width: 0;
+  flex: 1;
+}
+.creature-eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.shell .creature-heading h1 {
+  margin: 6px 0;
+  font:
+    600 clamp(26px, 2.4vw, 36px)/1.18 Georgia,
+    serif;
+  letter-spacing: -0.025em;
+}
+.creature-heading-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: start;
+  position: sticky;
+  top: 8px;
+}
+.creature-tags {
+  color: var(--text-muted);
+  font-size: 11px;
+  margin-top: 10px;
+}
+.creature-tags summary {
+  width: fit-content;
+  cursor: pointer;
+}
+.creature-tags p {
+  overflow-wrap: anywhere;
+}
+.inplace-text {
+  min-width: 0;
+  outline: 0;
+  border-radius: 4px;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  line-height: inherit;
+  min-height: 1.5em;
+  color: inherit;
+}
+.inplace-text:empty:before {
+  content: attr(data-placeholder);
+  color: var(--text-muted);
+  font-weight: 400;
+  font-size: 13px;
+}
+.inplace-text[data-editing] {
+  outline: 1px dashed color-mix(in srgb, var(--accent) 45%, transparent);
+  outline-offset: 3px;
+  cursor: text;
+}
+.inplace-text[data-editing]:focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.inplace-text.formatted-text {
+  white-space: normal;
+}
+.inplace-text.formatted-text > p {
+  margin: 0 0 12px;
+}
+.inplace-text.formatted-text > p:last-child {
+  margin-bottom: 0;
+}
+.inplace-text .mention {
+  font: inherit;
+  cursor: pointer;
+}
+.inplace-text[data-editing] .mention {
+  cursor: default;
+}
+.creature-select {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  padding: 2px 0;
+  margin: -3px 0;
+  appearance: none;
+  opacity: 1;
+  -webkit-text-fill-color: currentColor;
+}
+.creature-select:disabled {
+  cursor: default;
+  white-space: normal;
+}
+.is-editing .creature-select:not(:disabled) {
+  appearance: auto;
+  background: var(--surface);
+  border-color: var(--accent);
+  padding-inline: 4px;
+}
+.creature-select option {
+  background: var(--surface);
+  color: var(--text);
+}
+.creature-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+}
+.creature-tabs button {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  transition:
+    color 0.16s,
+    background-color 0.16s;
+}
+.creature-tabs button[aria-selected="true"] {
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+}
+.creature-tab-panel:not([hidden]) {
+  display: grid;
+  gap: 26px;
+  min-width: 0;
+  animation: creature-reveal 0.18s ease-out;
+}
+.creature-tab-panel > section {
+  min-width: 0;
+}
+.creature-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.shell .creature-section-head h2,
+.shell .creature-section-head h3 {
+  margin: 0;
+  font: 600 16px/1.4 inherit;
+}
+.creature-edit {
+  font-size: 11px;
+  padding: 6px 10px;
+}
+.creature-overview,
+.creature-statblock {
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--line);
+}
+.creature-overview > .inplace-text {
+  color: var(--text-soft);
+  font-size: 14px;
+  line-height: 1.8;
+  max-width: 76ch;
+}
+.creature-facts,
+.creature-metrics,
+.creature-abilities,
+.creature-stat-details {
+  margin: 18px 0 0;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.creature-facts {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.creature-facts > div,
+.creature-metrics > div,
+.creature-abilities > div,
+.creature-stat-details > div {
+  min-width: 0;
+}
+.creature-workspace dt {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.creature-workspace dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.creature-type-line {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+  font-size: 12px;
+  color: var(--text-soft);
+}
+.creature-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 16px 0;
+  border-block: 1px solid var(--line);
+}
+.creature-metrics dd {
+  font-weight: 600;
+  font-size: 14px;
+}
+.creature-abilities {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  text-align: center;
+}
+.creature-abilities > div {
+  padding: 10px 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+.creature-abilities dd {
+  display: grid;
+  gap: 5px;
+  font-weight: 600;
+  font-size: 19px;
+}
+.creature-abilities .creature-select {
+  text-align: center;
+  text-align-last: center;
+}
+.creature-abilities small {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+.creature-stat-details {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+.creature-entry {
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+.shell .creature-entry h3,
+.shell .creature-entry h4 {
+  font-size: 15px;
+  margin: 0 0 10px;
+  line-height: 1.5;
+}
+.creature-entry .creature-section-head {
+  margin-bottom: 8px;
+}
+.creature-entry .creature-section-head h4 {
+  flex: 1;
+  margin: 0;
+}
+.creature-entry > .inplace-text {
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--text-soft);
+}
+.creature-entry-metrics {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 10px 0;
+}
+.creature-entry-metrics:empty {
+  display: none;
+}
+.creature-entry-metrics label {
+  min-width: 90px;
+  font-size: 12px;
+}
+.creature-entry-metrics small {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.creature-context {
+  position: sticky;
+  top: 12px;
+  max-height: calc(100dvh - 130px);
+  overflow: auto;
+  border-left: 1px solid var(--line);
+  padding-left: 22px;
+  display: grid;
+  gap: 18px;
+  align-content: start;
+}
+.creature-context .record-illustration {
+  width: 100%;
+  max-width: 240px;
+  margin: 0 auto;
+}
+.creature-context .record-banner {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  background: transparent;
+}
+.creature-context .record-banner img {
+  width: auto;
+  max-width: 100%;
+  max-height: 250px;
+  object-fit: contain;
+}
+.creature-context .record-illustration .actions {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.creature-context button {
+  font-size: 11px;
+}
+.creature-context h2 {
+  font-size: 16px;
+  margin: 0;
+}
+.creature-context .relation-row {
+  padding-block: 4px;
+}
+.creature-context .relation-edit {
+  width: 32px;
+  height: 32px;
+  padding: 7px;
+  min-height: 32px;
+}
+.creature-context .record-block-heading {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.creature-art-source {
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+.creature-art-source summary {
+  cursor: pointer;
+}
+.creature-art-source > .inplace-text {
+  margin: 12px 0;
+}
+.creature-file-input {
+  display: none;
+}
+.creature-upload {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+}
+.creature-upload input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+.creature-edit-status {
+  border-left: 2px solid var(--accent);
+  padding: 8px 14px;
+  font-size: 12px;
+  min-width: 0;
+}
+.creature-edit-hint {
+  color: var(--text-muted);
+}
+.creature-edit-status .device-draft-controls {
+  margin: 8px 0;
+}
+.creature-reward-summary {
+  padding: 14px 0;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.8;
+}
+.creature-loot {
+  border-radius: 8px;
+  padding: 18px 12px;
+  margin-top: 12px;
+}
+.creature-loot .creature-facts {
+  margin-bottom: 16px;
+}
+.creature-related-quest {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 14px 0;
+  text-align: left;
+  color: var(--text);
+}
+.creature-related-quest span {
+  color: var(--accent);
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.creature-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr));
+  gap: 20px;
+}
+.creature-gallery article {
+  min-width: 0;
+}
+.creature-gallery h3 {
+  font-size: 14px;
+}
+.creature-gallery-image {
+  width: 100%;
+  height: 170px;
+  padding: 0;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.creature-gallery-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: transform 0.2s;
+}
+.creature-gallery-image:hover img {
+  transform: scale(1.03);
+}
+.creature-gallery details {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 10px;
+}
+.creature-gallery summary {
+  cursor: pointer;
+}
+.creature-gallery details .inplace-text {
+  margin-block: 10px;
+}
+.creature-track {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.creature-track > div {
+  flex: 1;
+  min-width: 0;
+}
+.creature-track .inplace-text + .inplace-text {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 5px;
+}
+.creature-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 16px;
+}
+.creature-slots > div {
+  display: flex;
+  gap: 10px;
+}
+@keyframes creature-reveal {
+  from {
+    opacity: 0.5;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (max-width: 1180px) {
+  .creature-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .creature-context {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    padding: 18px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+  .creature-context .entity-relations-manager {
+    grid-column: 2;
+    grid-row: 1/3;
+  }
+  .creature-art-source {
+    grid-column: 1;
+  }
+}
+@media (max-width: 600px) {
+  .creature-workspace {
+    gap: 22px;
+  }
+  .creature-heading {
+    flex-wrap: wrap;
+    gap: 14px;
+  }
+  .creature-heading-actions {
+    position: static;
+    width: 100%;
+  }
+  .shell .creature-heading h1 {
+    font-size: 28px;
+  }
+  .creature-tabs {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .creature-tabs button {
+    padding: 10px 4px;
+  }
+  .creature-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .creature-abilities {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .creature-type-line {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .creature-stat-details {
+    grid-template-columns: 1fr;
+  }
+  .creature-context {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .creature-context .entity-relations-manager {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .creature-section-head {
+    align-items: start;
+    flex-wrap: wrap;
+  }
+  .creature-related-quest {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .creature-workspace select {
+    font-size: 16px;
+  }
+  .creature-context .relation-edit {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .creature-tab-panel:not([hidden]) {
+    animation: none;
+  }
+  .creature-tabs button,
+  .creature-gallery-image img {
+    transition: none;
+  }
+  .creature-gallery-image:hover img {
+    transform: none;
+  }
+}
+.creature-save-strip {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 11px;
+  position: relative;
+}
+.creature-draft-menu summary {
+  cursor: pointer;
+  color: var(--accent);
+}
+.creature-draft-menu > div {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 20;
+  width: min(420px, 100%);
+  padding: 14px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: 0 10px 30px #0006;
+}
+.creature-entry-extra {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 10px;
+}
+.creature-entry-extra summary {
+  cursor: pointer;
+}
+.creature-entry-extra .creature-entry-metrics {
+  color: var(--text);
+}
+.creature-mobile-portrait {
+  display: none;
+}
+.creature-heading-actions {
+  width: 230px;
+  flex: 0 0 230px;
+  justify-content: flex-end;
+}
+.creature-gallery-image .media-image-fallback {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  font-size: 12px;
+}
+@media (max-width: 600px) {
+  .creature-heading {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 112px;
+    gap: 14px;
+  }
+  .creature-heading > div:first-child {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .creature-mobile-portrait {
+    display: block;
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .creature-mobile-portrait .record-banner img {
+    max-height: 140px;
+    max-width: 112px;
+  }
+  .creature-mobile-portrait .record-illustration {
+    margin: 0;
+  }
+  .creature-mobile-portrait .record-illustration .actions:empty {
+    display: none;
+  }
+  .creature-heading-actions {
+    grid-column: 1/-1;
+    grid-row: 2;
+    width: 100%;
+    flex: none;
+    justify-content: flex-start;
+  }
+  .creature-context > .record-illustration {
+    display: none;
+  }
+  .creature-save-strip {
+    align-items: start;
+    min-height: 42px;
+    gap: 8px;
+  }
+  .creature-save-strip > span {
+    max-width: 55%;
+  }
+  .creature-context .relation-edit {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+.creature-section-head {
+  min-height: 32px;
+}
+.creature-entries:not(:has(.creature-entry)) > .copy {
+  display: none;
+}
+.creature-entries:not(:has(.creature-entry)) > .creature-section-head {
+  margin-bottom: 0;
+}
+.creature-loot .inplace-text,
+.creature-loot .formatted-text strong,
+.creature-reward-summary .formatted-text strong {
+  color: inherit;
+}
+.creature-loot[style*="color"] dt {
+  color: inherit;
+  opacity: 0.75;
+}
+.creature-draft-menu > div {
+  max-height: 60dvh;
+  overflow: auto;
+}
+.inplace-wiki-picker {
+  position: fixed;
+  z-index: 1400;
+  width: min(320px, calc(100vw - 16px));
+  max-height: calc(100dvh - 16px);
+  overflow: auto;
+  background: var(--surface, #222733);
+  color: var(--text, #edf0f5);
+  border: 1px solid var(--line, #424854);
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 12px 36px #0006;
+  font:
+    13px/1.5 Inter,
+    "Segoe UI",
+    sans-serif;
+}
+.inplace-wiki-picker header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.inplace-wiki-picker header button {
+  min-width: 32px;
+  min-height: 32px;
+}
+.inplace-wiki-results {
+  display: grid;
+  gap: 4px;
+  max-height: 230px;
+  overflow: auto;
+  margin-top: 8px;
+}
+.inplace-wiki-results button {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  padding: 9px 6px;
+  min-width: 0;
+}
+.inplace-wiki-results button:hover {
+  background: #ffffff0a;
+}
+.inplace-wiki-results small {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.creature-entry .formatted-text strong {
+  color: inherit;
+}
+/* Keep the identity, overview and core combat values within a useful first viewport. */
+.creature-main {
+  gap: 16px;
+}
+.creature-heading {
+  padding-bottom: 14px;
+}
+.creature-heading-actions {
+  width: 240px;
+  flex-basis: 240px;
+}
+.creature-save-strip {
+  min-height: 20px;
+  margin-block: -8px;
+}
+.creature-overview .creature-facts {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (min-width: 1181px) {
+  .creature-statblock > .creature-metrics {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .creature-heading-actions {
+    width: 100%;
+    flex: none;
+  }
+  .creature-save-strip {
+    min-height: 42px;
+    margin-block: -4px;
+  }
+  .creature-overview .creature-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.relation-inplace {
+  padding: 10px 0;
+  min-width: 0;
+  color: var(--text-soft);
+}
+.relation-inplace > .inplace-text {
+  font-size: 12px;
+  line-height: 1.7;
+}
+.relation-inplace > .actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.relation-inplace > small {
+  display: block;
+  color: var(--text-muted);
+  font-size: 10px;
+  margin-top: 6px;
+}
+.relation-inplace .device-draft-controls {
+  margin: 12px 0;
+  padding: 10px;
+}
+.relation-inplace .relation-comparison {
+  grid-template-columns: 1fr;
+}
