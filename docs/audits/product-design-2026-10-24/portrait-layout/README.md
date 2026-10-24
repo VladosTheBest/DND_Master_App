@@ -16,8 +16,8 @@
 - QA-квест: 6 вкладок — портрет в шапке, own image в aside=0; 390 px без overflow. НПС без картинки — одна колонка шапки вместо пустого места.
 - «Заменить изображение» у НПС открывает Медиа/«Ссылка на портрет» inline, dialog=0; отмена не записывает данные.
 
-Приватные снимки находятся в игнорируемом tmp/portrait-layout; неустойчивый мобильный кадр при смене viewport отвергнут. Числовая проверка геометрии/пропорций выполнена отдельно. Web tsc/Vite/compression, test-build-manifest, test-editable-list-keys и test-workspace-routes прошли. Это frontend-правка без новых API/миграций; Go suite и платные AI-запросы не запускались.
+Приватные снимки находятся в игнорируемом tmp/portrait-layout; неустойчивый мобильный кадр при смене viewport отвергнут. Итоговые desktop/mobile кадры приняты в видимом предпросмотре. Числовая проверка геометрии/пропорций выполнена отдельно, новых ошибок JS в локальной вкладке не обнаружено. Web tsc/Vite/compression, test-build-manifest, test-editable-list-keys и test-workspace-routes прошли. Это frontend-правка без новых API/миграций; Go suite и платные AI-запросы не запускались.
 
 ## Выпуск
 
-Деплой ещё не выполнен. Авторизованный production smoke прежнего выпуска остаётся в ожидании обычного входа пользователя.
+Fly release **203**, исходники **be4e7a2**, image `registry.fly.io/dnd-master-app:deployment-01M5QJ0FB2JWNDSKDH3XZWAZGN`. Health passing; `/`, `/healthz`, `/livez` — 200, `/api/campaigns` без сессии — 401. HTML и все 60 JS/CSS совпали с локальной сборкой (production.json). Авторизованный production smoke остаётся в ожидании обычного входа пользователя; локальная проверка не считается сохранением под аккаунтом на проде.
