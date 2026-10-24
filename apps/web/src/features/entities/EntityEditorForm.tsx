@@ -21,6 +21,7 @@ import type { EntityEditorController } from "./useEntityEditorController";
 import { AIFormatButton } from "../formatting/AIFormatButton";
 
 type EntityEditorFormProps = {
+  onlySection?:string;
   busy?: boolean;
   campaign: CampaignData | null;
   controller: EntityEditorController;
@@ -28,6 +29,7 @@ type EntityEditorFormProps = {
 };
 
 export function EntityEditorForm({
+  onlySection,
   busy,
   campaign,
   controller,
@@ -64,8 +66,10 @@ export function EntityEditorForm({
     uploadEntityGalleryFile
   } = controller;
 
+  const show=(...sections:string[])=>!onlySection||sections.includes(onlySection);
   return (
     <fieldset disabled={busy} className="form-grid" style={{border:0,padding:0,minWidth:0}}>
+      {show("summary")&&<>
       <label className="field">
         <span>Тип</span>
         <select
@@ -105,7 +109,7 @@ export function EntityEditorForm({
         />
       </label>
 
-      <details className="editor-disclosure field-full">
+      <details open={Boolean(onlySection)||undefined} className="editor-disclosure field-full">
         <summary>Подробности и классификация</summary>
         <div className="form-grid">
       <label className="field">
@@ -324,12 +328,13 @@ export function EntityEditorForm({
 
         </div>
       </details>
-      <details className="editor-disclosure field-full">
+      </>}
+      {show("art","media","gallery","playlist")&&<details open={Boolean(onlySection)||undefined} className="editor-disclosure field-full">
         <summary>Изображения, музыка и галерея</summary>
         <div data-editor-section="media" className="form-grid">
-      <div data-editor-section="art" className="field-full"><EntityArtEditor controller={controller} /></div>
+      {show("art","media")&&<div data-editor-section="art" className="field-full"><EntityArtEditor controller={controller} /></div>}
 
-        <div className="field field-full">
+        {show("playlist","media")&&<div data-editor-section="playlist" className="field field-full">
           <PlaylistEditorSection
             hint="Необязательно. Музыку можно добавить и позже в карточке."
             onAdd={addEntityPlaylistTrack}
@@ -338,8 +343,8 @@ export function EntityEditorForm({
             title="Плейлист сущности"
             tracks={entityForm.playlist ?? []}
           />
-        </div>
-        <div className="field field-full">
+        </div>}
+        {show("gallery","media")&&<div data-editor-section="gallery" className="field field-full">
           <GalleryEditorSection
             hint="Необязательно. Карты, письма и иллюстрации для этой записи."
             items={entityForm.gallery ?? []}
@@ -351,12 +356,12 @@ export function EntityEditorForm({
             uploadDisabled={galleryUploadKey.startsWith("entity-form:")}
             uploadingIndex={galleryUploadKey.startsWith("entity-form:") ? Number.parseInt(galleryUploadKey.split(":")[1] ?? "-1", 10) : null}
           />
-        </div>
+        </div>}
 
         </div>
-      </details>
-      <details className="editor-disclosure field-full">
-        <summary>Текст и карточки для игроков</summary>
+      </details>}
+      {show("cards")&&<details open={Boolean(onlySection)||undefined} className="editor-disclosure field-full">
+        <summary>Карточки и зачитки</summary>
       {entityForm.kind === "location" ? (
         <section className="card npc-section form-subsection field-full player-card-editor-section">
           <div className="row muted">
@@ -474,8 +479,8 @@ export function EntityEditorForm({
         </label>
       )}
 
-      </details>
-      <details className="editor-disclosure field-full">
+      </details>}
+      {show("content")&&<details open={Boolean(onlySection)||undefined} className="editor-disclosure field-full">
         <summary>Заметки и секреты мастера</summary>
       {campaign ? <AIFormatButton campaignId={campaign.id} sourceId={controller.editingEntityId || entityForm.kind} title={entityForm.title} content={entityForm.content} disabled={busy} onApply={(content) => updateEntityForm((current) => ({ ...current, content }))} /> : null}
       <label className="field field-full">
@@ -493,16 +498,16 @@ export function EntityEditorForm({
         />
       </label>
 
-      </details>
-      {entityForm.kind === "quest" ? <details className="editor-disclosure field-full">
+      </details>}
+      {show("stats")&&(entityForm.kind === "quest" ? <details className="editor-disclosure field-full">
         <summary>Подготовка сцены и боя</summary>
         <div className="form-grid"><EntityPreparedCombatEditor campaign={campaign} controller={controller} /></div>
-      </details> : <EntityPreparedCombatEditor campaign={campaign} controller={controller} />}
-      {["player", "npc", "monster"].includes(entityForm.kind) ? <details className="editor-disclosure field-full">
+      </details> : <EntityPreparedCombatEditor campaign={campaign} controller={controller} />)}
+      {show("stats")&&(["player", "npc", "monster"].includes(entityForm.kind) ? <details open={Boolean(onlySection)||undefined} className="editor-disclosure field-full">
         <summary>Боевые характеристики</summary>
         <div className="form-grid"><div data-editor-section="stats" className="field-full"><EntityStatBlockEditor controller={controller} /></div></div>
-      </details> : <div data-editor-section="stats" className="field-full"><EntityStatBlockEditor controller={controller} /></div>}
-      {["npc", "monster", "quest"].includes(entityForm.kind) ? <details className="editor-disclosure field-full">
+      </details> : <div data-editor-section="stats" className="field-full"><EntityStatBlockEditor controller={controller} /></div>)}
+      {show("rewards")&&["npc", "monster", "quest"].includes(entityForm.kind) ? <details open={Boolean(onlySection)||undefined} className="editor-disclosure field-full">
         <summary>Награды и добыча</summary><div data-editor-section="rewards"><EntityRewardEditor controller={controller} /></div>
       </details> : null}
     </fieldset>

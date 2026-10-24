@@ -1,7 +1,8 @@
+import {CompactStatBlock} from "./CompactStatBlock";
 import { ActionMenu } from "../../app/ActionMenu";
 import { RecordIllustration } from "../entity-images/RecordIllustration";
 import { EntityRelationsPanel } from "../entity-links/EntityRelationsPanel";
-import { useId, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
+import { useId, useState, useEffect, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
 import { useWorkspaceRoute, workspaceURL } from "../../app/workspace-route";
 import type {
   CampaignData,
@@ -28,6 +29,9 @@ import { PlayerFacingCardStrip } from "../../quests";
 import { RichParagraphs } from "../../rich-text";
 
 export type EntityDetailsRendererProps = {
+  persistentPortrait?:boolean;
+  cardsEditing?:boolean;
+  editingSection?:string;
   relationsSection?:ReactNode;
   ownerId?:string;
   onCampaignChanged?:(campaign:CampaignData)=>void;
@@ -127,6 +131,9 @@ function MasterKnowledgeCard({
 }
 
 export function EntityDetailsRenderer({
+  persistentPortrait=false,
+  cardsEditing,
+  editingSection,
   relationsSection,
   activeEntity,
   activeEntityPinned,
@@ -143,7 +150,7 @@ export function EntityDetailsRenderer({
   onContentContextMenu,
   onCreatePlayerFacingCard,
   onDeletePlayerFacingCard,
-  onEditEntity,
+  onEditEntity: startEditing,
   onEditWithAI,
   onEditPlayerFacingCard,
   onOpenEntityActionMenu,
@@ -174,7 +181,7 @@ export function EntityDetailsRenderer({
     activeEntity.kind === "npc"
       ? [
           ["npc-summary", "Сводка"],
-          ["npc-handouts", "Игроки видят"],
+          ["npc-handouts", "Карточки"],
           ["npc-quests", "Квесты"],
           ["npc-media", "Медиа"],
           ["npc-master-notes", "Мастеру"],
@@ -184,7 +191,7 @@ export function EntityDetailsRenderer({
       : activeEntity.kind === "location"
         ? [
             ["location-summary", "Сводка"],
-            ["location-handouts", "Игроки видят"],
+            ["location-handouts", "Карточки"],
             ["location-shops", "Магазины"],
             ["location-media", "Медиа"],
             ["location-master-notes", "Мастеру"],
@@ -192,7 +199,7 @@ export function EntityDetailsRenderer({
           ]
         : [
             ["player-summary", "Сводка"],
-            ["player-handouts", "Игроки видят"],
+            ["player-handouts", "Карточки"],
             ["player-media", "Медиа"],
             ["player-master-notes", "Мастеру"],
             ["record-relations", "Связи"],
@@ -214,6 +221,15 @@ export function EntityDetailsRenderer({
   const selectedTab=selection.entityId===activeEntity.id?selection.tab:"summary";
   const tabItems=dossierLinks.filter(([id])=>id!=="record-relations"||relationsSection).map(([id,label])=>({id:id==="record-relations"?"relations":id.slice((dossierKind||"player").length+1),label}));
   const selectTab=(tab:string)=>setSelection({entityId:activeEntity.id,tab});
+  useEffect(()=>{if(cardsEditing)setSelection({entityId:activeEntity.id,tab:"handouts"});},[cardsEditing,activeEntity.id]);
+  useEffect(()=>{const tab=({summary:"summary",art:"summary",content:"master-notes",stats:"stats",rewards:"summary",gallery:"media",playlist:"media",media:"media"} as Record<string,string>)[editingSection||""];if(tab)setSelection({entityId:activeEntity.id,tab});},[editingSection,activeEntity.id]);
+  const inlineSlot=(section:string)=>!readOnly?<div className="entity-inline-slot" id={"entity-inline-"+activeEntity.id+"-"+section}/>:null;
+  const onEditEntity=(section="summary")=>{
+    const tab=({summary:"summary",art:"summary",content:"master-notes",stats:"stats",rewards:"summary",playlist:"media",gallery:"media",media:"media",cards:"handouts"} as Record<string,string>)[section];
+    if(tab)selectTab(tab);
+    startEditing(section);
+    requestAnimationFrame(()=>{const host=document.getElementById("entity-inline-"+activeEntity.id+"-"+section);const field=host?.querySelector<HTMLElement>("input:not([disabled]),textarea,select,button");if(field){host?.scrollIntoView({block:"nearest",behavior:"instant"});field.focus({preventScroll:true})}});
+  };
   const panel=(tab:string,children:ReactNode)=>dossierKind?<section role="tabpanel" id={`${tabsId}-panel-${tab}`} aria-labelledby={`${tabsId}-tab-${tab}`} tabIndex={0} hidden={selectedTab!==tab} className="dossier-tab-panel">{children}</section>:children;
 
   if (activeEntity.kind === "monster" && combatProfileEntity) {
@@ -364,22 +380,29 @@ export function EntityDetailsRenderer({
         event.preventDefault();const next=event.key==="Home"?0:event.key==="End"?buttons.length-1:(current+(event.key==="ArrowRight"?1:-1)+buttons.length)%buttons.length;
         selectTab(tabItems[next].id);buttons[next].focus({preventScroll:true});
       }}>{tabItems.map(tab=><button type="button" role="tab" key={tab.id} id={`${tabsId}-tab-${tab.id}`} aria-controls={`${tabsId}-panel-${tab.id}`} aria-selected={selectedTab===tab.id} tabIndex={selectedTab===tab.id?0:-1} onClick={()=>selectTab(tab.id)}>{tab.label}</button>)}</div>:null}
+      {editingSection&&<div className="inline-edit-reminder" role="status"><span>Редактирование открыто в карточке</span><button className="ghost" type="button" onClick={()=>onEditEntity(editingSection)}>Вернуться к правкам</button></div>}
       {panel("summary",<>
-      <div className={`record-intro dossier-summary ${activeEntity.kind==="npc"?`npc-dossier-intro ${activeEntity.art?.url?"has-portrait":""}`:""}`}>
-      <RecordIllustration key={activeEntity.art?.url||activeEntity.id} url={activeEntity.art?.url} title={activeEntity.title} alt={activeEntity.art?.alt||activeEntity.art?.caption} onReplace={readOnly?undefined:()=>onEditEntity("art")} onGallery={readOnly?undefined:onOpenGallery}/>
+      <div className={`record-intro dossier-summary ${activeEntity.kind==="npc"?`npc-dossier-intro ${activeEntity.art?.url&&!persistentPortrait?"has-portrait":""}`:""}`}>
+      {!persistentPortrait&&<RecordIllustration key={activeEntity.art?.url||activeEntity.id} url={activeEntity.art?.url} title={activeEntity.title} alt={activeEntity.art?.alt||activeEntity.art?.caption} onReplace={readOnly?undefined:()=>onEditEntity("art")} onGallery={readOnly?undefined:()=>onEditEntity("gallery")}/>}
       <section className="record-overview" aria-label="Краткое описание">
+        {inlineSlot("summary")}
         <header className="record-block-heading"><h2>Кратко</h2>{!readOnly&&<button className="ghost record-edit-action" type="button" onClick={()=>onEditEntity("summary")}>{hasDescription(activeEntity.summary)?"Редактировать описание":"Добавить описание"}</button>}</header>
         {hasDescription(activeEntity.summary) ? <p className="record-summary">{activeEntity.summary}</p> : <p className="copy">Добавьте роль в истории и главное, что стоит помнить об этой записи.</p>}
+        <CompactStatBlock entity={activeEntity} onEdit={readOnly?undefined:()=>onEditEntity("stats")}/>
       </section>
       {visibleFacts.length ? <dl className="record-facts">
-        {visibleFacts.map(fact => <div key={fact.label}><dt>{fact.label}</dt><dd className={toneClass[fact.tone ?? "default"]}>{({Tense:"Напряжённо",Safe:"Безопасно",Dangerous:"Опасно",Deadly:"Смертельно",Site:"Место",City:"Город",Region:"Регион",Dungeon:"Подземелье",POI:"Точка интереса",Active:"Активно",Reserve:"Резерв",Guest:"Гость",Critical:"Ключевой",Ally:"Союзник",Threat:"Угроза",Unknown:"Не определён",Neutral:"Нейтральный",Hostile:"Враждебный",Friendly:"Дружелюбный"} as Record<string,string>)[fact.value]||fact.value}</dd></div>)}
+        {visibleFacts.filter(fact=>!/[Нн]аград|[Гг]алере|КБ|ХП|Игрокам/.test(fact.label)).slice(0,4).map(fact => <div key={fact.label}><dt>{fact.label}</dt><dd className={toneClass[fact.tone ?? "default"]}>{({Tense:"Напряжённо",Safe:"Безопасно",Dangerous:"Опасно",Deadly:"Смертельно",Site:"Место",City:"Город",Region:"Регион",Dungeon:"Подземелье",POI:"Точка интереса",Active:"Активно",Reserve:"Резерв",Guest:"Гость",Critical:"Ключевой",Ally:"Союзник",Threat:"Угроза",Unknown:"Не определён",Neutral:"Нейтральный",Hostile:"Враждебный",Friendly:"Дружелюбный"} as Record<string,string>)[fact.value]||fact.value}</dd></div>)}
       </dl> : null}
+      {inlineSlot("art")}
       </div>
+      <div className="entity-edit-block">{inlineSlot("rewards")}<div className="entity-read-content">
       {rewardsSection}
+      </div></div>
       {!combatProfileEntity&&preparedCombatSection}
       </>)}
 
-      {panel("master-notes",<div id={dossierKind ? `${dossierKind}-master-notes` : undefined} tabIndex={-1}>
+      {panel("master-notes",<div className="entity-edit-block" id={dossierKind ? `${dossierKind}-master-notes` : undefined} tabIndex={-1}>
+      {inlineSlot("content")}<div className="entity-read-content">
       <MasterKnowledgeCard
         action={!readOnly&&<button className="ghost record-edit-action" type="button" onClick={()=>onEditEntity("content")}>{hasDescription(activeEntity.content)?"Редактировать сведения мастера":"Добавить сведения мастера"}</button>}
         content={activeEntity.content}
@@ -387,11 +410,13 @@ export function EntityDetailsRenderer({
         onContextMenu={onContentContextMenu}
         onMentionClick={onOpenPreview}
       />
-      </div>)}
+      </div></div>)}
 
       {panel("handouts",<div id={dossierKind ? `${dossierKind}-handouts` : undefined} tabIndex={-1}>
+        {inlineSlot("cards")}
         <PlayerFacingCardStrip
           cards={activeEntityPlayerCards}
+          title="Карточки"
           createDescription="Внешность, реплика или описание сцены — текст, который можно показать или зачитать игрокам."
           description={
             activeEntity.kind === "location"
@@ -456,15 +481,15 @@ export function EntityDetailsRenderer({
       ) : null}
 
       {panel("media",<div className="player-detail-media-grid" id={dossierKind ? `${dossierKind}-media` : undefined} tabIndex={-1}>
-      <PlaylistSection
+      <div className="entity-edit-block media-pane">{inlineSlot("playlist")}<div className="entity-read-content"><PlaylistSection
         action={readOnly ? undefined : (
-          <button className="ghost" onClick={onOpenPlaylistEditor} type="button">
+          <button className="ghost" onClick={()=>onEditEntity("playlist")} type="button">
             {(activeEntity.playlist??[]).length?"Редактировать плейлист":"Добавить музыку"}
           </button>
         )}
         activeTrackLabel={currentPlaybackTrackLabel}
         activeTrackUrl={currentPlaybackTrackUrl}
-        defaultCollapsed={!(activeEntity.playlist ?? []).length}
+        defaultCollapsed={false}
         hint="Запусти случайный трек для этой сцены или выбери конкретную композицию вручную"
         isActive={isEntityPlaylistActive(activeEntity.id)}
         onNextRandom={onPlayNextPlaylistTrack}
@@ -475,19 +500,20 @@ export function EntityDetailsRenderer({
         tracks={activeEntity.playlist ?? []}
       />
 
-      <GallerySection
+      </div></div>
+      <div className="entity-edit-block media-pane">{inlineSlot("gallery")}<div className="entity-read-content"><GallerySection
         action={readOnly ? undefined : (
-          <button className="ghost" onClick={onOpenGallery} type="button">
+          <button className="ghost" onClick={()=>onEditEntity("gallery")} type="button">
             {(activeEntity.gallery??[]).length?"Редактировать галерею":"Добавить изображения"}
           </button>
         )}
-        defaultCollapsed={!(activeEntity.gallery ?? []).length}
+        defaultCollapsed={false}
         hint="Карты, письма, handout-арты и любые изображения, которые можно быстро показать игрокам"
         items={activeEntity.gallery ?? []}
         onCopyLink={onCopyImageLink}
         onOpenFullscreen={onOpenGalleryViewer}
         title="Галерея"
-      />
+      /></div></div>
       </div>)}
 
       {activeEntity.kind === "npc" ? (
@@ -532,7 +558,7 @@ export function EntityDetailsRenderer({
 
       {relationsSection&&panel("relations",relationsSection)}
 
-      {combatProfileEntity&&panel("stats",<>
+      {combatProfileEntity&&panel("stats",<><div className="entity-edit-block">{inlineSlot("stats")}<div className="entity-read-content">
       {preparedCombatSection}
 
       {activeEntity.foundryCharacter ? (
@@ -563,7 +589,7 @@ export function EntityDetailsRenderer({
           />}
         </>) : null}
       </div>
-      </>)}
+      </div></div></>)}
     </div>
   );
 }
@@ -572,14 +598,15 @@ export function EntityDetailsPage(props: EntityDetailsRendererProps) {
   const route = useWorkspaceRoute();
 
   const hasTabs=["npc","player","location"].includes(props.activeEntity.kind);
-  const context=<aside tabIndex={-1} id="record-relations" className="record-context" aria-label="Связи записи">
+  const context=<aside tabIndex={-1} id="record-relations" className="record-context" aria-label="Изображение и связи записи">
+      {hasTabs&&<RecordIllustration url={props.activeEntity.art?.url} title={props.activeEntity.title} alt={props.activeEntity.art?.alt||props.activeEntity.art?.caption} onReplace={props.readOnly?undefined:()=>props.onEditEntity("art")} onGallery={props.readOnly?undefined:()=>props.onEditEntity("gallery")}/>}
       <EntityRelationsPanel campaignId={route.campaignId||""} ownerId={props.ownerId||""} entity={props.activeEntity} onResolve={props.onResolveRelatedEntity} onOpen={props.onOpenRelatedEntity} onChanged={props.onCampaignChanged}/>
       {props.activeEntity.kind === "location" ? <section><h3>Карта и сцена</h3><p className="copy">Откройте атлас или создайте карту для этого места.</p><a className="ghost record-map-action" href={workspaceURL({campaignId: route.campaignId, section: "maps", view: "new", context: JSON.stringify({locationId: props.activeEntity.id})})}>Открыть карты и сцены</a></section> : null}
       {props.activeNpcQuests.length ? <section><h3>Квесты НПС</h3>{props.activeNpcQuests.map(quest => <button className="record-context-link" type="button" key={quest.id} onClick={() => props.onPeekQuest(quest.id)}><span><strong>{quest.title}</strong><small>{quest.summary}</small></span></button>)}</section> : null}
       <small className="record-context-state">{props.readOnly ? "Готовая кампания · материалы защищены, связи хранятся в прохождении" : "Сохранённая запись · изменения через редактор"}</small>
     </aside>;
   return <div className={`entity-dossier-layout${hasTabs?" has-dossier-tabs":""}`}>
-    <EntityDetailsRenderer key={props.activeEntity.id} {...props} relationsSection={hasTabs?context:undefined}/>
-    {!hasTabs&&context}
+    <EntityDetailsRenderer key={props.activeEntity.id} {...props} persistentPortrait={hasTabs}/>
+    {context}
   </div>;
 }

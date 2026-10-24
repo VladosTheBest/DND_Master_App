@@ -1,3 +1,4 @@
+import {safeCardColor} from "./features/entities/reward-input";
 import {
   useEffect,
   useState,
@@ -630,11 +631,12 @@ export function RewardSection({
       summary={<p className="copy">{rewardSummaryText(rewardProfile) || `${rewardProfile.loot.length} записей.`}</p>}
       title={sectionMeta.title}
     >
-      {rewardProfile.summary ? <p className="copy">{rewardProfile.summary}</p> : null}
+      <div className="reward-presentation" data-custom-colors={Boolean(rewardProfile.textColor||rewardProfile.backgroundColor)||undefined} style={{color:safeCardColor(rewardProfile.textColor),backgroundColor:safeCardColor(rewardProfile.backgroundColor)}}>
+      {rewardProfile.summary ? <p className="copy reward-summary-text">{rewardProfile.summary}</p> : null}
 
       <div className="loot-grid">
         {visibleLoot.map((item, index) => (
-          <article key={`${item.name}-${index}`} className="entry-card loot-card">
+          <article key={`${item.name}-${index}`} className="entry-card loot-card" data-custom-colors={Boolean(item.textColor||item.backgroundColor)||undefined} style={{color:safeCardColor(item.textColor),backgroundColor:safeCardColor(item.backgroundColor)}}>
             <div className="entry-header">
               <h3>{item.name}</h3>
               <div className="entry-meta">
@@ -651,6 +653,7 @@ export function RewardSection({
         ))}
       </div>
 
+      </div>
       {compact && rewardProfile.loot.length > visibleLoot.length ? (
         <small>Ещё {rewardProfile.loot.length - visibleLoot.length} записей в полной карточке.</small>
       ) : null}

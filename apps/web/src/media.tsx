@@ -1,3 +1,4 @@
+import {ActionMenu} from "./app/ActionMenu";
 import { MediaThumbnail } from "./features/entity-images/MediaThumbnail";
 import { AppModal } from "./app/AppModal";
 import {
@@ -229,7 +230,7 @@ export function GallerySection({
               </button>
               <div className="gallery-card-copy">
                 <strong>{galleryImageTitle(item, index)}</strong>
-                <small>{item.caption?.trim() || "Открывается на весь экран, ссылку можно копировать отдельно."}</small>
+                {item.caption?.trim()&&<small>{item.caption}</small>}
               </div>
               <div className="actions gallery-card-actions">
                 {onShowToPlayers ? (
@@ -244,21 +245,11 @@ export function GallerySection({
                     {showToPlayersBusy ? "Показываю..." : "Показать игрокам"}
                   </button>
                 ) : null}
-                <button
-                  className="ghost"
-                  onClick={() => {
-                    void onCopyLink(item.url);
-                  }}
-                  type="button"
-                >
-                  Скопировать
-                </button>
-                <button className="ghost" onClick={() => window.open(item.url, "_blank", "noopener,noreferrer")} type="button">
-                  Файл
-                </button>
-                <button className="primary" onClick={() => onOpenFullscreen(index)} type="button">
-                  Открыть
-                </button>
+                <button className="primary" onClick={() => onOpenFullscreen(index)} type="button">Открыть</button>
+                <ActionMenu label="Действия" ariaLabel={"Действия с изображением «"+galleryImageTitle(item,index)+"»"}>
+                  <button className="ghost" onClick={()=>void onCopyLink(item.url)} type="button">Копировать ссылку</button>
+                  <button className="ghost" onClick={()=>window.open(item.url,"_blank","noopener,noreferrer")} type="button">Открыть файл</button>
+                </ActionMenu>
               </div>
             </article>
           ))}

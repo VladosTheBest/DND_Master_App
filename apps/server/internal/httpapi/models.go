@@ -107,17 +107,21 @@ type spellcastingBlock struct {
 }
 
 type monsterLootEntry struct {
-	Name     string `json:"name"`
-	Category string `json:"category"`
-	Quantity string `json:"quantity"`
-	Check    string `json:"check"`
-	DC       string `json:"dc,omitempty"`
-	Details  string `json:"details,omitempty"`
+	TextColor       string `json:"textColor,omitempty"`
+	BackgroundColor string `json:"backgroundColor,omitempty"`
+	Name            string `json:"name"`
+	Category        string `json:"category"`
+	Quantity        string `json:"quantity"`
+	Check           string `json:"check"`
+	DC              string `json:"dc,omitempty"`
+	Details         string `json:"details,omitempty"`
 }
 
 type monsterRewardProfile struct {
-	Summary string             `json:"summary"`
-	Loot    []monsterLootEntry `json:"loot"`
+	TextColor       string             `json:"textColor,omitempty"`
+	BackgroundColor string             `json:"backgroundColor,omitempty"`
+	Summary         string             `json:"summary"`
+	Loot            []monsterLootEntry `json:"loot"`
 }
 
 type npcStatBlock struct {

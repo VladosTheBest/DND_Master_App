@@ -1,0 +1,38 @@
+[
+  {
+    "tab": "Сводка",
+    "picture": true,
+    "links": true,
+    "panels": 1
+  },
+  {
+    "tab": "Карточки",
+    "picture": true,
+    "links": true,
+    "panels": 1
+  },
+  {
+    "tab": "Квесты",
+    "picture": true,
+    "links": true,
+    "panels": 1
+  },
+  {
+    "tab": "Медиа",
+    "picture": true,
+    "links": true,
+    "panels": 1
+  },
+  {
+    "tab": "Мастеру",
+    "picture": true,
+    "links": true,
+    "panels": 1
+  },
+  {
+    "tab": "Характеристики",
+    "picture": true,
+    "links": true,
+    "panels": 1
+  }
+]

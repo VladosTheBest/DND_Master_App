@@ -1,5 +1,6 @@
 import { EntityConflictReview } from "./EntityConflictReview";
-import { useLayoutEffect } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
+import {createPortal} from "react-dom";
 import { DeviceDraftControls } from "../../app/DeviceDraftControls";
 import type { CampaignData } from "@shadow-edge/shared-types";
 import { DndGenerationProgress } from "../../auth-ui";
@@ -10,6 +11,7 @@ import type { EntityEditorController } from "./useEntityEditorController";
 
 type EntityEditorModalProps = {
   section?:string;
+  inlineTargetId?:string;
   campaign: CampaignData | null;
   controller: EntityEditorController;
   entityGenerationSteps: string[];
@@ -21,6 +23,7 @@ type EntityEditorModalProps = {
 };
 
 export function EntityEditorModal({
+  inlineTargetId,
   section,
   campaign,
   controller,
@@ -44,29 +47,32 @@ export function EntityEditorModal({
     submitEntity
   } = controller;
 
-  const dialogRef = useNativeDialog(entityModalOpen);
+  const dialogRef = useNativeDialog(entityModalOpen&&!inlineTargetId);
+  const rootRef=useRef<HTMLDivElement>(null);
+  const [inlineTarget,setInlineTarget]=useState<HTMLElement|null>(null);
+  useLayoutEffect(()=>{setInlineTarget(inlineTargetId&&entityModalOpen?document.getElementById(inlineTargetId):null);},[inlineTargetId,entityModalOpen,section]);
+
   // Keep focused controls clear of the fixed footer, including very short windows.
   function focusEditorTarget(target:Element,focus:HTMLElement=target as HTMLElement){
     target.scrollIntoView({block:"start",inline:"nearest",behavior:"instant"});focus.focus({preventScroll:true});
-    const body=dialogRef.current?.querySelector<HTMLElement>(".entity-editor-body");if(!body||!body.contains(focus))return;
+    const body=rootRef.current?.querySelector<HTMLElement>(".entity-editor-body");if(!body||!body.contains(focus))return;
     const field=focus.getBoundingClientRect(),area=body.getBoundingClientRect();
     if(field.height<=body.clientHeight){const margin=Math.max(0,Math.min(8,(body.clientHeight-field.height)/2));body.scrollTo({top:body.scrollTop+field.top-area.top-margin,behavior:"instant"});}
   }
 
-  useLayoutEffect(()=>{if(!entityModalOpen||!section)return;const frame=requestAnimationFrame(()=>{const target=dialogRef.current?.querySelector<HTMLElement>(`[data-editor-section="${section}"]`);if(!target)return;let parent=target.parentElement;while(parent&&parent!==dialogRef.current){if(parent instanceof HTMLDetailsElement)parent.open=true;parent=parent.parentElement;}const input=target.matches("input,textarea,select")?target:target.querySelector<HTMLElement>("input,textarea,select,button");focusEditorTarget(input?.closest("label,.field")||input||target,input||target);});return()=>cancelAnimationFrame(frame);},[entityModalOpen,section]);
-  useLayoutEffect(()=>{if(!entityModalOpen||(!error&&!controller.conflict))return;const frame=requestAnimationFrame(()=>{const notice=dialogRef.current?.querySelector<HTMLElement>(controller.conflict?'[aria-label="Сравнение версий"]':'.form-error');if(notice)focusEditorTarget(notice);});return()=>cancelAnimationFrame(frame);},[entityModalOpen,error,controller.conflict]);
+  useLayoutEffect(()=>{if(!entityModalOpen||!section)return;const frame=requestAnimationFrame(()=>{const target=rootRef.current?.querySelector<HTMLElement>(`[data-editor-section="${section}"]`);if(!target)return;let parent=target.parentElement;while(parent&&parent!==rootRef.current){if(parent instanceof HTMLDetailsElement)parent.open=true;parent=parent.parentElement;}const input=target.matches("input,textarea,select")?target:target.querySelector<HTMLElement>("input,textarea,select,button");focusEditorTarget(input?.closest("label,.field")||input||target,input||target);});return()=>cancelAnimationFrame(frame);},[entityModalOpen,section,inlineTarget]);
+  useLayoutEffect(()=>{if(!entityModalOpen||(!error&&!controller.conflict))return;const frame=requestAnimationFrame(()=>{const notice=rootRef.current?.querySelector<HTMLElement>(controller.conflict?'[aria-label="Сравнение версий"]':'.form-error');if(notice)focusEditorTarget(notice);});return()=>cancelAnimationFrame(frame);},[entityModalOpen,error,controller.conflict]);
   const saveBlocker=controller.deviceDraft.candidate?{text:"Есть черновик на этом устройстве",action:"Выбрать версию",selector:".device-draft-controls.has-recovery"}:controller.conflict?{text:"Запись изменилась на сервере",action:"Сравнить версии",selector:'[aria-label="Сравнение версий"]'}:null;
-  const showSaveBlocker=()=>{if(!saveBlocker)return;const notice=dialogRef.current?.querySelector<HTMLElement>(saveBlocker.selector);if(!notice)return;const focus=notice.hasAttribute("tabindex")?notice:notice.querySelector<HTMLElement>("select,input:not([disabled]),button:not([disabled]),textarea:not([disabled])")||notice;focusEditorTarget(focus.closest("label,.field")||focus,focus);};
+  const showSaveBlocker=()=>{if(!saveBlocker)return;const notice=rootRef.current?.querySelector<HTMLElement>(saveBlocker.selector);if(!notice)return;const focus=notice.hasAttribute("tabindex")?notice:notice.querySelector<HTMLElement>("select,input:not([disabled]),button:not([disabled]),textarea:not([disabled])")||notice;focusEditorTarget(focus.closest("label,.field")||focus,focus);};
   if (!entityModalOpen) {
     return null;
   }
 
-  return (
-    <dialog ref={dialogRef} className="app-native-dialog" aria-label={isEditingEntity ? "Редактирование записи" : "Новая запись"} onCancel={event => { event.preventDefault(); onClose(); }}>
-      <div className="panel palette form-modal entity-editor-modal" onClick={(event) => event.stopPropagation()}>
+  const body=(
+      <div ref={rootRef} className={"panel palette form-modal entity-editor-modal"+(inlineTargetId?" entity-editor-inline":"")} aria-label={inlineTargetId?"Редактирование раздела":undefined} onClick={(event) => event.stopPropagation()}>
         <div className="row entity-editor-header">
           <div>
-            <h2>{isEditingEntity ? "Редактирование записи" : "Новая запись"}</h2>
+            <h2>{inlineTargetId?({summary:"Сведения",content:"Сведения мастера",stats:"Характеристики",rewards:"Награда и лут",art:"Изображение",playlist:"Плейлист",gallery:"Галерея"} as Record<string,string>)[section||"summary"]:isEditingEntity ? "Редактирование записи" : "Новая запись"}</h2>
             <p className="copy">{isEditingEntity ? controller.entityForm.title : "Начните с названия и описания. Остальное можно дополнить позже."}</p>
           </div>
           <button className="ghost" onClick={onClose} type="button">
@@ -79,7 +85,7 @@ export function EntityEditorModal({
         {controller.conflict&&controller.comparisonServer&&<EntityConflictReview base={controller.comparisonBase} local={controller.entityForm} server={controller.comparisonServer} choices={controller.comparisonChoices} onChoose={controller.chooseComparison} onChooseAll={controller.chooseAllComparisons} onPrepare={controller.useComparedDraft} resolve={id=>controller.comparisonEntityTitles.get(id)?.title||id}/>}
 
 
-        <details className="editor-disclosure">
+        {!inlineTargetId&&<details className="editor-disclosure">
           <summary>Заполнить с помощью AI</summary>
         <div className="field field-full">
           <label htmlFor="entity-ai-prompt">Описание для AI</label>
@@ -99,7 +105,7 @@ export function EntityEditorModal({
           </button>
         </div>
 
-        </details>
+        </details>}
 
         {error && !controller.conflict ? (
           <div tabIndex={-1} className="card mini form-error" role="alert">
@@ -119,6 +125,7 @@ export function EntityEditorModal({
         {draftNotes.length ? <p className="copy draft-notes">{draftNotes.join(" ")}</p> : null}
 
         <EntityEditorForm
+          onlySection={inlineTargetId?section:undefined}
           busy={saving || generating}
           campaign={campaign}
           controller={controller}
@@ -128,7 +135,7 @@ export function EntityEditorModal({
         </div>
         <div className="actions editor-submit-bar">
           {saveBlocker&&<div className="editor-save-blocker"><span>{saveBlocker.text}</span><button className="ghost" type="button" onClick={showSaveBlocker}>{saveBlocker.action}</button></div>}
-          {isEditingEntity ? (
+          {isEditingEntity&&!inlineTargetId ? (
             <button className="ghost danger-action" disabled={saving || generating} onClick={() => void deleteEntity()} type="button">
               Удалить
             </button>
@@ -139,6 +146,7 @@ export function EntityEditorModal({
           </button>
         </div>
       </div>
-    </dialog>
   );
+  if(inlineTargetId)return inlineTarget?createPortal(body,inlineTarget):null;
+  return <dialog ref={dialogRef} className="app-native-dialog" aria-label={isEditingEntity?"Редактирование записи":"Новая запись"} onCancel={event=>{event.preventDefault();onClose();}}>{body}</dialog>;
 }

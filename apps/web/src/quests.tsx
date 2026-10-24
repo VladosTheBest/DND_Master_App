@@ -1,3 +1,5 @@
+import {safeCardColor} from "./features/entities/reward-input";
+import {InlineEditorSurface} from "./app/InlineEditorSurface";
 import { ActionMenu } from "./app/ActionMenu";
 import { useDeviceDraft } from "./app/hooks/useDeviceDraft";
 import { DeviceDraftControls } from "./app/DeviceDraftControls";
@@ -164,7 +166,7 @@ export function PlayerFacingCardStrip({
   onEditCard,
   onOpenCard,
   readOnly = false,
-  title = "Игроки видят"
+  title = "Карточки"
 }: {
   cards: PlayerFacingCard[];
   cardBadgeLabel?: string;
@@ -1279,9 +1281,9 @@ export function QuestWorkspace({
         </div>
       </section>
 
-      <section className="card quest-reward-section">
+      <section className="card quest-reward-section" data-custom-colors={Boolean(quest.rewardProfile?.textColor||quest.rewardProfile?.backgroundColor)||undefined} style={{color:safeCardColor(quest.rewardProfile?.textColor),backgroundColor:safeCardColor(quest.rewardProfile?.backgroundColor)}}>
         <div className="row">
-          <strong>Награды и ставка</strong>
+          <strong>Награды и ставка</strong>{!readOnly&&<button className="ghost" type="button" onClick={()=>onEdit(quest.id,"rewards")}>Редактировать награды</button>}
           <small>{rewardItems.length ? `${rewardItems.length} позиций` : "Награды пока не заданы"}</small>
         </div>
 
@@ -1290,7 +1292,7 @@ export function QuestWorkspace({
         {rewardItems.length ? (
           <div className="quest-reward-grid">
             {rewardItems.slice(0, 4).map((item, index) => (
-              <article key={`${quest.id}-reward-${item.name}-${index}`} className="quest-reward-card">
+              <article key={`${quest.id}-reward-${item.name}-${index}`} className="quest-reward-card" data-custom-colors={Boolean(item.textColor||item.backgroundColor)||undefined} style={{color:safeCardColor(item.textColor),backgroundColor:safeCardColor(item.backgroundColor)}}>
                 <span>{item.category}</span>
                 <strong>{item.name}</strong>
                 <p>{item.quantity}</p>
@@ -1591,6 +1593,7 @@ export function QuestPreviewPanel({
 }
 
 type PlayerFacingEntityModalProps = {
+  inlineTargetId?:string;
   ownerId:string;
   campaignId:string;
   cardIndex?:number;
@@ -1615,6 +1618,7 @@ type PlayerFacingEntityModalProps = {
 };
 
 export function PlayerFacingEntityModal({
+  inlineTargetId,
   ownerId, campaignId, cardIndex, baseRevision, error, conflict,
   content,
   contentHtml,
@@ -1745,14 +1749,14 @@ export function PlayerFacingEntityModal({
     }
 
     deviceDraft.flush();syncDraftCard(initialDraftCard);
-    onCancelEdit?.();
+    if(inlineTargetId)onClose();else onCancelEdit?.();
   };
 
   const handleSave = async (asCopy=false) => {
     if (!onSave || saving || formatting || deviceDraft.candidate) return;
     setLocalError("");
     const nextCard = readDraftCard();syncDraftCard(nextCard);
-    if (await onSave(nextCard,localRevision,asCopy)) deviceDraft.clear();
+    if (await onSave(nextCard,localRevision,asCopy)) {deviceDraft.clear();if(inlineTargetId)onClose();}
   };
 
   const handleAutoFormat = async () => {
@@ -1785,7 +1789,7 @@ export function PlayerFacingEntityModal({
   };
 
   return (
-    <AppModal label="Текст и карточки игроков" onClose={()=>void handleRequestClose()}>
+    <InlineEditorSurface targetId={editMode?inlineTargetId:undefined} label="Карточки и зачитки" onClose={()=>void handleRequestClose()}>
       <div className="panel palette player-facing-modal" onClick={(event) => event.stopPropagation()} >
         <div className="stack wide player-facing-modal-layout">
           <div className="row player-facing-modal-head">
@@ -1914,6 +1918,6 @@ export function PlayerFacingEntityModal({
           </footer>}
         </div>
       </div>
-    </AppModal>
+    </InlineEditorSurface>
   );
 }

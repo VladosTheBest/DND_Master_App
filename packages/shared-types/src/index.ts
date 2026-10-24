@@ -183,6 +183,8 @@ export interface NpcEntity extends KnowledgeEntityBase {
 }
 
 export interface RewardLootEntry {
+  textColor?: string;
+  backgroundColor?: string;
   name: string;
   category: string;
   quantity: string;
@@ -192,6 +194,8 @@ export interface RewardLootEntry {
 }
 
 export interface RewardProfile {
+  textColor?: string;
+  backgroundColor?: string;
   summary: string;
   loot: RewardLootEntry[];
 }

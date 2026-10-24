@@ -1,3 +1,4 @@
+import {CardAppearance} from "./CardAppearance";
 import { rewardSectionLabel } from "../../app-shared";
 import type { EntityEditorController } from "./useEntityEditorController";
 
@@ -27,6 +28,7 @@ export function EntityRewardEditor({
         <span>{rewardSectionLabel(entityForm.kind).hint}</span>
       </div>
 
+      <CardAppearance textColor={entityForm.rewardProfile?.textColor} backgroundColor={entityForm.rewardProfile?.backgroundColor} onChange={patch=>updateEntityRewardProfile(current=>({...current,...patch}))}/>
       <div className="form-grid">
         <label className="field field-full">
           <span>{entityForm.kind === "quest" ? "Описание награды" : "Сводка наград и лута"}</span>
@@ -62,6 +64,7 @@ export function EntityRewardEditor({
               </button>
             </div>
 
+            <CardAppearance textColor={entry.textColor} backgroundColor={entry.backgroundColor} onChange={patch=>updateMonsterLootEntry(index,patch)}/>
             <div className="form-grid">
               <label className="field">
                 <span>Название</span>

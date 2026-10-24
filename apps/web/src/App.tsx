@@ -1520,7 +1520,7 @@ function CombatWorkbench({
 }
 
 export default function App() {
-  const [entityEditorSection,setEntityEditorSection]=useState("");
+  const [entityEditorSection,setEntityEditorSection]=useState("summary");
   const workspaceRoute = useWorkspaceRoute();
   const routeKey = JSON.stringify(workspaceRoute);
   const [workspaceArea,setWorkspaceArea]=useState<"maps"|"chat"|null>(null);
@@ -4826,7 +4826,9 @@ export default function App() {
               activeModule === "lore" ||
               (activeEntity?.kind === "quest" && activeModule === "quests") ? (
               <div className={activeEntity&&["monster","quest","lore"].includes(activeEntity.kind)?"entity-dossier-layout entity-specialized-layout":undefined}>
-                <div className="entity-primary-flow">              <AppContentRouter
+                <div className="entity-primary-flow">
+                {activeEntity&&["quest","lore"].includes(activeEntity.kind)&&<><div className="entity-inline-slot" id={"entity-inline-"+activeEntity.id+"-"+entityEditorSection}/>{entityEditorSection!=="cards"&&<div className="entity-inline-slot" id={"entity-inline-"+activeEntity.id+"-cards"}/>}</>}
+                <AppContentRouter
                 ownerId={authUserId}
                 activeEntity={activeEntity}
                 activeModule={activeModule}
@@ -4844,7 +4846,7 @@ export default function App() {
                     isEntityPlaylistActive={isEntityPlaylistActive}
                     onContentContextMenu={(entity, event) => entityLinkController.handleActiveEntityContentContextMenu(entity, "content", event)}
                     onCopyImageLink={handleCopyImageLink}
-                    onEditEntity={(id,section?:string)=>{setEntityEditorSection(section||"summary");openEntityEditor(id);}}
+                    onEditEntity={(id,section?:string)=>{setEntityEditorSection(section||"summary");if(!entityEditor.entityModalOpen||entityEditor.editingEntityId!==id)openEntityEditor(id);}}
                     onEditWithAI={aiProposalController.requestEntityProposal}
                     onOpenDirectory={() => openModuleDirectory("monsters", "Импорт")}
                     onOpenEntity={openEntity}
@@ -4880,7 +4882,7 @@ export default function App() {
                 normalizeWorldEventForClient={normalizeWorldEventForClient}
                 notesContentContextMenu={entityLinkController.handleNoteContentContextMenu}
                 onActiveEventChange={setSelectedWorldEventId}
-                onEditEntity={(id,section?:string)=>{setEntityEditorSection(section||"summary");openEntityEditor(id);}}
+                onEditEntity={(id,section?:string)=>{setEntityEditorSection(section||"summary");if(!entityEditor.entityModalOpen||entityEditor.editingEntityId!==id)openEntityEditor(id);}}
                 onEditWithAI={aiProposalController.requestEntityProposal}
                 onOpenDirectory={() => openModuleDirectory("quests")}
                 onOpenEntity={openEntity}
@@ -4911,6 +4913,8 @@ export default function App() {
               </div>
             ) : activeEntity ? (
               <EntityDetailsPage
+                cardsEditing={Boolean(playerFacing.playerFacingView?.editMode&&playerFacing.playerFacingEntity?.id===activeEntity.id)}
+                editingSection={entityEditor.entityModalOpen&&entityEditor.editingEntityId===activeEntity.id?entityEditorSection:undefined}
                 ownerId={authUserId}
                 onCampaignChanged={hydrateCampaign}
                 activeEntity={activeEntity}
@@ -4927,7 +4931,7 @@ export default function App() {
                 onContentContextMenu={(event) => entityLinkController.handleActiveEntityContentContextMenu(activeEntity, "content", event)}
                 onCreatePlayerFacingCard={() => openNewPlayerFacingEditor(activeEntity)}
                 onDeletePlayerFacingCard={(card, index) => requestPlayerFacingCardDeletion(activeEntity, card, index)}
-                onEditEntity={(section) => {setEntityEditorSection(section||"summary");openEntityEditor(activeEntity.id);}}
+                onEditEntity={(section) => {setEntityEditorSection(section||"summary");if(!entityEditor.entityModalOpen||entityEditor.editingEntityId!==activeEntity.id)openEntityEditor(activeEntity.id);}}
                 onEditWithAI={() => aiProposalController.requestEntityProposal(activeEntity)}
                 onEditPlayerFacingCard={(card, index) => openPlayerFacingEditor(activeEntity, card, index)}
                 onOpenEntityActionMenu={(event) => openEntityActionMenu(activeEntity, event)}
@@ -4993,7 +4997,7 @@ export default function App() {
               isEntityPlaylistActive={isEntityPlaylistActive}
               onCombatPartyLevelsChange={updateCombatPartyLevelText}
               onCopyImageLink={handleCopyImageLink}
-              onEdit={openEntityEditor}
+              onEdit={id=>{setEntityEditorSection("summary");openEntityEditor(id);}}
               onOpenEntityPage={openEntity}
               onOpenEntityActionMenu={openEntityActionMenu}
               onOpenEntityImage={openEntityImage}
@@ -5488,6 +5492,7 @@ export default function App() {
       ) : null}
 
       {entityEditor.entityModalOpen&&<EntityEditorModal
+        inlineTargetId={entityEditor.isEditingEntity&&activeEntity&&entityEditor.editingEntityId===activeEntity.id?"entity-inline-"+activeEntity.id+"-"+entityEditorSection:undefined}
         section={entityEditorSection}
         campaign={campaign}
         controller={entityEditor}
@@ -5520,7 +5525,7 @@ export default function App() {
         selectedDestinationId={randomEventDestinationId}
       />
 
-      <PlayerFacingController controller={playerFacing} ownerId={authUserId} campaignId={activeCampaignId} readOnly={Boolean(campaign?.readyCampaign)} onClose={requestPlayerFacingViewClose} />
+      <PlayerFacingController inlineTargetId={activeEntity&&playerFacing.playerFacingEntity?.id===activeEntity.id?"entity-inline-"+activeEntity.id+"-cards":undefined} controller={playerFacing} ownerId={authUserId} campaignId={activeCampaignId} readOnly={Boolean(campaign?.readyCampaign)} onClose={requestPlayerFacingViewClose} />
 
       <PreparedCombatModal
         bootError={bootError}

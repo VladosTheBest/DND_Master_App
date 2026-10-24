@@ -2,12 +2,14 @@ import { PlayerFacingEntityModal } from "../../quests";
 import type { PlayerFacingCardsController } from "./usePlayerFacingCards";
 
 export function PlayerFacingController({
+  inlineTargetId,
   controller,
   ownerId,
   campaignId,
   readOnly = false,
   onClose
 }: {
+  inlineTargetId?:string;
   controller: PlayerFacingCardsController;
   ownerId: string;
   campaignId: string;
@@ -33,6 +35,7 @@ export function PlayerFacingController({
   const protectedSource = readOnly && playerFacingEntity.kind !== "player";
   return (
     <PlayerFacingEntityModal
+      inlineTargetId={inlineTargetId}
       ownerId={ownerId}
       campaignId={campaignId}
       cardIndex={playerFacingView.cardIndex}
