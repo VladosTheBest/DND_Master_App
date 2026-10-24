@@ -54,3 +54,6 @@ P1: shallow baseline compact delta, зависимость открытого п
 
 
 [Свежая проверка медиа и характеристик](docs/audits/product-design-2026-10-24/media-and-stats/README.md): закрыты потеря фокуса URL, отсутствие отдельных media drafts/revision, скрытые ошибки/409, отсутствие gallery zoom, crop/error thumbnails, offscreen focus stats и тесная ability grid. [Матрица исходных требований](docs/audits/product-design-2026-10-24/acceptance-matrix.md) отделяет реализованные локальные сценарии от непроверенного private production smoke.
+
+
+[Проверка ввода списков и панели Save](docs/audits/product-design-2026-10-24/editing-consistency/README.md): повторён и закрыт remount уровня ячейки, проверены 136 TSX/27 keyed editing containers; footer явно ведёт к черновику/конфликту, focus видим в четырёх viewport. Реальный Save/409 проверяет сохранность способностей, добычи, медиа и master notes.

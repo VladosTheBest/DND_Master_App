@@ -468,3 +468,12 @@
 .entity-media-modal .form-subsection>.row.muted>.stack{flex:1 1 220px;min-width:0}
 .entity-media-modal .form-subsection>.row.muted>button{flex:0 0 auto;white-space:nowrap;max-width:100%}
 .entity-media-modal .gallery-editor-card>.row{flex-wrap:wrap;align-items:flex-start}.entity-media-modal .gallery-editor-card>.row>strong{flex:1;min-width:min(100%,160px)}
+
+.editor-submit-bar .editor-save-blocker{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;flex-basis:100%;padding:0 0 8px;border-bottom:1px solid var(--line);color:var(--text-soft);font-size:12px;line-height:1.5}
+.editor-save-blocker>button{font-size:12px;min-height:34px;padding:7px 10px;white-space:normal}
+
+.device-draft-controls select.input{font-size:16px;min-height:40px}
+@media(max-height:420px){
+ .entity-editor-modal .entity-editor-header{padding:8px 12px}.entity-editor-modal .entity-editor-header h2{font-size:16px;margin:0}.entity-editor-modal .entity-editor-header .copy{display:none}
+ .entity-editor-modal .editor-submit-bar{padding:8px 12px;gap:6px}.entity-editor-modal .editor-save-blocker{padding-bottom:6px;gap:6px}
+}

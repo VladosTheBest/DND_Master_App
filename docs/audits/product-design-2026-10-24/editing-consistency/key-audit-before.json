@@ -1,0 +1,14 @@
+{
+  "files": 136,
+  "editableContainers": 27,
+  "issues": [
+    {
+      "file": "apps/web/src/features/entities/EntityStatBlockEditor.tsx",
+      "line": 281,
+      "key": "{`${slot.level}-${index}`}",
+      "mutableFields": [
+        "slot.level"
+      ]
+    }
+  ]
+}

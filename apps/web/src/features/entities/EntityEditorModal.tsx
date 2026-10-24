@@ -44,8 +44,18 @@ export function EntityEditorModal({
   } = controller;
 
   const dialogRef = useNativeDialog(entityModalOpen);
-  useLayoutEffect(()=>{if(!entityModalOpen||!section)return;const frame=requestAnimationFrame(()=>{const target=dialogRef.current?.querySelector<HTMLElement>(`[data-editor-section="${section}"]`);if(!target)return;let parent=target.parentElement;while(parent&&parent!==dialogRef.current){if(parent instanceof HTMLDetailsElement)parent.open=true;parent=parent.parentElement;}const input=target.matches("input,textarea,select")?target:target.querySelector<HTMLElement>("input,textarea,select,button");(input?.closest("label,.field")||input||target).scrollIntoView({block:"start",inline:"nearest"});input?.focus({preventScroll:true});});return()=>cancelAnimationFrame(frame);},[entityModalOpen,section]);
-  useLayoutEffect(()=>{if(!entityModalOpen||(!error&&!controller.conflict))return;const frame=requestAnimationFrame(()=>{const notice=dialogRef.current?.querySelector<HTMLElement>(controller.conflict?'[aria-label="Сравнение версий"]':'.form-error');notice?.scrollIntoView({block:"start"});notice?.focus({preventScroll:true});});return()=>cancelAnimationFrame(frame);},[entityModalOpen,error,controller.conflict]);
+  // Keep focused controls clear of the fixed footer, including very short windows.
+  function focusEditorTarget(target:Element,focus:HTMLElement=target as HTMLElement){
+    target.scrollIntoView({block:"start",inline:"nearest",behavior:"instant"});focus.focus({preventScroll:true});
+    const body=dialogRef.current?.querySelector<HTMLElement>(".entity-editor-body");if(!body||!body.contains(focus))return;
+    const field=focus.getBoundingClientRect(),area=body.getBoundingClientRect();
+    if(field.height<=body.clientHeight){const margin=Math.max(0,Math.min(8,(body.clientHeight-field.height)/2));body.scrollTo({top:body.scrollTop+field.top-area.top-margin,behavior:"instant"});}
+  }
+
+  useLayoutEffect(()=>{if(!entityModalOpen||!section)return;const frame=requestAnimationFrame(()=>{const target=dialogRef.current?.querySelector<HTMLElement>(`[data-editor-section="${section}"]`);if(!target)return;let parent=target.parentElement;while(parent&&parent!==dialogRef.current){if(parent instanceof HTMLDetailsElement)parent.open=true;parent=parent.parentElement;}const input=target.matches("input,textarea,select")?target:target.querySelector<HTMLElement>("input,textarea,select,button");focusEditorTarget(input?.closest("label,.field")||input||target,input||target);});return()=>cancelAnimationFrame(frame);},[entityModalOpen,section]);
+  useLayoutEffect(()=>{if(!entityModalOpen||(!error&&!controller.conflict))return;const frame=requestAnimationFrame(()=>{const notice=dialogRef.current?.querySelector<HTMLElement>(controller.conflict?'[aria-label="Сравнение версий"]':'.form-error');if(notice)focusEditorTarget(notice);});return()=>cancelAnimationFrame(frame);},[entityModalOpen,error,controller.conflict]);
+  const saveBlocker=controller.deviceDraft.candidate?{text:"Есть черновик на этом устройстве",action:"Выбрать версию",selector:".device-draft-controls.has-recovery"}:controller.conflict?{text:"Запись изменилась на сервере",action:"Сравнить версии",selector:'[aria-label="Сравнение версий"]'}:null;
+  const showSaveBlocker=()=>{if(!saveBlocker)return;const notice=dialogRef.current?.querySelector<HTMLElement>(saveBlocker.selector);if(!notice)return;const focus=notice.hasAttribute("tabindex")?notice:notice.querySelector<HTMLElement>("select,input:not([disabled]),button:not([disabled]),textarea:not([disabled])")||notice;focusEditorTarget(focus.closest("label,.field")||focus,focus);};
   if (!entityModalOpen) {
     return null;
   }
@@ -95,7 +105,7 @@ export function EntityEditorModal({
 
         </details>
 
-        {error ? (
+        {error && !controller.conflict ? (
           <div tabIndex={-1} className="card mini form-error" role="alert">
             <strong>Изменения не сохранены</strong>
             <p>{error}</p>
@@ -121,6 +131,7 @@ export function EntityEditorModal({
 
         </div>
         <div className="actions editor-submit-bar">
+          {saveBlocker&&<div className="editor-save-blocker"><span>{saveBlocker.text}</span><button className="ghost" type="button" onClick={showSaveBlocker}>{saveBlocker.action}</button></div>}
           {isEditingEntity ? (
             <button className="ghost danger-action" disabled={saving || generating} onClick={() => void deleteEntity()} type="button">
               Удалить

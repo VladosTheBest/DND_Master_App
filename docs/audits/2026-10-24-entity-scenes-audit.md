@@ -58,3 +58,8 @@ Fly release 188 опубликован из commit 705f864; health check passing
 ## Медиа и навигация редактора
 
 [Новый проход](product-design-2026-10-24/media-and-stats/README.md) закрыл URL focus loss, scoped gallery/playlist drafts и frozen revision, сравнение/merge, видимые ошибки, gallery zoom/contain/fallback, прямые field jumps и mobile ability grid. Есть реальные recovery/409/upload/save/reopen и API-проверки соседних полей. [Сводная матрица](product-design-2026-10-24/acceptance-matrix.md) сохраняет исходный объём и отмечает непроверенные внешние пункты.
+
+
+## Согласованность ввода и сохранения
+
+[Новый проход](product-design-2026-10-24/editing-consistency/README.md) исправил remount уровня spell slot и добавил общий статический regression guard прямых mutable key зависимостей. В footer редактора видны причины блокировки Save и переходы к копиям/сравнению; short-window focus, повторный Save и настоящий 409 проверены без изменения серверных контрактов/формул.

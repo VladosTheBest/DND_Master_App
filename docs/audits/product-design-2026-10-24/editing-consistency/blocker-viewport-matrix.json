@@ -1,0 +1,158 @@
+[
+  {
+    "body": {
+      "bottom": 124.609375,
+      "height": 56.21875,
+      "left": 17,
+      "right": 623,
+      "top": 68.390625,
+      "width": 606,
+      "x": 17,
+      "y": 68.390625
+    },
+    "focus": {
+      "bottom": 118.3125,
+      "height": 44.8125,
+      "left": 51.515625,
+      "right": 579.484375,
+      "top": 73.5,
+      "width": 527.96875,
+      "x": 51.515625,
+      "y": 73.5
+    },
+    "focusVisible": true,
+    "focusedControl": "SELECT",
+    "fontSize": "16px",
+    "footer": {
+      "bottom": 223,
+      "height": 98.390625,
+      "left": 17,
+      "right": 623,
+      "top": 124.609375,
+      "width": 606,
+      "x": 17,
+      "y": 124.609375
+    },
+    "footerVisible": true,
+    "height": 240,
+    "overflow": false,
+    "width": 640
+  },
+  {
+    "body": {
+      "bottom": 355,
+      "height": 233.578125,
+      "left": 17,
+      "right": 303,
+      "top": 121.421875,
+      "width": 286,
+      "x": 17,
+      "y": 121.421875
+    },
+    "focus": {
+      "bottom": 174.640625,
+      "height": 44.8125,
+      "left": 45.515625,
+      "right": 265.484375,
+      "top": 129.828125,
+      "width": 219.96875,
+      "x": 45.515625,
+      "y": 129.828125
+    },
+    "focusVisible": true,
+    "focusedControl": "SELECT",
+    "fontSize": "16px",
+    "footer": {
+      "bottom": 551,
+      "height": 196,
+      "left": 17,
+      "right": 303,
+      "top": 355,
+      "width": 286,
+      "x": 17,
+      "y": 355
+    },
+    "footerVisible": true,
+    "height": 568,
+    "overflow": false,
+    "width": 320
+  },
+  {
+    "body": {
+      "bottom": 890.609375,
+      "height": 781.46875,
+      "left": 17,
+      "right": 751,
+      "top": 109.140625,
+      "width": 734,
+      "x": 17,
+      "y": 109.140625
+    },
+    "focus": {
+      "bottom": 162.0625,
+      "height": 44.8125,
+      "left": 51.515625,
+      "right": 707.484375,
+      "top": 117.25,
+      "width": 655.96875,
+      "x": 51.515625,
+      "y": 117.25
+    },
+    "focusVisible": true,
+    "focusedControl": "SELECT",
+    "fontSize": "16px",
+    "footer": {
+      "bottom": 1007,
+      "height": 116.390625,
+      "left": 17,
+      "right": 751,
+      "top": 890.609375,
+      "width": 734,
+      "x": 17,
+      "y": 890.609375
+    },
+    "footerVisible": true,
+    "height": 1024,
+    "overflow": false,
+    "width": 768
+  },
+  {
+    "body": {
+      "bottom": 890.609375,
+      "height": 781.46875,
+      "left": 221,
+      "right": 1219,
+      "top": 109.140625,
+      "width": 998,
+      "x": 221,
+      "y": 109.140625
+    },
+    "focus": {
+      "bottom": 162.0625,
+      "height": 44.8125,
+      "left": 255.515625,
+      "right": 1175.484375,
+      "top": 117.25,
+      "width": 919.96875,
+      "x": 255.515625,
+      "y": 117.25
+    },
+    "focusVisible": true,
+    "focusedControl": "SELECT",
+    "fontSize": "16px",
+    "footer": {
+      "bottom": 1007,
+      "height": 116.390625,
+      "left": 221,
+      "right": 1219,
+      "top": 890.609375,
+      "width": 998,
+      "x": 221,
+      "y": 890.609375
+    },
+    "footerVisible": true,
+    "height": 1024,
+    "overflow": false,
+    "width": 1440
+  }
+]

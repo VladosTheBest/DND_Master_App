@@ -278,7 +278,7 @@ export function EntityStatBlockEditor({
 
             <div className="spell-slot-editor-list">
               {(entityForm.statBlock.spellcasting.slots ?? []).map((slot, index) => (
-                <div key={`${slot.level}-${index}`} className="spell-slot-row">
+                <div key={index} className="spell-slot-row">
                   <label className="field">
                     <span>Уровень</span>
                     <input
