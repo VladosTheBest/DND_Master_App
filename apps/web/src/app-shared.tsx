@@ -207,7 +207,7 @@ export const createPortraitSource = (entity: PortraitEntityLike) => {
       <path d="M233 620c34-112 107-169 127-182 20-13 40-13 40-13s20 0 40 13c20 13 93 70 127 182" fill="rgba(7, 14, 20, 0.22)"/>
       <text x="64" y="98" fill="rgba(255,255,255,0.92)" font-family="Segoe UI, Arial, sans-serif" font-size="40" letter-spacing="7">${theme.label}</text>
       <text x="64" y="792" fill="rgba(255,255,255,0.96)" font-family="Georgia, serif" font-size="52" font-weight="700">${safeTitle}</text>
-      <text x="64" y="852" fill="rgba(255,255,255,0.72)" font-family="Segoe UI, Arial, sans-serif" font-size="28">Изображение-заглушка, пока не задан art.url</text>
+      <text x="64" y="852" fill="rgba(255,255,255,0.72)" font-family="Segoe UI, Arial, sans-serif" font-size="28">Изображение пока не добавлено</text>
       <text x="360" y="352" text-anchor="middle" fill="rgba(255,255,255,0.88)" font-family="Georgia, serif" font-size="126" font-weight="700">${initials}</text>
     </svg>
   `;
@@ -312,14 +312,16 @@ export function EntityVisual({
   onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
   variant?: "row" | "hero" | "relation";
 }) {
+  const [failedArt,setFailedArt] = useState<string>("");
+  const showArt = hasVisibleArt(entity.art) && failedArt !== entity.art?.url;
   const imageEntity = "id" in entity ? entity as KnowledgeEntity : null;
   const openImage = onOpenEntityImage && imageEntity
-    ? () => onOpenEntityImage(imageEntity, hasVisibleArt(entity.art) ? createPortraitSource(entity) : undefined)
+    ? () => onOpenEntityImage(imageEntity, showArt ? createPortraitSource(entity) : undefined)
     : undefined;
   const triggerProps = entityImageTriggerProps(openImage);
   const triggerLabel = openImage ? `Открыть изображение «${entity.title}»` : undefined;
 
-  if (!hasVisibleArt(entity.art)) {
+  if (!showArt) {
     return (
       <span
         {...triggerProps}
@@ -340,7 +342,7 @@ export function EntityVisual({
       className={`entity-thumb-frame entity-thumb-${variant} ${openImage ? "entity-image-trigger" : ""}`.trim()}
       title={triggerLabel}
     >
-      <img alt={entity.art?.alt ?? entity.title} className="entity-thumb" loading="lazy" src={createPortraitSource(entity)} />
+      <img alt={entity.art?.alt ?? entity.title} className="entity-thumb" loading="lazy" src={createPortraitSource(entity)} onError={()=>setFailedArt(entity.art?.url||"")} />
     </span>
   );
 }

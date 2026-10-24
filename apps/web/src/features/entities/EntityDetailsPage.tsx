@@ -99,25 +99,27 @@ function ShopRelationIcon() {
   );
 }
 
+const hasDescription = (value: string) => Boolean(value.trim() && value.trim() !== "Описание пока не заполнено.");
+
 function MasterKnowledgeCard({
   content,
   entityByTitle,
   onContextMenu,
   onMentionClick,
-  summary,
-  title = "Информация для мастера"
+  title = "Информация для мастера",
+  action
 }: {
   content: string;
   entityByTitle: Map<string, KnowledgeEntity>;
   onContextMenu: (event: ReactMouseEvent<HTMLElement>) => void;
   onMentionClick: (id: string) => void;
-  summary: string;
   title?: string;
+  action?: ReactNode;
 }) {
   return (
     <section className="master-knowledge-reading" onContextMenu={onContextMenu}>
-      <h2>{title}</h2>
-      {content.trim() ? <RichParagraphs content={content} entityByTitle={entityByTitle} onMentionClick={onMentionClick} /> : <p className="copy">{summary.trim() || "Описание пока не добавлено."}</p>}
+      <header className="record-block-heading"><h2>{title}</h2>{action}</header>
+      {hasDescription(content) ? <RichParagraphs content={content} entityByTitle={entityByTitle} onMentionClick={onMentionClick} /> : <p className="copy">Сведения мастера пока не добавлены.</p>}
     </section>
   );
 }
@@ -174,7 +176,7 @@ export function EntityDetailsRenderer({
           ["npc-media", "Медиа"],
           ["npc-master-notes", "Мастеру"],
           ["record-relations", "Связи"],
-          ["npc-stats", "Статы"]
+          ["npc-stats", "Характеристики"]
         ]
       : activeEntity.kind === "location"
         ? [
@@ -191,8 +193,29 @@ export function EntityDetailsRenderer({
             ["player-media", "Медиа"],
             ["player-master-notes", "Мастеру"],
             ["record-relations", "Связи"],
-            ["player-stats", "Статы"]
+            ["player-stats", "Характеристики"]
           ];
+
+  const rewardProfile = isRewardableEntity(activeEntity) ? activeEntity.rewardProfile : undefined;
+  const rewardsSection = !isRewardableEntity(activeEntity) ? null : rewardProfile?.summary || rewardProfile?.loot.length ? (
+    <RewardSection kind={activeEntity.kind} rewardProfile={rewardProfile} action={!readOnly && <button className="ghost record-edit-action" type="button" onClick={() => onEditEntity("rewards")}>Редактировать награды</button>} />
+  ) : !readOnly ? (
+    <section className="record-empty-section">
+      <header className="record-block-heading"><h2>Награды и добыча</h2><button className="ghost record-edit-action" type="button" onClick={() => onEditEntity("rewards")}>Добавить награды</button></header>
+      <p className="copy">Награды за помощь, трофеи и другие находки.</p>
+    </section>
+  ) : null;
+
+  const jumpToSection = (event: ReactMouseEvent<HTMLAnchorElement>, id: string) => {
+    const target = event.currentTarget.closest(".entity-dossier-layout")?.querySelector<HTMLElement>(`#${id}`);
+    if (!target) return;
+    event.preventDefault();
+    target.querySelector<HTMLButtonElement>(".collapsible-toggle[aria-expanded='false']")?.click();
+    requestAnimationFrame(() => {
+      target.scrollIntoView({ block: "start", behavior: "instant" });
+      target.focus({ preventScroll: true });
+    });
+  };
 
   if (activeEntity.kind === "monster" && combatProfileEntity) {
     const openMonsterAlbum = () => {
@@ -283,17 +306,16 @@ export function EntityDetailsRenderer({
         </div>
 
         <div id="monster-loot">
-          {isRewardableEntity(activeEntity) ? <>{!readOnly&&<button className="ghost record-edit-action" onClick={()=>onEditEntity("rewards")}>Редактировать награды</button>}<RewardSection kind={activeEntity.kind} rewardProfile={activeEntity.rewardProfile} /></> : null}
+          {rewardsSection}
         </div>
 
         <div id="monster-description">
-        {!readOnly&&<button className="ghost record-edit-action" type="button" onClick={()=>onEditEntity("content")}>{activeEntity.content.trim()?"Редактировать сведения мастера":"Добавить сведения мастера"}</button>}
       <MasterKnowledgeCard
+          action={!readOnly&&<button className="ghost record-edit-action" type="button" onClick={()=>onEditEntity("content")}>{hasDescription(activeEntity.content)?"Редактировать сведения мастера":"Добавить сведения мастера"}</button>}
           content={activeEntity.content}
           entityByTitle={entityByTitle}
           onContextMenu={onContentContextMenu}
           onMentionClick={onOpenPreview}
-          summary={activeEntity.summary}
           title="Описание и заметки мастера"
         />
         </div>
@@ -303,8 +325,10 @@ export function EntityDetailsRenderer({
 
   return (
     <div className={`stack wide entity-details-page ${dossierKind ? `${dossierKind}-details-page` : ""}`.trim()}>
+      <div className={`record-intro ${activeEntity.kind === "npc" ? `npc-dossier-intro ${activeEntity.art?.url ? "has-portrait" : ""}` : ""}`} id={dossierKind ? `${dossierKind}-summary` : undefined} tabIndex={-1}>
       <section
         className={`card hero record-hero ${activeEntity.art?.url ? "record-with-art" : ""}`}
+        data-long-title={activeEntity.title.length > 64 || undefined}
         onContextMenu={onOpenEntityActionMenu}
       >
         <div className="hero-head">
@@ -333,41 +357,41 @@ export function EntityDetailsRenderer({
         </div> : null}
       </section>
       <RecordIllustration key={activeEntity.art?.url||activeEntity.id} url={activeEntity.art?.url} title={activeEntity.title} alt={activeEntity.art?.alt||activeEntity.art?.caption} onReplace={readOnly?undefined:()=>onEditEntity("art")} onGallery={readOnly?undefined:onOpenGallery}/>
-      {!readOnly&&<button className="ghost record-edit-action" type="button" onClick={()=>onEditEntity("summary")}>{activeEntity.summary.trim()?"Редактировать описание":"Добавить описание"}</button>}
-      {activeEntity.summary.trim() ? <p className="record-summary">{activeEntity.summary}</p> : null}
-
+      <section className="record-overview" aria-label="Краткое описание">
+        <header className="record-block-heading"><h2>Кратко</h2>{!readOnly&&<button className="ghost record-edit-action" type="button" onClick={()=>onEditEntity("summary")}>{hasDescription(activeEntity.summary)?"Редактировать описание":"Добавить описание"}</button>}</header>
+        {hasDescription(activeEntity.summary) ? <p className="record-summary">{activeEntity.summary}</p> : <p className="copy">Добавьте роль в истории и главное, что стоит помнить об этой записи.</p>}
+      </section>
+      {visibleFacts.length ? <dl className="record-facts">
+        {visibleFacts.map(fact => <div key={fact.label}><dt>{fact.label}</dt><dd className={toneClass[fact.tone ?? "default"]}>{({Tense:"Напряжённо",Safe:"Безопасно",Dangerous:"Опасно",Deadly:"Смертельно",Site:"Место",City:"Город",Region:"Регион",Dungeon:"Подземелье",POI:"Точка интереса",Active:"Активно",Reserve:"Резерв",Guest:"Гость",Critical:"Ключевой",Ally:"Союзник",Threat:"Угроза",Unknown:"Не определён",Neutral:"Нейтральный",Hostile:"Враждебный",Friendly:"Дружелюбный"} as Record<string,string>)[fact.value]||fact.value}</dd></div>)}
+      </dl> : null}
+      </div>
       {dossierKind ? (
         <nav aria-label="Быстрые переходы по карточке" className="player-details-jumpbar">
-          <span>Быстро найти</span>
+          <span>Разделы досье</span>
           {dossierLinks.map(([id, label]) => (
-            <a key={id} href={`#${id}`}>{label}</a>
+            <a key={id} href={`#${id}`} onClick={event=>jumpToSection(event,id)}>{label}</a>
           ))}
         </nav>
       ) : null}
 
-      {visibleFacts.length ? <dl className="record-facts" id={dossierKind ? `${dossierKind}-summary` : undefined}>
-        {visibleFacts.map(fact => <div key={fact.label}><dt>{fact.label}</dt><dd className={toneClass[fact.tone ?? "default"]}>{({Tense:"Напряжённо",Safe:"Безопасно",Dangerous:"Опасно",Deadly:"Смертельно",Site:"Место",City:"Город",Region:"Регион",Dungeon:"Подземелье",POI:"Точка интереса",Active:"Активно",Reserve:"Резерв",Guest:"Гость",Critical:"Ключевой",Ally:"Союзник",Threat:"Угроза",Unknown:"Не определён",Neutral:"Нейтральный",Hostile:"Враждебный",Friendly:"Дружелюбный"} as Record<string,string>)[fact.value]||fact.value}</dd></div>)}
-      </dl> : null}
-
-      <div id={dossierKind ? `${dossierKind}-master-notes` : undefined}>
-      {!readOnly&&<button className="ghost record-edit-action" type="button" onClick={()=>onEditEntity("content")}>{activeEntity.content.trim()?"Редактировать сведения мастера":"Добавить сведения мастера"}</button>}
+      <div id={dossierKind ? `${dossierKind}-master-notes` : undefined} tabIndex={-1}>
       <MasterKnowledgeCard
+        action={!readOnly&&<button className="ghost record-edit-action" type="button" onClick={()=>onEditEntity("content")}>{hasDescription(activeEntity.content)?"Редактировать сведения мастера":"Добавить сведения мастера"}</button>}
         content={activeEntity.content}
         entityByTitle={entityByTitle}
         onContextMenu={onContentContextMenu}
         onMentionClick={onOpenPreview}
-        summary={activeEntity.summary}
       />
       </div>
 
-      <div id={dossierKind ? `${dossierKind}-handouts` : undefined}>
+      <div id={dossierKind ? `${dossierKind}-handouts` : undefined} tabIndex={-1}>
         <PlayerFacingCardStrip
           cards={activeEntityPlayerCards}
-          createDescription="Отдельная сцена, handout или короткая заметка для игроков. Откроется сразу в режиме редактирования."
+          createDescription="Внешность, реплика или описание сцены — текст, который можно показать или зачитать игрокам."
           description={
             activeEntity.kind === "location"
-              ? "Создавай сколько угодно отдельных карточек-сцен и handout-описаний для игроков."
-              : "Храни здесь player-safe описания, речи, handout-карточки и любые отдельные тексты, которые удобно открывать по одной."
+              ? "Описания сцен и материалы, которые можно показать игрокам."
+              : "Внешность, реплики и подсказки без секретов мастера."
           }
           emptyDescription="Пока карточек нет. Создай первую, и она сразу появится в отдельном удобном просмотре для зачитывания игрокам."
           entityId={activeEntity.id}
@@ -394,7 +418,7 @@ export function EntityDetailsRenderer({
       ) : null}
 
       {activeEntity.kind === "location" ? (
-        <div id="location-shops">
+        <div id="location-shops" tabIndex={-1}>
         <CollapsibleSection
           key={`${activeEntity.id}-shops`}
           defaultCollapsed={!locationShops.length}
@@ -440,7 +464,7 @@ export function EntityDetailsRenderer({
         </div>
       ) : null}
 
-      <div className="player-detail-media-grid" id={dossierKind ? `${dossierKind}-media` : undefined}>
+      <div className="player-detail-media-grid" id={dossierKind ? `${dossierKind}-media` : undefined} tabIndex={-1}>
       <PlaylistSection
         action={readOnly ? undefined : (
           <button className="ghost" onClick={onOpenPlaylistEditor} type="button">
@@ -476,7 +500,7 @@ export function EntityDetailsRenderer({
       </div>
 
       {activeEntity.kind === "npc" ? (
-        <div id="npc-quests">
+        <div id="npc-quests" tabIndex={-1}>
         <CollapsibleSection
           key={`${activeEntity.id}-quests`}
           defaultCollapsed={!activeNpcQuests.length}
@@ -515,12 +539,12 @@ export function EntityDetailsRenderer({
         </div>
       ) : null}
 
-      {isRewardableEntity(activeEntity) ? <>{!readOnly&&<button className="ghost record-edit-action" onClick={()=>onEditEntity("rewards")}>Редактировать награды</button>}<RewardSection kind={activeEntity.kind} rewardProfile={activeEntity.rewardProfile} /></> : null}
+      {rewardsSection}
 
-      <div id={dossierKind ? `${dossierKind}-stats` : undefined}>
+      <div id={dossierKind ? `${dossierKind}-stats` : undefined} tabIndex={-1}>
         {combatProfileEntity ? (<>
-          {!readOnly&&<button className="ghost record-edit-action" type="button" onClick={()=>onEditEntity("stats")}>Редактировать характеристики</button>}
-          <CombatEntityStatSheet
+          {!combatProfileEntity.statBlock ? <section className="record-empty-section"><header className="record-block-heading"><h2>Характеристики</h2>{!readOnly&&<button className="ghost record-edit-action" type="button" onClick={()=>onEditEntity("stats")}>Добавить характеристики</button>}</header><p className="copy">Боевой профиль пока не добавлен.</p></section> : <CombatEntityStatSheet
+            action={!readOnly&&<button className="ghost record-edit-action" type="button" onClick={()=>onEditEntity("stats")}>Редактировать характеристики</button>}
             entity={combatProfileEntity}
             onOpenPortraitGallery={
               onOpenEntityImage
@@ -528,7 +552,7 @@ export function EntityDetailsRenderer({
                 : undefined
             }
             portraitActionLabel={onOpenEntityImage ? "Нажми на портрет, чтобы открыть изображение и действия." : undefined}
-          />
+          />}
         </>) : null}
       </div>
     </div>
@@ -540,7 +564,7 @@ export function EntityDetailsPage(props: EntityDetailsRendererProps) {
 
   return <div className="entity-dossier-layout">
     <EntityDetailsRenderer {...props} />
-    <aside id="record-relations" className="record-context" aria-label="Связи записи">
+    <aside tabIndex={-1} id="record-relations" className="record-context" aria-label="Связи записи">
       <EntityRelationsPanel campaignId={route.campaignId||""} ownerId={props.ownerId||""} entity={props.activeEntity} onResolve={props.onResolveRelatedEntity} onOpen={props.onOpenRelatedEntity} onChanged={props.onCampaignChanged}/>
       {props.activeEntity.kind === "location" ? <section><h3>Карта и сцена</h3><p className="copy">Откройте атлас или создайте карту для этого места.</p><a className="ghost record-map-action" href={workspaceURL({campaignId: route.campaignId, section: "maps", view: "new", context: JSON.stringify({locationId: props.activeEntity.id})})}>Открыть карты и сцены</a></section> : null}
       {props.activeNpcQuests.length ? <section><h3>Квесты НПС</h3>{props.activeNpcQuests.map(quest => <button className="record-context-link" type="button" key={quest.id} onClick={() => props.onPeekQuest(quest.id)}><span><strong>{quest.title}</strong><small>{quest.summary}</small></span></button>)}</section> : null}

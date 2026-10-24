@@ -300,9 +300,10 @@ export function CombatEntityStatSheet({
   }
 
   const { statBlock } = entity;
+  const hasPortrait = Boolean(portraitOverride?.url) || hasVisibleArt(entity.art);
   const portraitSource = portraitOverride?.url ?? createPortraitSource(entity);
   const portraitAlt = portraitOverride?.alt ?? entity.art?.alt ?? entity.title;
-  const portraitCaption = portraitOverride?.caption ?? entity.art?.caption ?? "Добавь art.url, чтобы заменить заглушку реальным артом.";
+  const portraitCaption = portraitOverride?.caption ?? entity.art?.caption ?? "";
   const headerLabel = entity.kind === "monster" ? "Боевой профиль" : "Статы и способности";
   const detailRows = [
     { label: "Спасброски", value: statBlock.savingThrows },
@@ -338,8 +339,8 @@ export function CombatEntityStatSheet({
       }
       title={headerLabel}
     >
-      <div className="npc-top">
-        <figure className="npc-portrait-frame">
+      <div className={`npc-top ${hasPortrait ? "" : "without-portrait"}`}>
+        {hasPortrait ? <figure className="npc-portrait-frame">
           {onOpenPortraitGallery ? (
             <button
               className="npc-portrait-button"
@@ -352,10 +353,10 @@ export function CombatEntityStatSheet({
             <img alt={portraitAlt} className="npc-portrait" src={portraitSource} />
           )}
           <figcaption>
-            <span>{portraitCaption}</span>
+            {portraitCaption ? <span>{portraitCaption}</span> : null}
             {onOpenPortraitGallery ? <span className="npc-portrait-note">{portraitActionLabel}</span> : null}
           </figcaption>
-        </figure>
+        </figure> : null}
 
         <div className="npc-overview">
           <div className="stack">
@@ -604,10 +605,12 @@ export function CombatEntityPreviewSummary({ entity }: { entity: CombatProfileEn
 
 export function RewardSection({
   rewardProfile,
+  action,
   compact = false,
   kind = "monster"
 }: {
   rewardProfile?: MonsterRewardProfile;
+  action?: ReactNode;
   compact?: boolean;
   kind?: EntityKind;
 }) {
@@ -620,6 +623,7 @@ export function RewardSection({
 
   return (
     <CollapsibleSection
+      action={action}
       className="npc-section monster-reward-section"
       defaultCollapsed={compact}
       hint={compact ? "Короткая сводка" : sectionMeta.hint}

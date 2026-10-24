@@ -1,0 +1,24 @@
+{
+  "app": "dnd-master-app",
+  "deployment": {
+    "status": "pending"
+  },
+  "authorizedSmoke": {
+    "status": "not_run",
+    "reason": "Production browser is signed out; awaiting user sign-in."
+  },
+  "localChecks": {
+    "webBuild": "passed",
+    "regressions": [
+      "routes",
+      "device-drafts",
+      "transport",
+      "compact-responses",
+      "reward-input"
+    ],
+    "screenStates": 26,
+    "npcViewportSizes": 6,
+    "horizontalOverflowCases": 0,
+    "keyboardAndEditor": "passed"
+  }
+}

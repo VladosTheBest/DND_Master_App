@@ -1,4 +1,5 @@
 import { ActionMenu } from "./ActionMenu";
+import { useWorkspaceRoute, workspaceURL } from "./workspace-route";
 import type { KnowledgeEntity } from "@shadow-edge/shared-types";
 
 type DefaultHeaderProps = {
@@ -52,6 +53,7 @@ type CombatHeaderProps = {
 type AppHeaderProps = DefaultHeaderProps | CombatHeaderProps;
 
 export function AppHeader(props: AppHeaderProps) {
+  const route = useWorkspaceRoute();
   if (props.variant === "combat") {
     return (
       <header className="panel topbar combat-topbar">
@@ -94,6 +96,7 @@ export function AppHeader(props: AppHeaderProps) {
       </button>
 
       <div className="chips">
+        <a className="ghost mobile-ai-link" href={workspaceURL({campaignId:route.campaignId,section:"chat"})}>AI-чат</a>
         {props.canOpenDirectory ? <button className="ghost" onClick={props.onOpenDirectory} type="button">← К списку</button> : null}
         {props.pinnedEntities.length ? <ActionMenu label={`Закладки · ${props.pinnedEntities.length}`}>
           {props.pinnedEntities.map(entity => <button key={entity.id} className="ghost" onClick={() => props.onOpenPinnedEntity(entity.id)} type="button">{entity.title}</button>)}

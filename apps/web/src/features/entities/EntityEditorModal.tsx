@@ -52,16 +52,17 @@ export function EntityEditorModal({
   return (
     <dialog ref={dialogRef} className="app-native-dialog" aria-label={isEditingEntity ? "Редактирование записи" : "Новая запись"} onCancel={event => { event.preventDefault(); onClose(); }}>
       <div className="panel palette form-modal entity-editor-modal" onClick={(event) => event.stopPropagation()}>
-        <div className="row">
+        <div className="row entity-editor-header">
           <div>
             <h2>{isEditingEntity ? "Редактирование записи" : "Новая запись"}</h2>
-            <p className="copy">Начните с названия и описания. Остальное можно дополнить позже.</p>
+            <p className="copy">{isEditingEntity ? controller.entityForm.title : "Начните с названия и описания. Остальное можно дополнить позже."}</p>
           </div>
           <button className="ghost" onClick={onClose} type="button">
             Закрыть
           </button>
         </div>
 
+        <div className="entity-editor-body">
         <DeviceDraftControls draft={controller.deviceDraft}/>
         {controller.conflict && <section className="card mini" aria-label="Сравнение версий">
           <h3>Конфликт: запись изменилась на сервере</h3>
@@ -117,12 +118,14 @@ export function EntityEditorModal({
           onContentContextMenu={onContentContextMenu}
         />
 
+        </div>
         <div className="actions editor-submit-bar">
           {isEditingEntity ? (
             <button className="ghost danger-action" disabled={saving || generating} onClick={() => void deleteEntity()} type="button">
               Удалить
             </button>
           ) : null}
+          <button className="ghost" onClick={onClose} type="button">Отмена</button>
           <button className="primary" disabled={saving || generating || entityFormImageUploading || Boolean(controller.conflict) || Boolean(controller.deviceDraft.candidate)} onClick={() => void submitEntity()} type="button">
             {saving ? "Сохраняю..." : entitySubmitLabel}
           </button>

@@ -481,7 +481,7 @@ export function EntityEditorForm({
       <label className="field field-full">
         <span>Информация для мастера</span>
         <small className="field-hint">
-          Полная GM-версия сущности: скрытые мотивы, правда, тайные связи, последствия и служебные заметки. Выдели текст и нажми правой кнопкой, чтобы привязать его к другой сущности.
+          Только для мастера: мотивы, секреты и подсказки для отыгрыша. Связать эту запись с другими можно в панели «Связи».
         </small>
         <textarea
           className="input textarea textarea-lg"

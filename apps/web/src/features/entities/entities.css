@@ -63,7 +63,7 @@
 }
 .npc-core-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(110px, 100%), 1fr));
   gap: .55rem;
 }
 .npc-detail-list {
@@ -362,3 +362,14 @@
   color: var(--text-muted);
   font-size: .72rem;
 }
+
+/* Stat blocks must remain readable inside narrow dossiers and preview columns. */
+@media(max-width:760px){
+ .npc-top{grid-template-columns:minmax(0,1fr)}
+ .npc-portrait-frame{max-width:240px;justify-self:center;width:100%}
+ .npc-ability-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+ .spell-grid{grid-template-columns:repeat(auto-fit,minmax(min(120px,100%),1fr))}
+ .npc-detail-row{grid-template-columns:minmax(0,1fr);gap:6px;overflow-wrap:anywhere}
+}
+
+.npc-top.without-portrait{grid-template-columns:minmax(0,1fr)}

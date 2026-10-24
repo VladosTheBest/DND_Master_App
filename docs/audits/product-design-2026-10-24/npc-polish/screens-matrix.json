@@ -1,0 +1,292 @@
+[
+  {
+    "screen": "dashboard",
+    "headings": [
+      "UX: тест третьего этапа",
+      "Сессия проверки UX",
+      "Сюжет в работе 0",
+      "Закреплённое 0"
+    ],
+    "height": 1024,
+    "overflow": false,
+    "railHeight": 1024,
+    "width": 1440
+  },
+  {
+    "screen": "players",
+    "headings": [
+      "Каждая легенда начинается с героя",
+      "Карточки группы"
+    ],
+    "height": 1024,
+    "overflow": false,
+    "railHeight": 1024,
+    "width": 1440
+  },
+  {
+    "screen": "quests",
+    "headings": [
+      "Квесты"
+    ],
+    "height": 1024,
+    "overflow": false,
+    "railHeight": 1024,
+    "width": 1440
+  },
+  {
+    "screen": "locations",
+    "headings": [
+      "Локации"
+    ],
+    "height": 1024,
+    "overflow": false,
+    "railHeight": 1024,
+    "width": 1440
+  },
+  {
+    "screen": "npcs",
+    "headings": [
+      "НПС"
+    ],
+    "height": 1024,
+    "overflow": false,
+    "railHeight": 1024,
+    "width": 1440
+  },
+  {
+    "screen": "events",
+    "headings": [
+      "События и сцены",
+      "Событие маршрута"
+    ],
+    "height": 1024,
+    "overflow": false,
+    "railHeight": 1024,
+    "width": 1440
+  },
+  {
+    "screen": "notes",
+    "headings": [
+      "Заметки мастера",
+      "Связи 0"
+    ],
+    "height": 1024,
+    "overflow": false,
+    "railHeight": 1024,
+    "width": 1440
+  },
+  {
+    "screen": "shops",
+    "headings": [
+      "Магазины",
+      "Ассортимент 0",
+      "Каталог товаров"
+    ],
+    "height": 1024,
+    "overflow": false,
+    "railHeight": 1024,
+    "width": 1440
+  },
+  {
+    "screen": "monsters",
+    "headings": [
+      "Каталог монстров"
+    ],
+    "height": 1024,
+    "overflow": false,
+    "railHeight": 1024,
+    "width": 1440
+  },
+  {
+    "screen": "items",
+    "headings": [
+      "Предметы",
+      "Каталог"
+    ],
+    "height": 1024,
+    "overflow": false,
+    "railHeight": 1024,
+    "width": 1440
+  },
+  {
+    "screen": "rules",
+    "headings": [
+      "Правила",
+      "Исключения важнее общих правил"
+    ],
+    "height": 1024,
+    "overflow": false,
+    "railHeight": 1024,
+    "width": 1440
+  },
+  {
+    "screen": "sessions",
+    "headings": [
+      "Сессии1",
+      "Сессия проверки UX",
+      "Сессия проверки UX"
+    ],
+    "height": 1024,
+    "overflow": false,
+    "railHeight": 1024,
+    "width": 1440
+  },
+  {
+    "screen": "offline",
+    "headings": [
+      "Оффлайн Beta",
+      "Бой",
+      "Карта на ТВ",
+      "Инициатива"
+    ],
+    "height": 1024,
+    "overflow": false,
+    "railHeight": 1024,
+    "width": 1440
+  },
+  {
+    "screen": "dashboard",
+    "headings": [
+      "UX: тест третьего этапа",
+      "Сессия проверки UX",
+      "Сюжет в работе 0",
+      "Закреплённое 0"
+    ],
+    "height": 844,
+    "overflow": false,
+    "railHeight": 62,
+    "width": 390
+  },
+  {
+    "screen": "players",
+    "headings": [
+      "Каждая легенда начинается с героя",
+      "Карточки группы"
+    ],
+    "height": 844,
+    "overflow": false,
+    "railHeight": 62,
+    "width": 390
+  },
+  {
+    "screen": "quests",
+    "headings": [
+      "Квесты"
+    ],
+    "height": 844,
+    "overflow": false,
+    "railHeight": 62,
+    "width": 390
+  },
+  {
+    "screen": "locations",
+    "headings": [
+      "Локации"
+    ],
+    "height": 844,
+    "overflow": false,
+    "railHeight": 62,
+    "width": 390
+  },
+  {
+    "screen": "npcs",
+    "headings": [
+      "НПС"
+    ],
+    "height": 844,
+    "overflow": false,
+    "railHeight": 62,
+    "width": 390
+  },
+  {
+    "screen": "events",
+    "headings": [
+      "События и сцены",
+      "Событие маршрута"
+    ],
+    "height": 844,
+    "overflow": false,
+    "railHeight": 62,
+    "width": 390
+  },
+  {
+    "screen": "notes",
+    "headings": [
+      "Заметки мастера",
+      "Связи 0"
+    ],
+    "height": 844,
+    "overflow": false,
+    "railHeight": 62,
+    "width": 390
+  },
+  {
+    "screen": "shops",
+    "headings": [
+      "Магазины",
+      "Ассортимент 0",
+      "Каталог товаров"
+    ],
+    "height": 844,
+    "overflow": false,
+    "railHeight": 62,
+    "width": 390
+  },
+  {
+    "screen": "monsters",
+    "headings": [
+      "Каталог монстров"
+    ],
+    "height": 844,
+    "overflow": false,
+    "railHeight": 62,
+    "width": 390
+  },
+  {
+    "screen": "items",
+    "headings": [
+      "Предметы",
+      "Каталог"
+    ],
+    "height": 844,
+    "overflow": false,
+    "railHeight": 62,
+    "width": 390
+  },
+  {
+    "screen": "rules",
+    "headings": [
+      "Правила",
+      "Исключения важнее общих правил"
+    ],
+    "height": 844,
+    "overflow": false,
+    "railHeight": 62,
+    "width": 390
+  },
+  {
+    "screen": "sessions",
+    "headings": [
+      "Сессии1",
+      "Сессия проверки UX",
+      "Сессия проверки UX"
+    ],
+    "height": 844,
+    "overflow": false,
+    "railHeight": 62,
+    "width": 390
+  },
+  {
+    "screen": "offline",
+    "headings": [
+      "Оффлайн Beta",
+      "Бой",
+      "Карта на ТВ",
+      "Инициатива"
+    ],
+    "height": 844,
+    "overflow": false,
+    "railHeight": 62,
+    "width": 390
+  }
+]

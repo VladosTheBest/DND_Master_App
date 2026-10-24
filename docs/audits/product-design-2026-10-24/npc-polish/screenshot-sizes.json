@@ -1,0 +1,230 @@
+{
+  "01-before.jpg": [
+    1440,
+    1024
+  ],
+  "06-stats-desktop.jpg": [
+    1440,
+    1024
+  ],
+  "11-final-phone-editor.jpg": [
+    390,
+    844
+  ],
+  "12-small-editor.jpg": [
+    320,
+    568
+  ],
+  "13-phone-stats.jpg": [
+    381,
+    825
+  ],
+  "14-long-phone.jpg": [
+    311,
+    552
+  ],
+  "15-empty-small.jpg": [
+    311,
+    552
+  ],
+  "16-player-handout.jpg": [
+    390,
+    844
+  ],
+  "17-chat-entry-phone.jpg": [
+    381,
+    825
+  ],
+  "18-player-phone.jpg": [
+    381,
+    825
+  ],
+  "19-monster-phone-before.jpg": [
+    381,
+    825
+  ],
+  "20-monster-phone-fixed.jpg": [
+    381,
+    825
+  ],
+  "21-quests-phone-fixed.jpg": [
+    390,
+    844
+  ],
+  "22-notes-phone-fixed.jpg": [
+    381,
+    825
+  ],
+  "23-directory-fallback.jpg": [
+    381,
+    825
+  ],
+  "24-draft-close-guard.jpg": [
+    1440,
+    1024
+  ],
+  "desktop-review-1.jpg": [
+    1440,
+    1080
+  ],
+  "desktop-review-2.jpg": [
+    1440,
+    1080
+  ],
+  "desktop-review-3.jpg": [
+    1440,
+    1080
+  ],
+  "desktop-review-4.jpg": [
+    1440,
+    1080
+  ],
+  "mobile-review-1.jpg": [
+    1170,
+    876
+  ],
+  "mobile-review-2.jpg": [
+    1170,
+    876
+  ],
+  "mobile-review-3.jpg": [
+    1170,
+    876
+  ],
+  "mobile-review-4.jpg": [
+    1170,
+    876
+  ],
+  "mobile-review-5.jpg": [
+    390,
+    876
+  ],
+  "viewport-1024.jpg": [
+    1015,
+    892
+  ],
+  "viewport-1280.jpg": [
+    1280,
+    720
+  ],
+  "viewport-1440.jpg": [
+    1440,
+    1024
+  ],
+  "viewport-320.jpg": [
+    311,
+    552
+  ],
+  "viewport-390.jpg": [
+    381,
+    825
+  ],
+  "viewport-768.jpg": [
+    759,
+    1012
+  ],
+  "screens\\1440-dashboard.jpg": [
+    1440,
+    1024
+  ],
+  "screens\\1440-events.jpg": [
+    1440,
+    1024
+  ],
+  "screens\\1440-items.jpg": [
+    1440,
+    1024
+  ],
+  "screens\\1440-locations.jpg": [
+    1440,
+    1024
+  ],
+  "screens\\1440-monsters.jpg": [
+    1440,
+    1024
+  ],
+  "screens\\1440-notes.jpg": [
+    1440,
+    1024
+  ],
+  "screens\\1440-npcs.jpg": [
+    1440,
+    1024
+  ],
+  "screens\\1440-offline.jpg": [
+    1440,
+    1024
+  ],
+  "screens\\1440-players.jpg": [
+    1440,
+    1024
+  ],
+  "screens\\1440-quests.jpg": [
+    1440,
+    1024
+  ],
+  "screens\\1440-rules.jpg": [
+    1440,
+    1024
+  ],
+  "screens\\1440-sessions.jpg": [
+    1440,
+    1024
+  ],
+  "screens\\1440-shops.jpg": [
+    1440,
+    1024
+  ],
+  "screens\\390-dashboard.jpg": [
+    381,
+    825
+  ],
+  "screens\\390-events.jpg": [
+    381,
+    825
+  ],
+  "screens\\390-items.jpg": [
+    381,
+    825
+  ],
+  "screens\\390-locations.jpg": [
+    381,
+    825
+  ],
+  "screens\\390-monsters.jpg": [
+    381,
+    825
+  ],
+  "screens\\390-notes.jpg": [
+    381,
+    825
+  ],
+  "screens\\390-npcs.jpg": [
+    381,
+    825
+  ],
+  "screens\\390-offline.jpg": [
+    381,
+    825
+  ],
+  "screens\\390-players.jpg": [
+    381,
+    825
+  ],
+  "screens\\390-quests.jpg": [
+    390,
+    844
+  ],
+  "screens\\390-rules.jpg": [
+    381,
+    825
+  ],
+  "screens\\390-sessions.jpg": [
+    381,
+    825
+  ],
+  "screens\\390-shops.jpg": [
+    381,
+    825
+  ]
+}

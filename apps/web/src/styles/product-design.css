@@ -63,7 +63,7 @@
 .shell .ch-campaign .ch-primary { background: #b5abed; color: #191629; border-color: #b5abed; border-radius: 8px; box-shadow: none; }
 .entity-dossier-layout { display: grid; grid-template-columns: minmax(0,1fr) 280px; gap: 28px; align-items: start; }
 .shell .entity-details-page { min-width: 0; width: 100%; gap: 20px; }
-.shell .entity-details-page > .record-hero { display: flex; flex-direction: row; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px; min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; overflow: visible; }
+.shell .entity-details-page .record-intro > .record-hero { display: flex; flex-direction: row; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 16px; min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; overflow: visible; }
 .shell .record-hero .hero-head { display: block; flex: 1 1 280px; }
 .shell .record-hero .hero-copy-block { padding: 0; gap: 8px; }
 .shell .record-hero .hero-copy-block h1 { max-width: none; margin: 0; font-size: 32px; font-family: inherit; text-shadow: none; }
@@ -276,3 +276,104 @@
 .shell :is(h1,h2,h3){color:var(--text);text-shadow:none}
 
 @media(min-width:1121px){.record-context{max-height:calc(100dvh - 140px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}.shell:not(.without-preview) .record-context{max-height:none;overflow:visible}}
+
+/* Dossier reading hierarchy: variant 3 surfaces with a restrained book-like NPC title. */
+.record-intro{display:grid;gap:20px;min-width:0;scroll-margin-top:68px}
+.record-overview{min-width:0;display:grid;gap:10px}
+.record-overview h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted)}
+.shell .entity-details-page .record-block-heading{margin-bottom:10px}
+.shell .entity-details-page .record-block-heading h2{margin:0}
+.shell .entity-details-page .record-edit-action{font-size:12px;min-height:34px;padding:6px 10px;white-space:normal;text-align:left}
+.shell .entity-details-page .master-knowledge-reading{padding:20px 22px;background:var(--surface);border:1px solid var(--line);border-radius:10px;font-size:15px;line-height:1.85}
+.master-knowledge-reading .rich{max-width:74ch}
+.shell .entity-details-page .master-knowledge-reading h2{font-size:18px}
+.shell .entity-details-page .master-knowledge-reading .rich p{padding:0;margin:12px 0;border:0;background:transparent}
+.shell .player-details-jumpbar{position:sticky;top:0;z-index:8;display:flex;flex-wrap:wrap;overflow:visible;gap:4px;padding:8px;background:var(--surface);border:1px solid var(--line);border-radius:9px;backdrop-filter:none;box-shadow:none}
+.shell .player-details-jumpbar a{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:7px 10px;font-size:13px;font-weight:500;line-height:1.35;background:transparent;border:1px solid transparent;border-radius:6px;color:var(--text-soft);text-decoration:none}
+.shell .player-details-jumpbar a:hover,.shell .player-details-jumpbar a:focus-visible{background:var(--surface-raised);color:var(--text);border-color:var(--line)}
+.shell .entity-details-page [id],.record-context[id]{scroll-margin-top:116px;outline-offset:5px}
+.shell .entity-details-page .collapsible-head{flex-wrap:wrap;align-items:center}
+.shell .entity-details-page .collapsible-toggle{min-width:0;min-height:44px}
+.shell .entity-details-page .collapsible-copy strong{font-family:inherit;font-weight:600;font-size:15px;line-height:1.5}
+.shell .entity-details-page .collapsible-copy small{font-size:13px;line-height:1.65}
+.shell .entity-details-page .collapsible-chevron{font-size:12px;color:var(--text-muted)}
+.shell .entity-details-page .collapsible-action{max-width:100%;min-width:0}
+.shell .entity-details-page .collapsible-action .actions{flex-wrap:wrap;gap:8px}
+.shell .npc-details-page .record-hero .hero-copy-block h1{font-family:Georgia,"Times New Roman",serif;font-size:34px;font-weight:600;line-height:1.16;letter-spacing:-.02em;color:#ece2ce;overflow-wrap:anywhere}
+.npc-dossier-intro{padding-bottom:22px;border-bottom:1px solid #c8b08240}
+.npc-dossier-intro.has-portrait{grid-template-columns:minmax(140px,220px) minmax(0,1fr);grid-template-rows:auto auto 1fr;gap:20px 24px;align-items:start}
+.npc-dossier-intro.has-portrait>.record-hero{grid-column:1/-1}
+.npc-dossier-intro.has-portrait>.record-illustration{grid-column:1;grid-row:2/4;max-width:100%;width:100%;gap:10px}
+.npc-dossier-intro.has-portrait .record-banner{border:1px solid #c8b08240;padding:5px;border-radius:9px;max-width:100%;background:#11151c}
+.npc-dossier-intro.has-portrait .record-banner img{max-width:100%;max-height:330px;width:auto;height:auto;border-radius:4px}
+.npc-dossier-intro.has-portrait .record-illustration .actions{flex-wrap:wrap;gap:6px}
+.npc-dossier-intro.has-portrait .record-illustration .actions button{font-size:12px;min-height:34px;padding:6px 8px}
+.npc-dossier-intro.has-portrait>.record-overview{grid-column:2;grid-row:2}
+.npc-dossier-intro.has-portrait>.record-facts{grid-column:2;grid-row:3;align-self:start}
+.npc-dossier-intro .record-facts{border:0;padding:4px 0 0;gap:16px 24px}
+.npc-dossier-intro .record-facts>div{display:grid;gap:5px;min-width:90px;max-width:100%;font-size:14px}
+.npc-dossier-intro .record-facts dt{font-size:12px}
+.npc-dossier-intro .record-facts dd{overflow-wrap:anywhere}
+.npc-dossier-intro:not(.has-portrait)>.record-illustration{order:4}
+@media(max-width:1320px) and (min-width:901px){.npc-dossier-intro.has-portrait{grid-template-columns:150px minmax(0,1fr);gap:18px}.npc-dossier-intro.has-portrait .record-banner img{max-height:270px}}
+@media(max-width:600px){
+ .shell .npc-details-page .record-hero .hero-copy-block h1{font-size:30px}
+ .npc-dossier-intro.has-portrait{grid-template-columns:minmax(0,1fr);grid-template-rows:auto;gap:18px}
+ .npc-dossier-intro.has-portrait>.record-hero,.npc-dossier-intro.has-portrait>.record-illustration,.npc-dossier-intro.has-portrait>.record-overview,.npc-dossier-intro.has-portrait>.record-facts{grid-column:1;grid-row:auto}
+ .npc-dossier-intro.has-portrait>.record-illustration{justify-self:center;width:auto;max-width:100%}
+ .npc-dossier-intro.has-portrait .record-banner img{max-height:260px}
+ .shell .entity-details-page .master-knowledge-reading{padding:16px;font-size:15px}
+ .shell .player-details-jumpbar{position:static;gap:2px;padding:5px}
+ .shell .player-details-jumpbar a{min-height:40px;padding:8px 9px;font-size:13px}
+ .shell .entity-details-page [id],.record-context[id]{scroll-margin-top:16px}
+ .shell .entity-details-page .record-block-heading{align-items:flex-start;gap:10px}
+ .shell .entity-details-page .collapsible-action{width:100%}
+}
+
+.mobile-ai-link{display:none}
+@media(max-width:1120px){
+ .shell .topbar .mobile-ai-link{display:inline-flex;align-items:center;min-height:36px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;color:var(--text-soft);font-size:12px;text-decoration:none}
+ body:has(.mobile-ai-link) .ai-jobs-launcher{display:none}
+}
+
+.shell .entity-details-page :is(#npc-master-notes,#player-master-notes,#location-master-notes) .rich{font-size:15px;line-height:1.85;gap:0;color:var(--text-soft)}
+.shell .entity-details-page :is(#npc-master-notes,#player-master-notes,#location-master-notes) .rich p{margin:12px 0;padding:0;border:0;background:transparent;color:inherit}
+.record-empty-section{padding:18px 0;border-bottom:1px solid var(--line)}
+.record-empty-section .copy{font-size:14px;line-height:1.75;margin:8px 0 0}
+
+.shell .npc-details-page .npc-sheet .npc-portrait-frame{display:none}
+.shell .npc-details-page .npc-sheet .npc-top{grid-template-columns:minmax(0,1fr)}
+.shell .npc-details-page .npc-sheet .npc-overview{min-width:0}
+
+/* Keep close/save reachable while an anchored editor section scrolls. */
+.app-native-dialog>.entity-editor-modal{padding:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto;max-height:calc(100dvh - 2rem);overflow:hidden;gap:0}
+.entity-editor-header{padding:18px 22px;border-bottom:1px solid var(--line);margin:0;align-items:flex-start;gap:12px}
+.entity-editor-header>div{min-width:0}.entity-editor-header h2{margin:0;font-size:20px}.entity-editor-header .copy{margin:6px 0 0;font-size:13px;overflow-wrap:anywhere}.entity-editor-header>button{flex-shrink:0}
+.entity-editor-body{padding:20px 22px;overflow:auto;min-height:0;display:grid;gap:16px;scroll-padding-block:16px}
+.entity-editor-modal>.editor-submit-bar{position:static;margin:0;padding:14px 22px;border-top:1px solid var(--line);background:var(--surface);gap:10px;justify-content:flex-end}
+.entity-editor-modal>.editor-submit-bar>.danger-action{margin-right:auto}
+@media(max-width:600px){
+ .entity-editor-header{padding:14px 16px}.entity-editor-header h2{font-size:17px}.entity-editor-body{padding:16px}
+ .entity-editor-modal>.editor-submit-bar{padding:12px 16px;gap:8px}
+ .entity-editor-modal>.editor-submit-bar button{font-size:12px;padding:10px;min-height:40px;white-space:normal}
+ .entity-editor-body :is(input,textarea,select):not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]){font-size:16px}
+ .shell .entity-details-page .record-edit-action{min-height:40px}
+}
+
+@media(max-width:980px){
+ .entity-dossier-layout{grid-template-columns:minmax(0,1fr);gap:24px}
+ .record-context{position:static;padding:20px 0 0;border-left:0;border-top:1px solid var(--line)}
+}
+
+@media(max-width:600px){.shell .npc-details-page .record-hero[data-long-title] .hero-copy-block h1{font-size:clamp(22px,5.8vw,28px);line-height:1.25}}
+
+@media(max-width:1120px){
+ .shell,.shell.without-preview:not(.combat-layout),.shell.items-shell,.shell.feature-owned-details-shell{grid-template-rows:auto minmax(0,1fr);align-content:start}
+}
+@media(max-width:700px){
+ .notes-workspace-head>.notes-workspace-copy,.notes-workspace-head>.actions{flex:0 0 auto;width:100%;align-content:start}
+ .notes-workspace-head>.notes-workspace-copy{gap:8px}
+}
+
+.device-draft-controls:not(.has-recovery){display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:10px 12px;font-size:13px}
+.device-draft-controls:not(.has-recovery)>p{margin:0}

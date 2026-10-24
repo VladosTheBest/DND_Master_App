@@ -10,3 +10,10 @@
 .notice p { max-width:75ch; }
 .surface { min-width:0; }
 .surface.fullscreen { width:calc(100vw - 1rem); max-width:calc(100vw - 1rem); height:calc(100dvh - 1rem); max-height:calc(100dvh - 1rem); }
+
+.breadcrumbs{flex-wrap:nowrap;min-width:0}
+.breadcrumbs a{min-width:0;max-width:40%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.breadcrumbs>span{flex-shrink:0}
+.breadcrumbs>[aria-current="page"]{flex:1 1 auto;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.breadcrumbs>a:nth-of-type(2){flex-shrink:0}

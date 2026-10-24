@@ -64,6 +64,7 @@ export function EntityDirectoryScreen({
 }: EntityDirectoryScreenProps) {
   const [requestedRows,setRequestedRows]=useWorkspaceListState<number>("directory.rows",48);
   const [page,setPage]=useState<{items:KnowledgeEntity[];total:number;nextCursor:string}>({items:[],total:0,nextCursor:""}),[loading,setLoading]=useState(true),[error,setError]=useState(""),[retry,setRetry]=useState(0);
+  const [failedThumbnails,setFailedThumbnails]=useState<Set<string>>(()=>new Set());
   const generation=useRef(0);
   const endpoint=`${apiBaseURL}/api/campaigns/${encodeURIComponent(campaignId)}/entities?kind=${defaultCreateKind}&limit=48&tab=${encodeURIComponent(activeTab)}&q=${encodeURIComponent(moduleEntitySearch)}`;
   const moduleDirectoryEntities=page.items;
@@ -151,7 +152,7 @@ export function EntityDirectoryScreen({
                     );
                   })
               : moduleDirectoryEntities.map((entity) => {
-                  const displayUrl = hasVisibleArt(entity.art) ? createPortraitSource(entity) : undefined;
+                  const displayUrl = hasVisibleArt(entity.art) && !failedThumbnails.has(entity.art?.url||"") ? createPortraitSource(entity) : undefined;
                   return (
                     <article
                       key={entity.id}
@@ -168,7 +169,7 @@ export function EntityDirectoryScreen({
                         type="button"
                       >
                         {displayUrl ? (
-                          <img alt={entity.title} className="directory-card-image" loading="lazy" src={displayUrl} />
+                          <img alt={entity.title} className="directory-card-image" loading="lazy" src={displayUrl} onError={()=>setFailedThumbnails(current=>new Set([...current,displayUrl]))} />
                         ) : (
                           <span className="sigil big" style={{ backgroundImage: gradients[entity.kind] }}>
                             {sigil(entity.title)}

@@ -144,23 +144,15 @@ export function BestiaryPageContainer({
           <CombatEntityStatSheet
             action={
               <div className="npc-sheet-toolbar">
-                <button className="ghost" onClick={openMonsterAlbum} type="button">
-                  {monsterGalleryAlbum.length ? `Альбом (${monsterGalleryAlbum.length})` : "Добавить арт"}
-                </button>
-                <button className="ghost" onClick={() => onOpenGallery(activeMonster)} type="button">
-                  {monsterGalleryAlbum.length ? "Изменить альбом" : "Галерея"}
-                </button>
-                <button className="ghost" onClick={() => onEditEntity(activeMonster.id,"stats")} type="button">Редактировать характеристики</button>
-                <button className="ghost" onClick={() => onEditEntity(activeMonster.id,"art")} type="button">{activeMonster.art?.url?"Заменить изображение":"Добавить изображение"}</button>
-                <button className="ghost ai-edit-button" onClick={() => onEditWithAI(activeMonster)} type="button">
-                  Изменить с AI
-                </button>
-                <button className="ghost" onClick={() => onTogglePin(activeMonster.id)} type="button">
-                  {activeMonsterPinned ? "Убрать закладку" : "В закладки"}
-                </button>
-                <button className="primary" onClick={() => onOpenPreview(activeMonster.id)} type="button">
-                  Быстрый просмотр
-                </button>
+                <button className="primary" onClick={() => onEditEntity(activeMonster.id,"stats")} type="button">Редактировать характеристики</button>
+                <details className="record-actions-more"><summary aria-label="Другие действия с монстром">Действия</summary><div>
+                  <button className="ghost" onClick={() => onEditEntity(activeMonster.id)} type="button">Редактировать запись</button>
+                  <button className="ghost" onClick={() => onEditEntity(activeMonster.id,"art")} type="button">{activeMonster.art?.url ? "Заменить изображение" : "Добавить изображение"}</button>
+                  <button className="ghost" onClick={() => onOpenGallery(activeMonster)} type="button">Галерея</button>
+                  <button className="ghost" onClick={() => onEditWithAI(activeMonster)} type="button">Изменить с AI</button>
+                  <button className="ghost" onClick={() => onTogglePin(activeMonster.id)} type="button">{activeMonsterPinned ? "Убрать закладку" : "В закладки"}</button>
+                  <button className="ghost" onClick={() => onOpenPreview(activeMonster.id)} type="button">Быстрый просмотр</button>
+                </div></details>
               </div>
             }
             defaultCollapsed={false}

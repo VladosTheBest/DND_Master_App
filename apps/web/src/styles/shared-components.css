@@ -330,12 +330,14 @@
 }
 .collapsible-head {
   display: flex;
+  flex-wrap: wrap;
   gap: .68rem;
   align-items: flex-start;
   justify-content: space-between;
 }
 .collapsible-toggle {
-  flex: 1;
+  flex: 1 1 200px;
+  min-width: 0;
   border: 0;
   padding: 0;
   background: transparent;
@@ -359,6 +361,8 @@
   white-space: nowrap;
 }
 .collapsible-action {
+  min-width: 0;
+  max-width: 100%;
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -509,3 +513,5 @@
 .danger-action:hover {
   background: rgba(224, 103, 95, .12);
 }
+
+@media(max-width:600px){.collapsible-action{width:100%;justify-content:flex-start}.collapsible-toggle{min-height:40px}.collapsible-copy{min-width:0;overflow-wrap:anywhere}}

@@ -143,7 +143,7 @@ export type PreparedCombatCardView = {
 
 export function PlayerFacingCardStrip({
   cards,
-  cardBadgeLabel = "Player-safe",
+  cardBadgeLabel = "Для игроков",
   cardBadgeTone = "success",
   contextMenuLabel = "Карточка игроков",
   createDescription,
@@ -203,7 +203,7 @@ export function PlayerFacingCardStrip({
     <>
       <CollapsibleSection
       defaultCollapsed={!cards.length}
-      action={<span className={badge(cards.length ? cardBadgeTone : "default")}>{countLabel ?? (cards.length ? `${cards.length} карточек` : "Не добавлены")}</span>}
+      action={<div className="actions"><span className={badge(cards.length ? cardBadgeTone : "default")}>{countLabel ?? (cards.length ? `${cards.length} карточек` : "Пока нет")}</span>{!readOnly&&<button className="ghost" onClick={onCreateCard} type="button">Добавить карточку</button>}</div>}
       className="entity-player-facing-stack entity-player-facing-collapsible"
       hint={description}
       summary={
@@ -286,7 +286,7 @@ export function PlayerFacingCardStrip({
           type="button"
         >
           <span className="entity-player-facing-create-mark">+</span>
-          <strong>Создать еще</strong>
+          <strong>{cards.length ? "Добавить ещё карточку" : "Создать первую карточку"}</strong>
           <p className="copy">{createDescription}</p>
         </button> : null}
       </div>

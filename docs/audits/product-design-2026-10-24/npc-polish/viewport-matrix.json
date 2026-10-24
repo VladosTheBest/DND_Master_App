@@ -1,0 +1,92 @@
+[
+  {
+    "columns": "772px 280px",
+    "escapedControls": [],
+    "height": 1024,
+    "image": [
+      {
+        "height": 312,
+        "naturalHeight": 1536,
+        "naturalWidth": 1024,
+        "width": 208
+      }
+    ],
+    "overflow": false,
+    "width": 1440
+  },
+  {
+    "columns": "612px 280px",
+    "escapedControls": [],
+    "height": 720,
+    "image": [
+      {
+        "height": 207,
+        "naturalHeight": 1536,
+        "naturalWidth": 1024,
+        "width": 138
+      }
+    ],
+    "overflow": false,
+    "width": 1280
+  },
+  {
+    "columns": "667px 280px",
+    "escapedControls": [],
+    "height": 900,
+    "image": [
+      {
+        "height": 207,
+        "naturalHeight": 1536,
+        "naturalWidth": 1024,
+        "width": 138
+      }
+    ],
+    "overflow": false,
+    "width": 1024
+  },
+  {
+    "columns": "719px",
+    "escapedControls": [],
+    "height": 1024,
+    "image": [
+      {
+        "height": 312,
+        "naturalHeight": 1536,
+        "naturalWidth": 1024,
+        "width": 208
+      }
+    ],
+    "overflow": false,
+    "width": 768
+  },
+  {
+    "columns": "349px",
+    "escapedControls": [],
+    "height": 844,
+    "image": [
+      {
+        "height": 260,
+        "naturalHeight": 1536,
+        "naturalWidth": 1024,
+        "width": 173
+      }
+    ],
+    "overflow": false,
+    "width": 390
+  },
+  {
+    "columns": "279px",
+    "escapedControls": [],
+    "height": 568,
+    "image": [
+      {
+        "height": 260,
+        "naturalHeight": 1536,
+        "naturalWidth": 1024,
+        "width": 173
+      }
+    ],
+    "overflow": false,
+    "width": 320
+  }
+]
