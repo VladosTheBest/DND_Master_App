@@ -2,8 +2,8 @@
   "app": "dnd-master-app",
   "deployment": {
     "status": "deployed",
-    "sourceCommit": "f08028f",
-    "verifiedAt": "2026-10-24T13:45:11.152308+00:00",
+    "sourceCommit": "7b19aac",
+    "verifiedAt": "2026-10-24T14:15:47.238846+00:00",
     "http": [
       {
         "path": "/",
@@ -30,9 +30,9 @@
         "matches": true
       },
       {
-        "file": "assets/AdminSubscriptions-C99tPUr3.js",
+        "file": "assets/AdminSubscriptions-sEESruPD.js",
         "status": 200,
-        "sha256": "276f148229aae557de2b7253b472e1221346bc4cc1e8e31a941dc55656d8cd51",
+        "sha256": "48b50e886ba0da15ca27a1aa6b7ee7c71b2ed99195268de7ea37e0915f273d0d",
         "matches": true
       },
       {
@@ -42,27 +42,27 @@
         "matches": true
       },
       {
-        "file": "assets/AIChat-DLkrM46D.js",
+        "file": "assets/AIChat-D2bGhthF.js",
         "status": 200,
-        "sha256": "a5f7ae3cc171ceb44d3ebed4b53da64ef5854a4ed03c6d081d268460acd2bb25",
+        "sha256": "e68ab4525dc98ab10d02f3a0d02840ffdbdbde9ee5a5bce3bd8097b0eec88f28",
         "matches": true
       },
       {
-        "file": "assets/AIChatPage-pZkJPcCe.js",
+        "file": "assets/AIChatPage-CL5JDiXK.js",
         "status": 200,
-        "sha256": "f76b79a89a1542aff19d0c06929e7312db3c23cd83a9bc6bd4b7b32870874c5a",
-        "matches": true
-      },
-      {
-        "file": "assets/App-BXSjLrPs.js",
-        "status": 200,
-        "sha256": "92a4d25d358b2143728888f6fd0d10f9980421036a813a6bb00c222fce109e48",
+        "sha256": "b5c8190cd599b7245230cd78f278ea73cc403fee7c6822f64f67a85617b53970",
         "matches": true
       },
       {
         "file": "assets/App-C36l4qKR.css",
         "status": 200,
         "sha256": "7e01632313f84f2b044c4047ba248eb21858a3865d6183820851358d76c2a5e1",
+        "matches": true
+      },
+      {
+        "file": "assets/App-Dr48gShH.js",
+        "status": 200,
+        "sha256": "f29df819dd9bbf156b3b5447b49ac336bebe8863709685c7a07a3909599731f6",
         "matches": true
       },
       {
@@ -84,9 +84,9 @@
         "matches": true
       },
       {
-        "file": "assets/BestiaryPageContainer-QO1qMkzU.js",
+        "file": "assets/BestiaryPageContainer-DtvZcAvh.js",
         "status": 200,
-        "sha256": "d1065324bed388f0e95a076b5f05a01d40911867143472095bdb45e8fabf658d",
+        "sha256": "2539ee98d5f9cf8dd23a3dade5a6083f099307a852509cd68f2f541bfe62bf8f",
         "matches": true
       },
       {
@@ -96,15 +96,15 @@
         "matches": true
       },
       {
-        "file": "assets/CampaignCharacters-BvtUBYJN.js",
+        "file": "assets/CampaignCharacters-vR1oS8FS.js",
         "status": 200,
-        "sha256": "97438271c5f394eb15c4448f1759c2d04efd22d0fb7e76dea621bb35ef7e1c4f",
+        "sha256": "de23ef2cbe4b91154d252ec054e04bb0fc6c2e2333bbc2d90d088b7194b040d0",
         "matches": true
       },
       {
-        "file": "assets/character-pdf-BqSOXiuE.js",
+        "file": "assets/character-pdf-E1Y9rNWE.js",
         "status": 200,
-        "sha256": "3cb04be0b2d29f60d51bc0a5aae10db70f739696a85483e8ead72a33ca43c5e9",
+        "sha256": "f5f9ac489cdada1f0cbde7bbe0407e98a8ebb0f74efb2cd1c4b244ab6eca5252",
         "matches": true
       },
       {
@@ -114,9 +114,9 @@
         "matches": true
       },
       {
-        "file": "assets/CharacterPublicApp-BLU82oSk.js",
+        "file": "assets/CharacterPublicApp-BlkUy89s.js",
         "status": 200,
-        "sha256": "a44a4a9585a587b4c1c408fc418fdc5037c90100553cc1a1ea3bd0f3d86aa8ae",
+        "sha256": "ed605163e82ca6b2fd328edad57efc02eabea31ca80674e10cc9583df5ef8892",
         "matches": true
       },
       {
@@ -126,9 +126,9 @@
         "matches": true
       },
       {
-        "file": "assets/characters.api-12x7UcOm.js",
+        "file": "assets/characters.api-DXNHW-S2.js",
         "status": 200,
-        "sha256": "2880904c0aa670acc0d21fedd0fe4eec58c04dfc835d079af4964b61181842df",
+        "sha256": "46d609b198d5523cd87532e8ab90b862d23a2d73a38fa03c6e688a5e713da44a",
         "matches": true
       },
       {
@@ -138,27 +138,27 @@
         "matches": true
       },
       {
-        "file": "assets/CombatPage-v0Dwdooz.js",
+        "file": "assets/CombatPage-Cio6DkIT.js",
         "status": 200,
-        "sha256": "244a7596d69216b17abf810191686e70b52ed6d6a7b9361548743667c965c6a1",
+        "sha256": "022d3854ad944e834043752a13c741f79d54a234ddf4c1a30373c8516133008c",
         "matches": true
       },
       {
-        "file": "assets/CombatPrepPage-Ct6xazwj.js",
+        "file": "assets/CombatPrepPage-1DckayZX.js",
         "status": 200,
-        "sha256": "7c1ec6bd6aa994a12a0f0c52c4205a81f600440fbe1d14a7938da194903b8ed0",
+        "sha256": "8e8f715a52c2f46c4488af03daf76913abea64f554fafdb228fe39242c59b2c1",
         "matches": true
       },
       {
-        "file": "assets/EntityEditorModal-DlNQs3EO.js",
+        "file": "assets/EntityEditorModal-OurRr-Pg.js",
         "status": 200,
-        "sha256": "089bb10ac64189238dd64103da473d73eb7d705e6158ca8f367fdc9c7561a8d3",
+        "sha256": "b5eb7582ea7f1ea859e051237794cbfe7e0c161b65e0589ca20f1cb1884a73e4",
         "matches": true
       },
       {
-        "file": "assets/EventsPageContainer-B5YUn8Nx.js",
+        "file": "assets/EventsPageContainer-BllH82IJ.js",
         "status": 200,
-        "sha256": "73923e7c1ea374e0232f6eb54561fd7b4397d631fbf08c7e92484898b98c8b68",
+        "sha256": "4316724701bdeabb720aff9e27b48cc1b4b1cd51ab20a04f7570b4353ad05e5e",
         "matches": true
       },
       {
@@ -174,9 +174,9 @@
         "matches": true
       },
       {
-        "file": "assets/feature-notes-events-BMy57OXK.js",
+        "file": "assets/feature-notes-events-9VMSgQYR.js",
         "status": 200,
-        "sha256": "27fd660ef814b8becafadb92b3d985d611276559693e84e55a78718a7742a695",
+        "sha256": "c2b567e9a5436a4716b9214f8eb620ead705bb78b3aaee63417f2926afc712b4",
         "matches": true
       },
       {
@@ -186,9 +186,9 @@
         "matches": true
       },
       {
-        "file": "assets/feature-quests-57nesCGp.js",
+        "file": "assets/feature-quests-1C5ZXaZQ.js",
         "status": 200,
-        "sha256": "0a64ddb64284e44efd83d6cb805eecc93898ec7275e68e2879e761601e08c19b",
+        "sha256": "820b7280b52e4aff2cdbbb1e4b9ad0a32e254cad3111e54384b8053e8e1943c5",
         "matches": true
       },
       {
@@ -204,21 +204,21 @@
         "matches": true
       },
       {
-        "file": "assets/index-C56_Sk9G.js",
-        "status": 200,
-        "sha256": "10fc4d7fbb41b3c93612e39c9f61534650072fced17f676d5940a0ac83060734",
-        "matches": true
-      },
-      {
         "file": "assets/index-DwG30yoJ.css",
         "status": 200,
         "sha256": "d3984bec84c8800a13e78f261a0c0589fd48e98bb6fdbf20f08dccded8b348d7",
         "matches": true
       },
       {
-        "file": "assets/index.es-DtwcJ3q2.js",
+        "file": "assets/index-VmXhdfUC.js",
         "status": 200,
-        "sha256": "a709c7fc96a3b082b48daf3357a3ea9d27bc1e46f2cb1f98b4b65c86080e9fdc",
+        "sha256": "20adb4cd1c2411dd64529c5fd83264096a5ab3f495a0c293a924203eacdf5610",
+        "matches": true
+      },
+      {
+        "file": "assets/index.es-jiO1VxXb.js",
+        "status": 200,
+        "sha256": "064576df2b40d3bac89e90a3d127bd7a664a58732ede04a76adf6676ada0c94b",
         "matches": true
       },
       {
@@ -228,15 +228,15 @@
         "matches": true
       },
       {
-        "file": "assets/ItemsPage-BQPqQID1.js",
+        "file": "assets/ItemsPage-CfzBCqF9.js",
         "status": 200,
-        "sha256": "3f663c27be7b42fdb98011a443ec1e1c396dce11837753369ff42dd842089659",
+        "sha256": "80e5ba90f701d124bb4f6fa5a0459f8d73b9d307b7a76937442174d58fe1207a",
         "matches": true
       },
       {
-        "file": "assets/jspdf.es.min-L64GU1kS.js",
+        "file": "assets/jspdf.es.min-CqZ0JUQC.js",
         "status": 200,
-        "sha256": "c14ddd0b3cf7ec84db1d9f3af1b816348f0239b3fcd61f0eb6f0798638fc1940",
+        "sha256": "6d2eda821e7fff9832587fb1dfd8a65c6289fd28ee74c84855c0368d3ff47cad",
         "matches": true
       },
       {
@@ -246,15 +246,15 @@
         "matches": true
       },
       {
-        "file": "assets/MapCreateForm-DeWx6_HV.js",
+        "file": "assets/MapCreateForm-CJWMBc9o.js",
         "status": 200,
-        "sha256": "2b3aaa1a6126e54b102d9bbfd9757a587323f0308d2cc5dcb2cd819cdbb89b46",
+        "sha256": "297ae32301910cc034afda18a77500dba9d166d55a81640dd3b168f6481bc2bb",
         "matches": true
       },
       {
-        "file": "assets/NotesPageContainer-Byd5unJB.js",
+        "file": "assets/NotesPageContainer-B7h9ctdu.js",
         "status": 200,
-        "sha256": "0587a9dafa89b934181902c9addb229b94bafe55150cdca45f8f05188ddc8972",
+        "sha256": "8ff2e86cbe2ebe056364040f8c51966e0bf7302c53f28008c67edf5d5682a283",
         "matches": true
       },
       {
@@ -270,21 +270,15 @@
         "matches": true
       },
       {
-        "file": "assets/QuestPageContainer-B1vHtL2v.js",
+        "file": "assets/QuestPageContainer-Dmq0HJKz.js",
         "status": 200,
-        "sha256": "eec90ea07ed0fdc38da5c3a6675dd796e5dd36512f301bbfb4dfc16574c4c9b4",
+        "sha256": "8a4a51bbea7f48b1cd5421da2cef0328f9b962fc0ea9492b292b91d0aba16e50",
         "matches": true
       },
       {
-        "file": "assets/ReadyAdventureReader-lkrKGAV3.js",
+        "file": "assets/ReadyAdventureReader-9ZSuIxQj.js",
         "status": 200,
-        "sha256": "0a3f9f4f053014d35bbc791b7e97e06d7ff7010a8e89ea4629448210468dcbaa",
-        "matches": true
-      },
-      {
-        "file": "assets/RulesPage-C6PSclyX.js",
-        "status": 200,
-        "sha256": "333a9269112eaa68c41b238e815ee411c825f7b91836563f0f6d7004d05a5b95",
+        "sha256": "4abf078e41b1571822e44e952639a84946248d650e1b916f9fa0c742882c6b4b",
         "matches": true
       },
       {
@@ -294,9 +288,15 @@
         "matches": true
       },
       {
-        "file": "assets/session-pdf-jwcSUYlA.js",
+        "file": "assets/RulesPage-CnTbw_u4.js",
         "status": 200,
-        "sha256": "178822b16e8e1cb685b0a86354abb9306fd219ca67d465b68feb0f1e1794df04",
+        "sha256": "b171805aed4edc93a7381b60d89876a6f2ddb4b81716a0df99d3d3e57f904d3a",
+        "matches": true
+      },
+      {
+        "file": "assets/session-pdf-Ci59W_WC.js",
+        "status": 200,
+        "sha256": "8c02d9861e83c1472f091af6f3a994c6e095947a721315ff16c90aea3a2fb43b",
         "matches": true
       },
       {
@@ -312,15 +312,15 @@
         "matches": true
       },
       {
-        "file": "assets/SessionsPage-qnz1Eju2.js",
+        "file": "assets/SessionsPage-Ck82Wjao.js",
         "status": 200,
-        "sha256": "7c74a46d1645fc3decd8c0ec4df73e2d2c62074a89ed003298431ef6a202f90c",
+        "sha256": "f957de0113a0c1926191da0b2f237a1a2da5b975a0ed9054ba8239c342f2e9aa",
         "matches": true
       },
       {
-        "file": "assets/ShopsPage-Dr9NeVRb.js",
+        "file": "assets/ShopsPage-B-99pnDs.js",
         "status": 200,
-        "sha256": "54aaeb048eaee113db9ef95d4d58f634a6084221671f490736fd6fc8cbbec70b",
+        "sha256": "201da63c4657428fa1c46f66834cf32184dfff901b7bc0a7ccdcd0d8631bf60d",
         "matches": true
       },
       {
@@ -354,29 +354,29 @@
         "matches": true
       },
       {
-        "file": "assets/WorldMapsPage-DgZW4J_X.js",
-        "status": 200,
-        "sha256": "681782ca5a063192b4590bd8d06fac7656cd9309291c27827dd6ce10096347e2",
-        "matches": true
-      },
-      {
         "file": "assets/WorldMapsPage-F4UeE5I1.css",
         "status": 200,
         "sha256": "444b91446f749885673ee8e7451556725ea8ab65549d83c81aa1917171d073cd",
         "matches": true
+      },
+      {
+        "file": "assets/WorldMapsPage-z1As-uzE.js",
+        "status": 200,
+        "sha256": "23e80828903f7c251908f61d6b42079b96a44fea9eb5ec77962e429244a8e809",
+        "matches": true
       }
     ],
     "allAssetsMatch": true,
-    "release": 197,
-    "image": "registry.fly.io/dnd-master-app:deployment-01M5Q2CAREQ7A9D9ZRNQ3W16DH",
+    "release": 198,
+    "image": "registry.fly.io/dnd-master-app:deployment-01M5Q45AFFJVPWJKFGX8Z2Z4CX",
     "machine": "d89064ef0e3758",
     "health": "passing",
-    "rollbackImage": "registry.fly.io/dnd-master-app:deployment-01M5PYYH32CCKPG1YPEQFW7V2D"
+    "rollbackImage": "registry.fly.io/dnd-master-app:deployment-01M5Q2CAREQ7A9D9ZRNQ3W16DH"
   },
   "authorizedSmoke": {
-    "status": "pending_final_release_login",
-    "priorRelease": 196,
-    "method": "Ordinary signed-in Chrome UI in a separate synthetic QA quest; no session export"
+    "status": "pending_release_198_login",
+    "release": 198,
+    "method": "Ordinary signed-in Chrome UI; no cookie/session export"
   },
   "localChecks": {
     "webBuild": "passed",
@@ -396,6 +396,19 @@
     ],
     "horizontalOverflow": false,
     "media": "gallery saved inline; playlist/art inline; no audio playback",
-    "regressions": "reward, appearance, comparison, drafts, transport, routes/responses, geometry, creative and chunk manifest passed"
+    "regressions": "reward, appearance, comparison, drafts, transport, routes/responses, geometry, creative and chunk manifest passed",
+    "editorNavigation": {
+      "explicitRequests": "passed",
+      "repeatedSidebarRequestRetainsText": true,
+      "saveStaysOnMedia": true,
+      "dialogs": 0
+    },
+    "backendProvenance": "Go and MCP passed for unchanged backend/shared contracts in f08028f; 7b19aac changes frontend navigation only"
+  },
+  "priorRelease197Smoke": {
+    "appearance": "palette/compact saved and retained after reload",
+    "scenarioAndMetadata": "saved inline",
+    "encounter": "new title and quantity 2 retained after reload, then updated to 3",
+    "defectFound": "sidebar art editor remained in hidden Media while combat editor was open"
   }
 }
