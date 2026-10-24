@@ -2,7 +2,7 @@
 
 Краткий вход для AI-агента. Общая сверка с рабочим кодом — 14 сентября 2026 года, журнал и AI-анализ сессий дополнительно сверены 16 сентября 2026 года, модуль персонажей — 1 октября 2026 года; общая UX-оболочка — 24 октября 2026 года. Это карта реализации, а не план разработки; перед изменением конкретного участка открой указанные исходники. Правила сопровождения: [AGENTS.md](AGENTS.md).
 
-Проверенный веб-выпуск: Fly release 195 (исходники `c4ce164`), health check passing и совпадение 56 JS/CSS и HTML с локальной сборкой. Авторизованный production smoke предмета/добавления пары с двух сторон/правки и повторного открытия сцены подтверждён на release 195 в отдельной синтетической кампании; создание кампании и mobile/keyboard вкладки тоже проверены; свежие вкладки и production — `docs/audits/product-design-2026-10-24/tabs-production/README.md`; сравнение конфликтов — `docs/audits/product-design-2026-10-24/conflict-review/README.md`, ввод списков/Save/focus — `docs/audits/product-design-2026-10-24/editing-consistency/README.md`, полный объём и границы — `docs/audits/product-design-2026-10-24/acceptance-matrix.md` и `design-qa.md`.
+Проверенный публичный веб-выпуск: Fly release 196 (исходники `5094334`), health passing, HTML и все 56 JS/CSS совпадают с локальной сборкой. Авторизованный повтор новых inline-сценариев ожидает входа после деплоя; текущие доказательства — docs/audits/product-design-2026-10-24/persistent-inline/README.md. Предыдущий авторизованный smoke предмета/парных связей/сохранения сцены подтверждён на release 195 (tabs-production/README.md); он не подменяет повтор на 196. Полный объём и границы — docs/audits/product-design-2026-10-24/acceptance-matrix.md и design-qa.md.
 
 ## 1. Назначение и архитектура
 

@@ -13,6 +13,7 @@
 
 ## Фактически проверено
 
+- Media локации и игрока: постоянная панель и один активный panel.
 - Все 6 вкладок НПС: один видимый panel, изображение и связи присутствуют; tab-checks.json.
 - Inline Save карточки с повторным открытием; Cancel закрывает без открытия view modal.
 - Реальный конфликт: API изменяет то же content, UI получает 409, удерживает текст, явный выбор → Prepare → отдельный Save.
@@ -20,15 +21,16 @@
 - Награда: цвета палитр, текст, loot/check/DC сохранены и переживают reload. API подтверждает gallery=4, playlist=2, cards=3 и исходный statBlock после независимых изменений.
 - Gallery caption сохранена inline; свойства art, playlist и stats открываются без dialog; menu и zoom viewer работают.
 - Монстр: inline stats; квест: inline reward; заметка: inline properties.
+- Планшет 1024×768 без overflow; короткое окно 1280×540: нижние действия доступны клавиатурой (footer 456–516 px).
 - Предмет с полной таблицей открывается по direct URL. Карточки на 1440/1920 px имеют одинаковую высоту 478.1875 px; на 390 px ширина 345 px, без горизонтального overflow.
 - Web build, Go suite, MCP 35 tests; reward input, entity comparison, editable keys, drafts, transport, routes/responses, scene editing/creative, chunk manifest. Первый общий Go прогон дал тайминговый сбой существующего Codex timeout-теста; этот тест прошёл 3 повтора, повторный полный suite прошёл. AI production вызовы не запускались.
 
 ## Снимки
 
-01 — исходная сводка; 02 — Media с постоянным портретом; 03 — сохранённые цвета/loot; 04 — реальный 409 inline; 05 — редактор наград; 06/07/08 — каталог desktop/wide/mobile; 09 — mobile dossier; 10 — Media gallery.
+01 — исходная сводка; 02 — Media с постоянным портретом; 03 — сохранённые цвета/loot; 04 — реальный 409 inline; 05 — редактор наград; 06/07/08 — каталог desktop/wide/mobile; 09 — mobile dossier; 10 — Media gallery; 11 — доступное Save в окне 1280×540.
 
 ## Границы
 
 Новые поля API необязательны, маршруты/доступ/expectedRevision не меняются. JSONB split/join и restart JSON проверены новым Go тестом. Готовые кампании не редактировались. Touch на физическом устройстве и аудиовоспроизведение не проверялись; тестовые audio URL зарезервированы. На мобильном контекст доступен на любой вкладке, но не фиксирован поверх содержимого.
 
-Production текущего выпуска: ожидает итогового деплоя и проверки. Предыдущий авторизованный smoke release 195 указан отдельно в tabs-production.
+Production: release 196, source 5094334, image deployment-01M5PYYH32CCKPG1YPEQFW7V2D; machine started, health passing. Root/healthz/livez=200, private API без сессии=401; HTML и 56 JS/CSS побайтно совпадают. Авторизованный повтор ожидает входа после деплоя: in-memory allowlist сбрасывается при рестарте. Предыдущий авторизованный smoke release 195 указан отдельно в tabs-production и не считается проверкой 196. Данные — production-check.json.
