@@ -1,0 +1,50 @@
+[
+  {
+    "kind": "landscape",
+    "fit": "contain",
+    "natural": [
+      1280,
+      720
+    ],
+    "rendered": [
+      720,
+      405
+    ]
+  },
+  {
+    "kind": "square",
+    "fit": "contain",
+    "natural": [
+      700,
+      700
+    ],
+    "rendered": [
+      540,
+      540
+    ]
+  },
+  {
+    "kind": "portrait",
+    "fit": "contain",
+    "natural": [
+      600,
+      1000
+    ],
+    "rendered": [
+      324,
+      540
+    ]
+  },
+  {
+    "kind": "small",
+    "fit": "contain",
+    "natural": [
+      160,
+      90
+    ],
+    "rendered": [
+      160,
+      90
+    ]
+  }
+]

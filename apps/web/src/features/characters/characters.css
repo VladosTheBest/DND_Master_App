@@ -5,12 +5,12 @@
 .ch-rule-reference { margin: .5rem 0; padding: .5rem; border: 1px solid var(--ch-line); border-radius: .5rem; }
 .ch-public,
 .ch-campaign {
-  --ch-gold: #e7c27e;
-  --ch-purple: #b898e8;
-  --ch-ink: #100e18;
-  --ch-line: rgba(201, 177, 223, 0.17);
-  --ch-muted: #b0a5be;
-  color: #f5f0fa;
+  --ch-gold: var(--accent-strong);
+  --ch-purple: var(--accent);
+  --ch-ink: var(--bg);
+  --ch-line: var(--line);
+  --ch-muted: var(--text-muted);
+  color: var(--text);
   line-height: 1.5;
   font-size: 14px;
 }
@@ -19,9 +19,7 @@
   inset: 0;
   z-index: 1;
   overflow: auto;
-  background:
-    radial-gradient(ellipse at 86% 18%, #35223d55, transparent 45%),
-    linear-gradient(135deg, #13111c, #0b0b12 65%, #16101d);
+  background: var(--bg);
   scrollbar-color: #65516c #100e18;
 }
 .ch-public *,
@@ -36,7 +34,7 @@
 .ch-public h2,
 .ch-public h3,
 .ch-campaign h2 {
-  font-family: "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  font-family: Inter, "Segoe UI", system-ui, sans-serif;
   font-weight: 400;
 }
 .ch-public a,
@@ -143,15 +141,15 @@
   transform: translateY(-1px);
 }
 .ch-button.ch-primary {
-  background: linear-gradient(115deg, #dab477, #f0d29a);
-  color: #282017;
-  border-color: #ecd1a6;
-  box-shadow: 0 4px 24px #bc8f3922;
+  background: var(--accent);
+  color: #191629;
+  border-color: var(--accent);
+  box-shadow: none;
   font-weight: 600;
 }
 .ch-button.ch-primary:hover {
-  background: linear-gradient(115deg, #eac58a, #f8dfa9);
-  box-shadow: 0 6px 26px #bc8f3944;
+  background: #c5baf5;
+  box-shadow: none;
 }
 .ch-text-button {
   border: 0;

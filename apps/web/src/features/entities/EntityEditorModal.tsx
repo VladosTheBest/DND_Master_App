@@ -1,3 +1,4 @@
+import { useLayoutEffect } from "react";
 import { DeviceDraftControls } from "../../app/DeviceDraftControls";
 import type { CampaignData } from "@shadow-edge/shared-types";
 import { DndGenerationProgress } from "../../auth-ui";
@@ -7,6 +8,7 @@ import { useNativeDialog } from "../../app/hooks/useNativeDialog";
 import type { EntityEditorController } from "./useEntityEditorController";
 
 type EntityEditorModalProps = {
+  section?:string;
   campaign: CampaignData | null;
   controller: EntityEditorController;
   entityGenerationSteps: string[];
@@ -18,6 +20,7 @@ type EntityEditorModalProps = {
 };
 
 export function EntityEditorModal({
+  section,
   campaign,
   controller,
   entityGenerationSteps,
@@ -41,6 +44,7 @@ export function EntityEditorModal({
   } = controller;
 
   const dialogRef = useNativeDialog(entityModalOpen);
+  useLayoutEffect(()=>{if(!entityModalOpen||!section)return;const frame=requestAnimationFrame(()=>{const target=dialogRef.current?.querySelector<HTMLElement>(`[data-editor-section="${section}"]`);if(!target)return;let parent=target.parentElement;while(parent&&parent!==dialogRef.current){if(parent instanceof HTMLDetailsElement)parent.open=true;parent=parent.parentElement;}target.scrollIntoView({block:"center"});const input=target.matches("input,textarea,select")?target:target.querySelector<HTMLElement>("input,textarea,select,button");input?.focus({preventScroll:true});});return()=>cancelAnimationFrame(frame);},[entityModalOpen,section]);
   if (!entityModalOpen) {
     return null;
   }

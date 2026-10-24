@@ -375,7 +375,16 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 	}
 
 	if request.Header.Get("X-Workspace-View") == "compact" {
-		writer = &workspaceResponseWriter{ResponseWriter: writer, base: campaign}
+		base := campaign
+		if request.Method != http.MethodGet && request.Method != http.MethodHead {
+			var err error
+			base, err = srv.store.workspaceBaseline(user.ID, campaignID)
+			if err != nil {
+				writeError(writer, 500, "snapshot_failed", "Не удалось подготовить сохранение.")
+				return
+			}
+		}
+		writer = &workspaceResponseWriter{ResponseWriter: writer, base: base}
 	}
 	if len(segments) == 2 && segments[1] == "combat-snapshot" && request.Method == http.MethodGet {
 		conditionalJSON(writer, request, map[string]any{"campaignId": campaign.ID, "revision": campaign.Revision, "activeCombat": campaign.ActiveCombat, "lastCombatSummary": campaign.LastCombatSummary})
@@ -425,6 +434,8 @@ func (srv *server) handleCampaignByPath(writer http.ResponseWriter, request *htt
 	}
 
 	switch {
+	case (len(segments) == 4 || len(segments) == 5) && segments[1] == "entities" && segments[3] == "relations":
+		srv.handleEntityRelations(writer, request, user, campaignID, segments)
 	case len(segments) == 2 && segments[1] == "export" && request.Method == http.MethodGet:
 		srv.exportCampaign(writer, request, user, campaignID)
 	case len(segments) == 2 && segments[1] == "capabilities" && request.Method == http.MethodGet:

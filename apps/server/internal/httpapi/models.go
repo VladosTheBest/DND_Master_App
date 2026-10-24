@@ -310,6 +310,7 @@ type userAccount struct {
 }
 
 type campaignData struct {
+	EntityRelations      []entityRelationPair         `json:"entityRelations,omitempty"`
 	CustomItems          []customCampaignItem         `json:"customItems,omitempty"`
 	CustomItemsRevision  int                          `json:"customItemsRevision,omitempty"`
 	CustomItemImports    map[string]bool              `json:"customItemImports,omitempty"`

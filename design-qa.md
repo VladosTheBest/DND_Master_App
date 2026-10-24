@@ -1,71 +1,45 @@
-# Product Design QA — выбранный вариант 3
+# Product Design QA — вариант 3
 
-Дата: 24 октября 2026. Проверка существующего React-приложения на отдельном JSON-стенде `http://127.0.0.1:4189`, искусственная кампания. Это адаптация выбранного направления к работающим данным и функциям, не замена приложения картинкой.
+Дата: 24.10.2026. Область: продолжение существующего приложения, досье/связи/предметы/AI/сцены и общие поверхности. Локальный стенд — отдельное JSON-хранилище, искусственная кампания и личное тестовое прохождение готового приключения. Подробный технический аудит: [2026-10-24-entity-scenes-audit.md](docs/audits/2026-10-24-entity-scenes-audit.md).
 
-## Источник и сравнение
+## Визуальный источник и сравнение
 
-- Source visual truth: [concept-3.png](docs/audits/product-design-2026-10-23/concept-3.png), PNG 1487×1058.
-- Реализация, пустые связи: [record-final.jpg](docs/audits/product-design-2026-10-23/after/record-final.jpg), JPEG 1487×1058.
-- Заполненная запись: [record-with-media.jpg](docs/audits/product-design-2026-10-23/after/record-with-media.jpg), JPEG 1487×1058. Настоящее изображение 900×600 из ручной карты тестового стенда, загрузка complete/naturalWidth проверена DOM; не CSS-заглушка и не изображение интерфейса.
-- Full-view comparison: источник и каждый из двух снимков реализации были показаны вместе в одном tool input/result и сопоставлены визуально. Desktop CSS viewport 1487×1058, изображения 1:1, дополнительного масштабирования нет.
-- Focused comparison: [record-header-comparison.jpg](docs/audits/product-design-2026-10-23/after/record-header-comparison.jpg) — только аналитические crops исходного макета и browser capture, верх — source, низ — implementation. Исходные файлы не менялись. Проверены заголовок, breadcrumb, edit/action и контраст; текст разный, поэтому переносы не сравнивались как pixel diff.
-- Адаптивность: CSS viewport 1024×900 и 390×844; [tablet-record.jpg](docs/audits/product-design-2026-10-23/after/tablet-record.jpg), [mobile-record-with-media.jpg](docs/audits/product-design-2026-10-23/after/mobile-record-with-media.jpg), [mobile-settings-final.jpg](docs/audits/product-design-2026-10-23/after/mobile-settings-final.jpg). Mobile/tablet исходника нет: это проверка responsive поведения, не сравнение с вымышленным мобильным макетом. Browser JPEG некоторых кадров — 381×825/1015×892 при CSS 390×844/1024×900; снимки сохранены как получены, без выдачи их за 1:1 mobile target. Ширина DOM не превышала viewport; масштаб и pixel-размер каждого файла указаны в after/evidence.json.
-- Density: desktop 1 image px : 1 CSS px; системный DPR не использовался для вычисления точных расстояний. Mobile JPEG scale около .977; DOM-размеры проверялись отдельно. Выравнивание оценивалось при одинаковом размере desktop frames.
-
-## Итерации и исправления
-
-1. **P2 — служебные блоки забирают первый экран.** Первый вариант имел крупные fact cards и вторичные действия рядом с Edit. Сводка стала строкой, Edit — единственным основным действием, прочее — раскрываемым меню. Фильтры списка убраны из открытой записи. Сравнение: record-pass-1.jpg → record-final.jpg.
-2. **P1 — лишняя высота mobile hero.** Унаследованный column layout трактовал flex-basis 280px как высоту. Принудительно задан правильный flex direction, на mobile basis auto/width 100%. Фактическая высота hero уменьшилась с 336 до примерно 127 px; mobile-record-final.jpg и mobile-record-with-media.jpg повторно просмотрены. Недостоверный первый кадр во время смены viewport исключён.
-3. **P2 — старые portal-стили.** Account/editor/confirm вне .shell сохраняли serif/gradient primary. Добавлены scoped общие шрифты, поверхности, primary и focus. Сравнение mobile-settings.jpg → mobile-settings-final.jpg: кнопка закрытия видима, rect y≈766–808 при высоте844, сработала.
-4. **P2 — четыре колонки при просмотре связи.** [relation-preview-initial.jpg](docs/audits/product-design-2026-10-23/after/relation-preview-initial.jpg) сжимал запись двумя правыми панелями. Preview теперь заменяет контекстную колонку; [relation-preview-final.jpg](docs/audits/product-design-2026-10-23/after/relation-preview-final.jpg) просмотрен после исправления: один main track 797px, context display:none, document width1487. Закрытие возвращает связи.
-5. **P2 — растянутое пустое состояние группы.** Удалён min-height16rem, выровнены спокойные поверхности и CTA. [players.jpg](docs/audits/product-design-2026-10-23/after/players.jpg) → [players-final.jpg](docs/audits/product-design-2026-10-23/after/players-final.jpg): краткая запись мастера отделена подписью от серверного листа, пустое состояние компактно.
-6. **P1 — переходы и предупреждения.** Location → sessions → items не передаёт чужой target; workshop return `/` переключает реальный экран. Clean combat exit без предупреждения; добавленный противник → warning → confirm возвращает именно в Оффлайн без второго диалога. Итог: [offline-after-confirm.jpg](docs/audits/product-design-2026-10-23/after/offline-after-confirm.jpg). Проверено после отдельного исправления перехода, а не выведено из build.
-
-7. **P2 — false dirty после Save.** Успешное сохранение состава обновляет baseline через success marker; очистка marker при новой правке baseline не меняет. Параметры старта (включая инициативу) отслеживаются отдельно. В браузере: add → Save → Back без warning ([combat-saved-clean-exit.jpg](docs/audits/product-design-2026-10-23/after/combat-saved-clean-exit.jpg)); Save количества2 → изменить на3 → Back с warning; изменить инициативу на7 → Save состава → Back по-прежнему предупреждает о несохранённом параметре старта ([combat-start-dirty-after-save.jpg](docs/audits/product-design-2026-10-23/after/combat-start-dirty-after-save.jpg)). Это самостоятельная повторная проверка после поправки hook, не предположение по коду.
-
-8. **P1 — короткое окно входа.** Production smoke на1280×720 выявил рост формы до932px при body overflow:hidden. LoginScreen получил собственную высоту100dvh/overflow:auto. На localhost анонимно проверено1280×720: clientHeight720, scrollHeight973, scrollTop253; нижняя ссылка privacy находится y551–569 и видна. [login-short-window-scroll.jpg](docs/audits/product-design-2026-10-23/after/login-short-window-scroll.jpg). Проверка не отправляла логин/пароль и не изменяла OAuth.
-
-Последняя сравнительная проверка после исправлений не выявила новых actionable P0/P1/P2 в перечисленных состояниях. Исходные изображения макета остаются визуальной направляющей; фиктивные NPC, квесты и портовый город не добавлялись пользователям.
+- Источник: [выбранный concept-3.png](docs/audits/product-design-2026-10-23/concept-3.png), 1487×1058.
+- Реальный browser capture: [entity-desktop.jpg](docs/audits/product-design-2026-10-24/entity-desktop.jpg), CSS и JPEG 1440×1024. Изображение — существующая ручная карта из тестового стенда.
+- [Full-view comparison](docs/audits/product-design-2026-10-24/variant-3-comparison.jpg): источник приведён к 1440×1024; реализация не растягивалась. Оба изображения предъявлены вместе и просмотрены. Диагностический montage 2880×1060 инструмент показал в 2048×754, поэтому мелкие детали дополнительно проверены по отдельному crop.
+- [Focused header comparison](docs/audits/product-design-2026-10-24/header-comparison.jpg): два crop по 806×160, показаны без уменьшения. Проверены Sans, читаемость заголовка/метаданных, основной edit, вторичные действия, поля и контраст.
+- Отличия содержимого и пропорций art намеренные: пользователь потребовал показывать иллюстрацию целиком, максимум 720px, вместо широкого crop макета. Сохраняется композиция «навигация → запись → контекст»; действующие разделы/аккаунтные действия не заменены фиктивными элементами mockup. Ширина навигации и плотность элементов адаптированы к работающему приложению, это не заявление о pixel-identical clone.
+- [image-checks.json](docs/audits/product-design-2026-10-24/image-checks.json) содержит natural/rendered размеры четырёх форматов. [screenshot-sizes.json](docs/audits/product-design-2026-10-24/screenshot-sizes.json) фиксирует фактические размеры файлов; старые discovery-кадры не выдаются за новые breakpoint-проверки.
 
 ## Обязательные поверхности
 
-| Поверхность | Результат |
+| Поверхность | Проверка и результат |
 |---|---|
-| Шрифты и типографика | Sans hierarchy, body14, record heading32/24mobile, ясные action labels; существующий Inter/Segoe UI/system fallback. Не заявляется точная идентификация неизвестного шрифта растрового макета. Печатные и игровые handout skins остаются специальными. |
-| Интервалы и сетка | 64px shortcuts +230px меню, minmax main, 280px context, mobile одна колонка; пустой art не оставляет пустой баннер. Функциональные media/handout секции сохраняются. |
-| Цвета и tokens | Charcoal/navy поверхности, lavender primary, muted copy, понятные focus/disabled/selected. Контраст проверен визуально, полной WCAG-сертификации нет. |
-| Изображения | Используются art записей и существующие изображения/иконки приложения. Широкий desktop crop и более высокий mobile crop проверены. Иллюстративный город макета не подменяет карту реальной записи; нет новых CSS/SVG суррогатов. |
-| Тексты | Русские названия разделов; Магазины вместо shops; текущий режим AI и ограничения стенда видны; «Оффлайн Beta» честно требует интернет. Fictional source content не переносился в приложение. |
+| Шрифты/типографика | Общая UI-иерархия — Inter/Segoe UI/system Sans. Убраны декоративный большой заголовок предмета и serif-заголовки квеста, унифицированы заголовки мастерской персонажа. Длинные цены/названия переносятся. Print и содержание правил не переписываются. |
+| Отступы/структура | Редактирование у блока, связи справа или ниже на узком экране, компактный picker. Длинная ready-панель имеет поиск и показ по восемь, desktop rail не вытесняет страницу. Native item panel не шире dialog. |
+| Цвета/токены | Устранён поздний сброс global root из App CSS. DOM после загрузки App: text-soft #bcc4d2, radius-lg 13px, заголовок #edf0f5. Общие shared tokens используются модальными поверхностями и персонажами. |
+| Изображения | 16:9, квадрат, портрет и маленький исходник сохраняют отношение сторон. Полный размер с zoom, исправимая ошибка загрузки, рядом замена/галерея; портреты статблока используют contain. Bitmap и координаты карты не меняются. |
+| Текст/содержание | Понятные добавление/изменение/unlink; нет смешения wiki-вставки и связей. Сцены имеют подписанные инструменты и подсказку камеры. Оффлайн явно Beta. AI сообщает о неподключённом провайдере до отправки, модели/стоимость не менялись. |
+| Доступность/состояния | Native focus containment/return и Escape, initial focus поиска связей и поля редактора, labeled zoom controls, keyboard selector геометрии. Loading/empty/error/409 сохраняют введённое; есть локальный draft, скачивание, восстановление и выбор текущего текста. |
 
-## Реальные проверки взаимодействия
+## Свежий проход
 
-- Sidebar desktop/mobile: переходы, закрытие меню после перехода, Escape и возврат фокуса; настройки доступны в прокручиваемом меню.
-- Directory: 110 записей/постраничная выдача, компактная ссылка карты; открытие detail.
-- Entity: чтение master content, реальные изображение/handout/связь, preview open/close. Изменение summary → закрытие → предупреждение → продолжить → save → reload; сохранённая строка видна после reload.
-- Sessions → items: реальные selected session и каталог; в URL нет target другого раздела. Экранный master report темный; PDF генерация заново не проходилась.
-- MapWorkspace: библиотека и существующий Creative canvas, стили controls; движок и координаты не менялись. Платная генерация не запускалась.
-- AI: пустой inspector отсутствует, отправка недоступна при отсутствии рабочего подключения стенда; backend capability не подменялась.
-- NPC/quests empty directory, notes, events, shops, rules reader, players и public character entry осмотрены после общей миграции. 2014 и2024 отдельны; локальная библиотека раскрывается явно; возврат в кабинет работает.
-- Console errors последней record/адаптивной проверки: []. В ходе параллельного локального rebuild один раз получен stale lazy chunk → WorkspaceBoundary → ручное обновление восстановило страницу; maps-initial.jpg относится к этому состоянию стенда, не к итоговой карте.
-- Web TypeScript + production build; scripts/test-workspace-routes.mjs, test-device-drafts.mjs, test-authoring-transport.mjs, test-workspace-responses.mjs; git diff --check.
+- 1440×1024: главная, игроки, квесты, локации, НПС, события, заметки, магазин, монстры, предметы, правила, сессии, Оффлайн. [Матрица DOM](docs/audits/product-design-2026-10-24/screen-matrix.json). Горизонтального overflow документа в этих состояниях нет. Для filled states дополнительно открыты НПС, квест, заметка и готовое приключение.
+- 1280×720: ручная сцена, инструменты и свойства, сохранение/reopen, реальный version conflict со сравнением. [Сцена после повторного открытия](docs/audits/product-design-2026-10-24/scene-reopened.jpg).
+- 1024×900: досье НПС, фокус content/stats, сохранение и восстановление черновика. [Редактор характеристик](docs/audits/product-design-2026-10-24/editor-stats-tablet.jpg).
+- 390×844: досье/изображение, [выбор связей](docs/audits/product-design-2026-10-24/relations-phone.jpg), [прямая карточка предмета](docs/audits/product-design-2026-10-24/item-direct-phone.jpg), [AI composer](docs/audits/product-design-2026-10-24/chat-phone.jpg), настройки, квест и старт мастерской. Desktop/tablet/mobile исходника нет, поэтому адаптивность оценена по работоспособности и иерархии, не по вымышленному mobile mockup.
+- Функционально: две связи одним save, обратное пояснение после reload, unlink без удаления сущности, фильтры НПС/монстров/квестов, конфликт с сохранением выбора; art/master/stats anchors, повторное сохранение НПС, media save/reopen заметки, восстановление вопроса AI; монстр без statBlock с добавлением ХП; дверь/свет, drag, camera, undo/redo, Escape, save/reopen и конфликт сцены.
+- Пустая строка добычи больше не создаёт фиктивную позицию; есть pure serialization и HTTP clear-регрессии.
+- Последний просмотр console error текущей проверочной вкладки не выявил JS-ошибок. В ранних проходах были ожидаемые отказ доступа после рестарта fixture и намеренно сломанный URL изображения; они не выдаются за production defects.
 
-## Принятые отличия и границы
+## Найдено, исправлено, повторно проверено
 
-Макет показывает вымышленную полностью заполненную локацию. Существующая app хранит и пустые записи, несколько player handouts, боевые планы, музыку и галерею: они сохранены и не заменены статичным макетом. Иллюстрации и названия зависят от данных. Нет неподтвержденного «Сохранено» для открытого черновика: в контексте написано «Сохранённая запись · изменения через редактор», а редактор показывает собственный статус. Карта справа не угадывается по названию: доступны прежний атлас/контекст создания; автоматическая обратная связь карты с записью требует отдельного data contract.
+P1: shallow baseline compact delta, зависимость открытого предмета от выдачи, отсутствие управляемых двусторонних связей и удобной камеры/redo сцен, потеря неотправленного вопроса. P2: crop/растяжение art, ширина/типографика/входная анимация предмета, глобальный сброс токенов, portal страницы чата и мобильный composer, недоступные специализированным досье связи, огромный список legacy backlinks, отсутствие выбора текущей формы при сохранённой копии. Причины и регрессии приведены в техническом аудите. Открытых P0/P1/P2 в перечисленных проверенных состояниях не осталось.
 
-P3 follow-up: локализация legacy enum фактов (City/Tense), дальнейшая унификация специальных handout-типографик. За рамками: все уровни/classes/PDF мастера, активный бой и TV на реальном втором устройстве, Foundry, live provider inference, все admin/ready-reader состояния, screen reader и полная 200% zoom/WCAG проверка. Product gaps исходного аудита не объявлены закрытыми визуальным обновлением.
+## Проверки и выпуск
 
-## Production
+Пройдены полный Go suite, web build (TypeScript/Vite/gzip), MCP build+35 tests и регрессии routes/device drafts/transport/compact responses/scene editing/creative/reward input. Есть отдельные Go-тесты owner/revision/rollback/immutable ready overlay/JSONB split и последовательных compact PATCH. Полнота тестов не подменяет браузерную проверку выше.
 
-Fly release **187**, image `deployment-01M5NEV0FEWB0H15YC9651V8DM`, машина `d89064ef0e3758`, service health check passing. GET `/healthz`, `/livez`, `/` —200; anonymous account AI/recovery/campaign capabilities —401. SHA-256 App JS и общего CSS точно совпадают с последней локальной сборкой, hashed assets имеют immutable cache, `/` —no-cache. Полные безопасные метаданные: [production-check.json](docs/audits/product-design-2026-10-23/production-check.json). [Публичный экран входа](docs/audits/product-design-2026-10-23/after/production-login.jpg) снят после последнего деплоя; overflow login:auto, console errors[]. Авторизованные production кампании/сохранения этим прогоном не изменялись.
+Локальный verdict: проверенные сценарии готовы к выпуску. Итоговые Fly health/asset hashes и статус авторизованного smoke записываются в [production-check.json](docs/audits/product-design-2026-10-24/production-check.json). До входа пользователя private production smoke остаётся непроверенным.
 
-## Checklist
-
-- [x] Выбранное направление реализовано в существующем приложении.
-- [x] Full-view и focused comparison, пять fidelity surfaces.
-- [x] Все найденные P0/P1/P2 этой итерации исправлены и повторно проверены.
-- [x] Desktop/tablet/mobile, clean/dirty/empty/filled/preview/modal состояния.
-- [x] Actual browser captures и размеры; исходный аудит сохранён.
-- [x] Build и применимые регрессии; backend API/storage не менялись.
-
-final result: passed
+Не проверялись реальное списание AI, внешние OAuth-provider credentials, физический touch/TV, live Foundry и все классы/уровни/административные роли. Игровые формулы/содержание immutable adventure и print-экспорт не менялись; частичное покрытие справочника остаётся явным ограничением, а не результатом редизайна.

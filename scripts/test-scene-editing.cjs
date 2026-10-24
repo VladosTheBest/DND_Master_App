@@ -25,5 +25,14 @@ const assert=require('node:assert/strict');
  const across=snapSceneDoor({...door,start:{x:.5,y:.31},end:{x:.5,y:.69}},corridor,level);
  assert.deepEqual(across.start,{x:.5,y:.3});assert.deepEqual(across.end,{x:.5,y:.7});
  assert.equal(cutSceneOpenings([...corridor,across],level).length,3);
+ const light={id:'light',x:.25,y:.75,bright:15,dim:35,color:'#b5abed'};
+ const multilevel={...map,levels:[{...level,id:'ground',walls:[wall,moved],lights:[light]},{...level,id:'upper',walls:[diagonal,d],lights:[{...light,id:'upper-light'}]}]};
+ const saved=JSON.parse(JSON.stringify(publishScene(multilevel)));
+ const again=editableScene(saved);for(let i=0;i<multilevel.levels.length;i++){assert.deepEqual(again.levels[i].walls,multilevel.levels[i].walls);assert.deepEqual(again.levels[i].lights,multilevel.levels[i].lights);}
+ const recut=publishScene(again);assert.deepEqual(recut,saved);
+ // Old door opening is gone after moving, including after durable round-trip.
+ const ground=recut.levels[0].walls.filter(w=>w.kind==='wall');
+ assert.ok(ground.some(w=>w.start.x<=.4&&w.end.x>=.5));
+ assert.equal(again.levels[0].lights[0].color,'#b5abed');
  console.log('Scene editing: snap, diagonal/non-square geometry, multiple openings, move, delete and save/reopen passed');
 })();

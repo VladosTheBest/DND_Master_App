@@ -17,6 +17,24 @@ func workspaceCampaign(c campaignData) campaignData {
 	return c
 }
 
+// Capture before dispatch under the read lock. A shallow campaign copy aliases
+// entity/shop slices: in-place authoring would otherwise erase its own delta.
+func (store *campaignStore) workspaceBaseline(ownerID, campaignID string) (campaignData, error) {
+	store.mu.RLock()
+	defer store.mu.RUnlock()
+	index := findOwnedCampaignIndexLocked(&store.data, ownerID, campaignID)
+	if index < 0 {
+		return campaignData{}, fmt.Errorf("campaign not found")
+	}
+	raw, err := json.Marshal(workspaceCampaign(store.data.Campaigns[index]))
+	if err != nil {
+		return campaignData{}, err
+	}
+	var snapshot campaignData
+	err = json.Unmarshal(raw, &snapshot)
+	return snapshot, err
+}
+
 type workspaceResponseWriter struct {
 	http.ResponseWriter
 	base campaignData

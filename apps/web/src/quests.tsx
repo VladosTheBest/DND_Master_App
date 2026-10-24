@@ -1,3 +1,4 @@
+import { RecordIllustration } from "./features/entity-images/RecordIllustration";
 import { AppModal } from "./app/AppModal";
 import { confirmAction } from "./app/confirm-action";
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type ReactNode } from "react";
@@ -988,7 +989,7 @@ export function QuestWorkspace({
   pinned: boolean;
   onCreatePlayerCard: () => void;
   onDeletePlayerCard: (card: PlayerFacingCard, index: number) => void;
-  onEdit: (id: string) => void;
+  onEdit: (id: string,section?:string) => void;
   onEditWithAI?: () => void;
   onEditPlayerCard: (card: PlayerFacingCard, index: number) => void;
   onTogglePin: (id: string) => void;
@@ -1086,7 +1087,7 @@ export function QuestWorkspace({
               <h1>{quest.title}</h1>
               <span className={badge("warning")}>Квест</span>
             </div>
-            <p className="quest-hero-summary">{quest.summary}</p>
+            <p className="quest-hero-summary">{quest.summary}</p>{!readOnly&&<button className="ghost record-edit-action" onClick={()=>onEdit(quest.id,"summary")}>{quest.summary?"Редактировать описание":"Добавить описание"}</button>}
             <p className="quest-hero-subtitle">{quest.subtitle}</p>
 
             {heroLinkedEntities.length ? (
@@ -1141,16 +1142,7 @@ export function QuestWorkspace({
           </div>
         </div>
 
-        <div
-          {...entityImageTriggerProps(
-            onOpenEntityImage ? () => onOpenEntityImage(quest, sceneImage) : undefined
-          )}
-          aria-label={onOpenEntityImage ? `Открыть изображение «${quest.title}»` : undefined}
-          className={`quest-scene-visual ${onOpenEntityImage ? "entity-image-trigger" : ""}`.trim()}
-          title={onOpenEntityImage ? `Открыть изображение «${quest.title}»` : undefined}
-        >
-          <img alt={quest.title} className="quest-scene-image" loading="lazy" src={sceneImage} />
-        </div>
+        <RecordIllustration key={sceneImage} url={quest.art?.url||location?.art?.url||issuer?.art?.url||preparedCombatEntries.find(item=>item.entity.art?.url)?.entity.art?.url} title={quest.title} onReplace={readOnly?undefined:()=>onEdit(quest.id,"art")} onGallery={readOnly?undefined:()=>onOpenGallery(quest)}/>
       </section>
 
       <PlayerFacingCardStrip
@@ -1183,7 +1175,7 @@ export function QuestWorkspace({
       />
 
       <div className="quest-story-grid">
-        <article className="card quest-story-card quest-story-card-hidden">
+        <article className="card quest-story-card quest-story-card-hidden">{!readOnly&&<button className="ghost record-edit-action" onClick={()=>onEdit(quest.id,"content")}>Редактировать сведения мастера</button>}
           <div className="quest-story-head">
             <strong>Скрыто от игроков</strong>
             <span className={badge("warning")}>GM only</span>
@@ -1360,7 +1352,7 @@ export function QuestPreviewPanel({
   onRunCombat: (quest: QuestEntity) => void;
   onOpenRandomEvent: () => void;
   onOpenPlayerView: (quest: QuestEntity) => void;
-  onEdit: (id: string) => void;
+  onEdit: (id: string,section?:string) => void;
   onOpenEntity: (id: string) => void;
   onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
   onOpenQuest: (id: string) => void;

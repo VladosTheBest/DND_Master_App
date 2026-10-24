@@ -1,3 +1,4 @@
+import { ImageZoomDialog } from "./RecordIllustration";
 import { AppModal } from "../../app/AppModal";
 import type { AIProposal, KnowledgeEntity } from "@shadow-edge/shared-types";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -59,6 +60,7 @@ export function EntityImageModal({
   pendingProposals,
   showToPlayersBusy = false
 }: EntityImageModalProps) {
+  const [zoomOpen,setZoomOpen]=useState(false);
   const [mode, setMode] = useState<ImageMode>("automatic");
   const [customPrompt, setCustomPrompt] = useState("");
   const [inFlightKey, setInFlightKey] = useState<string | null>(null);
@@ -277,6 +279,8 @@ export function EntityImageModal({
           </div>
         </div>
 
+        <button className="ghost" type="button" onClick={()=>setZoomOpen(true)}>Открыть полный размер</button>
+        {zoomOpen&&<ImageZoomDialog key={visibleUrl} url={visibleUrl} title={entity.title} onClose={()=>setZoomOpen(false)}/>}
         <div className="entity-image-primary-actions">
           <button
             className="ghost"

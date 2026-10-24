@@ -41,7 +41,7 @@
 .shell .content { border: 0; border-radius: 0; padding: 24px 28px; scrollbar-gutter: auto; }
 .shell .preview { border-radius: 0; border: 0; border-left: 1px solid var(--line); background: #191d26; }
 .shell:not(.without-preview) .entity-dossier-layout { grid-template-columns: minmax(0,1fr); }
-.shell:not(.without-preview) .record-context { display: none; }
+.shell:not(.without-preview) .record-context { display: grid; position: static; padding: 20px 0 0; border: 0; border-top: 1px solid var(--line); }
 .shell h1 { font-size: 28px; line-height: 1.25; }
 .shell .primary { background: #b5abed; color: #191629; border-color: #b5abed; border-radius: 8px; }
 .shell .primary:hover:not(:disabled) { background: #c6bef6; }
@@ -78,8 +78,8 @@
 .record-facts > div { display: flex; gap: 7px; align-items: baseline; font-size: 12px; }
 .record-facts dt { color: var(--text-muted); }
 .record-facts dd { margin: 0; color: var(--text); }
-.record-banner { border: 0; border-radius: 8px; width: 100%; padding: 0; overflow: hidden; background: transparent; }
-.record-banner img { display: block; width: 100%; max-height: 260px; aspect-ratio: 3.25; object-fit: cover; }
+.record-banner { border: 0; border-radius: 8px; width: auto; max-width: 100%; padding: 0; overflow: hidden; background: transparent; }
+.record-banner img { display: block; width: auto; height: auto; max-width: min(720px, 100%); max-height: 540px; object-fit: contain; }
 .record-banner:disabled { opacity: 1; cursor: default; }
 .record-summary { margin: 0; color: var(--text-soft); font-size: 15px; line-height: 1.75; }
 .shell .player-details-jumpbar { padding: 9px 0; gap: 12px; border: 0; border-block: 1px solid var(--line); border-radius: 0; }
@@ -97,7 +97,7 @@
 .record-context section { padding-top: 18px; border-top: 1px solid var(--line); }
 .record-context-link { display: flex; gap: 10px; align-items: flex-start; padding: 9px 6px; width: 100%; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--text); text-align: left; }
 .record-context-link:hover { background: #ffffff07; border-color: var(--line); }
-.record-context-link img { width: 38px; height: 44px; border-radius: 5px; object-fit: cover; }
+.record-context-link img { width: 38px; height: 44px; border-radius: 5px; object-fit: contain; }
 .record-context-link > span { min-width: 0; display: grid; gap: 4px; }
 .record-context-link strong { font-size: 13px; overflow-wrap: anywhere; }
 .record-context-link small { color: var(--text-muted); font-size: 11px; line-height: 1.5; }
@@ -217,7 +217,7 @@
   .shell .record-hero .actions { width: 100%; }
   .shell .record-hero .hero-head { flex: 1 1 auto; width: 100%; }
   .shell .record-hero .actions button { min-height: 40px; }
-  .record-banner img { aspect-ratio: 1.8; }
+  .record-banner img { max-width: 100%; max-height: 60dvh; }
   .shell .player-detail-media-grid { grid-template-columns: minmax(0,1fr); }
   .shell .sessions-heading { flex-wrap: wrap; }
   .shell .items-workspace-head { margin: 18px 16px 0; grid-template-columns: minmax(0,1fr); }
@@ -238,3 +238,41 @@
   .shell .dm-report .dm-upgrade { background: #252b36; }
   .shell .dm-report .dm-master select { background: #161b24; color: var(--text); border-color: var(--line); }
 }
+
+/* Shared dossier controls also remain available when the preview rail is open. */
+.record-illustration{min-width:0;max-width:720px;display:grid;gap:8px;justify-items:start}
+.record-block-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.record-block-heading h2{margin:0;font-size:17px}.record-block-heading small{color:var(--text-muted);font-size:12px}
+.entity-relations-manager{min-width:0;display:grid;gap:10px}.record-context .entity-relations-manager{padding-top:0;border:0}
+.relation-row{display:flex;align-items:center;gap:4px;min-width:0}.relation-row>.record-context-link{flex:1;min-width:0}.relation-row>.ghost{padding:6px;font-size:11px}
+.relation-picker{padding:24px;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);display:grid;gap:16px;max-height:calc(100dvh - 2rem);overflow:auto}
+.app-native-dialog:has(.relation-picker){width:min(650px,calc(100vw - 2rem))}
+.relation-search{display:grid;grid-template-columns:minmax(0,1fr) 160px;gap:12px}.relation-picker label{display:grid;gap:6px;min-width:0;font-size:13px}
+.relation-search-results{max-height:34dvh;min-height:100px;overflow:auto;border:1px solid var(--line);border-radius:9px;padding:6px;display:grid;gap:4px}
+.relation-search-results .relation-result{display:flex;gap:10px;align-items:center;padding:10px;border-radius:7px;cursor:pointer;border:1px solid transparent}
+.relation-result.selected{background:#b5abed13;border-color:var(--accent)}.relation-result input{flex-shrink:0;accent-color:var(--accent)}.relation-result img{width:42px;height:42px;object-fit:contain;border-radius:6px;background:#161b24}
+.relation-result span{display:grid;gap:3px;min-width:0}.relation-result strong{font-size:14px;overflow-wrap:anywhere}.relation-result small{font-size:12px;color:var(--text-muted);overflow-wrap:anywhere}
+.record-image-viewer{display:grid;grid-template-rows:auto minmax(0,1fr);height:100%;padding:16px;gap:12px;background:var(--surface);border:1px solid var(--line);border-radius:13px;overflow:hidden}
+.record-image-viewer img{display:block;width:100%;height:100%;object-fit:contain;user-select:none}
+.record-edit-action{justify-self:start;font-size:12px}.relation-picker .device-draft-controls{font-size:12px;padding:8px}
+@media(max-width:600px){.relation-picker{padding:16px}.relation-search{grid-template-columns:1fr}.relation-row{align-items:start}.record-block-heading{gap:8px}.record-context{position:static}}
+
+/* Portalled dialogs inherit the same tokens as the workspace shell. */
+:is(.app-native-dialog,.scene-preview,.ai-jobs-dialog){--text:#edf0f5;--text-soft:#bcc4d2;--text-muted:#a0abba;--accent:#b5abed;--surface:#1c2029;--surface-raised:#252b36;--line:#333b49;color:var(--text)}
+
+.entity-primary-flow{min-width:0;min-height:0}.entity-specialized-layout{align-items:start}.relation-selected{display:flex;flex-wrap:wrap;gap:6px}.relation-selected button{font-size:12px}
+
+.note-record-actions{display:grid;gap:12px;margin-bottom:16px}.ai-assistant-brand h1{font:600 24px/1.3 Inter,"Segoe UI",sans-serif;margin:0}.record-context button{white-space:normal}@media(max-width:600px){.relation-picker button,.relation-row button{min-height:40px}.ai-assistant-brand h1{font-size:18px}}
+
+/* Legacy surface entrance fades hid freshly opened dialogs for 260 ms. */
+.app-native-dialog > .panel{animation:none}
+
+.shell .quest-scene-spotlight{grid-template-columns:minmax(0,1fr);gap:14px}
+.shell :is(.quest-hero-panel,.quest-scene-spotlight,.quest-story-card,.quest-checklist-section,.quest-reward-section,.quest-preview-section){background:var(--surface);border-color:var(--line);border-radius:13px;box-shadow:none}
+.shell :is(.quest-story-head strong,.quest-scene-copy strong){font-family:Inter,"Segoe UI",sans-serif;color:var(--text);font-size:16px;line-height:1.45}
+.shell .quest-meta-pill{background:#222733;border-color:var(--line);border-radius:9px}
+.shell .quest-story-card .record-edit-action{justify-self:start;align-self:start;min-height:34px;padding:6px 10px}
+
+.shell :is(h1,h2,h3){color:var(--text);text-shadow:none}
+
+@media(min-width:1121px){.record-context{max-height:calc(100dvh - 140px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}.shell:not(.without-preview) .record-context{max-height:none;overflow:visible}}

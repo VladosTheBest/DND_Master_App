@@ -48,7 +48,7 @@ export function QuestPageContainer({
   entityMap: Map<string, KnowledgeEntity>;
   isEntityPlaylistActive: (entityId?: string) => boolean;
   onCopyImageLink: (url: string) => Promise<void>;
-  onEditEntity: (entityId: string) => void;
+  onEditEntity: (entityId: string,section?:string) => void;
   onEditWithAI?: (entity: QuestEntity) => void;
   onOpenDirectory: () => void;
   onOpenEntity: (entityId: string) => void;

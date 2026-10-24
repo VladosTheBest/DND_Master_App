@@ -18,7 +18,7 @@ export function ConfirmationHost() {
   const finish = (accepted: boolean) => { const next = queue.shift(); next?.resolve(accepted); emit(); };
   if (!request) return null;
   const destructive = /^Удалить/i.test(request.message.trim());
-  return createPortal(<dialog ref={dialog} className="app-native-dialog app-confirm-dialog" role="alertdialog" aria-label={destructive ? "Подтвердить удаление" : "Подтвердить переход"} onKeyDown={event=>{if(event.key==="Escape")event.stopPropagation();}} onCancel={event => { event.preventDefault(); event.stopPropagation(); finish(false); }}>
+  return createPortal(<dialog ref={dialog} className="app-native-dialog app-confirm-dialog" role="alertdialog" aria-label={destructive ? "Подтвердить удаление" : "Подтвердить действие"} onKeyDown={event=>{if(event.key==="Escape")event.stopPropagation();}} onCancel={event => { event.preventDefault(); event.stopPropagation(); finish(false); }}>
     <section className="panel palette"><h2>{destructive ? "Подтвердить удаление" : "Продолжить действие?"}</h2><p>{request.message}</p><div className="actions"><button className="ghost" autoFocus onClick={() => finish(false)}>Отмена</button><button className={destructive ? "ghost danger-action" : "primary"} onClick={() => finish(true)}>{destructive ? "Удалить" : "Продолжить"}</button></div></section>
   </dialog>, document.body);
 }

@@ -95,7 +95,7 @@ function ContentRouter({
   normalizeWorldEventForClient: (event: WorldEvent, locations?: LocationEntity[]) => WorldEvent;
   notesContentContextMenu: (noteId: string, event: ReactMouseEvent<HTMLTextAreaElement>) => void;
   onActiveEventChange?: (eventId: string) => void;
-  onEditEntity: (entityId: string) => void;
+  onEditEntity: (entityId: string,section?:string) => void;
   onEditWithAI: (entity: KnowledgeEntity) => void;
   onOpenDirectory: () => void;
   onOpenEntity: (entityId: string) => void;
@@ -166,6 +166,7 @@ function ContentRouter({
   if (activeModule === "lore") {
     return (
       <NotesPageContainer
+        onEditEntity={onEditEntity}
         ownerId={ownerId}
         activeCampaignId={campaign.id}
         campaign={campaign}

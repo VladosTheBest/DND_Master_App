@@ -519,7 +519,10 @@ export interface CampaignCustomItemsPreview {
   warnings:string[];referenceChoices:{shopId:string;entryId:string;fromId:string;name:string;options:CampaignCustomItem[]}[];
 }
 
+export interface EntityRelationsDocument { revision: number; items: RelatedEntity[] }
+export interface EntityRelationsMutation { expectedRevision: number; targetIds?: string[]; reason?: string }
 export interface CampaignData {
+  entityRelations?: Array<{left:string;right:string;reason?:string;removed?:boolean}>;
 	customItems?: CampaignCustomItem[];
 	customItemsRevision?: number;
 	customItemImports?: Record<string,boolean>;
@@ -1238,6 +1241,9 @@ export interface ApiClient {
   listCampaigns(): Promise<CampaignSummary[]>;
   listReadyCampaignTemplates(): Promise<ReadyCampaignTemplate[]>;
   getCampaign(campaignId: string): Promise<CampaignData>;
+  getEntityRelations(campaignId:string, entityId:string, signal?:AbortSignal):Promise<EntityRelationsDocument>;
+  mutateEntityRelations(campaignId:string, entityId:string, input:EntityRelationsMutation, targetId?:string, remove?:boolean):Promise<CampaignData>;
+  searchEntities(campaignId:string, params:{q?:string;kind?:string;exclude?:string;cursor?:string}, signal?:AbortSignal):Promise<{items:KnowledgeEntity[];total:number;nextCursor:string}>;
   createCampaign(input: CreateCampaignInput): Promise<CampaignData>;
   updateCampaign(
     campaignId: string,

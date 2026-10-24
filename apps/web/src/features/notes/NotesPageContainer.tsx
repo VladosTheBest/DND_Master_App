@@ -1,3 +1,4 @@
+import { RecordIllustration } from "../entity-images/RecordIllustration";
 import { useWorkspaceGuard } from "../../app/workspace-route";
 import { useWorkspaceListState } from "../../app/workspace-route";
 import { navigateWorkspace, workspaceURL, readWorkspaceRoute } from "../../app/workspace-route";
@@ -33,6 +34,7 @@ export function NotesPageContainer({
   initialNoteId,
   onContentContextMenu,
   onEditWithAI,
+  onEditEntity,
   onOpenEntityImage,
   onOpenPreview,
   serializeEntityForm
@@ -47,6 +49,7 @@ export function NotesPageContainer({
   initialNoteId?: string;
   onContentContextMenu: (noteId: string, event: ReactMouseEvent<HTMLTextAreaElement>) => void;
   onEditWithAI: (entity: LoreNoteEntity) => void;
+  onEditEntity?:(id:string,section?:string)=>void;
   onOpenEntityImage?: (entity: KnowledgeEntity, displayUrl?: string) => void;
   onOpenPreview: (id: string) => void;
   serializeEntityForm: (form: CreateEntityInput) => CreateEntityInput;
@@ -217,6 +220,7 @@ export function NotesPageContainer({
       <pre style={{whiteSpace:"pre-wrap"}}>{conflict.title}{"\n"}{conflict.content}</pre>
       <button className="ghost" onClick={() => { setBaseRevision(conflict.revision ?? 0); hydrateCampaign({ ...campaign, lore: campaign.lore.map(n => n.id === conflict.id ? conflict as LoreNoteEntity : n) }); setConflict(null); setError(""); }}>Подготовить мой текст поверх этой версии</button>
     </div>}
+    {activeLoreNote&&onEditEntity&&<div className="note-record-actions"><div className="actions"><button className="ghost" onClick={()=>onEditEntity(activeLoreNote.id,"summary")}>Свойства заметки</button><button className="ghost" onClick={()=>onEditEntity(activeLoreNote.id,"art")}>{activeLoreNote.art?.url?"Заменить изображение":"Добавить изображение"}</button><button className="ghost" onClick={()=>onEditEntity(activeLoreNote.id,"media")}>Музыка и галерея</button></div>{activeLoreNote.art?.url&&<RecordIllustration key={activeLoreNote.art.url} url={activeLoreNote.art.url} title={activeLoreNote.title}/>}</div>}
     <NotesWorkspace
       entityByTitle={new Map([...entityMap.values()].map((entity) => [entity.title, entity]))}
       campaignId={activeCampaignId}

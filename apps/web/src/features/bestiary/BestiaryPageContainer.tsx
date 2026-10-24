@@ -1,3 +1,4 @@
+import { RecordIllustration } from "../entity-images/RecordIllustration";
 import type { MouseEvent as ReactMouseEvent } from "react";
 import type {
   GalleryImage,
@@ -34,7 +35,7 @@ type BestiaryPageContainerProps = {
   isEntityPlaylistActive: (entityId?: string) => boolean;
   onContentContextMenu: (entity: MonsterEntity, event: ReactMouseEvent<HTMLElement>) => void;
   onCopyImageLink: (url: string) => Promise<void>;
-  onEditEntity: (entityId: string) => void;
+  onEditEntity: (entityId: string,section?:string) => void;
   onEditWithAI: (entity: MonsterEntity) => void;
   onOpenDirectory: () => void;
   onOpenEntity: (entityId: string) => void;
@@ -138,6 +139,7 @@ export function BestiaryPageContainer({
 
     return (
       <div className="stack wide">
+        {!activeMonster.statBlock&&<><section className="record-heading"><h1>{activeMonster.title}</h1><p className="copy">{activeMonster.summary}</p><div className="actions"><button className="primary" onClick={()=>onEditEntity(activeMonster.id)}>Редактировать</button><button className="ghost" onClick={()=>onEditEntity(activeMonster.id,"stats")}>Добавить характеристики</button></div></section><RecordIllustration url={activeMonster.art?.url} title={activeMonster.title} onReplace={()=>onEditEntity(activeMonster.id,"art")} onGallery={()=>onOpenGallery(activeMonster)}/></>}
         <div onContextMenu={(event) => onOpenEntityActionMenu(activeMonster, event)}>
           <CombatEntityStatSheet
             action={
@@ -148,17 +150,16 @@ export function BestiaryPageContainer({
                 <button className="ghost" onClick={() => onOpenGallery(activeMonster)} type="button">
                   {monsterGalleryAlbum.length ? "Изменить альбом" : "Галерея"}
                 </button>
-                <button className="ghost" onClick={() => onEditEntity(activeMonster.id)} type="button">
-                  Редактировать
-                </button>
+                <button className="ghost" onClick={() => onEditEntity(activeMonster.id,"stats")} type="button">Редактировать характеристики</button>
+                <button className="ghost" onClick={() => onEditEntity(activeMonster.id,"art")} type="button">{activeMonster.art?.url?"Заменить изображение":"Добавить изображение"}</button>
                 <button className="ghost ai-edit-button" onClick={() => onEditWithAI(activeMonster)} type="button">
                   Изменить с AI
                 </button>
                 <button className="ghost" onClick={() => onTogglePin(activeMonster.id)} type="button">
-                  {activeMonsterPinned ? "Unpin" : "Pin"}
+                  {activeMonsterPinned ? "Убрать закладку" : "В закладки"}
                 </button>
                 <button className="primary" onClick={() => onOpenPreview(activeMonster.id)} type="button">
-                  Открыть в preview
+                  Быстрый просмотр
                 </button>
               </div>
             }

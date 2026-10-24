@@ -1456,3 +1456,20 @@
     padding: 14px 18px 18px;
   }
 }
+
+/* Detail dialogs share the compact workspace surface. The inner panel must
+   never impose a larger minimum width than its native dialog. */
+.app-native-dialog .items-detail-modal{width:100%;min-width:0;max-width:100%;max-height:calc(100dvh - 2rem);padding:20px;background:var(--surface);border:1px solid var(--line);border-radius:13px;box-shadow:none;overflow-x:hidden}
+.app-native-dialog .items-modal-hero{min-height:0;grid-template-columns:minmax(0,1fr);padding:12px 44px 12px 0;background:none;border:0;box-shadow:none}
+.app-native-dialog .items-modal-hero::before,.app-native-dialog .items-modal-hero::after,.app-native-dialog .items-modal-hero-art{display:none}
+.app-native-dialog .items-modal-title strong{font:600 clamp(22px,3vw,30px)/1.2 Inter,"Segoe UI",sans-serif;color:var(--text);text-shadow:none;max-width:none;overflow-wrap:anywhere}
+.app-native-dialog .items-modal-summary{font:400 14px/1.75 Inter,"Segoe UI",sans-serif;color:var(--text-soft);white-space:normal;overflow-wrap:anywhere}
+.app-native-dialog .items-modal-overview{grid-template-columns:minmax(0,1fr) minmax(220px,280px)}
+.app-native-dialog .items-detail-section{background:var(--surface);border-color:var(--line)}
+.app-native-dialog .items-modal-close{width:36px;height:36px;top:12px;right:12px;border-color:var(--line);background:var(--surface-raised)}
+@media(max-width:700px){.app-native-dialog .items-detail-modal{padding:14px}.app-native-dialog .items-modal-overview{grid-template-columns:minmax(0,1fr)}}
+
+.app-native-dialog .items-modal-primary-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:12px}
+.app-native-dialog .items-modal-primary-row>:is(.items-stat-card,.items-price-pill){min-width:0;width:100%;flex:none;background:var(--surface-raised);border-color:var(--line);padding:12px;box-shadow:none}
+.app-native-dialog .items-modal-primary-row .items-price-copy{min-width:0}.app-native-dialog .items-modal-primary-row .items-price-copy strong{white-space:normal;overflow-wrap:anywhere;font-size:14px}
+.app-native-dialog .items-modal-summary{color:#bcc4d2}

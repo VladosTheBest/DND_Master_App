@@ -1,0 +1,134 @@
+[
+  {
+    "screen": "dashboard",
+    "h": 1024,
+    "headings": [
+      "UX: тест третьего этапа",
+      "Сессия проверки UX",
+      "Сюжет в работе 0",
+      "Закреплённое 0"
+    ],
+    "overflow": false,
+    "w": 1440
+  },
+  {
+    "screen": "players",
+    "h": 1024,
+    "headings": [
+      "Каждая легенда начинается с героя",
+      "Карточки группы"
+    ],
+    "overflow": false,
+    "w": 1440
+  },
+  {
+    "screen": "quests",
+    "h": 1024,
+    "headings": [
+      "Квесты"
+    ],
+    "overflow": false,
+    "w": 1440
+  },
+  {
+    "screen": "locations",
+    "h": 1024,
+    "headings": [
+      "Локации"
+    ],
+    "overflow": false,
+    "w": 1440
+  },
+  {
+    "screen": "npcs",
+    "h": 1024,
+    "headings": [
+      "НПС"
+    ],
+    "overflow": false,
+    "w": 1440
+  },
+  {
+    "screen": "events",
+    "h": 1024,
+    "headings": [
+      "События и сцены",
+      "Событие маршрута"
+    ],
+    "overflow": false,
+    "w": 1440
+  },
+  {
+    "screen": "notes",
+    "h": 1024,
+    "headings": [
+      "Заметки мастера",
+      "Связи 0"
+    ],
+    "overflow": false,
+    "w": 1440
+  },
+  {
+    "screen": "shops",
+    "h": 1024,
+    "headings": [
+      "Магазины",
+      "Ассортимент 0",
+      "Каталог товаров"
+    ],
+    "overflow": false,
+    "w": 1440
+  },
+  {
+    "screen": "monsters",
+    "h": 1024,
+    "headings": [
+      "Каталог монстров"
+    ],
+    "overflow": false,
+    "w": 1440
+  },
+  {
+    "screen": "items",
+    "h": 1024,
+    "headings": [
+      "Предметы",
+      "Каталог"
+    ],
+    "overflow": false,
+    "w": 1440
+  },
+  {
+    "screen": "rules",
+    "h": 1024,
+    "headings": [
+      "Правила",
+      "Исключения важнее общих правил"
+    ],
+    "overflow": false,
+    "w": 1440
+  },
+  {
+    "screen": "sessions",
+    "h": 1024,
+    "headings": [
+      "Сессии1",
+      "Сессия проверки UX",
+      "Сессия проверки UX"
+    ],
+    "overflow": false,
+    "w": 1440
+  },
+  {
+    "screen": "offline",
+    "h": 1024,
+    "headings": [
+      "Оффлайн Beta",
+      "Бой",
+      "Карта на ТВ",
+      "Инициатива"
+    ],
+    "overflow": false,
+    "w": 1440
+  }
+]

@@ -282,6 +282,16 @@ export const createHttpApiClient = (baseUrl: string, options:{workspace?:boolean
    const response=await fetchWithSessionRecovery(`${baseUrl}/api/campaigns/${encodeURIComponent(campaignId)}/combat-snapshot`,{headers});
    if(response.status===304)return {etag:etag!,snapshot:null};return {etag:response.headers.get("ETag")||"",snapshot:await ensureJson<import("@shadow-edge/shared-types").CombatSnapshot>(response)};
   },
+  async getEntityRelations(campaignId,entityId,signal) {
+    return request(`${baseUrl}/api/campaigns/${encodeURIComponent(campaignId)}/entities/${encodeURIComponent(entityId)}/relations`,{signal});
+  },
+  async mutateEntityRelations(campaignId,entityId,input,targetId,remove) {
+    return request(`${baseUrl}/api/campaigns/${encodeURIComponent(campaignId)}/entities/${encodeURIComponent(entityId)}/relations${targetId?`/${encodeURIComponent(targetId)}`:""}`,{method:targetId?(remove?"DELETE":"PATCH"):"POST",body:JSON.stringify(input)});
+  },
+  async searchEntities(campaignId,params,signal) {
+    const query=new URLSearchParams({kind:"all",limit:"24",...params});
+    return request(`${baseUrl}/api/campaigns/${encodeURIComponent(campaignId)}/entities?${query}`,{signal});
+  },
   async getCampaign(campaignId) {
     return request<CampaignData>(`${baseUrl}/api/campaigns/${campaignId}`);
   },

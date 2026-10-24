@@ -1,3 +1,7 @@
+import { useDeviceDraft } from "../../app/hooks/useDeviceDraft";
+import { useDraftOwner } from "../../app/hooks/useDraftOwner";
+import { DeviceDraftControls } from "../../app/DeviceDraftControls";
+import { useWorkspaceGuard } from "../../app/workspace-route";
 import {AIConnectionSummary} from "./PersonalAISettings";
 import { requestJson } from "@shadow-edge/api-client";
 import { useEffect, useRef, useState } from "react";
@@ -114,6 +118,10 @@ export function AIChat({campaignId, jobs, refreshJobs, initialContext, onContext
   const pendingError = pending?.error || (currentJob?.state==="failed" ? "Не удалось получить ответ. Можно повторить запрос." : "");
   const visiblePending = pending && !data?.turns.some(turn=>turn.id===pending.id);
   const busy = chatJobs.some(isActiveJob) || Boolean(visiblePending && !pendingError);
+  const draftOwner=useDraftOwner();
+  const composerDirty=Boolean(question.trim()||(visiblePending&&!pending?.jobId));
+  const composerDraft=useDeviceDraft({ownerId:draftOwner,campaignId,target:"ai-chat-composer",revision:0,value:{question,includeCampaign,sessionIds,pending:visiblePending?pending:null},dirty:composerDirty,enabled:true,restore:d=>{setQuestion(d.value.question||"");setIncludeCampaign(Boolean(d.value.includeCampaign));setSessionIds(d.value.sessionIds||[]);if(d.value.pending)setPending({...d.value.pending,error:d.value.pending.error||"Восстановлен запрос. Проверьте задачи перед повторной отправкой."});}});
+  useWorkspaceGuard(Boolean(question.trim()),"Вопрос AI ещё не отправлен. Перейти? Его черновик останется на устройстве.");
   const fingerprint = chatJobs.map(job=>`${job.id}:${job.state}`).join("|");
   useEffect(()=>onContextChange?.(JSON.parse(scope)),[scope,onContextChange]);
 
@@ -143,6 +151,7 @@ export function AIChat({campaignId, jobs, refreshJobs, initialContext, onContext
     try {
       const job = await chatRequest<AIJob>(`/api/campaigns/${encodeURIComponent(campaignId)}/ai/chat`,{id:next.id,question:next.question,context:JSON.parse(scope),...(next.draftRef?{draftRef:next.draftRef}:{})});
       setPending(previous=>previous?.id===next.id ? {...previous,jobId:job.id} : previous);
+      composerDraft.clear();
       refreshJobs();
     } catch(e) { setPending(previous=>previous?.id===next.id ? {...previous,error:(e as Error).message} : previous); }
     finally { lock.current = false; }
@@ -193,6 +202,7 @@ export function AIChat({campaignId, jobs, refreshJobs, initialContext, onContext
       <div ref={end}/>
     </div>
     {error && <p role="alert" className="ai-job-error">{error}</p>}
+    {(composerDirty||composerDraft.candidate)&&<details className="ai-chat-composer-draft"><summary>{composerDraft.candidate?"Найден несохранённый вопрос · восстановить":"Черновик вопроса на устройстве"}</summary><DeviceDraftControls draft={composerDraft} label="вопрос AI"/></details>}
     <AIConnectionSummary onAvailable={setAIAvailable}/><form className="ai-chat-compose" onSubmit={e=>{e.preventDefault();if(includeCampaign||sessionIds.length)void send();}}><textarea ref={composer} aria-label="Вопрос AI" placeholder="Спросить о кампании или создать сущность…" onKeyDown={event=>{if(event.key==="Enter"&&(event.ctrlKey||event.metaKey)){event.preventDefault();if(!loading&&(includeCampaign||sessionIds.length))void send();}}} rows={2} maxLength={4000} required minLength={2} disabled={busy} value={question} onChange={e=>setQuestion(e.target.value)}/><button type="submit" title="Отправить вопрос" aria-label="Отправить вопрос" disabled={!aiAvailable||busy||loading||question.trim().length<2||(!includeCampaign&&!sessionIds.length)}><Send size={20}/></button></form><small className="ai-chat-disclaimer">{!includeCampaign&&!sessionIds.length ? "Выбери материалы кампании или хотя бы одну сессию." : "AI может ошибаться. Записи добавляются только после подтверждения."}</small>
     </div>{(related.length > 0 || !!latest?.drafts?.length) && <aside className="ai-chat-inspector" aria-label="Материалы ответа">
       <header><Compass size={20}/><div><h3>Рабочая панель</h3><small>Материалы текущего ответа</small></div></header>

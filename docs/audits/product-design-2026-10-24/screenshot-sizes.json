@@ -1,0 +1,230 @@
+{
+  "before-item.jpg": [
+    1280,
+    720
+  ],
+  "builder-phone.jpg": [
+    390,
+    844
+  ],
+  "characters-phone.jpg": [
+    390,
+    844
+  ],
+  "chat-desktop.jpg": [
+    1440,
+    1024
+  ],
+  "chat-draft-restored.jpg": [
+    1440,
+    1024
+  ],
+  "chat-phone.jpg": [
+    381,
+    825
+  ],
+  "desktop-dashboard.jpg": [
+    1440,
+    1024
+  ],
+  "desktop-events.jpg": [
+    1440,
+    1024
+  ],
+  "desktop-items.jpg": [
+    1440,
+    1024
+  ],
+  "desktop-locations.jpg": [
+    1440,
+    1024
+  ],
+  "desktop-monsters.jpg": [
+    1440,
+    1024
+  ],
+  "desktop-notes.jpg": [
+    1440,
+    1024
+  ],
+  "desktop-npcs.jpg": [
+    1440,
+    1024
+  ],
+  "desktop-offline.jpg": [
+    1440,
+    1024
+  ],
+  "desktop-players.jpg": [
+    1440,
+    1024
+  ],
+  "desktop-quests.jpg": [
+    1440,
+    1024
+  ],
+  "desktop-rules.jpg": [
+    1440,
+    1024
+  ],
+  "desktop-sessions.jpg": [
+    1440,
+    1024
+  ],
+  "desktop-shops.jpg": [
+    1440,
+    1024
+  ],
+  "draft-restored-comparison.jpg": [
+    1024,
+    900
+  ],
+  "editor-art-section.jpg": [
+    1280,
+    720
+  ],
+  "editor-conflict-preserved.jpg": [
+    1024,
+    900
+  ],
+  "editor-stats-tablet.jpg": [
+    1024,
+    900
+  ],
+  "entity-desktop.jpg": [
+    1440,
+    1024
+  ],
+  "entity-phone.jpg": [
+    381,
+    825
+  ],
+  "header-comparison.jpg": [
+    806,
+    360
+  ],
+  "image-error.jpg": [
+    1440,
+    1024
+  ],
+  "image-fullscreen.jpg": [
+    1440,
+    1024
+  ],
+  "image-landscape.jpg": [
+    1440,
+    1024
+  ],
+  "image-portrait.jpg": [
+    1440,
+    1024
+  ],
+  "image-small.jpg": [
+    1440,
+    1024
+  ],
+  "image-square.jpg": [
+    1440,
+    1024
+  ],
+  "item-desktop.jpg": [
+    1280,
+    720
+  ],
+  "item-direct-phone.jpg": [
+    390,
+    844
+  ],
+  "monster-empty-stats.jpg": [
+    1440,
+    1024
+  ],
+  "monster-filled.jpg": [
+    1440,
+    1024
+  ],
+  "note-media-editor.jpg": [
+    1440,
+    1024
+  ],
+  "npc-tablet.jpg": [
+    1015,
+    892
+  ],
+  "overview-1.jpg": [
+    1440,
+    1072
+  ],
+  "overview-2.jpg": [
+    1440,
+    1072
+  ],
+  "overview-3.jpg": [
+    1440,
+    1072
+  ],
+  "overview-4.jpg": [
+    1440,
+    1072
+  ],
+  "privacy-phone.jpg": [
+    375,
+    812
+  ],
+  "quest-desktop.jpg": [
+    1440,
+    1024
+  ],
+  "quest-phone.jpg": [
+    381,
+    825
+  ],
+  "ready-relations.jpg": [
+    1440,
+    1024
+  ],
+  "relation-conflict-preserved.jpg": [
+    390,
+    844
+  ],
+  "relation-selection.jpg": [
+    1280,
+    720
+  ],
+  "relations-persisted.jpg": [
+    1280,
+    720
+  ],
+  "relations-phone.jpg": [
+    390,
+    844
+  ],
+  "scene-camera-100.jpg": [
+    1280,
+    720
+  ],
+  "scene-conflict-comparison.jpg": [
+    1280,
+    720
+  ],
+  "scene-reopened.jpg": [
+    1280,
+    720
+  ],
+  "settings-desktop.jpg": [
+    1440,
+    1024
+  ],
+  "settings-phone.jpg": [
+    390,
+    844
+  ],
+  "terms-phone.jpg": [
+    375,
+    812
+  ],
+  "variant-3-comparison.jpg": [
+    2880,
+    1060
+  ]
+}

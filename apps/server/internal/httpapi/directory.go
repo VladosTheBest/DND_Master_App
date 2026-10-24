@@ -23,7 +23,7 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, c campaignData) {
 	kind, q := r.URL.Query().Get("kind"), strings.ToLower(strings.TrimSpace(r.URL.Query().Get("q")))
 	entries := []knowledgeEntity{}
 	for _, e := range campaignEntities(c) {
-		if e.Kind != kind || !directoryTabMatches(e, r.URL.Query().Get("tab")) {
+		if (kind != "all" && e.Kind != kind) || e.ID == r.URL.Query().Get("exclude") || !directoryTabMatches(e, r.URL.Query().Get("tab")) {
 			continue
 		}
 		if q != "" && !strings.Contains(strings.ToLower(e.Title+" "+e.Subtitle+" "+e.Summary+" "+strings.Join(e.Tags, " ")), q) {
@@ -39,7 +39,7 @@ func serveDirectory(w http.ResponseWriter, r *http.Request, c campaignData) {
 		entries = append(entries, e)
 	}
 	raw, _ := json.Marshal(entries)
-	version := fmt.Sprintf("%x", sha256.Sum256(append([]byte(kind+q), raw...)))[:20]
+	version := fmt.Sprintf("%x", sha256.Sum256(append([]byte(kind+q+r.URL.Query().Get("exclude")+r.URL.Query().Get("tab")), raw...)))[:20]
 	offset := 0
 	if cursor := r.URL.Query().Get("cursor"); cursor != "" {
 		decoded, err := base64.RawURLEncoding.DecodeString(cursor)

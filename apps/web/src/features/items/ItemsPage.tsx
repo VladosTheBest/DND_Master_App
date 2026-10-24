@@ -913,7 +913,7 @@ export function ItemDetailModal({
         </button>
 
         <div className="items-detail-stack items-modal-stack">
-          <section className="items-detail-hero items-modal-hero" style={createItemHeroStyle(item)}>
+          <section className="items-detail-hero items-modal-hero">
             <div className="items-modal-hero-copy">
               <div className="items-detail-hero-top items-modal-hero-top">
                 <div className="actions items-inline-actions">
@@ -1319,6 +1319,7 @@ export function ItemsPage({ campaignId, ownerId, onCampaignChanged }: ItemsPageP
   const [priceFilter, setPriceFilter] = useWorkspaceListState<PriceFilter>("items.price","all");
   const [sortMode, setSortMode] = useWorkspaceListState<SortMode>("items.sort","name-asc");
   const [selectedItemId, setSelectedItemId] = useState("");
+  const [selectedItemSnapshot,setSelectedItemSnapshot]=useState<Item|null>(null);
   useEffect(()=>{setSelectedItemId(route.target);setSearchQuery(route.query);},[route.target,route.query]);
   const [editorMode, setEditorMode] = useState<ItemEditorMode>("closed");
   const [editingItemId, setEditingItemId] = useState("");
@@ -1339,7 +1340,7 @@ export function ItemsPage({ campaignId, ownerId, onCampaignChanged }: ItemsPageP
   };
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const {
-    catalogItems,
+    catalogItems, catalogDetails,
     catalogLoading,
     catalogError,
     loadingCatalogItemIds,
@@ -1444,8 +1445,8 @@ export function ItemsPage({ campaignId, ownerId, onCampaignChanged }: ItemsPageP
 
   useEffect(()=>{if(selectedItemId&&/^dndsu-/.test(selectedItemId))ensureCatalogItemDetail(selectedItemId);},[selectedItemId,ensureCatalogItemDetail]);
   const selectedItem = useMemo(
-    () => allItems.find((item) => item.id === selectedItemId) ?? null,
-    [allItems, selectedItemId]
+    () => catalogDetails[selectedItemId] ?? allItems.find((item) => item.id === selectedItemId) ?? (selectedItemSnapshot?.id===selectedItemId?selectedItemSnapshot:null),
+    [allItems, selectedItemId, catalogDetails, selectedItemSnapshot]
   );
 
   const [visibleCount, setVisibleCount] = useState(48);
@@ -1460,20 +1461,7 @@ export function ItemsPage({ campaignId, ownerId, onCampaignChanged }: ItemsPageP
 
 
 
-  useEffect(() => {
-    if (editorMode !== "closed" || !selectedItemId) {
-      return;
-    }
 
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setSelectedItemId("");
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [editorMode, selectedItemId]);
 
   const tabOptions = useMemo(
     () => createTabOptions(officialItems.length, customItems.length),
@@ -1518,6 +1506,7 @@ export function ItemsPage({ campaignId, ownerId, onCampaignChanged }: ItemsPageP
   };
 
   const handleSelectItem = (itemId: string) => {
+    setSelectedItemSnapshot(allItems.find(item=>item.id===itemId)??null);
     clearMessages();
     navigateWorkspace(workspaceURL({...route,campaignId,section:"items",target:itemId,query:searchQuery}));
     setSelectedItemId(itemId);
@@ -1878,6 +1867,7 @@ export function ItemsPage({ campaignId, ownerId, onCampaignChanged }: ItemsPageP
             </div>
           )}
 
+          {editorMode === "closed"&&selectedItemId&&!selectedItem&&<AppModal label="Карточка предмета" onClose={handleCloseItemModal}><div className="panel items-detail-modal"><div className="row"><h2>Предмет</h2><button className="ghost" onClick={handleCloseItemModal}>Закрыть карточку предмета</button></div>{detailErrors[selectedItemId]?<p role="alert">{detailErrors[selectedItemId]} <button className="ghost" onClick={()=>ensureCatalogItemDetail(selectedItemId)}>Повторить загрузку</button></p>:!/^dndsu-/.test(selectedItemId)&&serverItems.document?<p role="alert">Предмет не найден в этой кампании. Возможно, его удалили.</p>:<p role="status">Загружаем карточку предмета…</p>}</div></AppModal>}
           {editorMode === "closed" && selectedItem ? (
             <ItemDetailModal
               item={selectedItem}

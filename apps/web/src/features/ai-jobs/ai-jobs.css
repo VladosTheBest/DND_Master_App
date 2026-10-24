@@ -16,7 +16,7 @@
 .ai-jobs-launcher.working span { color:var(--accent); animation:ai-breathe 2.8s ease-in-out infinite; }
 .ai-jobs-dialog { width:min(850px,calc(100% - 24px)); max-height:88vh; overflow:auto; padding:24px; background:var(--bg-panel-strong); color:var(--text); border:1px solid var(--line-strong); border-radius:20px; }
 .ai-jobs-dialog::backdrop { background:rgba(0,0,0,.65); }
-.ai-jobs-dialog:not([open]) { display:none; }
+.ai-jobs-dialog:not([open]):not(.ai-assistant-page) { display:none; }
 .ai-jobs-dialog>header { display:flex; gap:16px; justify-content:space-between; align-items:flex-start; }
 .ai-jobs-dialog h2 { margin:0; }
 .ai-jobs-dialog>header p,.ai-jobs-dialog>small { color:var(--text-muted); }

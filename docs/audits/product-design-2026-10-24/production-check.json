@@ -1,0 +1,18 @@
+{
+  "app": "dnd-master-app",
+  "deployment": {
+    "status": "pending"
+  },
+  "authorizedSmoke": {
+    "status": "not_run",
+    "reason": "Production browser is signed out; user sign-in requested. No user password requested in chat."
+  },
+  "localChecks": {
+    "goSuite": "passed",
+    "webBuild": "passed",
+    "mcpTests": 35,
+    "routesDraftsTransportCompact": "passed",
+    "sceneGeometry": "passed",
+    "browser": "see design-qa.md"
+  }
+}

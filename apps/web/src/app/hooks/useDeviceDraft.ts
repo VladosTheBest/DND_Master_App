@@ -62,10 +62,13 @@ export function useDeviceDraft<T>({ownerId,campaignId,target,revision,value,dirt
     }
     catch(reason){setStatus(reason instanceof Error?reason.message:"Не удалось восстановить черновик. Скачайте копию.");}
   };
+  // Keep another tab's saved copy intact, but allow an explicit choice to
+  // continue the current form without restoring or deleting that copy.
+  const keepCurrent=()=>{waiting.current=false;setCandidates([]);setCandidateKey("");setStatus("Продолжаем текущие правки. Другие копии остаются на устройстве.");};
   const discard=()=>{
     if(!candidate)return;if(!removeDeviceDrafts([candidate.key])){setStatus("Не удалось удалить копию с устройства.");return;}
     const remaining=candidates.filter(item=>item.key!==candidate.key);setCandidates(remaining);setCandidateKey(remaining[0]?.key??"");waiting.current=Boolean(remaining.length);setStatus(remaining.length?"Остались другие черновики.":"");
   };
   const flush=()=>{if(timer.current)clearTimeout(timer.current);pending.current?.();pending.current=null;};
-  return {candidate,candidates,selectCandidate:setCandidateKey,status,clear,download,recover,discard,flush};
+  return {candidate,candidates,selectCandidate:setCandidateKey,status,clear,download,recover,discard,flush,keepCurrent};
 }

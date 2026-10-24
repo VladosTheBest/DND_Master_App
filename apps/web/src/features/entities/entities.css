@@ -25,8 +25,9 @@
 }
 .npc-portrait {
   width: 100%;
-  aspect-ratio: 4 / 5;
-  object-fit: cover;
+  height: auto;
+  max-height: 380px;
+  object-fit: contain;
   border-radius: calc(var(--radius-lg) - 2px);
   border: 1px solid var(--line);
   background: rgba(255,255,255,.03);

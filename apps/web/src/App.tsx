@@ -1,3 +1,5 @@
+import { sanitizeMonsterRewardProfile } from "./features/entities/reward-input";
+import { EntityRelationsPanel } from "./features/entity-links/EntityRelationsPanel";
 import { DraftOwnerContext } from "./app/hooks/useDraftOwner";
 import { useEditorDirty } from "./app/hooks/useEditorDirty";
 import { useWorkspaceGuard } from "./app/workspace-route";
@@ -9,7 +11,6 @@ import { confirmAction } from "./app/confirm-action";
 import { browserStorage } from "./app/browser-storage";
 import { FinishCombatDialog } from "./features/combat/FinishCombatDialog";
 import { AIJobsPanel } from "./features/ai-jobs/AIJobsPanel";
-import "@shadow-edge/design-tokens/theme.css";
 const SessionsPage = lazy(()=>import("./features/sessions/SessionsPage").then(module=>({default:module.SessionsPage})));
 import {
   CollapsibleSection,
@@ -842,41 +843,6 @@ const sanitizeSpellcasting = (spellcasting?: SpellcastingBlock | null): Spellcas
   };
 };
 
-const sanitizeMonsterRewardProfile = (profile?: MonsterRewardProfile): MonsterRewardProfile | undefined => {
-  if (!profile) {
-    return undefined;
-  }
-
-  const summary = profile.summary.trim();
-  const loot = profile.loot
-    .map((entry) => ({
-      name: entry.name.trim(),
-      category: entry.category.trim(),
-      quantity: entry.quantity.trim(),
-      check: entry.check.trim(),
-      dc: sanitizeOptionalText(entry.dc),
-      details: sanitizeOptionalText(entry.details)
-    }))
-    .filter((entry) => entry.name || entry.category || entry.quantity || entry.check || entry.dc || entry.details)
-    .map((entry) => ({
-      name: entry.name || "Безымянная добыча",
-      category: entry.category || "Лут",
-      quantity: entry.quantity || "1",
-      check: entry.check || "Без проверки",
-      dc: entry.dc,
-      details: entry.details
-    }));
-
-  if (!summary && !loot.length) {
-    return undefined;
-  }
-
-  return {
-    summary,
-    loot
-  };
-};
-
 const sanitizeNpcStatBlock = (statBlock?: NpcStatBlock): NpcStatBlock | undefined => {
   if (!statBlock) {
     return undefined;
@@ -1554,6 +1520,7 @@ function CombatWorkbench({
 }
 
 export default function App() {
+  const [entityEditorSection,setEntityEditorSection]=useState("");
   const workspaceRoute = useWorkspaceRoute();
   const routeKey = JSON.stringify(workspaceRoute);
   const [workspaceArea,setWorkspaceArea]=useState<"maps"|"chat"|null>(null);
@@ -4779,7 +4746,7 @@ export default function App() {
                 }}
               />
             ) : campaign.readyCampaign && !["sessions","items"].includes(activeRailKey) && ["locations","npcs","monsters","quests","lore","notes","events","shops"].includes(activeModule) ? (
-              <ReadyAdventureReader campaign={campaign} module={activeRailKey === "shops" ? "shops" : activeRailKey === "events" ? "events" : activeModule} selected={activeEntity} selectedEventId={selectedWorldEventId} onSelect={openEntity} onGallery={openGalleryViewer}/>
+              <div className={activeEntity?"entity-dossier-layout":undefined}><div className="entity-primary-flow">              <ReadyAdventureReader campaign={campaign} module={activeRailKey === "shops" ? "shops" : activeRailKey === "events" ? "events" : activeModule} selected={activeEntity} selectedEventId={selectedWorldEventId} onSelect={openEntity} onGallery={openGalleryViewer}/></div>{activeEntity&&<aside className="record-context" id="record-relations" aria-label="Связи прохождения"><EntityRelationsPanel campaignId={campaign.id} ownerId={authUserId} entity={activeEntity} onResolve={resolveLinkedEntity} onChanged={hydrateCampaign} onOpen={item=>{const target=resolveLinkedEntity(item);if(target)void openEntity(target.id);}}/><small>Связи относятся к вашему прохождению. Материалы приключения защищены.</small></aside>}</div>
             ) : activeModule === "combat" ? (
               <CombatPage
                 activeCombat={activeCombat}
@@ -4854,7 +4821,8 @@ export default function App() {
               activeRailAlias === "events" ||
               activeModule === "lore" ||
               (activeEntity?.kind === "quest" && activeModule === "quests") ? (
-              <AppContentRouter
+              <div className={activeEntity&&["monster","quest","lore"].includes(activeEntity.kind)?"entity-dossier-layout entity-specialized-layout":undefined}>
+                <div className="entity-primary-flow">              <AppContentRouter
                 ownerId={authUserId}
                 activeEntity={activeEntity}
                 activeModule={activeModule}
@@ -4872,7 +4840,7 @@ export default function App() {
                     isEntityPlaylistActive={isEntityPlaylistActive}
                     onContentContextMenu={(entity, event) => entityLinkController.handleActiveEntityContentContextMenu(entity, "content", event)}
                     onCopyImageLink={handleCopyImageLink}
-                    onEditEntity={openEntityEditor}
+                    onEditEntity={(id,section?:string)=>{setEntityEditorSection(section||"summary");openEntityEditor(id);}}
                     onEditWithAI={aiProposalController.requestEntityProposal}
                     onOpenDirectory={() => openModuleDirectory("monsters", "Импорт")}
                     onOpenEntity={openEntity}
@@ -4908,7 +4876,7 @@ export default function App() {
                 normalizeWorldEventForClient={normalizeWorldEventForClient}
                 notesContentContextMenu={entityLinkController.handleNoteContentContextMenu}
                 onActiveEventChange={setSelectedWorldEventId}
-                onEditEntity={openEntityEditor}
+                onEditEntity={(id,section?:string)=>{setEntityEditorSection(section||"summary");openEntityEditor(id);}}
                 onEditWithAI={aiProposalController.requestEntityProposal}
                 onOpenDirectory={() => openModuleDirectory("quests")}
                 onOpenEntity={openEntity}
@@ -4934,9 +4902,13 @@ export default function App() {
                 serializeEntityForm={serializeEntityForm}
                 serializeWorldEventInput={serializeWorldEventInput}
                 worldEventToForm={worldEventToForm}
-              />
+              /></div>
+                {activeEntity&&["monster","quest","lore"].includes(activeEntity.kind)&&<aside className="record-context" id="record-relations" aria-label="Связи записи"><EntityRelationsPanel campaignId={campaign.id} ownerId={authUserId} entity={activeEntity} onResolve={resolveLinkedEntity} onChanged={hydrateCampaign} onOpen={item=>{const target=resolveLinkedEntity(item);if(target)void openEntity(target.id);}}/></aside>}
+              </div>
             ) : activeEntity ? (
               <EntityDetailsPage
+                ownerId={authUserId}
+                onCampaignChanged={hydrateCampaign}
                 activeEntity={activeEntity}
                 activeEntityPinned={activeEntityPinned}
                 activeEntityPlayerCards={activeEntityPlayerCards}
@@ -4951,7 +4923,7 @@ export default function App() {
                 onContentContextMenu={(event) => entityLinkController.handleActiveEntityContentContextMenu(activeEntity, "content", event)}
                 onCreatePlayerFacingCard={() => openNewPlayerFacingEditor(activeEntity)}
                 onDeletePlayerFacingCard={(card, index) => requestPlayerFacingCardDeletion(activeEntity, card, index)}
-                onEditEntity={() => openEntityEditor(activeEntity.id)}
+                onEditEntity={(section) => {setEntityEditorSection(section||"summary");openEntityEditor(activeEntity.id);}}
                 onEditWithAI={() => aiProposalController.requestEntityProposal(activeEntity)}
                 onEditPlayerFacingCard={(card, index) => openPlayerFacingEditor(activeEntity, card, index)}
                 onOpenEntityActionMenu={(event) => openEntityActionMenu(activeEntity, event)}
@@ -4967,7 +4939,7 @@ export default function App() {
                 onOpenPlayerFacingCard={(card, index) => openPlayerFacingView(activeEntity, card, { cardIndex: index })}
                 onOpenPlaylistEditor={() => openEntityPlaylistModal(activeEntity)}
                 onOpenPreview={() => openPreview(activeEntity.id)}
-                onOpenRelatedEntity={openRelatedEntity}
+                onOpenRelatedEntity={(item)=>{const linked=resolveLinkedEntity(item);if(linked)void openEntity(linked.id);}}
                 onOpenShop={openShopFromLocation}
                 onPeekQuest={peekEntity}
                 onPlayNextPlaylistTrack={playNextRandomTrack}
@@ -5510,6 +5482,7 @@ export default function App() {
       ) : null}
 
       {entityEditor.entityModalOpen&&<EntityEditorModal
+        section={entityEditorSection}
         campaign={campaign}
         controller={entityEditor}
         entityGenerationSteps={entityGenerationSteps}
@@ -5593,7 +5566,7 @@ export default function App() {
         onOpenEntityImage={openEntityImage}
       />
 
-      <AIJobsPanel campaignId={activeCampaignId} onOpenSession={(job) => {
+      {workspaceRoute.section!=="chat"&&<AIJobsPanel campaignId={activeCampaignId} onOpenSession={(job) => {
         if (!job.campaignId || !job.sessionId) return;
         browserStorage.setItem(`session-selected:${job.campaignId}`, job.sessionId);
         void (async () => {
@@ -5601,7 +5574,7 @@ export default function App() {
           setActiveRailAlias("sessions");
           window.dispatchEvent(new CustomEvent("ai-open-session", { detail: { campaignId: job.campaignId, sessionId: job.sessionId } }));
         })();
-      }} onOpenProposal={(id) => void aiProposalController.openProposal(id)} />
+      }} onOpenProposal={(id) => void aiProposalController.openProposal(id)} />}
       <AIProposalCenter campaignId={activeCampaignId} controller={aiProposalController} key="ai-proposal-center" renderEntity={renderProposalEntity} />
 
       {finishCombatConfirmOpen && activeCombat ? <FinishCombatDialog busy={saving} error={bootError} onCancel={() => setFinishCombatConfirmOpen(false)} onConfirm={() => void finishCombat()} /> : null}

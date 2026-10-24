@@ -98,6 +98,7 @@ export function EntityEditorForm({
       <label className="field field-full">
         <span>Краткое описание</span>
         <textarea
+          data-editor-section="summary"
           className="input textarea"
           onChange={(event) => setEntityForm((current) => ({ ...current, summary: event.target.value }))}
           value={entityForm.summary}
@@ -325,10 +326,9 @@ export function EntityEditorForm({
       </details>
       <details className="editor-disclosure field-full">
         <summary>Изображения, музыка и галерея</summary>
-        <div className="form-grid">
-      <EntityArtEditor controller={controller} />
+        <div data-editor-section="media" className="form-grid">
+      <div data-editor-section="art" className="field-full"><EntityArtEditor controller={controller} /></div>
 
-      {entityModalMode === "create" ? (
         <div className="field field-full">
           <PlaylistEditorSection
             hint="Необязательно. Музыку можно добавить и позже в карточке."
@@ -339,8 +339,6 @@ export function EntityEditorForm({
             tracks={entityForm.playlist ?? []}
           />
         </div>
-      ) : null}
-      {entityModalMode === "create" ? (
         <div className="field field-full">
           <GalleryEditorSection
             hint="Необязательно. Карты, письма и иллюстрации для этой записи."
@@ -354,7 +352,6 @@ export function EntityEditorForm({
             uploadingIndex={galleryUploadKey.startsWith("entity-form:") ? Number.parseInt(galleryUploadKey.split(":")[1] ?? "-1", 10) : null}
           />
         </div>
-      ) : null}
 
         </div>
       </details>
@@ -490,6 +487,7 @@ export function EntityEditorForm({
           className="input textarea textarea-lg"
           onContextMenu={(event) => onContentContextMenu("content", event)}
           onChange={(event) => setEntityForm((current) => ({ ...current, content: event.target.value }))}
+          data-editor-section="content"
           ref={entityContentRef}
           value={entityForm.content}
         />
@@ -502,10 +500,10 @@ export function EntityEditorForm({
       </details> : <EntityPreparedCombatEditor campaign={campaign} controller={controller} />}
       {["player", "npc", "monster"].includes(entityForm.kind) ? <details className="editor-disclosure field-full">
         <summary>Боевые характеристики</summary>
-        <div className="form-grid"><EntityStatBlockEditor controller={controller} /></div>
-      </details> : <EntityStatBlockEditor controller={controller} />}
+        <div className="form-grid"><div data-editor-section="stats" className="field-full"><EntityStatBlockEditor controller={controller} /></div></div>
+      </details> : <div data-editor-section="stats" className="field-full"><EntityStatBlockEditor controller={controller} /></div>}
       {["npc", "monster", "quest"].includes(entityForm.kind) ? <details className="editor-disclosure field-full">
-        <summary>Награды и добыча</summary><EntityRewardEditor controller={controller} />
+        <summary>Награды и добыча</summary><div data-editor-section="rewards"><EntityRewardEditor controller={controller} /></div>
       </details> : null}
     </fieldset>
   );

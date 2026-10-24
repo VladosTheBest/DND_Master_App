@@ -261,3 +261,10 @@
 .ai-chat-draft-editor textarea { resize:vertical; max-height:500px; line-height:1.6; }
 .ai-chat-draft-editor input:focus,.ai-chat-draft-editor textarea:focus { outline:2px solid #9584bd; outline-offset:1px; }
 .ai-assistant-brand h2,.ai-chat-draft h3,.ai-chat-page-brand h1 { letter-spacing:0; }
+
+/* The full chat is regular page content; only the floating assistant is a dialog. */
+.ai-jobs-dialog.ai-assistant.ai-assistant-page{display:flex;flex-direction:column;position:relative;left:auto;top:auto;width:100%;height:100%;min-height:0;gap:12px;background:#1c2029;--text:#edf0f5;--text-soft:#bcc4d2;--text-muted:#a0abba;--line:#333b49;--accent:#b5abed}
+.ai-chat-page-main.workspace-chat{height:calc(100dvh - 140px);min-height:360px}
+@media(max-width:700px){.ai-chat-page-main.workspace-chat{height:calc(100dvh - 230px);min-height:360px}.ai-assistant-page .ai-assistant-brand h2{font-size:17px}}
+
+.ai-chat-composer-draft{font-size:12px;color:var(--text-muted);flex-shrink:0}.ai-chat-composer-draft[open]{max-height:180px;overflow:auto}.ai-chat-composer-draft .device-draft-controls{padding:8px;font-size:12px}
