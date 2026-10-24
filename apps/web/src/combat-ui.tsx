@@ -282,7 +282,8 @@ export function CombatEntityStatSheet({
   expandSections = false,
   onOpenPortraitGallery,
   portraitActionLabel = "Нажми на портрет, чтобы открыть альбом.",
-  portraitOverride
+  portraitOverride,
+  hidePortrait = false
 }: {
   entity: CombatProfileEntity;
   action?: ReactNode;
@@ -290,6 +291,7 @@ export function CombatEntityStatSheet({
   expandSections?: boolean;
   onOpenPortraitGallery?: () => void;
   portraitActionLabel?: string;
+  hidePortrait?: boolean;
   portraitOverride?: {
     alt?: string;
     caption?: string;
@@ -301,7 +303,7 @@ export function CombatEntityStatSheet({
   }
 
   const { statBlock } = entity;
-  const hasPortrait = Boolean(portraitOverride?.url) || hasVisibleArt(entity.art);
+  const hasPortrait = !hidePortrait && (Boolean(portraitOverride?.url) || hasVisibleArt(entity.art));
   const portraitSource = portraitOverride?.url ?? createPortraitSource(entity);
   const portraitAlt = portraitOverride?.alt ?? entity.art?.alt ?? entity.title;
   const portraitCaption = portraitOverride?.caption ?? entity.art?.caption ?? "";

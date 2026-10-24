@@ -13,6 +13,7 @@ import "./styles/workspace.css";
 import "./styles/product-design.css";
 import "./styles/workspace-polish.css";
 import "./styles/motion.css";
+import "./styles/portrait-layout.css";
 
 installWorkspaceLinks();
 

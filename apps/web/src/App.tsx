@@ -2,7 +2,6 @@ import { PageTransition } from "./app/PageTransition";
 import {sanitizeStatEntries} from "./features/entities/stat-entry-input";
 import type {EntityEditorNavigation} from "./features/entities/entity.types";
 import {CombatPlanConflictReview} from "./features/prepared-combat/CombatPlanConflictReview";
-import {RecordIllustration} from "./features/entity-images/RecordIllustration";
 import {sanitizeQuestAppearance} from "./features/entities/quest-appearance";
 import { sanitizeMonsterRewardProfile } from "./features/entities/reward-input";
 import { EntityRelationsPanel } from "./features/entity-links/EntityRelationsPanel";
@@ -4933,7 +4932,7 @@ export default function App() {
                 serializeWorldEventInput={serializeWorldEventInput}
                 worldEventToForm={worldEventToForm}
               /></div>
-                {activeEntity&&["monster","quest","lore"].includes(activeEntity.kind)&&<aside className="record-context" id="record-relations" aria-label="Изображение и связи записи">{activeEntity.kind==="quest"&&<RecordIllustration url={activeEntity.art?.url} title={activeEntity.title} alt={activeEntity.art?.alt||activeEntity.art?.caption} onReplace={()=>editEntitySection(activeEntity.id,"art")} onGallery={()=>editEntitySection(activeEntity.id,"gallery")}/>}<EntityRelationsPanel campaignId={campaign.id} ownerId={authUserId} entity={activeEntity} onResolve={resolveLinkedEntity} onChanged={hydrateCampaign} onOpen={item=>{const target=resolveLinkedEntity(item);if(target)void openEntity(target.id);}}/></aside>}
+                {activeEntity&&["monster","quest","lore"].includes(activeEntity.kind)&&<aside className="record-context" id="record-relations" aria-label="Связанные записи"><EntityRelationsPanel campaignId={campaign.id} ownerId={authUserId} entity={activeEntity} onResolve={resolveLinkedEntity} onChanged={hydrateCampaign} onOpen={item=>{const target=resolveLinkedEntity(item);if(target)void openEntity(target.id);}}/></aside>}
               </div>
             ) : activeEntity ? (
               <EntityDetailsPage

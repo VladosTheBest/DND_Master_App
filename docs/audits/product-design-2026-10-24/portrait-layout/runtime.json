@@ -1,0 +1,37 @@
+{
+  "npcAllSixTabs": {
+    "headerImage": 1,
+    "asideSelfImage": 0,
+    "visiblePanels": 1
+  },
+  "npcWidths": [
+    1440,
+    1024,
+    768,
+    390,
+    320
+  ],
+  "npcOverflow": false,
+  "portraitNaturalRatio": 0.75,
+  "portraitDesktop": [
+    130.5,
+    174
+  ],
+  "portraitMobile": [
+    99,
+    132
+  ],
+  "locationNaturalRatio": 1.3333333333333333,
+  "locationRenderedRatio": 1.3333333333333333,
+  "playerStatsDuplicatePortraits": 0,
+  "monsterHeaderImage": 1,
+  "monsterAsideSelfImage": 0,
+  "questAllSixTabs": {
+    "headerImage": 1,
+    "asideSelfImage": 0
+  },
+  "questMobileOverflow": false,
+  "emptyImageHeadingColumns": 1,
+  "artEditorInline": true,
+  "artEditorDialogs": 0
+}

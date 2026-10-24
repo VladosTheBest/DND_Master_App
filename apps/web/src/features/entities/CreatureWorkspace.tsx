@@ -76,6 +76,7 @@ const sectionTab = (section?: string) =>
       content: "notes",
       cards: "cards",
       rewards: "rewards",
+      art: "media",
       gallery: "media",
       playlist: "media",
       media: "media",
@@ -588,11 +589,22 @@ export function CreatureWorkspace(p: Props) {
               />
             </details>
           </div>
-          <div className="creature-mobile-portrait">
+          <div className="creature-portrait">
             <RecordIllustration
+              compact
               url={form.art?.url}
               title={form.title}
               alt={form.art?.alt || form.art?.caption}
+              onReplace={
+                readOnly
+                  ? undefined
+                  : () => {
+                      start("art");
+                      preserveTab.current = "media";
+                      setTab("media");
+                    }
+              }
+              onGallery={() => setTab("media")}
             />
           </div>
           <div className="creature-heading-actions">
@@ -1213,6 +1225,53 @@ export function CreatureWorkspace(p: Props) {
         {panel(
           "media",
           <>
+            <details
+              className="creature-art-source"
+              open={(editing && p.navigation?.section === "art") || undefined}
+            >
+              <summary>Изображение и подпись</summary>
+              {text(form.art?.url, "Ссылка на портрет", (url) =>
+                c.setEntityForm((old) => ({
+                  ...old,
+                  art: { ...old.art, url },
+                })),
+              )}
+              {text(form.art?.caption, "Подпись портрета", (caption) =>
+                c.setEntityForm((old) => ({
+                  ...old,
+                  art: { ...old.art, url: old.art?.url || "", caption },
+                })),
+              )}
+              {text(form.art?.alt, "Описание изображения", (alt) =>
+                c.setEntityForm((old) => ({
+                  ...old,
+                  art: { ...old.art, url: old.art?.url || "", alt },
+                })),
+              )}
+              {enabled && (
+                <>
+                  <input
+                    ref={artInput}
+                    className="creature-file-input"
+                    type="file"
+                    accept="image/*"
+                    aria-label="Загрузить портрет"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      if (file) void c.uploadEntityArtFile(file);
+                    }}
+                  />
+                  <button
+                    className="ghost"
+                    type="button"
+                    onClick={() => artInput.current?.click()}
+                  >
+                    Загрузить портрет
+                  </button>
+                </>
+              )}
+            </details>
+
             <section>
               <div className="creature-section-head">
                 <h2>Галерея</h2>
@@ -1359,57 +1418,7 @@ export function CreatureWorkspace(p: Props) {
           </>,
         )}
       </div>
-      <aside className="creature-context" aria-label="Портрет и связи">
-        <RecordIllustration
-          url={form.art?.url}
-          title={form.title}
-          alt={form.art?.alt || form.art?.caption}
-          onReplace={readOnly ? undefined : () => start("art")}
-          onGallery={() => setTab("media")}
-        />
-        <details
-          className="creature-art-source"
-          open={(editing && p.navigation?.section === "art") || undefined}
-        >
-          <summary>Изображение и подпись</summary>
-          {text(form.art?.url, "Ссылка на портрет", (url) =>
-            c.setEntityForm((old) => ({ ...old, art: { ...old.art, url } })),
-          )}
-          {text(form.art?.caption, "Подпись портрета", (caption) =>
-            c.setEntityForm((old) => ({
-              ...old,
-              art: { ...old.art, url: old.art?.url || "", caption },
-            })),
-          )}
-          {text(form.art?.alt, "Описание изображения", (alt) =>
-            c.setEntityForm((old) => ({
-              ...old,
-              art: { ...old.art, url: old.art?.url || "", alt },
-            })),
-          )}
-          {enabled && (
-            <>
-              <input
-                ref={artInput}
-                className="creature-file-input"
-                type="file"
-                accept="image/*"
-                aria-label="Загрузить портрет"
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) void c.uploadEntityArtFile(file);
-                }}
-              />
-              <button
-                className="ghost"
-                type="button"
-                onClick={() => artInput.current?.click()}
-              >
-                Загрузить портрет
-              </button>
-            </>
-          )}
-        </details>
+      <aside className="creature-context" aria-label="Связанные записи">
         <EntityRelationsPanel
           inlineEdit
           compact

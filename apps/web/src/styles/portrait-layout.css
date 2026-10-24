@@ -1,0 +1,311 @@
+/* The illustration belongs to the entity's identity; the aside contains relations only. */
+.shell .creature-heading {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 14px 24px;
+  align-items: start;
+}
+.shell .creature-heading > div:first-child {
+  grid-column: 2;
+  grid-row: 1;
+}
+.shell .creature-heading > .creature-portrait {
+  grid-column: 1;
+  grid-row: 1/3;
+  min-width: 0;
+}
+.shell .creature-heading > .creature-heading-actions {
+  grid-column: 2;
+  grid-row: 2;
+  justify-content: flex-start;
+  position: static;
+  width: 240px;
+  max-width: 100%;
+}
+.shell .creature-portrait .record-illustration {
+  margin: 0;
+  width: 100%;
+}
+.shell .creature-portrait .record-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
+  height: auto;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.shell .creature-portrait .record-banner img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 174px;
+  object-fit: contain;
+}
+.shell .creature-portrait .actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.shell .creature-portrait .actions button {
+  flex: 1;
+  padding: 6px;
+  font-size: 11px;
+  min-height: 32px;
+}
+.shell .creature-context .entity-relations-manager {
+  grid-column: 1/-1;
+  grid-row: auto;
+}
+.shell .creature-context {
+  grid-template-columns: minmax(0, 1fr);
+}
+.shell .creature-art-source {
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.shell .has-dossier-tabs .entity-details-page > .dossier-heading {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.shell
+  .has-dossier-tabs
+  .entity-details-page
+  > .dossier-heading
+  > .record-hero {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  align-items: start;
+}
+.shell
+  .has-dossier-tabs
+  .entity-details-page
+  > .dossier-heading
+  > .record-illustration {
+  grid-column: 1;
+  grid-row: 1;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+.shell
+  .has-dossier-tabs
+  .dossier-heading
+  > .record-illustration
+  .record-banner {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  min-height: 0;
+  height: auto;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+.shell
+  .has-dossier-tabs
+  .dossier-heading
+  > .record-illustration
+  .record-banner
+  img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 174px;
+  object-fit: contain;
+}
+.shell .has-dossier-tabs .dossier-heading > .record-illustration .actions {
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.shell
+  .has-dossier-tabs
+  .dossier-heading
+  > .record-illustration
+  .actions
+  button {
+  flex: 1;
+  min-height: 32px;
+  font-size: 11px;
+  padding: 6px;
+}
+
+.shell .quest-dossier .quest-record-identity {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 14px 24px;
+  align-items: start;
+}
+.shell .quest-record-identity > .record-illustration {
+  grid-column: 1;
+  grid-row: 1/3;
+  min-width: 0;
+  margin: 0;
+}
+.shell .quest-record-identity > div:not(.actions) {
+  grid-column: 2;
+  grid-row: 1;
+  min-width: 0;
+}
+.shell .quest-record-identity > .actions {
+  grid-column: 2;
+  grid-row: 2;
+  justify-content: flex-start;
+}
+.shell .quest-record-identity .record-banner {
+  display: flex;
+  width: 100%;
+  height: auto;
+  justify-content: center;
+  align-items: center;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+.shell .quest-record-identity .record-banner img {
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 174px;
+  object-fit: contain;
+}
+.shell .quest-record-identity .record-illustration .actions {
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.shell .quest-record-identity .record-illustration .actions button {
+  flex: 1;
+  font-size: 11px;
+  padding: 6px;
+  min-height: 32px;
+}
+
+@media (max-width: 600px) {
+  .shell .creature-heading {
+    grid-template-columns: 104px minmax(0, 1fr);
+    gap: 14px;
+  }
+  .shell .creature-heading > .creature-portrait {
+    grid-row: 1;
+  }
+  .shell .creature-heading > .creature-heading-actions {
+    grid-column: 1/-1;
+    grid-row: 2;
+    width: 100%;
+  }
+  .shell .creature-portrait .record-banner,
+  .shell
+    .has-dossier-tabs
+    .dossier-heading
+    > .record-illustration
+    .record-banner,
+  .shell .quest-record-identity .record-banner {
+    height: auto;
+  }
+  .shell .creature-portrait .record-banner img,
+  .shell
+    .has-dossier-tabs
+    .dossier-heading
+    > .record-illustration
+    .record-banner
+    img,
+  .shell .quest-record-identity .record-banner img {
+    max-height: 132px;
+  }
+  .shell .creature-portrait .actions button {
+    min-height: 36px;
+  }
+  .shell .has-dossier-tabs .entity-details-page > .dossier-heading {
+    grid-template-columns: 104px minmax(0, 1fr);
+    gap: 14px;
+  }
+  .shell .has-dossier-tabs .dossier-heading .record-actions {
+    flex-wrap: wrap;
+  }
+  .shell .quest-dossier .quest-record-identity {
+    grid-template-columns: 104px minmax(0, 1fr);
+    gap: 14px;
+  }
+  .shell .quest-record-identity > .record-illustration {
+    grid-row: 1;
+  }
+  .shell .quest-record-identity > .actions {
+    grid-column: 1/-1;
+    grid-row: 2;
+  }
+}
+
+.shell .creature-heading:not(:has(.record-banner)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.shell .creature-heading:not(:has(.record-banner)) > div:first-child {
+  grid-column: 1;
+  grid-row: 1;
+}
+.shell .creature-heading:not(:has(.record-banner)) > .creature-heading-actions {
+  grid-column: 1;
+  grid-row: 2;
+}
+.shell .creature-heading:not(:has(.record-banner)) > .creature-portrait {
+  grid-column: 1;
+  grid-row: 3;
+  width: 200px;
+  max-width: 100%;
+}
+.shell
+  .has-dossier-tabs
+  .entity-details-page
+  > .dossier-heading:not(:has(.record-banner)) {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.shell
+  .has-dossier-tabs
+  .dossier-heading:not(:has(.record-banner))
+  > .record-illustration {
+  max-width: 200px;
+}
+.shell .quest-dossier .quest-record-identity:not(:has(.record-banner)) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.shell .quest-record-identity:not(:has(.record-banner)) > div:not(.actions) {
+  grid-column: 1;
+  grid-row: 1;
+}
+.shell .quest-record-identity:not(:has(.record-banner)) > .actions {
+  grid-column: 1;
+  grid-row: 2;
+}
+.shell .quest-record-identity:not(:has(.record-banner)) > .record-illustration {
+  grid-column: 1;
+  grid-row: 3;
+  max-width: 200px;
+}
+
+.shell .creature-portrait .actions button,
+.shell
+  .has-dossier-tabs
+  .dossier-heading
+  > .record-illustration
+  .actions
+  button,
+.shell .quest-record-identity .record-illustration .actions button {
+  white-space: nowrap;
+  flex: 0 0 auto;
+}

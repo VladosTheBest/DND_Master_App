@@ -1048,7 +1048,8 @@ export function QuestWorkspace({
         <button className="ghost" type="button" onClick={onOpenDirectory}>К списку квестов</button>
         <div className="actions"><button className="ghost" type="button" disabled={!previousQuest} onClick={()=>previousQuest&&onOpenQuest(previousQuest.id)}>Предыдущий</button><button className="ghost" type="button" disabled={!nextQuest} onClick={()=>nextQuest&&onOpenQuest(nextQuest.id)}>Следующий</button></div>
       </div>
-      <div className="record-heading">
+      <div className="record-heading quest-record-identity">
+        <RecordIllustration compact url={quest.art?.url} title={quest.title} alt={quest.art?.alt||quest.art?.caption} onReplace={readOnly?undefined:()=>edit("art")} onGallery={readOnly?undefined:()=>edit("gallery")}/>
         <div><span className="eyebrow">Квест</span><h1>{quest.title}</h1>{quest.subtitle&&<p className="copy">{quest.subtitle}</p>}</div>
         {!readOnly&&<div className="actions quest-dossier-actions">
           <button className="primary" type="button" onClick={()=>edit("summary")}>Редактировать</button>
@@ -1058,7 +1059,6 @@ export function QuestWorkspace({
       </div>
       <div className="quest-dossier-badges"><span className={badge(questStatusTone(quest.status))}>{questStatusLabels[quest.status]||"Статус не указан"}</span><span className={badge(questUrgencyTone(quest.urgency))}>Срочность: {questUrgencyLabels[quest.urgency]||"не указана"}</span>{quest.tags?.map(tag=><span className="entry-chip" key={tag}>{tag}</span>)}</div>
     </header>
-    {readOnly&&quest.art?.url&&<RecordIllustration url={quest.art.url} title={quest.title} alt={quest.art.alt||quest.art.caption}/>}
     <div role="tablist" aria-label="Разделы квеста" className="dossier-tabs" onKeyDown={event=>{
       if(event.altKey||event.ctrlKey||event.metaKey||!["ArrowLeft","ArrowRight","Home","End"].includes(event.key)||!(event.target instanceof HTMLButtonElement))return;
       const buttons=Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'));

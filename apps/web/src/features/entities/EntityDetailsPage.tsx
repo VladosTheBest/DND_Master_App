@@ -280,6 +280,7 @@ export function EntityDetailsRenderer({
             )}
             defaultCollapsed={false}
             entity={combatProfileEntity}
+            hidePortrait={persistentPortrait}
             expandSections
             onOpenPortraitGallery={openMonsterImage}
             portraitActionLabel={onOpenEntityImage ? "Нажми на портрет, чтобы открыть изображение и действия." : undefined}
@@ -371,7 +372,7 @@ export function EntityDetailsRenderer({
           </ActionMenu>
         </div> : null}
       </section>
-      {activeEntity.kind === "location" && <RecordIllustration key={activeEntity.art?.url||activeEntity.id} url={activeEntity.art?.url} title={activeEntity.title} alt={activeEntity.art?.alt||activeEntity.art?.caption} onReplace={readOnly?undefined:()=>onEditEntity("art")} onGallery={readOnly?undefined:()=>onEditEntity("gallery")}/>}
+      {(activeEntity.kind === "location" || persistentPortrait) && <RecordIllustration compact key={activeEntity.art?.url||activeEntity.id} url={activeEntity.art?.url} title={activeEntity.title} alt={activeEntity.art?.alt||activeEntity.art?.caption} onReplace={readOnly?undefined:()=>onEditEntity("art")} onGallery={readOnly?undefined:()=>onEditEntity("gallery")}/>}
       </div>
       {dossierKind ? <div role="tablist" aria-label="Разделы досье" className="dossier-tabs" onKeyDown={event=>{
         const keys=["ArrowRight","ArrowLeft","Home","End"];
@@ -585,6 +586,7 @@ export function EntityDetailsRenderer({
             defaultCollapsed={false}
             expandSections
             entity={combatProfileEntity}
+            hidePortrait={persistentPortrait}
             onOpenPortraitGallery={
               onOpenEntityImage
                 ? () => onOpenEntityImage(combatProfileEntity, combatProfileEntity.art?.url?.trim() || undefined)
@@ -603,12 +605,12 @@ export function EntityDetailsPage(props: EntityDetailsRendererProps) {
   const route = useWorkspaceRoute();
 
   const hasTabs=["npc","player","location"].includes(props.activeEntity.kind);
-  const context=<aside tabIndex={-1} id="record-relations" className="record-context" aria-label="Изображение и связи записи">
-      {hasTabs&&props.activeEntity.kind!=="location"&&<RecordIllustration url={props.activeEntity.art?.url} title={props.activeEntity.title} alt={props.activeEntity.art?.alt||props.activeEntity.art?.caption} onReplace={props.readOnly?undefined:()=>props.onEditEntity("art")} onGallery={props.readOnly?undefined:()=>props.onEditEntity("gallery")}/>}
+  const context=<aside tabIndex={-1} id="record-relations" className="record-context" aria-label="Связанные записи">
+
       <EntityRelationsPanel compact campaignId={route.campaignId||""} ownerId={props.ownerId||""} entity={props.activeEntity} onResolve={props.onResolveRelatedEntity} onOpen={props.onOpenRelatedEntity} onChanged={props.onCampaignChanged}/>
       {props.activeEntity.kind === "location" ? <section><h3>Карта и сцена</h3><p className="copy">Откройте атлас или создайте карту для этого места.</p><a className="ghost record-map-action" href={workspaceURL({campaignId: route.campaignId, section: "maps", view: "new", context: JSON.stringify({locationId: props.activeEntity.id})})}>Открыть карты и сцены</a></section> : null}
       {props.activeNpcQuests.length ? <section><h3>Квесты НПС</h3>{props.activeNpcQuests.map(quest => <button className="record-context-link" type="button" key={quest.id} onClick={() => props.onPeekQuest(quest.id)}><span><strong>{quest.title}</strong><small>{quest.summary}</small></span></button>)}</section> : null}
-      <small className="record-context-state">{props.readOnly ? "Готовая кампания · материалы защищены, связи хранятся в прохождении" : "Сохранённая запись · изменения через редактор"}</small>
+
     </aside>;
   return <div className={`entity-dossier-layout${hasTabs?" has-dossier-tabs":""}${props.activeEntity.kind==="location"?" location-workspace":""}`}>
     <EntityDetailsRenderer key={props.activeEntity.id} {...props} persistentPortrait={hasTabs}/>
