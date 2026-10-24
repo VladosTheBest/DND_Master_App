@@ -36,7 +36,7 @@
     "transferBytes": 155304
   },
   "after": {
-    "source": "final local build; production verification pending",
+    "source": "Fly production; gzip response bodies after release",
     "javascript": [
       {
         "file": "/assets/auth-ui-Cb1EzU97.js",
