@@ -1,8 +1,11 @@
+import { MediaDraftFeedback } from "./MediaDraftFeedback";
+import type { EntityMediaDraft } from "./useEntityMediaDraft";
 import { AppModal } from "../../app/AppModal";
 import type { KnowledgeEntity, PlaylistTrack } from "@shadow-edge/shared-types";
 import { PlaylistEditorSection } from "../../media";
 
 type EntityPlaylistModalProps = {
+  state:EntityMediaDraft;
   onAdd: () => void;
   onChange: (index: number, patch: Partial<PlaylistTrack>) => void;
   onClose: () => void;
@@ -15,6 +18,7 @@ type EntityPlaylistModalProps = {
 };
 
 export function EntityPlaylistModal({
+  state,
   onAdd,
   onChange,
   onClose,
@@ -31,19 +35,19 @@ export function EntityPlaylistModal({
 
   return (
     <AppModal label="Музыка записи" onClose={onClose}>
-      <div className="panel palette form-modal combat-playlist-modal" onClick={(event) => event.stopPropagation()} >
-        <div className="row">
+      <div className="panel palette form-modal combat-playlist-modal entity-media-modal" onClick={(event) => event.stopPropagation()} >
+        <header className="record-block-heading">
           <div>
-            <p className="eyebrow">Entity Playlist</p>
+            <h2>Музыка записи</h2>
             <strong>{target.title}</strong>
           </div>
-          <button className="ghost" onClick={onClose} type="button">
-            Esc
+          <button className="ghost" disabled={saving} onClick={onClose} type="button">
+            Закрыть
           </button>
-        </div>
+        </header>
 
-        <PlaylistEditorSection
-          hint="Точечная правка только для музыки этой сущности. Никакого полного редактора и длинной формы."
+        <div className="entity-media-body"><MediaDraftFeedback state={state} field="playlist" items={tracks}/><fieldset disabled={saving} className="media-editor-fields"><PlaylistEditorSection
+          hint="Добавьте ссылки на YouTube или аудиофайлы для атмосферы этой сцены."
           onAdd={onAdd}
           onChange={onChange}
           onRemove={onRemove}
@@ -51,14 +55,14 @@ export function EntityPlaylistModal({
           tracks={tracks}
         />
 
-        <div className="actions">
-          <button className="ghost" onClick={onClose} type="button">
+        </fieldset></div><footer className="actions">
+          <button className="ghost" disabled={saving} onClick={onClose} type="button">
             Отмена
           </button>
-          <button className="primary" disabled={saving} onClick={() => void onSave()} type="button">
+          <button className="primary" disabled={!state.canSave} onClick={() => void onSave()} type="button">
             {saving ? "Сохраняю..." : "Сохранить плейлист"}
           </button>
-        </div>
+        </footer>
       </div>
     </AppModal>
   );

@@ -44,7 +44,8 @@ export function EntityEditorModal({
   } = controller;
 
   const dialogRef = useNativeDialog(entityModalOpen);
-  useLayoutEffect(()=>{if(!entityModalOpen||!section)return;const frame=requestAnimationFrame(()=>{const target=dialogRef.current?.querySelector<HTMLElement>(`[data-editor-section="${section}"]`);if(!target)return;let parent=target.parentElement;while(parent&&parent!==dialogRef.current){if(parent instanceof HTMLDetailsElement)parent.open=true;parent=parent.parentElement;}target.scrollIntoView({block:"center"});const input=target.matches("input,textarea,select")?target:target.querySelector<HTMLElement>("input,textarea,select,button");input?.focus({preventScroll:true});});return()=>cancelAnimationFrame(frame);},[entityModalOpen,section]);
+  useLayoutEffect(()=>{if(!entityModalOpen||!section)return;const frame=requestAnimationFrame(()=>{const target=dialogRef.current?.querySelector<HTMLElement>(`[data-editor-section="${section}"]`);if(!target)return;let parent=target.parentElement;while(parent&&parent!==dialogRef.current){if(parent instanceof HTMLDetailsElement)parent.open=true;parent=parent.parentElement;}const input=target.matches("input,textarea,select")?target:target.querySelector<HTMLElement>("input,textarea,select,button");(input?.closest("label,.field")||input||target).scrollIntoView({block:"start",inline:"nearest"});input?.focus({preventScroll:true});});return()=>cancelAnimationFrame(frame);},[entityModalOpen,section]);
+  useLayoutEffect(()=>{if(!entityModalOpen||(!error&&!controller.conflict))return;const frame=requestAnimationFrame(()=>{const notice=dialogRef.current?.querySelector<HTMLElement>(controller.conflict?'[aria-label="Сравнение версий"]':'.form-error');notice?.scrollIntoView({block:"start"});notice?.focus({preventScroll:true});});return()=>cancelAnimationFrame(frame);},[entityModalOpen,error,controller.conflict]);
   if (!entityModalOpen) {
     return null;
   }
@@ -64,7 +65,7 @@ export function EntityEditorModal({
 
         <div className="entity-editor-body">
         <DeviceDraftControls draft={controller.deviceDraft}/>
-        {controller.conflict && <section className="card mini" aria-label="Сравнение версий">
+        {controller.conflict && <section tabIndex={-1} className="card mini" aria-label="Сравнение версий">
           <h3>Конфликт: запись изменилась на сервере</h3>
           <p>Сравните версии. Подготовка объединения сохранит остальные серверные поля; изменённые вами поля (включая списки целиком) возьмём из черновика. Сохранение выполняется отдельной кнопкой.</p>
           <details><summary>Мой черновик</summary><pre style={{whiteSpace:"pre-wrap"}}>{JSON.stringify(controller.entityForm, null, 2)}</pre></details>
@@ -95,7 +96,7 @@ export function EntityEditorModal({
         </details>
 
         {error ? (
-          <div className="card mini form-error" role="status">
+          <div tabIndex={-1} className="card mini form-error" role="alert">
             <strong>Изменения не сохранены</strong>
             <p>{error}</p>
           </div>

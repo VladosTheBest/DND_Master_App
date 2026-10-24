@@ -1,0 +1,7 @@
+const {build}=require('esbuild');const assert=require('node:assert/strict');
+(async()=>{const result=await build({entryPoints:['apps/web/src/features/entities/media-draft.ts'],bundle:true,platform:'node',format:'cjs',write:false});const mod={exports:{}};new Function('module','exports',result.outputFiles[0].text)(mod,mod.exports);const read=mod.exports.readMediaDraft;
+for(const items of [[],[{title:'A',url:''}],[{title:'Фото',url:'/uploads/photo.png',caption:'Подпись'}],[{title:'Музыка',url:'https://example.test/audio.mp3'}]]){const next=read(items);assert.deepEqual(next,items);assert.notEqual(next,items);if(items.length)assert.notEqual(next[0],items[0]);}
+for(const value of [null,{},'[]',[null],[{}],[{title:'x',url:7}],[{title:5,url:'x'}],[{title:'x',url:'x',caption:{}}]])assert.equal(read(value),null);
+const server=[{title:'Remote caption',url:'/one',caption:'Server'},{title:'Only remote',url:'/two'}],local=[{title:'Local caption',url:'/one',caption:'My edit'},{title:'Only local',url:'/three'}];
+const merge=mod.exports.mergeMediaDraft(server,local);assert.equal(merge.length,3);assert.equal(merge[0].caption,'My edit');assert.equal(merge[1].title,'Only remote');assert.equal(merge[2].title,'Only local');assert.equal(server[0].caption,'Server');assert.notEqual(merge[0],local[0]);
+console.log('Media drafts: gallery/playlist, incomplete editing values, independent copies and damaged storage passed');})();

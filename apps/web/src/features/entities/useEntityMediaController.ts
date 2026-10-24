@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type {
   CampaignData,
   CreateEntityInput,
@@ -6,6 +6,8 @@ import type {
   KnowledgeEntity,
   PlaylistTrack
 } from "@shadow-edge/shared-types";
+import { isApiError } from "@shadow-edge/api-client";
+import { useEntityMediaDraft } from "./useEntityMediaDraft";
 import { api } from "../../app/api";
 import {
   cloneGalleryImages,
@@ -24,6 +26,7 @@ export type ProjectGalleryImageOption = GalleryImage & {
 };
 
 type UseEntityMediaControllerParams = {
+  ownerId: string;
   activeCampaignId: string;
   entityMap: Map<string, KnowledgeEntity>;
   entityToForm: (entity: KnowledgeEntity) => CreateEntityInput;
@@ -41,6 +44,7 @@ type UseEntityMediaControllerParams = {
 export type EntityMediaController = ReturnType<typeof useEntityMediaController>;
 
 export function useEntityMediaController({
+  ownerId,
   activeCampaignId,
   entityMap,
   entityToForm,
@@ -56,19 +60,15 @@ export function useEntityMediaController({
 }: UseEntityMediaControllerParams) {
   const [entityPlaylistModalOpen, setEntityPlaylistModalOpen] = useState(false);
   const [entityGalleryModalOpen, setEntityGalleryModalOpen] = useState(false);
-  const [entityPlaylistEntityId, setEntityPlaylistEntityId] = useState("");
-  const [entityPlaylistDraft, setEntityPlaylistDraft] = useState<PlaylistTrack[]>([]);
-  const [entityGalleryEntityId, setEntityGalleryEntityId] = useState("");
-  const [entityGalleryDraft, setEntityGalleryDraft] = useState<GalleryImage[]>([]);
-
-  const entityPlaylistTarget = useMemo(
-    () => (entityPlaylistEntityId && entityMap.has(entityPlaylistEntityId) ? entityMap.get(entityPlaylistEntityId) ?? null : null),
-    [entityMap, entityPlaylistEntityId]
-  );
-  const entityGalleryTarget = useMemo(
-    () => (entityGalleryEntityId && entityMap.has(entityGalleryEntityId) ? entityMap.get(entityGalleryEntityId) ?? null : null),
-    [entityGalleryEntityId, entityMap]
-  );
+  const [entityPlaylistTarget,setEntityPlaylistTarget]=useState<KnowledgeEntity|null>(null);
+  const [entityPlaylistDraft,setEntityPlaylistDraft]=useState<PlaylistTrack[]>([]);
+  const [entityGalleryTarget,setEntityGalleryTarget]=useState<KnowledgeEntity|null>(null);
+  const [entityGalleryDraft,setEntityGalleryDraft]=useState<GalleryImage[]>([]);
+  const [mediaSaving,setMediaSaving]=useState(false);
+  const gallerySession=useRef(0),playlistSession=useRef(0);
+  const entityGalleryModalUploading=galleryUploadKey.startsWith("entity-gallery:");
+  const galleryState=useEntityMediaDraft({ownerId,campaignId:activeCampaignId,field:"gallery",target:entityGalleryTarget,setTarget:setEntityGalleryTarget,items:entityGalleryDraft,setItems:setEntityGalleryDraft,open:entityGalleryModalOpen,busy:mediaSaving||entityGalleryModalUploading,onClose:closeEntityGalleryModal});
+  const playlistState=useEntityMediaDraft({ownerId,campaignId:activeCampaignId,field:"playlist",target:entityPlaylistTarget,setTarget:setEntityPlaylistTarget,items:entityPlaylistDraft,setItems:setEntityPlaylistDraft,open:entityPlaylistModalOpen,busy:mediaSaving,onClose:closeEntityPlaylistModal});
   const projectGalleryImages = useMemo(() => {
     const items: ProjectGalleryImageOption[] = [];
     const seen = new Set<string>();
@@ -112,73 +112,86 @@ export function useEntityMediaController({
     return items;
   }, [entityMap]);
 
-  const entityGalleryModalUploading = galleryUploadKey.startsWith("entity-gallery:");
 
   const openEntityPlaylistModal = (entity: KnowledgeEntity) => {
-    setEntityPlaylistEntityId(entity.id);
-    setEntityPlaylistDraft(clonePlaylistTracks(entity.playlist) ?? []);
+    playlistSession.current++;setEntityPlaylistTarget(entity);
+    const tracks=clonePlaylistTracks(entity.playlist)??[];setEntityPlaylistDraft(tracks);playlistState.begin(entity,tracks);
     setEntityPlaylistModalOpen(true);
   };
 
-  const closeEntityPlaylistModal = () => {
+  function closeEntityPlaylistModal() {
+    playlistSession.current++;
     setEntityPlaylistModalOpen(false);
-    setEntityPlaylistEntityId("");
+    setEntityPlaylistTarget(null);
     setEntityPlaylistDraft([]);
   };
 
   const updateEntityPlaylistDraftTrack = (index: number, patch: Partial<PlaylistTrack>) => {
+    playlistState.setError("");
     setEntityPlaylistDraft((current) => current.map((track, trackIndex) => (trackIndex === index ? { ...track, ...patch } : track)));
   };
 
   const addEntityPlaylistDraftTrack = () => {
+    playlistState.setError("");
     setEntityPlaylistDraft((current) => [...current, createEmptyPlaylistTrack()]);
   };
 
   const removeEntityPlaylistDraftTrack = (index: number) => {
+    playlistState.setError("");
     setEntityPlaylistDraft((current) => current.filter((_, trackIndex) => trackIndex !== index));
   };
 
   const saveEntityPlaylist = async () => {
-    if (!activeCampaignId || !entityPlaylistTarget) {
+    if (!activeCampaignId || !entityPlaylistTarget || !playlistState.canSave) {
       return;
     }
 
+    if(entityPlaylistDraft.some(item=>!item.url.trim())){playlistState.setError("Укажите ссылку у каждой записи или удалите пустую строку.");return;}
+    const session=playlistSession.current;
     try {
-      setSaving(true);
+      setSaving(true);setMediaSaving(true);playlistState.setError("");
       const nextForm = entityToForm(entityPlaylistTarget);
+      nextForm.expectedRevision = playlistState.revision;
       nextForm.playlist = sanitizePlaylistTracks(entityPlaylistDraft);
       const result = await api.updateEntity(activeCampaignId, entityPlaylistTarget.id, serializeEntityForm(nextForm));
-      hydrateCampaign(result.campaign);
+      if(session!==playlistSession.current)return;
+      playlistState.draft.clear();hydrateCampaign(result.campaign);
       closeEntityPlaylistModal();
     } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось сохранить плейлист сущности.");
+      if(session!==playlistSession.current)return;
+      if(isApiError(error)&&error.status===409&&error.current)playlistState.setConflict(error.current as KnowledgeEntity);
+      playlistState.setError(error instanceof Error ? error.message : "Не удалось сохранить изменения.");
     } finally {
-      setSaving(false);
+      setSaving(false);setMediaSaving(false);
     }
   };
 
   const openEntityGalleryModal = (entity: KnowledgeEntity) => {
-    setEntityGalleryEntityId(entity.id);
-    setEntityGalleryDraft(cloneGalleryImages(entity.gallery) ?? []);
+    gallerySession.current++;setEntityGalleryTarget(entity);
+    const images=cloneGalleryImages(entity.gallery)??[];setEntityGalleryDraft(images);galleryState.begin(entity,images);
     setEntityGalleryModalOpen(true);
   };
 
-  const closeEntityGalleryModal = () => {
+  function closeEntityGalleryModal() {
+    gallerySession.current++;
     setEntityGalleryModalOpen(false);
-    setEntityGalleryEntityId("");
+    setEntityGalleryTarget(null);
     setEntityGalleryDraft([]);
     setGalleryUploadKey("");
   };
 
   const updateEntityGalleryDraftItem = (index: number, patch: Partial<GalleryImage>) => {
+    galleryState.setError("");
     setEntityGalleryDraft((current) => current.map((item, itemIndex) => (itemIndex === index ? { ...item, ...patch } : item)));
   };
 
   const uploadEntityGalleryDraftFile = async (index: number, file: File) => {
+    const session=gallerySession.current;
     try {
-      setBootError("");
+      galleryState.setError("");
       setGalleryUploadKey(`entity-gallery:${index}`);
       const uploaded = await uploadCampaignImage(file);
+      if(session!==gallerySession.current)return;
 
       setEntityGalleryDraft((current) => {
         const nextGallery = [...current];
@@ -191,21 +204,24 @@ export function useEntityMediaController({
         return nextGallery;
       });
     } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось загрузить изображение в галерею.");
+      if(session===gallerySession.current)galleryState.setError(error instanceof Error ? error.message : "Не удалось загрузить изображение в галерею.");
     } finally {
-      setGalleryUploadKey("");
+      if(session===gallerySession.current)setGalleryUploadKey("");
     }
   };
 
   const addEntityGalleryDraftItem = () => {
+    galleryState.setError("");
     setEntityGalleryDraft((current) => [...current, createEmptyGalleryImage()]);
   };
 
   const removeEntityGalleryDraftItem = (index: number) => {
+    galleryState.setError("");
     setEntityGalleryDraft((current) => current.filter((_, itemIndex) => itemIndex !== index));
   };
 
   const addProjectImagesToEntityGalleryDraft = (images: GalleryImage[]) => {
+    galleryState.setError("");
     setEntityGalleryDraft((current) => {
       const seen = new Set(current.map((item) => item.url.trim()).filter(Boolean));
       const nextGallery = [...current];
@@ -229,25 +245,32 @@ export function useEntityMediaController({
   };
 
   const saveEntityGallery = async () => {
-    if (!activeCampaignId || !entityGalleryTarget) {
+    if (!activeCampaignId || !entityGalleryTarget || !galleryState.canSave) {
       return;
     }
 
+    if(entityGalleryDraft.some(item=>!item.url.trim())){galleryState.setError("Укажите ссылку у каждой записи или удалите пустую строку.");return;}
+    const session=gallerySession.current;
     try {
-      setSaving(true);
+      setSaving(true);setMediaSaving(true);galleryState.setError("");
       const nextForm = entityToForm(entityGalleryTarget);
+      nextForm.expectedRevision = galleryState.revision;
       nextForm.gallery = sanitizeGalleryImages(entityGalleryDraft);
       const result = await api.updateEntity(activeCampaignId, entityGalleryTarget.id, serializeEntityForm(nextForm));
-      hydrateCampaign(result.campaign);
+      if(session!==gallerySession.current)return;
+      galleryState.draft.clear();hydrateCampaign(result.campaign);
       closeEntityGalleryModal();
     } catch (error) {
-      setBootError(error instanceof Error ? error.message : "Не удалось сохранить галерею сущности.");
+      if(session!==gallerySession.current)return;
+      if(isApiError(error)&&error.status===409&&error.current)galleryState.setConflict(error.current as KnowledgeEntity);
+      galleryState.setError(error instanceof Error ? error.message : "Не удалось сохранить изменения.");
     } finally {
-      setSaving(false);
+      setSaving(false);setMediaSaving(false);
     }
   };
 
   return {
+    galleryState,playlistState,mediaSaving,
     addProjectImagesToEntityGalleryDraft,
     addEntityGalleryDraftItem,
     addEntityPlaylistDraftTrack,

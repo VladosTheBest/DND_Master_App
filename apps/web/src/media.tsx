@@ -1,3 +1,4 @@
+import { MediaThumbnail } from "./features/entity-images/MediaThumbnail";
 import { AppModal } from "./app/AppModal";
 import {
   useEffect,
@@ -87,7 +88,7 @@ export function PlaylistSection({
               const active = Boolean(isActive && activeTrackUrl && track.url === activeTrackUrl);
               return (
                 <button
-                  key={`${track.url}-${index}`}
+                  key={index}
                   className={`ghost fill playlist-track-row ${active ? "active" : ""}`}
                   onClick={() => onPlayTrack(index)}
                   type="button"
@@ -139,7 +140,7 @@ export function PlaylistEditorSection({
       <div className="playlist-editor-list">
         {tracks.length ? (
           tracks.map((track, index) => (
-            <article key={`${track.url}-${index}`} className="entry-editor playlist-track-editor">
+            <article key={index} className="entry-editor playlist-track-editor">
               <div className="row">
                 <strong>Трек #{index + 1}</strong>
                 <button className="ghost danger-action" onClick={() => onRemove(index)} type="button">
@@ -222,9 +223,9 @@ export function GallerySection({
       {visibleItems.length ? (
         <div className={`gallery-grid ${compact ? "compact" : ""}`}>
           {visibleItems.map((item, index) => (
-            <article key={`${item.url}-${index}`} className="card gallery-card">
-              <button className="gallery-image-button" onClick={() => onOpenFullscreen(index)} type="button">
-                <img alt={item.caption ?? galleryImageTitle(item, index)} className="gallery-image" loading="lazy" src={item.url} />
+            <article key={index} className="card gallery-card">
+              <button className="gallery-image-button" aria-label={`Просмотреть «${galleryImageTitle(item,index)}»`} onClick={() => onOpenFullscreen(index)} type="button">
+                <MediaThumbnail alt={item.caption || galleryImageTitle(item, index)} className="gallery-image" src={item.url} />
               </button>
               <div className="gallery-card-copy">
                 <strong>{galleryImageTitle(item, index)}</strong>
@@ -305,7 +306,7 @@ export function GalleryEditorSection({
       <div className="playlist-editor-list">
         {items.length ? (
           items.map((item, index) => (
-            <article key={`${item.url}-${index}`} className="entry-editor gallery-editor-card">
+            <article key={index} className="entry-editor gallery-editor-card">
               <div className="row">
                 <strong>{galleryImageTitle(item, index)}</strong>
                 <div className="actions">
@@ -358,7 +359,7 @@ export function GalleryEditorSection({
                   <input
                     className="input"
                     onChange={(event) => onChange(index, { caption: event.target.value })}
-                    placeholder="Что это за handout и когда его показать игрокам"
+                    placeholder="Что на изображении и когда показать его игрокам"
                     value={item.caption ?? ""}
                   />
                 </label>
@@ -366,7 +367,7 @@ export function GalleryEditorSection({
 
               {item.url.trim() ? (
                 <button className="gallery-editor-preview" onClick={() => window.open(item.url, "_blank", "noopener,noreferrer")} type="button">
-                  <img alt={item.caption ?? galleryImageTitle(item, index)} className="gallery-image" loading="lazy" src={item.url} />
+                  <MediaThumbnail alt={item.caption || galleryImageTitle(item, index)} className="gallery-image" src={item.url} />
                 </button>
               ) : null}
             </article>

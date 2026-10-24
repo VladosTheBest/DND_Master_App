@@ -1,0 +1,52 @@
+[
+  {
+    "section": "summary",
+    "bodyBottom": 762,
+    "bodyTop": 96.78125,
+    "focusBottom": 350.84375,
+    "focusTag": "TEXTAREA",
+    "focusTop": 258.046875,
+    "label": "Краткое описание",
+    "visible": true
+  },
+  {
+    "section": "content",
+    "bodyBottom": 762,
+    "bodyTop": 96.78125,
+    "focusBottom": 599.953125,
+    "focusTag": "TEXTAREA",
+    "focusTop": 463.953125,
+    "label": "Информация для мастера\nТолько для мастера: мотивы, секреты и подсказки для отыгрыша. Связать эту запись с другими можно в панели «Связи».",
+    "visible": true
+  },
+  {
+    "section": "art",
+    "bodyBottom": 762,
+    "bodyTop": 96.78125,
+    "focusBottom": 177.671875,
+    "focusTag": "INPUT",
+    "focusTop": 135.0625,
+    "label": "Ссылка на изображение\nЗагрузить в приложение\nМожно оставить внешний URL или загрузить файл прямо в приложение.",
+    "visible": true
+  },
+  {
+    "section": "rewards",
+    "bodyBottom": 762,
+    "bodyTop": 96.78125,
+    "focusBottom": 660.96875,
+    "focusTag": "TEXTAREA",
+    "focusTop": 568.171875,
+    "label": "Сводка наград и лута",
+    "visible": true
+  },
+  {
+    "section": "stats",
+    "bodyBottom": 762,
+    "bodyTop": 96.78125,
+    "focusBottom": 177.59375,
+    "focusTag": "INPUT",
+    "focusTop": 134.984375,
+    "label": "Размер",
+    "visible": true
+  }
+]

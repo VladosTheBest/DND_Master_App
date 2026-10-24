@@ -1,0 +1,31 @@
+{
+  "zoomTransform": "translate(-309px, -148.25px) scale(1.5)",
+  "dialog": {
+    "bottom": 836,
+    "height": 828,
+    "left": 8,
+    "right": 382,
+    "top": 8,
+    "width": 374,
+    "x": 8,
+    "y": 8
+  },
+  "height": 844,
+  "image": {
+    "bottom": 810,
+    "height": 641.921875,
+    "left": 22,
+    "right": 368,
+    "top": 168.078125,
+    "width": 346,
+    "x": 22,
+    "y": 168.078125
+  },
+  "natural": [
+    900,
+    600
+  ],
+  "objectFit": "contain",
+  "overflow": false,
+  "width": 390
+}

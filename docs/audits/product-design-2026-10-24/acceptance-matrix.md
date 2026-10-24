@@ -1,0 +1,27 @@
+# Сверка исходного плана с доказательствами
+
+Состояние на 24 октября 2026. Это проверка границ завершения, а не заявление «всё идеально». Локальная тестовая кампания отдельная, данные синтетические. Новые source/UI изменения ещё не являются доказательством работы авторизованного production.
+
+| Требование исходного плана | Авторитетное свидетельство текущей реализации | Статус/граница |
+|---|---|---|
+| Вариант 3, предмет в modal, AI chat, остальные экраны | design-qa.md; dossier-interactions/screen-matrix.json (26 корней), direct item/table и mobile AI | Локально проверены перечисленные состояния. Все вложенные возможные пользовательские данные этим не покрыты. |
+| «+» у связей, mobile/empty, отдельный сценарий от wiki mention | EntityRelationsPanel.tsx; исходный entity-scenes audit и final-usability screenshots | Реализовано; локально проверено. |
+| Серверный поиск шести типов, фильтры/debounce/abort/cursor, выбор нескольких, дубли/self | EntityRelationsPanel + api.searchEntities; final-usability: 116 результатов и выбор 100, два фильтра/один POST | Реализовано; локально проверено. Порог 100 явно ограничен UI и сервером. |
+| Просмотр/пояснение/unlink, две стороны, атомарность | entity_relations.go и entity_relations_test.go; прошлый browser unlink/reload; final-usability/relation-conflict-check.json | Серверный контракт и данные проверены до текущих web-only изменений; реальный batch/reason/recovery conflict повторены локально. |
+| expectedRevision/owner/cross-campaign, legacy related, ready overlay, export/storage/client | entity_relations.go/tests и API-client; родительский 2026-10-24-entity-scenes-audit.md | Сервер/shared types не менялись; предыдущие Go-регрессии и source остаются свидетельством, не новым прогоном production. |
+| Иллюстрации без 3,25:1 crop, ≤720px, portrait/square/small/error | RecordIllustration; исходные четыре intrinsic/rendered размера в entity-scenes audit; media-and-stats/replaced-art-check.json | Локально проверено. Фон карты не менялся. |
+| Fullsize zoom и доступная gallery/replace рядом | RecordIllustration + новый EntityGalleryViewer; media-and-stats/gallery-viewer-check.json, phone/desktop, file chooser | Локально проверено, включая старый failed URL → новый art без reload. |
+| Явные Edit/Add у summary/master/cards/stats/art/gallery/playlist/relations | EntityDetailsPage, PlayerFacingCardStrip, общий editor, Media modals; media-and-stats/editor-jump-matrix.json | Локально проверены пять переходов и отдельные media/card/relation окна. |
+| Предупреждение, local draft/recovery, revision, ошибка не стирает | EntityEditorController; PlayerFacing modal; relation draft; новые media drafts | Реальные stale recovery/409, объединение и сохранённые соседние поля подтверждены локальными API/UI. |
+| Понятные вычисляемые/read-only поля, неизменность ready source | ready guards/store tests, ready player check, shared stat/formula code без изменений | Шаблоны защищены; player/playthrough и overlay отдельные. Полнота всех игровых расчётов этим аудитом не заявляется. |
+| Ручная сцена: select/wall/door/light/delete/undo/redo, свойства и концы | Scene editor и scene editing/geometry scripts; родительский audit + browser captures | Реализовано и локально проверено ранее; текущая web итерация геометрию/форматы не меняет. |
+| Камера wheel/pointer, space/middle, buttons/fit/100%, Escape, нет случайного рисования | react-zoom-pan-pinch integration, исходные scene UI checks | Mouse/keyboard/browser размеры проверены. Физический touch/pinch/TV не подтверждён. |
+| Дверь освобождает новый/закрывает старый проём, сохранение/reopen/conflict | scene_topology/creative tests, test-scene-editing.cjs, исходные browser save/reopen/conflict | Локальные проверки предыдущего server release; форматы текущим diff не меняются. |
+| Модели/цены/игровые расчёты/content ready неизменны | Текущий git diff ограничен web UI/controller/docs/tests | Не изменены. Платное inference и все provider credentials не проверялись. |
+| Desktop/short/tablet/phone/keyboard, fresh screenshots | npc-polish + dossier-interactions + final-usability; новый media-and-stats (4 viewport, focus, upload, merge) | Есть доказательства конкретных состояний; не глобальный сертификат accessibility/идеальности. |
+| Сборки, регрессии, фиксы P0/P1/P2, документация и commits | build output/scripts, исходный Go/MCP suite, каждый release source commit и актуальный PROJECT_CONTEXT.md | Текущие web проверки проходят; нет новых Go/MCP/HTTP изменений, прежние результаты обозначены как прежние. |
+| Fly deploy, health и соответствие файлов | Последний проверенный release 191; следующий web release ожидает deploy | После deploy сверить index.html, JS/CSS и checks, записать metadata. |
+| **Авторизованный production smoke: предмет, связь, разметка сцены в отдельной кампании** | Production browser показывает обычный вход; анонимный API — 401 | **Не выполнено. Требуется вход пользователя. Локальные тесты/health/совпадение файлов не заменяют этот пункт.** |
+| Откат при критической регрессии | Сохранены проверенные Fly images в production-check.json каждого выпуска | Критической регрессии не обнаружено; откат не требовался. |
+
+Пути исходников в таблице относятся к apps/web/src/features/, apps/server/internal/httpapi/ и packages/api-client/. Подробные исходные проверки — [технический аудит](../2026-10-24-entity-scenes-audit.md), свежий media проход — [README](media-and-stats/README.md), общие границы — [design-qa](../../../design-qa.md). Пока требуемый production smoke не выполнен, задача целиком не подтверждена.

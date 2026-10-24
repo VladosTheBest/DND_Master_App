@@ -36,10 +36,10 @@ export function EntityStatBlockEditor({
         <div className="row muted">
           <span>
             {entityForm.kind === "monster"
-              ? "Monster Stat Block"
+              ? "Характеристики монстра"
               : entityForm.kind === "player"
-                ? "Player Combat Profile"
-                : "NPC Stat Block"}
+                ? "Боевой профиль игрока"
+                : "Боевой профиль НПС"}
           </span>
           <span>Полное редактирование боевого профиля</span>
         </div>
@@ -303,7 +303,7 @@ export function EntityStatBlockEditor({
             </div>
           </div>
         ) : (
-          <p className="copy">У этой сущности сейчас нет секции spellcasting.</p>
+          <p className="copy">У записи пока нет заклинаний.</p>
         )}
       </section>
 
@@ -325,7 +325,7 @@ export function EntityStatBlockEditor({
       />
       <StatEntryEditorSection
         entries={entityForm.statBlock.bonusActions ?? []}
-        hint="То, что тратит bonus action"
+        hint="Действия, которые расходуют бонусное действие"
         onAdd={() => addNpcStatEntry("bonusActions")}
         onChange={(index, patch) => updateNpcStatEntry("bonusActions", index, patch)}
         onRemove={(index) => removeNpcStatEntry("bonusActions", index)}

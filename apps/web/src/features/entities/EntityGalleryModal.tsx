@@ -1,3 +1,6 @@
+import { MediaThumbnail } from "../entity-images/MediaThumbnail";
+import { MediaDraftFeedback } from "./MediaDraftFeedback";
+import type { EntityMediaDraft } from "./useEntityMediaDraft";
 import { AppModal } from "../../app/AppModal";
 import { useEffect, useMemo, useState } from "react";
 import type { GalleryImage, KnowledgeEntity } from "@shadow-edge/shared-types";
@@ -5,11 +8,12 @@ import { GalleryEditorSection } from "../../media";
 import type { ProjectGalleryImageOption } from "./useEntityMediaController";
 
 type EntityGalleryModalProps = {
+  state:EntityMediaDraft;
   items: GalleryImage[];
   onAdd: () => void;
   onAddProjectImages: (items: GalleryImage[]) => void;
   onChange: (index: number, patch: Partial<GalleryImage>) => void;
-  onClose: () => void;
+  onClose: (pendingSelection?:boolean) => void;
   onRemove: (index: number) => void;
   onSave: () => Promise<void>;
   onUpload: (index: number, file: File) => Promise<void>;
@@ -22,6 +26,7 @@ type EntityGalleryModalProps = {
 };
 
 export function EntityGalleryModal({
+  state,
   items,
   onAdd,
   onAddProjectImages,
@@ -76,27 +81,29 @@ export function EntityGalleryModal({
     return null;
   }
 
+  const requestClose=()=>{if(!saving&&!uploadDisabled)onClose(Boolean(selectedProjectImageKeys.length));};
+  const addSelected=()=>{onAddProjectImages(selectedProjectImages);setSelectedProjectImageKeys([]);};
   return (
-    <AppModal label="Галерея записи" onClose={onClose}>
-      <div className="panel palette form-modal combat-playlist-modal" onClick={(event) => event.stopPropagation()} >
-        <div className="row">
+    <AppModal label="Галерея записи" onClose={()=>void requestClose()}>
+      <div className="panel palette form-modal combat-playlist-modal entity-media-modal" onClick={(event) => event.stopPropagation()} >
+        <header className="record-block-heading">
           <div>
-            <p className="eyebrow">Entity Gallery</p>
+            <h2>Галерея записи</h2>
             <strong>{target.title}</strong>
           </div>
-          <button className="ghost" onClick={onClose} type="button">
-            Esc
+          <button className="ghost" disabled={saving||uploadDisabled} onClick={()=>void requestClose()} type="button">
+            Закрыть
           </button>
-        </div>
+        </header>
 
-        <GalleryEditorSection
-          hint="Можно добавлять ссылки, загружать картинки с компьютера и собирать handout-галерею отдельно для этой сущности."
+        <div className="entity-media-body"><MediaDraftFeedback state={state} field="gallery" items={items}/><fieldset disabled={saving||uploadDisabled} className="media-editor-fields"><GalleryEditorSection
+          hint="Карты, письма и иллюстрации для игроков. Добавьте ссылку или загрузите файл."
           items={items}
           onAdd={onAdd}
           onChange={onChange}
           onRemove={onRemove}
           onUpload={onUpload}
-          title="Галерея сущности"
+          title="Изображения"
           uploadDisabled={uploadDisabled}
           uploadingIndex={uploadingIndex}
         />
@@ -104,19 +111,16 @@ export function EntityGalleryModal({
         <section className="card npc-section form-subsection project-gallery-picker">
           <div className="row muted project-gallery-picker-head">
             <div className="stack compact">
-              <span>Выбрать из проекта</span>
-              <small>Можно взять уже существующие картинки из других карточек и добавить сразу несколько.</small>
+              <span>Изображения кампании</span>
+              <small>Выберите изображения из других записей и добавьте в эту галерею.</small>
             </div>
             <button
               className="ghost"
               disabled={!selectedProjectImages.length}
-              onClick={() => {
-                onAddProjectImages(selectedProjectImages);
-                setSelectedProjectImageKeys([]);
-              }}
+              onClick={addSelected}
               type="button"
             >
-              {selectedProjectImages.length ? `Добавить выбранные (${selectedProjectImages.length})` : "Выбери картинки"}
+              {selectedProjectImages.length ? `Добавить выбранные (${selectedProjectImages.length})` : "Выберите изображения"}
             </button>
           </div>
 
@@ -138,10 +142,12 @@ export function EntityGalleryModal({
                   <button
                     key={item.key}
                     className={`project-gallery-card ${selected ? "selected" : ""}`}
+                    aria-pressed={selected}
+                    aria-label={`Выбрать изображение «${item.title}»`}
                     onClick={() => toggleProjectImage(item.key)}
                     type="button"
                   >
-                    <img alt={item.caption || item.title} className="project-gallery-card-image" loading="lazy" src={item.url} />
+                    <MediaThumbnail alt={item.caption || item.title} className="project-gallery-card-image" src={item.url} />
                     <span className="project-gallery-card-copy">
                       <strong>{item.title}</strong>
                       <small>{item.sourceEntityTitle}</small>
@@ -156,14 +162,14 @@ export function EntityGalleryModal({
           )}
         </section>
 
-        <div className="actions">
-          <button className="ghost" onClick={onClose} type="button">
+        </fieldset></div><footer className="actions">
+          <button className="ghost" disabled={saving||uploadDisabled} onClick={()=>void requestClose()} type="button">
             Отмена
           </button>
-          <button className="primary" disabled={saving || uploadDisabled} onClick={() => void onSave()} type="button">
-            {saving ? "Сохраняю..." : "Сохранить галерею"}
+          <button className="primary" disabled={saving||uploadDisabled||(!selectedProjectImages.length&&!state.canSave)||Boolean(state.draft.candidate)||Boolean(state.conflict)} onClick={()=>selectedProjectImages.length?addSelected():void onSave()} type="button">
+            {saving?"Сохраняем…":selectedProjectImages.length?`Добавить в галерею · ${selectedProjectImages.length}`:"Сохранить галерею"}
           </button>
-        </div>
+        </footer>
       </div>
     </AppModal>
   );

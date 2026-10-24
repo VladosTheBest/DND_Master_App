@@ -51,3 +51,6 @@ P1: shallow baseline compact delta, зависимость открытого п
 
 
 [Дополнительная проверка связей](docs/audits/product-design-2026-10-24/final-usability/README.md): устаревший draft сохраняет свою revision, конфликт требует сравнения/явного продолжения, pending copy блокирует запись. Большие наборы и четыре viewport проверены в браузере; footer доступен, thumbnail имеет fallback.
+
+
+[Свежая проверка медиа и характеристик](docs/audits/product-design-2026-10-24/media-and-stats/README.md): закрыты потеря фокуса URL, отсутствие отдельных media drafts/revision, скрытые ошибки/409, отсутствие gallery zoom, crop/error thumbnails, offscreen focus stats и тесная ability grid. [Матрица исходных требований](docs/audits/product-design-2026-10-24/acceptance-matrix.md) отделяет реализованные локальные сценарии от непроверенного private production smoke.

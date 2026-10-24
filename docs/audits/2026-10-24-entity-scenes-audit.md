@@ -53,3 +53,8 @@ Fly release 188 опубликован из commit 705f864; health check passing
 ## Восстановление связей
 
 [Дополнительный проход](product-design-2026-10-24/final-usability/README.md) выявил stale revision при восстановлении relations draft. Закрыто фиксацией baseRevision и сравнением при 409 с явным продолжением. Проверены параллельный PATCH, отсутствие перезаписи, две стороны пакетной связи, пагинация 116/выбор 100 и четыре размера окна. API и серверная атомарность не менялись.
+
+
+## Медиа и навигация редактора
+
+[Новый проход](product-design-2026-10-24/media-and-stats/README.md) закрыл URL focus loss, scoped gallery/playlist drafts и frozen revision, сравнение/merge, видимые ошибки, gallery zoom/contain/fallback, прямые field jumps и mobile ability grid. Есть реальные recovery/409/upload/save/reopen и API-проверки соседних полей. [Сводная матрица](product-design-2026-10-24/acceptance-matrix.md) сохраняет исходный объём и отмечает непроверенные внешние пункты.

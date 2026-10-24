@@ -1,0 +1,110 @@
+[
+  {
+    "bodyClientHeight": 399,
+    "bodyScrollHeight": 2789,
+    "footer": {
+      "bottom": 551,
+      "height": 59.390625,
+      "left": 17,
+      "right": 303,
+      "top": 491.609375,
+      "width": 286,
+      "x": 17,
+      "y": 491.609375
+    },
+    "header": {
+      "bottom": 92.390625,
+      "height": 75.390625,
+      "left": 17,
+      "right": 303,
+      "top": 17,
+      "width": 286,
+      "x": 17,
+      "y": 17
+    },
+    "height": 568,
+    "pageOverflow": false,
+    "width": 320
+  },
+  {
+    "bodyClientHeight": 847,
+    "bodyScrollHeight": 2536,
+    "footer": {
+      "bottom": 1007,
+      "height": 63.390625,
+      "left": 17,
+      "right": 751,
+      "top": 943.609375,
+      "width": 734,
+      "x": 17,
+      "y": 943.609375
+    },
+    "header": {
+      "bottom": 96.390625,
+      "height": 79.390625,
+      "left": 17,
+      "right": 751,
+      "top": 17,
+      "width": 734,
+      "x": 17,
+      "y": 17
+    },
+    "height": 1024,
+    "pageOverflow": false,
+    "width": 768
+  },
+  {
+    "bodyClientHeight": 847,
+    "bodyScrollHeight": 2184,
+    "footer": {
+      "bottom": 1007,
+      "height": 63.390625,
+      "left": 221,
+      "right": 1219,
+      "top": 943.609375,
+      "width": 998,
+      "x": 221,
+      "y": 943.609375
+    },
+    "header": {
+      "bottom": 96.390625,
+      "height": 79.390625,
+      "left": 221,
+      "right": 1219,
+      "top": 17,
+      "width": 998,
+      "x": 221,
+      "y": 17
+    },
+    "height": 1024,
+    "pageOverflow": false,
+    "width": 1440
+  },
+  {
+    "bodyClientHeight": 63,
+    "bodyScrollHeight": 2237,
+    "footer": {
+      "bottom": 223,
+      "height": 63.390625,
+      "left": 17,
+      "right": 623,
+      "top": 159.609375,
+      "width": 606,
+      "x": 17,
+      "y": 159.609375
+    },
+    "header": {
+      "bottom": 96.390625,
+      "height": 79.390625,
+      "left": 17,
+      "right": 623,
+      "top": 17,
+      "width": 606,
+      "x": 17,
+      "y": 17
+    },
+    "height": 240,
+    "pageOverflow": false,
+    "width": 640
+  }
+]

@@ -4,9 +4,9 @@ import { AppModal } from "../../app/AppModal";
 
 /** Illustrations retain their intrinsic proportions; map coordinates are untouched. */
 export function RecordIllustration({url,title,alt,onReplace,onGallery}:{url?:string;title:string;alt?:string;onReplace?:()=>void;onGallery?:()=>void}) {
-  const [open,setOpen]=useState(false),[failed,setFailed]=useState(false);
+  const [open,setOpen]=useState(false),[failed,setFailed]=useState("");
   return <section className="record-illustration">
-    {url&&!failed?<button type="button" className="record-banner" aria-label={`Открыть изображение «${title}»`} onClick={()=>setOpen(true)}><img src={url} alt={alt||title} onError={()=>setFailed(true)}/></button>:url?<p role="status">Не удалось загрузить изображение.</p>:null}
+    {url&&failed!==url?<button type="button" className="record-banner" aria-label={`Открыть изображение «${title}»`} onClick={()=>setOpen(true)}><img src={url} alt={alt||title} onError={()=>setFailed(url)}/></button>:url?<p role="status">Не удалось загрузить изображение.</p>:null}
     <div className="actions">{onReplace&&<button className="ghost" type="button" onClick={onReplace}>{url?"Заменить изображение":"Добавить изображение"}</button>}{onGallery&&<button className="ghost" type="button" onClick={onGallery}>Галерея</button>}</div>
     {open&&url&&<ImageZoomDialog url={url} title={title} onClose={()=>setOpen(false)}/>}
   </section>;

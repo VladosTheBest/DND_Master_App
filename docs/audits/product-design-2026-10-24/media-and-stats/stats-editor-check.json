@@ -1,0 +1,38 @@
+{
+  "cards": [
+    {
+      "fieldWidth": 103.34375,
+      "label": "СИЛ",
+      "width": 121.34375
+    },
+    {
+      "fieldWidth": 103.359375,
+      "label": "ЛОВ",
+      "width": 121.359375
+    },
+    {
+      "fieldWidth": 103.34375,
+      "label": "ТЕЛ",
+      "width": 121.34375
+    },
+    {
+      "fieldWidth": 103.359375,
+      "label": "ИНТ",
+      "width": 121.359375
+    },
+    {
+      "fieldWidth": 103.34375,
+      "label": "МДР",
+      "width": 121.34375
+    },
+    {
+      "fieldWidth": 103.359375,
+      "label": "ХАР",
+      "width": 121.359375
+    }
+  ],
+  "columns": "121.344px 121.359px",
+  "height": 844,
+  "pageOverflow": false,
+  "width": 390
+}

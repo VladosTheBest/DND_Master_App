@@ -1645,6 +1645,7 @@ export default function App() {
   });
 
   const entityMedia = useEntityMediaController({
+    ownerId:authUserId,
     activeCampaignId,
     entityMap,
     entityToForm,
@@ -5138,7 +5139,8 @@ export default function App() {
       <EntityPlaylistModal
         onAdd={addEntityPlaylistDraftTrack}
         onChange={updateEntityPlaylistDraftTrack}
-        onClose={requestEntityPlaylistModalClose}
+        state={entityMedia.playlistState}
+        onClose={()=>void entityMedia.playlistState.requestClose()}
         onRemove={removeEntityPlaylistDraftTrack}
         onSave={saveEntityPlaylist}
         open={entityPlaylistModalOpen}
@@ -5152,7 +5154,8 @@ export default function App() {
         onAdd={addEntityGalleryDraftItem}
         onAddProjectImages={addProjectImagesToEntityGalleryDraft}
         onChange={updateEntityGalleryDraftItem}
-        onClose={requestEntityGalleryModalClose}
+        state={entityMedia.galleryState}
+        onClose={pending=>void entityMedia.galleryState.requestClose(pending)}
         onRemove={removeEntityGalleryDraftItem}
         onSave={saveEntityGallery}
         onUpload={uploadEntityGalleryDraftFile}
