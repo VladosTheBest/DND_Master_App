@@ -42,6 +42,6 @@ P1: shallow baseline compact delta, зависимость открытого п
 
 Пройдены полный Go suite, web build (TypeScript/Vite/gzip), MCP build+35 tests и регрессии routes/device drafts/transport/compact responses/scene editing/creative/reward input. Есть отдельные Go-тесты owner/revision/rollback/immutable ready overlay/JSONB split и последовательных compact PATCH. Полнота тестов не подменяет браузерную проверку выше.
 
-Выпущен Fly release 188 из commit 705f864. Health check passing; главная, healthz/livez — 200, private API без сессии — 401; все 54 JS/CSS совпали с локальной сборкой. Итоговые hashes и статус авторизованного smoke записаны в [production-check.json](docs/audits/product-design-2026-10-24/production-check.json). До входа пользователя private production smoke остаётся непроверенным.
+Последний выпуск — Fly release 189 из commit 4fd24a7. Health check passing; главная, healthz/livez — 200, private API без сессии — 401; все 54 JS/CSS совпали с локальной сборкой. Итоговые hashes и статус авторизованного smoke записаны в [production-check.json](docs/audits/product-design-2026-10-24/npc-polish/production-check.json). До входа пользователя private production smoke остаётся непроверенным.
 
 Не проверялись реальное списание AI, внешние OAuth-provider credentials, физический touch/TV, live Foundry и все классы/уровни/административные роли. Игровые формулы/содержание immutable adventure и print-экспорт не менялись; частичное покрытие справочника остаётся явным ограничением, а не результатом редизайна.

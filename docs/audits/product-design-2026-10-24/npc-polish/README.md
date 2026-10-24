@@ -30,3 +30,5 @@
 Финальные проверки: TypeScript/Vite/gzip build; scripts/test-workspace-routes.mjs, test-device-drafts.mjs, test-authoring-transport.mjs, test-workspace-responses.mjs, test-reward-input.cjs; git diff --check. Сервер/API/игровые расчёты не менялись, новый Go suite для этой итерации не запускался. В последней браузерной проверке нет TypeError/ReferenceError/SyntaxError/React error; намеренная ошибка URL изображения проверялась отдельно.
 
 Это визуальный и функциональный проход перечисленных состояний. Он не подтверждает все классы/уровни, платные AI-провайдеры, физический touch/TV, сторонние OAuth или живой Foundry. Private production smoke остаётся отдельным незавершённым пунктом до входа пользователя. Статус выпуска: [production-check.json](production-check.json).
+
+Выпущен Fly release **189** из `4fd24a7`. Health check passing; `/`, `/healthz`, `/livez` — 200, private API без сессии — 401. Все 54 JS/CSS совпали с локальной сборкой. Production-вкладка после выпуска по-прежнему показывает форму входа; private smoke не выполнен.
