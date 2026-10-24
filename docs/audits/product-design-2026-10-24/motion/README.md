@@ -13,8 +13,8 @@
 
 При открытии встроенной «Булавы» обнаружен лишний getCatalogItem для builtin-ID из магазина. handleOpenItemInfo/handleAddItem теперь вызывают загрузку только для isRemoteItem; карточка встроенного предмета повторно открыта без alert. Удалённые DnD.su-ID сохраняют прежний путь.
 
-Web tsc/Vite/compression, test-build-manifest, test-workspace-routes, test-editable-list-keys, test-authoring-transport прошли. Backend/API/данные и игровые расчёты не менялись; платные AI-запросы не запускались. Общий Go suite не запускался для этой frontend-правки. Предыдущее предупреждение Vite о крупных rules/PDF chunks остаётся.
+Web tsc/Vite/compression, test-build-manifest, test-workspace-routes, test-editable-list-keys, test-authoring-transport и test-action-menu-position прошли. Backend/API/данные и игровые расчёты не менялись; платные AI-запросы не запускались. Общий Go suite не запускался для этой frontend-правки. Предыдущее предупреждение Vite о крупных rules/PDF chunks остаётся.
 
 ## Выпуск
 
-Деплой этой правки ещё не выполнен. Авторизованный production smoke предыдущего выпуска оставался в ожидании входа; локальная проверка не заменяет его.
+Fly release **202**, исходники **745afdc**, image `registry.fly.io/dnd-master-app:deployment-01M5QGW2FQ1X1TGQCFMYZBTDV1`. Health passing; `/`, `/healthz`, `/livez` — 200, `/api/campaigns` без сессии — 401. HTML и все 60 JS/CSS совпали с локальной сборкой (production.json). Авторизованный production smoke остаётся в ожидании обычного входа пользователя; локальная UI-проверка не считается проверкой под аккаунтом на проде.
