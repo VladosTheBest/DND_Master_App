@@ -1,0 +1,176 @@
+:root {
+  --motion-fast: 160ms;
+  --motion-panel: 220ms;
+  --motion-disclosure: 280ms;
+  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Only clip during the measured transition; expanded editors keep natural height. */
+.collapsible-section[data-animating] {
+  overflow: clip;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .shell [role="tabpanel"]:not([hidden]) {
+    animation: workspace-panel-arrive var(--motion-panel) var(--motion-ease);
+  }
+  .shell :is(.collapsible-body, .collapsible-summary) {
+    animation: workspace-panel-arrive var(--motion-panel) var(--motion-ease);
+  }
+  .shell :is(.directory-card, .items-list-card, .gm-quest, .shops-list-card) {
+    animation: workspace-card-arrive var(--motion-panel) var(--motion-ease)
+      backwards;
+  }
+  .shell
+    :is(
+      .directory-card,
+      .items-list-card,
+      .gm-quest,
+      .shops-list-card
+    ):nth-child(2) {
+    animation-delay: 18ms;
+  }
+  .shell
+    :is(
+      .directory-card,
+      .items-list-card,
+      .gm-quest,
+      .shops-list-card
+    ):nth-child(3) {
+    animation-delay: 36ms;
+  }
+  .shell
+    :is(
+      .directory-card,
+      .items-list-card,
+      .gm-quest,
+      .shops-list-card
+    ):nth-child(4) {
+    animation-delay: 54ms;
+  }
+  .shell
+    :is(
+      .directory-card,
+      .items-list-card,
+      .gm-quest,
+      .shops-list-card
+    ):nth-child(n + 5) {
+    animation-delay: 70ms;
+  }
+  .shell :is(.workspace-tabs, .dossier-tabs, .creature-tabs) [role="tab"] {
+    transition:
+      background-color var(--motion-fast) ease,
+      border-color var(--motion-fast) ease,
+      color var(--motion-fast) ease;
+  }
+  .app-native-dialog[open] {
+    animation: workspace-dialog-arrive 180ms var(--motion-ease);
+  }
+  .app-native-dialog[open]::backdrop {
+    animation: workspace-backdrop-arrive 180ms ease-out;
+  }
+  .action-menu-popover,
+  .inplace-wiki-picker,
+  .workspace-secondary-actions[open] > div {
+    animation: workspace-menu-arrive var(--motion-fast) var(--motion-ease);
+    transform-origin: top center;
+  }
+
+  /* Native details preserve keyboard/selection behavior; unsupported engines stay instant. */
+  @supports (interpolate-size: allow-keywords) and
+    (transition-behavior: allow-discrete) {
+    :is(.shell .content, .app-native-dialog)
+      details:not(
+        .workspace-secondary-actions,
+        .creature-draft-menu,
+        .creative-generators
+      ) {
+      interpolate-size: allow-keywords;
+    }
+    :is(.shell .content, .app-native-dialog)
+      details:not(
+        .workspace-secondary-actions,
+        .creature-draft-menu,
+        .creative-generators
+      )::details-content {
+      block-size: 0;
+      opacity: 0;
+      overflow: clip;
+      overflow-clip-margin: 6px;
+      transition:
+        block-size var(--motion-disclosure) var(--motion-ease),
+        opacity var(--motion-fast) ease,
+        content-visibility var(--motion-disclosure) allow-discrete;
+    }
+    :is(.shell .content, .app-native-dialog)
+      details[open]:not(
+        .workspace-secondary-actions,
+        .creature-draft-menu,
+        .creative-generators
+      )::details-content {
+      block-size: auto;
+      opacity: 1;
+    }
+  }
+}
+
+@keyframes workspace-panel-arrive {
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes workspace-card-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes workspace-dialog-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes workspace-backdrop-arrive {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes workspace-menu-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(-3px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell *,
+  .shell *::before,
+  .shell *::after,
+  .app-native-dialog,
+  .app-native-dialog::backdrop,
+  .action-menu-popover,
+  .inplace-wiki-picker {
+    animation: none !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -20,6 +20,7 @@ import { ItemDetailModal } from "../items/ItemsPage";
 import { ItemCategoryIcon } from "../items/ItemCategoryIcon";
 import {
   buildBuiltInItemLookup,
+  isRemoteItem,
   enrichRemoteItemWithBuiltInMetrics,
 } from "../items/items.utils";
 import type { Item } from "../items/items.types";
@@ -1051,7 +1052,7 @@ export function ShopsPage({
   };
 
   const handleAddItem = (item: Item) => {
-    ensureCatalogItemDetail(item.id);
+    if (isRemoteItem(item)) ensureCatalogItemDetail(item.id);
     const stockItem: ShopInventoryItem = {
       id: createId("stock"),
       itemId: item.id,
@@ -1082,7 +1083,7 @@ export function ShopsPage({
     if (!item) {
       return;
     }
-    ensureCatalogItemDetail(item.id);
+    if (isRemoteItem(item)) ensureCatalogItemDetail(item.id);
     setSelectedInfoItemId(item.id);
   };
 

@@ -1,3 +1,4 @@
+import { PageTransition } from "./app/PageTransition";
 import {sanitizeStatEntries} from "./features/entities/stat-entry-input";
 import type {EntityEditorNavigation} from "./features/entities/entity.types";
 import {CombatPlanConflictReview} from "./features/prepared-combat/CombatPlanConflictReview";
@@ -4726,6 +4727,7 @@ export default function App() {
 
           {!isCombatScreen&&<nav className={workspaceStyles.breadcrumbs} aria-label="Путь"><a href={workspaceURL({campaignId:campaign.id,section:"dashboard"})}>{campaign.title}</a><span aria-hidden="true"> / </span><a href={workspaceURL({campaignId:campaign.id,section:workspaceRoute.section})}>{workspaceArea==="maps"?"Карты и сцены":workspaceArea==="chat"?"AI-чат":activeSectionLabel}</a>{activeEntity&&<><span aria-hidden="true"> / </span><span aria-current="page">{activeEntity.title}</span></>}</nav>}
           <section className={`panel content ${isCombatScreen ? "combat-content" : ""}`} ref={contentRef}>
+            <PageTransition target={contentRef} identity={[campaign.id,activeModule,activeRailAlias,activeEntity?.id,workspaceArea,workspaceRoute.target,workspaceRoute.view].join(":")}/>
             {campaign.readyCampaign && <p className="ready-campaign-notice">Готовые Кампании · сюжет, локации, НПС и карты защищены от изменений. Игроки, бои и журнал относятся к вашему прохождению.</p>}
             {!workspaceArea && activeModule === "players" && !activeEntity && (
               <Suspense fallback={<p role="status">Загружаем листы персонажей…</p>}>

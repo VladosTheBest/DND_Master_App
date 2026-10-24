@@ -1,5 +1,8 @@
+import { playWorkspaceMotion, workspaceEase } from "./app/workspace-motion";
 import {
   useState,
+  useRef,
+  useLayoutEffect,
   type CSSProperties,
   type HTMLAttributes,
   type ReactNode
@@ -368,14 +371,40 @@ export function CollapsibleSection({
 }) {
   const [storedCollapsed, setCollapsed] = useState(defaultCollapsed);
   const collapsed = collapsible && storedCollapsed;
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const fromHeight = useRef<number | null>(null);
+  const activeAnimation = useRef<Animation | null>(null);
+  const toggle = () => {
+    fromHeight.current = sectionRef.current?.getBoundingClientRect().height ?? null;
+    activeAnimation.current?.cancel();
+    setCollapsed(current => !current);
+  };
+  useLayoutEffect(() => {
+    const section = sectionRef.current, from = fromHeight.current;
+    fromHeight.current = null;
+    if (!section || from === null) return;
+    const to = section.getBoundingClientRect().height;
+    const animation = playWorkspaceMotion(section, [{height:`${from}px`},{height:`${to}px`}], {duration:280,easing:workspaceEase});
+    activeAnimation.current = animation;
+    if (!animation) return;
+    section.setAttribute("data-animating", "true");
+    const settled = () => {
+      if (activeAnimation.current !== animation) return;
+      activeAnimation.current = null;
+      section.removeAttribute("data-animating");
+    };
+    void animation.finished.then(settled,settled);
+  }, [collapsed]);
+  useLayoutEffect(() => () => activeAnimation.current?.cancel(), []);
+
 
   return (
-    <section className={`card section-card collapsible-section ${collapsed ? "collapsed" : ""} ${className}`.trim()}>
+    <section ref={sectionRef} className={`card section-card collapsible-section ${collapsed ? "collapsed" : ""} ${className}`.trim()}>
       <div className="collapsible-head">
         {collapsible?<button
           aria-expanded={!collapsed}
           className="collapsible-toggle"
-          onClick={() => setCollapsed((current) => !current)}
+          onClick={toggle}
           type="button"
         >
           <span className="collapsible-copy">

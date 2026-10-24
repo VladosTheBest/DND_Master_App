@@ -1,0 +1,25 @@
+{
+  "pageOpacityStart": 0.55,
+  "pageOpacitySettled": 1,
+  "nativeDisclosureDurationsMs": [
+    280,
+    160,
+    280
+  ],
+  "reactCardOpeningAnimated": true,
+  "reactCardRapidReverseAnimated": true,
+  "reactCardSettledHeight": 69,
+  "reactCardSettledAnimationMarker": false,
+  "reactCardSettledInlineHeight": "",
+  "itemDialogAnimation": "workspace-dialog-arrive",
+  "itemDialogDurationMs": 180,
+  "itemDialogFocusInside": true,
+  "builtInItemAlertsAfterFix": 0,
+  "escapeReturnsToItem": true,
+  "menuAnimation": "workspace-menu-arrive",
+  "menuFocusInside": true,
+  "menuEscapeReturnsToTrigger": true,
+  "mobileWidth": 390,
+  "mobileOverflow": false,
+  "mobileCardAnimation": "workspace-card-arrive"
+}
