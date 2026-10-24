@@ -70,3 +70,5 @@ P1: shallow baseline compact delta, зависимость открытого п
 
 
 Проверка новых аннотаций пользователя: [постоянный контекст и inline](docs/audits/product-design-2026-10-24/persistent-inline/README.md). Редактирование разделов и карточек перенесено в страницу с прежними drafts/409, исправлены Media и высоты предметов; доказательства и границы перечислены отдельно.
+
+Авторизованный повтор release 196 завершён в отдельной QA-кампании: таблица предмета, pair add/reload/both ends, inline reward colors и зачитка, сцена X440/Y230 после save/reload/reopen. Health passing; build/source соответствуют. Подробности и реальные снимки — persistent-inline.

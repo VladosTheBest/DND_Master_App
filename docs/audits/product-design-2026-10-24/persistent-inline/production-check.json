@@ -368,9 +368,23 @@
     "rollbackImage": "registry.fly.io/dnd-master-app:deployment-01M5PSD7YANGQG11VDDKFZZQNQ"
   },
   "authorizedSmoke": {
-    "status": "pending_final_release_login",
-    "priorRelease": 195,
-    "method": "Ordinary signed-in Chrome UI in separate synthetic campaign; no session export"
+    "status": "passed",
+    "release": 196,
+    "verifiedAt": "2026-10-24T12:54:57.471170+00:00",
+    "method": "Ordinary user-signed-in Chrome UI; separate synthetic QA campaign; no cookie/session export",
+    "item": "direct item detail with full table; one rendered table",
+    "relations": "unlink then re-add through search and location filter; both ends after reload",
+    "rewards": "inline save and reload; profile #342a21/#efe2c7, loot #eee5ff/#302b40; Investigation DC14 retained",
+    "cards": "new read-aloud card saved inline, visible after reload",
+    "scene": "light moved from X430/Y230 to X440/Y230; saved and reopened after reload; 4 walls, 1 door and 1 light retained",
+    "itemsGrid": "6 measured cards all 478.1875px; no horizontal overflow at 1440px",
+    "browserErrors": [],
+    "screenshots": [
+      "12-production-reverse-link.jpg",
+      "13-production-item.jpg",
+      "14-production-scene-reopened.jpg"
+    ],
+    "rollbackRequired": false
   },
   "localChecks": {
     "webBuild": "passed",
