@@ -1,0 +1,50 @@
+{
+  "moduleVersion": "0.18.0",
+  "sourceVideoProbe": {
+    "duration": 19,
+    "preparedHeight": 1080,
+    "preferredHeight": 1440
+  },
+  "realPreparedClip": {
+    "startSeconds": 1,
+    "durationSeconds": 12,
+    "width": 1920,
+    "height": 1080
+  },
+  "site": {
+    "youtubeCreateSaveReopen": true,
+    "directMP4CreateSave": true,
+    "directMetadata": [
+      960,
+      540
+    ],
+    "walls": 4,
+    "doors": 1,
+    "lights": 1,
+    "containsHelperKey": false
+  },
+  "nativeFoundry": {
+    "version": "14.368",
+    "exportedSize": [
+      1920,
+      1080
+    ],
+    "publishedSegments": 6,
+    "doors": 1,
+    "lights": 1,
+    "backgroundIsMP4": true,
+    "repeatImportNoDuplicate": true,
+    "rangeStatus": 206
+  },
+  "tests": {
+    "goFullSuite": "passed",
+    "moduleTests": 97,
+    "webBuild": "passed",
+    "race": "not_run_CGO_disabled"
+  },
+  "limits": {
+    "productionAuthorizedSmoke": false,
+    "separatePlayerSession": false,
+    "remoteHTTPSProxy": false
+  }
+}

@@ -14,6 +14,7 @@ export function createSceneAI({connected,request,saveState,localAsset,waitClosed
   const state=await connected();if(state.sceneAI){ui.notifications.info('Сначала завершите или отклоните текущую AI-задачу.');return open()}
   const tracked=Object.values(state.records??{}).find(r=>r.uuid===scene?.uuid),map=tracked?.record?.data;
   const source=map?.levels?.find(l=>l.id===scene.flags?.[MODULE]?.levelId)??map?.levels?.[0];
+  if(source?.video)throw Error('Видеофон размечается вручную на сайте. AI-анализ видео не отправляется на сервер.');
   if(!scene||!source||sceneBackground(scene)!==tracked.projection?.background?.src)throw Error('Для анализа откройте сцену, импортированную с сайта, с исходным фоном. Изменённый фон сначала загрузите в мастерскую сцен.');
   const native=sceneLevel(scene);
   state.sceneAI={input:{wallMode,requestId:crypto.randomUUID(),title:map.title,prompt:map.generation?.prompt||`Распознай стены, двери и свет на существующей карте: ${map.title}`,columns:native.columns||30,rows:native.rows||20,distance:native.gridDistance||5,weather:native.weather||'none',referenceUrl:source.imageUrl,improve:false,topology:true,animatedDoors:map.generation?.animatedDoors??source.walls?.some(w=>!!w.doorVisual)},target:{uuid:scene.uuid,geometry:topologySnapshot(scene)}};

@@ -561,6 +561,13 @@ func (m *foundryManager) distribution(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(405)
 		return
 	}
+	if r.URL.Path == "/foundry/foundry-video-helper.exe" || r.URL.Path == "/foundry/foundry-video-helper-linux-amd64" {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Disposition", `attachment; filename="`+filepath.Base(r.URL.Path)+`"`)
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		http.ServeFile(w, r, filepath.Join(m.srv.webDir, "foundry", filepath.Base(r.URL.Path)))
+		return
+	}
 	if r.URL.Path == "/foundry/shadow-edge-gm.zip" {
 		w.Header().Set("Content-Type", "application/zip")
 		w.Header().Set("X-Content-Type-Options", "nosniff")

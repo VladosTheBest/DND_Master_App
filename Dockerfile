@@ -40,6 +40,8 @@ RUN cd apps/server && go mod download
 COPY apps/server apps/server
 
 RUN go build -o /out/shadow-edge-server ./apps/server/cmd/server
+RUN GOOS=windows GOARCH=amd64 go build -trimpath -buildvcs=false -o /out/foundry-video-helper.exe ./apps/server/cmd/foundry-video-helper
+RUN GOOS=linux GOARCH=amd64 go build -trimpath -buildvcs=false -o /out/foundry-video-helper-linux-amd64 ./apps/server/cmd/foundry-video-helper
 
 
 FROM node:22-bookworm-slim
@@ -73,6 +75,7 @@ COPY scripts/optimize-image.mjs /app/scripts/optimize-image.mjs
 
 COPY --from=server-build /out/shadow-edge-server /app/shadow-edge-server
 COPY --from=web-build /app/apps/web/dist /app/apps/web/dist
+COPY --from=server-build /out/foundry-video-helper.exe /out/foundry-video-helper-linux-amd64 /app/apps/web/dist/foundry/
 COPY --from=web-build /app/packages/mcp-server/dist /app/packages/mcp-server/dist
 COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 COPY scripts/run-server.sh /app/run-server.sh

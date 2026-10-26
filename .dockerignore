@@ -24,3 +24,5 @@ apps/web/dist
 .env.local
 .env.*.local
 apps/server/internal/httpapi/*.go.*
+
+/apps/web/public/foundry/foundry-video-helper-linux-amd64

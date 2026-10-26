@@ -159,6 +159,8 @@ func NewServer(options Options) (http.Handler, error) {
 	mux.HandleFunc("/foundry/connect", srv.foundry.connectPage)
 	mux.HandleFunc("/foundry/module.json", srv.foundry.distribution)
 	mux.HandleFunc("/foundry/shadow-edge-gm.zip", srv.foundry.distribution)
+	mux.HandleFunc("/foundry/foundry-video-helper.exe", srv.foundry.distribution)
+	mux.HandleFunc("/foundry/foundry-video-helper-linux-amd64", srv.foundry.distribution)
 	mux.HandleFunc("/display/", srv.shares.handlePublicDisplayPage)
 	mux.HandleFunc("/api/display-meta/", srv.shares.handlePublicDisplayMeta)
 	mux.HandleFunc("/api/display/", srv.shares.handlePublicDisplayAPI)

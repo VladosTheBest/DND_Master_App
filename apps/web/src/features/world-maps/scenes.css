@@ -28,3 +28,4 @@
 @media(max-width:600px){.scene-preview{width:calc(100vw - 1rem);max-width:calc(100vw - 1rem)}.scene-edit-tools{padding:10px!important}.scene-source-actions{gap:6px}.scene-source-actions button{min-height:40px;padding:8px}.scene-camera{height:44dvh}}
 
 .scene-source-actions button{display:inline-flex;align-items:center;justify-content:center;gap:7px}.scene-comparison{display:grid;grid-template-columns:1fr 1fr;gap:12px}.scene-comparison pre{max-height:220px;overflow:auto;font-size:11px;white-space:pre-wrap;overflow-wrap:anywhere}.scene-conflict-review{border:1px solid #bd8c64;padding:12px;border-radius:9px}@media(max-width:600px){.scene-comparison{grid-template-columns:1fr}}
+.scene-video-thumbnail{position:relative;min-height:120px;display:grid;place-items:center;background:#242738;border-radius:10px}.scene-video-thumbnail span{padding:8px;color:#d7c7fa}.scene-video-thumbnail img+span{position:absolute;bottom:6px;left:6px;background:#191d29dd;border-radius:6px}
